@@ -119,8 +119,8 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(2, 3, 0, 3), Background = new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)), Foreground = Brushes.White };
         bandBtn.Click += (a, e) => SetBandMode(bandBtn.IsChecked == true);
         bar.Children.Add(bandBtn);
-        ToolBtn(Tool.Select, "↖ Wskaż / przesuń", "Zaznaczanie obiektów i przeciąganie węzłów, napisów i peronów. Przeciąganie pustego miejsca – przesuwanie obrazu, kółko – powiększenie. Del – usuń zaznaczony obiekt.", Key.V);
-        ToolBtn(Tool.Track, "━ Tor", "Rysowanie toru: klikaj kolejne punkty (węzeł, tor – podział, puste miejsce – nowy węzeł). Shift – poziomo. PPM / Esc – koniec ciągu.", Key.T);
+        ToolBtn(Tool.Select, "↖ Wskaż / przesuń", "Zaznaczanie obiektów i przeciąganie węzłów, napisów i peronów. Przeciąganie pustego miejsca – przesuwanie obrazu, kółko – powiększenie. W każdym narzędziu: środkowy przycisk myszy albo Spacja + LPM – przesuwanie widoku. Del – usuń zaznaczony obiekt.", Key.V);
+        ToolBtn(Tool.Track, "━ Tor", "Rysowanie toru: klikaj kolejne punkty (węzeł, tor – podział, puste miejsce – nowy węzeł). Shift – poziomo. PPM / Esc – koniec ciągu. Przesuwanie widoku w trakcie: środkowy przycisk myszy albo Spacja + LPM, kółko – powiększenie.", Key.T);
         ToolBtn(Tool.Section, "┅ Odcinek", "Odcinki izolowane: klik na torze przypisuje mu odcinek z pola obok; Ctrl+klik pobiera odcinek klikniętego toru. Tory odcinka są podświetlone.", Key.I);
         ToolBtn(Tool.Turnout, "⌐ Rozjazd", "Klik na torze (miejsce zwrotnicy), potem: klik na drugim torze – łącznik rozjazdowy z dwiema zwrotnicami (ukos – pion – ukos), albo klik w pustym miejscu – odgałęzienie z nowym torem do tego punktu. Kierunek ukosu: w stronę drugiego kliknięcia.", Key.R);
         ToolBtn(Tool.Switch, "⑂ Zwrotnica", "Klik na węźle z 3 torami – nowa zwrotnica (iglica po stronie pojedynczego toru).", Key.Z);

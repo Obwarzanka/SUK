@@ -77,6 +77,9 @@ public class PanelView : FrameworkElement
     {
         ClipToBounds = true; Focusable = true;
         MouseWheel += OnWheel; MouseLeftButtonDown += OnLeftDown; MouseLeftButtonUp += OnLeftUp; MouseMove += OnMove;
+        // przesuwanie widoku w każdym narzędziu edytora: środkowy przycisk myszy (albo Spacja + LPM)
+        MouseDown += (s, e) => { if (e.ChangedButton == MouseButton.Middle) { StartPan(e.GetPosition(this)); e.Handled = true; } };
+        MouseUp += (s, e) => { if (e.ChangedButton == MouseButton.Middle && panFrom != null) { panFrom = null; ReleaseMouseCapture(); Cursor = null; e.Handled = true; } };
         MouseRightButtonUp += (s, e) => { if (Editor != null) { Editor.Right(S2W(e.GetPosition(this))); InvalidateVisual(); } else HitAndRaise(e); };
     }
 
@@ -112,22 +115,27 @@ public class PanelView : FrameworkElement
     public void CenterOn(double x, double y) { offX = ActualWidth / 2 - x * scale; offY = ActualHeight / 2 - y * scale; InvalidateVisual(); }
 
     // ------------------------------------------------------------------ mysz
+    Point? panFrom; Point panOff;
+    void StartPan(Point p) { Focus(); panFrom = p; panOff = new Point(offX, offY); CaptureMouse(); Cursor = Cursors.SizeAll; }
     void OnWheel(object s, MouseWheelEventArgs e)
     {
         var p = e.GetPosition(this); var w = S2W(p);
-        scale = Math.Clamp(scale * (e.Delta > 0 ? 1.15 : 1 / 1.15), 0.2, 6);
+        // szeroki zakres: cała linia w skali rzeczywistej (oddalenie) i szczegóły zdjęcia (przybliżenie)
+        scale = Math.Clamp(scale * (e.Delta > 0 ? 1.15 : 1 / 1.15), Editor != null ? 0.004 : 0.2, Editor != null ? 60 : 6);
         offX = p.X - w.X * scale; offY = p.Y - w.Y * scale;
         InvalidateVisual();
     }
     void OnLeftDown(object s, MouseButtonEventArgs e)
     {
         Focus();
+        if (Keyboard.IsKeyDown(Key.Space)) { StartPan(e.GetPosition(this)); e.Handled = true; return; }
         if (Editor != null && Editor.Down(S2W(e.GetPosition(this)), e)) { editDrag = true; CaptureMouse(); InvalidateVisual(); return; }
         dragFrom = e.GetPosition(this); dragOff = new Point(offX, offY); dragged = false; CaptureMouse();
     }
     void OnLeftUp(object s, MouseButtonEventArgs e)
     {
         ReleaseMouseCapture();
+        if (panFrom != null) { panFrom = null; Cursor = null; return; }
         if (editDrag) { editDrag = false; Editor?.Up(S2W(e.GetPosition(this)), e); InvalidateVisual(); return; }
         var was = dragged; dragFrom = null;
         if (!was && Editor == null && Overview) { var w = S2W(e.GetPosition(this)); var pg = Lay?.PageOfX(w.X); if (pg != null) OverviewClicked?.Invoke(pg.Id); return; }
@@ -136,6 +144,11 @@ public class PanelView : FrameworkElement
     void OnMove(object s, MouseEventArgs e)
     {
         var p = e.GetPosition(this);
+        if (panFrom is Point pf)
+        {
+            if (e.MiddleButton == MouseButtonState.Pressed || e.LeftButton == MouseButtonState.Pressed) { offX = panOff.X + (p.X - pf.X); offY = panOff.Y + (p.Y - pf.Y); InvalidateVisual(); return; }
+            panFrom = null; ReleaseMouseCapture(); Cursor = null;
+        }
         if (Editor != null && (editDrag || dragFrom == null))
         {
             Editor.Move(S2W(p), e);

@@ -195,6 +195,11 @@ Nie ma jeszcze (brak danych w układzie): kilometraż i oś stacji, ukresy W17, 
 - Teraz (`GeoPodklad.Mosaic`, `Tile`, `GetFresh`, `Retry`): każde zapytanie do Geoportalu nowym połączeniem (`Connection: close`) i bez ciasteczek (HttpClient bez `UseCookies` – Geoportal przypina sesję do jednego serwera), do 6 prób na kafelek, Geoportal po 2 naraz, Esri po 4; nieudany kafelek nie przerywa reszty – pobrane trafiają na plan, nieudane w komunikacie (z przyczyną) i w `Data/bledy.log`, przy ponownym zaznaczeniu dociągają się tylko brakujące. Zapis kafelków przez plik `.tmp` (przerwane pobieranie nie zostawia uszkodzonego pliku). Kafelek spoza mapy – błąd od razu. To samo zabezpieczenie (próby, nowe połączenie) przy pobieraniu obszaru ortofotomapy, kafelków OSM / Esri i obrazu z URL.
 - Test `kafelki`: 16 kafelków Geoportalu wzdłuż linii – 16 / 16 w 15 s; nieudany kafelek nie przerywa pobierania; brak plików `.tmp`.
 
+**ZROBIONE (2026-10-16, cd.): przesuwanie widoku przy budowie** (zgłoszenie właściciela: „podczas budowy nie mogę przesuwać mapy”)
+- `PanelView`: środkowy przycisk myszy albo Spacja + LPM przesuwa widok w każdym narzędziu edytora (wcześniej tylko przeciąganie pustego miejsca w „Wskaż”; narzędzie Tor stawiało punkty, „Zaznacz obszarem” rysował prostokąt). W edytorze zakres przybliżenia 0,004–60 (było 0,2–6 – długa linia w skali rzeczywistej nie mieściła się w oknie). Pulpit bez zmian.
+- Nie sprawdzono prawdziwą myszą (testy symulują tylko zdarzenia edytora); fuzz i dfuzz po 0 błędów.
+- Skala do rysowania po ortofotomapie: **1:2000 w obu kierunkach (skala rzeczywista) z „Długościami torów z rysunku”** – długości (także skosów) rzeczywiste; dokładność zależy od przyciągania do siatki (siatka 8 j. = 6,4 m przy 1:2000; do rysowania po zdjęciu – siatka 1 albo Shift do poziomu).
+
 **Do zrobienia w etapie 1:**
 - Ten sam tor na dwóch obrazach (granica stacji).
 - Osobne obrazy z własnym układem współrzędnych zamiast zakresów X.
