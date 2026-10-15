@@ -227,18 +227,23 @@ public partial class EditorWindow
     {
         bgCache.Remove(Path.GetFullPath(res.File));
         var img = BgImage(Path.GetFullPath(res.File)); if (img == null) { status.Text = "✗ Nie można wczytać pobranego obrazu"; return; }
-        // naturalne proporcje (bez rozciągania) – zdjęcie wygląda jak zdjęcie; skala wzdłuż toru zgodna z planem
-        double w = res.W * res.Mpp * doc.Ux, h = res.H * res.Mpp * doc.Ux;
+        // pusty plan w skali Ig-10 (inna poprzeczna) – od razu skala rzeczywista, żeby zdjęcie nie było zniekształcone
+        string note = "";
+        doc.Snapshot();
+        if (doc.Nodes.Count == 0 && !doc.RealScale) { doc.SetPlanScale(doc.ScaleAlong, doc.ScaleAlong, true); note = $" Plan pusty – ustawiono skalę rzeczywistą 1:{doc.ScaleAlong:0} w obu kierunkach."; }
+        // podkład dokładnie w skali planu: wzdłuż wg skali podłużnej, w poprzek wg poprzecznej (w skali rzeczywistej – bez zniekształceń)
+        double w = res.W * res.Mpp * doc.Ux, h = res.H * res.Mpp * doc.Uy;
         var v = panel.ViewWorld;
         Point c = st != null && st.Nodes.Count > 0 && !v.IsEmpty ? new Point(v.X + v.Width / 2, v.Y + v.Height / 2) : new Point(0, 0);
-        doc.Snapshot();
         var bg = new JsonObject
         {
             ["file"] = BgRel(res.File), ["x"] = Math.Round(c.X - w / 2, 2), ["y"] = Math.Round(c.Y - h / 2, 2), ["w"] = Math.Round(w, 2),
-            ["rot"] = 0, ["opacity"] = 0.85, ["attribution"] = res.Attribution, ["geo"] = res.Geo,
+            ["sy"] = Math.Round(doc.Uy / doc.Ux, 5), ["rot"] = 0, ["opacity"] = 0.85, ["attribution"] = res.Attribution, ["geo"] = res.Geo,
         };
         doc.Root["planBg"] = bg;
-        Changed($"Podkład w skali planu: {res.W}×{res.H} px, 1 px = {res.Mpp:0.###} m ({res.W * res.Mpp:0} × {res.H * res.Mpp:0} m). Zdjęcie bez rozciągania – skala wzdłuż toru zgodna z planem; obróć: „1. Wyrównaj tor do poziomu”. {res.Attribution}");
+        if (Math.Abs(doc.Uy / doc.Ux - 1) < 1e-6) bg.Remove("sy");
+        Changed($"Podkład w skali planu 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0}: {res.W}×{res.H} px, 1 px = {res.Mpp:0.###} m ({res.W * res.Mpp:0} × {res.H * res.Mpp:0} m).{note}" +
+            (doc.RealScale ? " Bez zniekształceń – rysuj tory po zdjęciu, długości wyjdą rzeczywiste." : $" Plan ma skalę poprzeczną 1:{doc.ScaleAcross:0}, więc zdjęcie jest rozciągnięte ×{doc.Uy / doc.Ux:0.#} w pionie – dla zdjęcia bez zniekształceń wybierz skalę rzeczywistą.") + $" Obróć: „1. Wyrównaj tor do poziomu”. {res.Attribution}");
         if (!FuzzMode) panel.FitAll();
     }
 
@@ -264,8 +269,8 @@ public partial class EditorWindow
         ApplyGeoBackground(res);
         var bi = BgImage(BgFile(Bg)); var t = BgXf(Bg, bi);
         double mW = (BgToWorld(t, new Point(bi.PixelWidth, 0)).X - BgToWorld(t, new Point(0, 0)).X) / doc.Ux;
-        double mH = (BgToWorld(t, new Point(0, bi.PixelHeight)).Y - BgToWorld(t, new Point(0, 0)).Y) / doc.Ux;
-        Ok(Math.Abs(mW - res.W * res.Mpp) < 0.5 && Math.Abs(mH - res.H * res.Mpp) < 0.5, $"na planie: {mW:0.#} m × {mH:0.#} m w skali 1:{doc.ScaleAlong:0}, bez rozciągania (sy = {t.Sy})");
+        double mH = (BgToWorld(t, new Point(0, bi.PixelHeight)).Y - BgToWorld(t, new Point(0, 0)).Y) / doc.Uy;
+        Ok(Math.Abs(mW - res.W * res.Mpp) < 0.5 && Math.Abs(mH - res.H * res.Mpp) < 0.5, $"na planie: {mW:0.#} m × {mH:0.#} m w skali 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0} (rozciągnięcie pionowe {t.Sy})");
         doc.Save(outJson);
         Ok(StationDoc.Load(outJson).Root["planBg"]?["geo"]?["mpp"] != null, "zapis podkładu z georeferencją");
         // zrzut: środek podkładu, ok. 1200 m szerokości widoku

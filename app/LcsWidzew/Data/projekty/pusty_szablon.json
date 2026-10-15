@@ -1,0 +1,46 @@
+{
+ "name": "Pusty szablon",
+ "code": "ST",
+ "width": 2000,
+ "height": 1125,
+ "source": "edytor – pusty szablon",
+ "pages": [
+  {
+   "id": "ST",
+   "name": "Nowa stacja",
+   "x0": 0,
+   "x1": 2000,
+   "posts": [
+    "ST"
+   ]
+  }
+ ],
+ "posts": {
+  "ST": "Nowa stacja"
+ },
+ "nodes": {},
+ "switches": {},
+ "signals": {},
+ "derailers": {},
+ "blocks": {},
+ "boundaries": {},
+ "farEnds": {},
+ "trackEnds": {},
+ "edges": [],
+ "platforms": [],
+ "labels": [],
+ "crossings": [],
+ "dashed": [],
+ "planScale": {
+  "along": 2000,
+  "across": 2000,
+  "auto": true
+ },
+ "display": {
+  "nodes": {},
+  "edges": {},
+  "labels": [],
+  "platforms": [],
+  "crossings": []
+ }
+}

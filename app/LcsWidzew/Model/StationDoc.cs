@@ -43,7 +43,10 @@ public partial class StationDoc
         {
             ["name"] = name, ["code"] = post, ["width"] = 2000, ["height"] = 1125, ["source"] = "edytor",
             ["pages"] = new JsonArray(new JsonObject { ["id"] = post, ["name"] = name, ["x0"] = 0, ["x1"] = 2000, ["posts"] = new JsonArray(post) }),
-            ["posts"] = new JsonObject { [post] = name }
+            ["posts"] = new JsonObject { [post] = name },
+            // nowy obszar: plan w skali rzeczywistej z długościami z rysunku, zobrazowanie puste (rysowane osobno)
+            ["planScale"] = new JsonObject { ["along"] = 2000, ["across"] = 2000, ["auto"] = true },
+            ["display"] = new JsonObject { ["nodes"] = new JsonObject(), ["edges"] = new JsonObject(), ["labels"] = new JsonArray(), ["platforms"] = new JsonArray(), ["crossings"] = new JsonArray() }
         };
         return new StationDoc(r);
     }

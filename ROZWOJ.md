@@ -170,6 +170,11 @@ Nie ma jeszcze (brak danych w układzie): kilometraż i oś stacji, ukresy W17, 
 - Pominięte na polecenie właściciela: kreator „nowa stacja od zera” (właściciel buduje stacje sam).
 - Dalsze braki komputera zależności wg poradnika (do ustalenia kolejności z właścicielem): zwrotnice w drodze ochronnej (dziś droga ochronna = jeden odcinek), ochrona boczna dalej niż pierwszy element (dojście od ostrza), blokada stacyjna (1.5.9), rejestrator zdarzeń z odtwarzaniem (Tabela 21 pkt 3), przejazdy (1.10), awaryjny terminal (Tabela 25).
 
+**ZROBIONE (2026-10-16, cd.): pusty szablon i podkład w skali rzeczywistej** (polecenie właściciela: „daj mi pusty szablon i dopasuj podkład do skali realnej na plan schematyczny”)
+- `Data/projekty/pusty_szablon.json` – pusty obszar (posterunek ST, jeden obraz), plan 1:2000 w obu kierunkach, długości z rysunku, puste zobrazowanie; widoczny na liście wersji przy starcie. Pulpit i selftest go wczytują (0 przebiegów). Zapisuj stację pod własną nazwą („Zapisz jako…”), żeby szablon został pusty.
+- Skale planu: oprócz Ig-10 (1:2000/1:500, 1:4000/1:1000) **skala rzeczywista** 1:2000/1:2000 i 1:1000/1:1000 (`StationDoc.RealScale`) – zdjęcie lotnicze / mapa leży na planie bez zniekształceń, a tory narysowane po nim mają prawdziwe długości (także skosy). Zmiana skali z listy przeskalowuje rysunek i podkład.
+- Podkład geograficzny (orto / OSM / Esri) zawsze dokładnie w skali planu: szerokość wg skali podłużnej, wysokość wg poprzecznej (`sy` = Uy/Ux). Przy pustym planie w skali Ig-10 edytor przełącza go na rzeczywistą (jedno Ctrl+Z). W skali Ig-10 zdjęcie jest rozciągnięte – komunikat to mówi. `StationDoc.New` (Nowy obszar…) – też skala rzeczywista, auto, puste zobrazowanie. Zrzut: `zrzuty/Pusty_szablon_podklad_skala_rzeczywista.png`.
+
 **Do zrobienia w etapie 1:**
 - Ten sam tor na dwóch obrazach (granica stacji).
 - Osobne obrazy z własnym układem współrzędnych zamiast zakresów X.

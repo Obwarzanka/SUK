@@ -238,7 +238,7 @@ public partial class EditorWindow
         props.Children.Add(Btn("1. Wyrównaj tor do poziomu (2 punkty)", (a, e) => StartBgOp("level")));
         props.Children.Add(Btn("2. Skala wzdłuż: 2 punkty + odległość [m]", (a, e) => StartBgOp("along")));
         props.Children.Add(Btn("3. Skala w poprzek: 2 tory + rozstaw [m]", (a, e) => StartBgOp("across")));
-        props.Children.Add(Btn($"Rozciągnij pionowo ×{doc.Uy / doc.Ux:0.##} (zniekształca zdjęcie)", (a, e) => Safe(() =>
+        if (!doc.RealScale) props.Children.Add(Btn($"Rozciągnij pionowo ×{doc.Uy / doc.Ux:0.##} (zniekształca zdjęcie)", (a, e) => Safe(() =>
         {
             var b = Bg; var im = BgImage(BgFile(b)); if (im == null) return;
             var t = BgXf(b, im); doc.Snapshot(); BgStore(b, im, t with { Sy = doc.Uy / doc.Ux });

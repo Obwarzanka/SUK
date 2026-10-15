@@ -17,7 +17,11 @@ public partial class StationDoc
     {
         (2000, 500, "1:2000 wzdłuż / 1:500 w poprzek (Ig-10 § 3 ust. 1)"),
         (4000, 1000, "1:4000 wzdłuż / 1:1000 w poprzek (Ig-10 § 3 ust. 2)"),
+        (2000, 2000, "1:2000 w obu kierunkach – skala rzeczywista (podkład ze zdjęć / mapy bez zniekształceń)"),
+        (1000, 1000, "1:1000 w obu kierunkach – skala rzeczywista, większa"),
     };
+    /// <summary>Skala rzeczywista: ta sama wzdłuż i w poprzek – zdjęcie lotnicze / mapa leży na planie bez zniekształceń.</summary>
+    public bool RealScale => Math.Abs(ScaleAlong - ScaleAcross) < 0.5;
 
     public JsonObject PlanScaleObj => Root["planScale"] as JsonObject;
     public double ScaleAlong => PlanScaleObj?["along"] is JsonNode n ? Math.Max(10, D(n)) : 2000;
