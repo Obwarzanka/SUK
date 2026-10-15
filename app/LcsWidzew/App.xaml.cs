@@ -86,6 +86,8 @@ public partial class App : Application
                 if (A.Length > 3 && A[2] == "dclear") File.WriteAllText(shot + ".txt", ed.DClearForTest(A[3]));
                 if (A.Length > 7 && A[2] == "podklad") File.WriteAllText(shot + ".txt", ed.BgGeoForTest(A[3], A[4], double.Parse(A[5], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[6], System.Globalization.CultureInfo.InvariantCulture), A[7]));
                 if (A.Length > 5 && A[2] == "kafelki") File.WriteAllText(shot + ".txt", ed.TilesForTest(A[3], A[4], A[5], A.Length > 6 ? A[6] : null));
+                if (A.Length > 4 && A[2] == "jakosc") File.WriteAllText(shot + ".txt", ed.QualityForTest(A[3], A[4]));
+                if (A.Length > 3 && A[2] == "luki") File.WriteAllText(shot + ".txt", ed.CurvesForTest(A[3]));
                 if (A.Length > 3 && A[2] == "bramka") File.WriteAllText(shot + ".txt", ed.GantryForTest(A[3]));
                 if (A.Length > 3 && A[2] == "skala") File.WriteAllText(shot + ".txt", ed.ScaleForTest(A[3], A.Length > 4 ? A[4] : null));
                 if (A.Length > 3 && A[2] == "deco") File.WriteAllText(shot + ".txt", ed.DecoForTest(A[3]));

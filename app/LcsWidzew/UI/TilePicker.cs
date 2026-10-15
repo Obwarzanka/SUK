@@ -49,7 +49,7 @@ public class TilePickerWindow : Window
     public readonly HashSet<(int X, int Y)> Selected = new();
     public HashSet<(int X, int Y)> Existing = new();
     public int Source => srcBox.SelectedIndex;              // 0 – ortofotomapa (Geoportal), 1 – zdjęcia satelitarne (Esri)
-    public int N => resBox.SelectedIndex == 0 ? 1024 : 2048;
+    public int N => 1024 << Math.Clamp(resBox.SelectedIndex, 0, 2);
     readonly MapCanvas map;
     readonly ComboBox srcBox = new() { Width = 260 }, resBox = new() { Width = 220 };
     readonly TextBlock info = new() { Foreground = Brushes.LightGray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
@@ -69,7 +69,8 @@ public class TilePickerWindow : Window
         bar.Children.Add(B("Idź", (a, e) => { if (GeoPodklad.TryLatLon(go.Text, out var la, out var lo)) map.GoTo(la, lo, 14); }));
         go.KeyDown += (a, e) => { if (e.Key == Key.Enter && GeoPodklad.TryLatLon(go.Text, out var la, out var lo)) map.GoTo(la, lo, 14); };
         srcBox.ItemsSource = new[] { "Ortofotomapa – Geoportal (GUGiK)", "Zdjęcia satelitarne – Esri World Imagery" }; srcBox.SelectedIndex = 0;
-        resBox.ItemsSource = new[] { "1024 px na kafelek (ok. 0,7 m/px)", "2048 px na kafelek (ok. 0,4 m/px)" }; resBox.SelectedIndex = 0;
+        resBox.ItemsSource = new[] { "1024 px na kafelek (ok. 0,7 m/px)", "2048 px na kafelek (ok. 0,4 m/px)", "4096 px na kafelek (ok. 0,18 m/px – widać szyny)" }; resBox.SelectedIndex = 1;
+        resBox.ToolTip = "Ortofotomapa Geoportalu w pełnej rozdzielczości (HighResolution). 4096 px – najostrzej, ok. 3–4 MB na kafelek. Zdjęcia Esri – najwyżej 2048 px.";
         bar.Children.Add(L("Źródło:")); bar.Children.Add(srcBox); bar.Children.Add(L("Rozdzielczość:")); bar.Children.Add(resBox);
         var orm = new CheckBox { Content = "linie kolejowe (OpenRailwayMap)", IsChecked = true, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
         orm.Click += (a, e) => { map.Rail = orm.IsChecked == true; map.InvalidateVisual(); };
@@ -92,7 +93,7 @@ public class TilePickerWindow : Window
     public void Changed()
     {
         double km = Selected.Count > 0 ? Selected.Average(t => WebTiles.GroundMpp(t.Y, WebTiles.PickZ, 1)) / 1000 : 0;
-        info.Text = Selected.Count == 0 ? "Zaznacz kafelki na mapie" : $"Zaznaczone: {Selected.Count} kaf. (ok. {km:0.00} × {km:0.00} km każdy), ok. {Selected.Count * (N == 1024 ? 0.3 : 1.1):0.#} MB";
+        info.Text = Selected.Count == 0 ? "Zaznacz kafelki na mapie" : $"Zaznaczone: {Selected.Count} kaf. (ok. {km:0.00} × {km:0.00} km każdy), ok. {Selected.Count * (N == 1024 ? 0.3 : N == 2048 ? 1.1 : 3.5):0.#} MB";
         map.InvalidateVisual();
     }
 
@@ -210,7 +211,7 @@ public partial class EditorWindow
         var win = new TilePickerWindow(lat, lon, z) { Owner = this };
         foreach (var o in (Bgs ?? new JsonArray()).OfType<JsonObject>().Where(IsTiles)) foreach (var t in Tiles(o)) win.Existing.Add(t);
         if (win.ShowDialog() != true || win.Selected.Count == 0) return;
-        string src = win.Source == 1 ? "esri" : "orto"; int n = win.N; var tiles = win.Selected.ToList();
+        string src = win.Source == 1 ? "esri" : "orto"; int n = src == "esri" ? Math.Min(2048, win.N) : win.N; var tiles = win.Selected.ToList();
         await RunBg(() =>
         {
             var m = GeoPodklad.Mosaic(src, n, tiles, BgDir, Progress);
@@ -367,6 +368,34 @@ public partial class EditorWindow
             var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb)); using (var fs = File.Create(mapShot)) enc.Save(fs);
             win.Close();
         }
+        log.AppendLine($"błędów testu: {bad}, błędów edytora: {Errors.Count}");
+        return log.ToString();
+    }
+
+}
+
+public partial class EditorWindow
+{
+    /// <summary>Test (--editshot … jakosc "lat, lon" out.json): kafelki 4096 px z pełnej rozdzielczości, przybliżenie na tory.</summary>
+    public string QualityForTest(string latlon, string outJson)
+    {
+        var log = new System.Text.StringBuilder(); FuzzMode = true; int bad = 0;
+        void Ok(bool c, string m) { log.AppendLine((c ? "OK  " : "BŁĄD") + " " + m); if (!c) bad++; }
+        PlanForTest();
+        GeoPodklad.TryLatLon(latlon, out var lat, out var lon);
+        var (gx, gy) = WebTiles.LatLonToPx(lat, lon, WebTiles.PickZ); int cx = (int)(gx / 256), cy = (int)(gy / 256);
+        var tiles = new List<(int, int)> { (cx, cy), (cx + 1, cy) };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var m = Task.Run(() => GeoPodklad.Mosaic("orto", 4096, tiles, BgDir, null)).GetAwaiter().GetResult();
+        Ok(m.Ok.Count == 2, $"2 kafelki 4096 px: {m.Ok.Count} w {sw.Elapsed.TotalSeconds:0} s, {new FileInfo(Path.Combine(m.Dir, $"{cx}_{cy}.jpg")).Length / 1024} kB" + (m.Failed.Count > 0 ? " – " + m.Failed[0] : ""));
+        AddTiles("orto", 4096, m.Ok, m.Dir, false);
+        var bg = Bg; var t = BgXf(bg, BgPx(bg));
+        Ok(Math.Abs(t.S / doc.Ux - WebTiles.GroundMpp(cy, 15, 4096)) < 1e-3, $"1 px = {t.S / doc.Ux:0.###} m");
+        // przybliżenie: ok. 120 m szerokości widoku na środek stacji
+        var (px, py) = WebTiles.LatLonToPx(lat, lon, 15); var (x0, y0, _, _) = TileSpan(bg);
+        var c = BgToWorld(t, new Point((px - x0 * 256) * 16, (py - y0 * 256) * 16));
+        ZoomForTest(c.X, c.Y, panel.ActualWidth / (120 * doc.Ux));
+        doc.Save(outJson);
         log.AppendLine($"błędów testu: {bad}, błędów edytora: {Errors.Count}");
         return log.ToString();
     }

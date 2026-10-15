@@ -126,7 +126,7 @@ public partial class EditorWindow
 
     void DrawPlanBackground(DrawingContext dc, double scale)
     {
-        if (Bgs is { } all) foreach (var o in all.OfType<JsonObject>()) DrawOneBg(dc, o);
+        if (Bgs is { } all) foreach (var o in all.OfType<JsonObject>()) DrawOneBg(dc, o, scale);
         // znaczniki kalibracji
         var pen = new Pen(Brushes.OrangeRed, 2 / scale);
         void Mark(Point p) { dc.DrawLine(pen, p + new Vector(-8, 0) / scale, p + new Vector(8, 0) / scale); dc.DrawLine(pen, p + new Vector(0, -8) / scale, p + new Vector(0, 8) / scale); }
@@ -135,7 +135,7 @@ public partial class EditorWindow
         if (bgOp != null) foreach (var p in bgPts) { Mark(p); dc.DrawLine(new Pen(Brushes.OrangeRed, 1 / scale) { DashStyle = DashStyles.Dash }, p, mouse); }
     }
 
-    void DrawOneBg(DrawingContext dc, JsonObject bg)
+    void DrawOneBg(DrawingContext dc, JsonObject bg, double scale)
     {
         if (bg["hidden"] is JsonValue hv && hv.TryGetValue<bool>(out var h) && h) return;
         var sz = BgPx(bg); if (sz == null) return;
@@ -144,11 +144,59 @@ public partial class EditorWindow
         dc.PushTransform(new TranslateTransform(t.O.X, t.O.Y)); dc.PushTransform(new ScaleTransform(1, t.Sy)); dc.PushTransform(new RotateTransform(t.Rot)); dc.PushOpacity(op);
         if (IsTiles(bg))
         {
-            var (x0, y0, _, _) = TileSpan(bg); double n = Num(bg["n"], 1024) * t.S;
-            foreach (var (x, y) in Tiles(bg)) if (BgImage(TileFile(bg, x, y)) is { } ti) dc.DrawImage(ti, new Rect((x - x0) * n, (y - y0) * n, n, n));
+            // tylko widoczne kafelki, w rozdzielczości dopasowanej do przybliżenia (pamięć: kafelek 4096 px to 64 MB)
+            var (x0, y0, _, _) = TileSpan(bg); int npx = (int)Num(bg["n"], 1024); double n = npx * t.S;
+            var view = panel.ViewWorld; view.Inflate(view.Width * 0.15, view.Height * 0.15);
+            double onScreen = n * Math.Max(1, t.Sy) * scale; int want = 128; while (want < onScreen && want < npx) want *= 2; want = Math.Min(want, npx);
+            foreach (var (x, y) in Tiles(bg))
+            {
+                double px = (x - x0) * npx, py = (y - y0) * npx;
+                var c = new[] { BgToWorld(t, new Point(px, py)), BgToWorld(t, new Point(px + npx, py)), BgToWorld(t, new Point(px, py + npx)), BgToWorld(t, new Point(px + npx, py + npx)) };
+                var bb = new Rect(new Point(c.Min(q => q.X), c.Min(q => q.Y)), new Point(c.Max(q => q.X), c.Max(q => q.Y)));
+                if (!bb.IntersectsWith(view)) continue;
+                if (TileImg(TileFile(bg, x, y), want) is { } ti) dc.DrawImage(ti, new Rect((x - x0) * n, (y - y0) * n, n, n));
+            }
         }
         else if (BgImage(BgFile(bg)) is { } img) dc.DrawImage(img, new Rect(0, 0, img.PixelWidth * t.S, img.PixelHeight * t.S));
         dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+    }
+
+    // ---------------- kafelki: poziomy szczegółowości (dekodowanie zmniejszone, w tle), pamięć ograniczona
+    static readonly Dictionary<(string F, int W), (BitmapSource Img, long Tick)> lod = new();
+    static readonly HashSet<(string, int)> lodPending = new();
+    static long lodBytes, lodTick;
+    const long LodBudget = 700L << 20;
+    static BitmapSource DecodeLod(string file, int want)
+    {
+        if (!File.Exists(file)) return null;
+        try
+        {
+            var bi = new BitmapImage(); bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            bi.UriSource = new Uri(file); bi.DecodePixelWidth = want; bi.EndInit(); bi.Freeze(); return bi;
+        }
+        catch { return null; }
+    }
+    static void LodPut((string, int) key, BitmapSource b)
+    {
+        if (b == null) return;
+        if (lod.TryGetValue(key, out var old)) lodBytes -= (long)old.Img.PixelWidth * old.Img.PixelHeight * 4;
+        lod[key] = (b, ++lodTick); lodBytes += (long)b.PixelWidth * b.PixelHeight * 4;
+        while (lodBytes > LodBudget && lod.Count > 1)
+        {
+            var oldest = lod.MinBy(kv => kv.Value.Tick);
+            lodBytes -= (long)oldest.Value.Img.PixelWidth * oldest.Value.Img.PixelHeight * 4; lod.Remove(oldest.Key);
+        }
+    }
+    /// <summary>Obraz kafelka w szerokości want: z pamięci; gdy brak – dekodowanie w tle, a tymczasem mniejszy poziom (testy – od razu).</summary>
+    BitmapSource TileImg(string file, int want)
+    {
+        var key = (file, want);
+        if (lod.TryGetValue(key, out var hit)) { lod[key] = (hit.Img, ++lodTick); return hit.Img; }
+        if (FuzzMode || NoPrompt || want <= 256) { var b = DecodeLod(file, want); LodPut(key, b); return b; }
+        if (lodPending.Add(key))
+            Task.Run(() => DecodeLod(file, want)).ContinueWith(t => Dispatcher.BeginInvoke(() => { lodPending.Remove(key); LodPut(key, t.Result); panel.InvalidateVisual(); }));
+        for (int w = want / 2; w >= 128; w /= 2) if (lod.TryGetValue((file, w), out var lo)) return lo.Img;
+        var small = DecodeLod(file, 256); LodPut((file, 256), small); return small;
     }
 
     /// <summary>Kalibracja dwoma punktami: punkt podkładu → miejsce na planie (węzeł albo kliknięte miejsce).</summary>

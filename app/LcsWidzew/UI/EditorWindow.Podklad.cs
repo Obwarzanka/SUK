@@ -27,6 +27,8 @@ public static class GeoPodklad
     }
 
     public const string OrtoWms = "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution";
+    /// <summary>Ortofotomapa w pełnej rozdzielczości (ok. 0,1–0,25 m) – znacznie ostrzejsza niż StandardResolution (widać szyny).</summary>
+    public const string OrtoWmsHigh = "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/HighResolution";
     public const string OsmTiles = "https://tile.openstreetmap.org/{0}/{1}/{2}.png";
     public const string EsriTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{0}/{2}/{1}";
 
@@ -122,9 +124,15 @@ public static class GeoPodklad
         if (src == "orto")
         {
             var (a, b, c, d) = WebTiles.Bbox3857(x, y, z);
-            var data = GetFresh(FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={a:0.###},{b:0.###},{c:0.###},{d:0.###}&WIDTH={n}&HEIGHT={n}&FORMAT=image/jpeg"));
+            string Url(string svc) => FormattableString.Invariant($"{svc}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={a:0.###},{b:0.###},{c:0.###},{d:0.###}&WIDTH={n}&HEIGHT={n}&FORMAT=image/jpeg");
+            var data = GetFresh(Url(OrtoWmsHigh));
             BitmapSource img;
-            try { img = Decode(data); } catch { throw new InvalidOperationException("Geoportal nie zwrócił obrazu (przeciążony albo poza zasięgiem ortofotomapy)"); }
+            try { img = Decode(data); }
+            catch
+            {
+                data = GetFresh(Url(OrtoWms));    // brak pełnej rozdzielczości w tym miejscu – wersja standardowa
+                try { img = Decode(data); } catch { throw new InvalidOperationException("Geoportal nie zwrócił obrazu (przeciążony albo poza zasięgiem ortofotomapy)"); }
+            }
             if (img.PixelWidth != n || img.PixelHeight != n) throw new InvalidOperationException($"Geoportal zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {n}×{n}");
             var tmp = file + ".tmp"; File.WriteAllBytes(tmp, data); File.Move(tmp, file, true);
         }
@@ -180,7 +188,7 @@ public static class GeoPodklad
                 int px = tx * T, py = ty * T, tw = Math.Min(T, W - px), th = Math.Min(T, H - py);
                 double minE = left + px * mpp, maxE = minE + tw * mpp, maxN = top - py * mpp, minN = maxN - th * mpp;
                 progress?.Invoke($"Pobieranie ortofotomapy {++k}/{nx * ny}…");
-                var url = FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:2180&BBOX={minN:0.###},{minE:0.###},{maxN:0.###},{maxE:0.###}&WIDTH={tw}&HEIGHT={th}&FORMAT=image/jpeg");
+                var url = FormattableString.Invariant($"{OrtoWmsHigh}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:2180&BBOX={minN:0.###},{minE:0.###},{maxN:0.###},{maxE:0.###}&WIDTH={tw}&HEIGHT={th}&FORMAT=image/jpeg");
                 var img = Decode(Retry(() => GetFresh(url)));
                 if (img.PixelWidth != tw || img.PixelHeight != th) throw new InvalidOperationException($"Serwer zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {tw}×{th}");
                 img.CopyPixels(new Int32Rect(0, 0, tw, th), buf, W * 4, (py * W + px) * 4);

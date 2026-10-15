@@ -17,13 +17,14 @@ namespace LcsWidzew.UI;
 /// </summary>
 public partial class EditorWindow : DarkWindow, IPanelEditor
 {
-    enum Tool { Select, Track, Section, Switch, Signal, TrackEnd, Derailer, Label, Platform, Szlak, Measure, Link, Turnout, Crossing, Gantry }
+    enum Tool { Select, Track, Section, Switch, Signal, TrackEnd, Derailer, Label, Platform, Szlak, Measure, Link, Turnout, Crossing, Gantry, Arc }
     Point? crossFrom;                 // narzędzie Przejazd
     string turnFrom;
     (string From, string End, string[] Ans)? szlakPend;   // szlak wewnętrzny czekający na wskazanie drugiej stacji                  // narzędzie Rozjazd – węzeł zwrotnicy na pierwszym torze
     string linkFrom;                  // narzędzie Łącznik obrazów
     static CheckBox Chk(string t, bool on, string tip) => new() { Content = t, IsChecked = on, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), ToolTip = tip };
     readonly CheckBox chkGrid = Chk("siatka", true, "Siatka w tle (oczko = krok przyciągania, co 5 – linia główna)");
+    readonly CheckBox chkSnap = Chk("przyciąganie", true, "Przyciąganie do siatki przy rysowaniu i przesuwaniu. Alt – chwilowo odwrotnie. Przy rysowaniu po podkładzie wyłącz (domyślnie wyłączone, gdy plan ma podkład).");
     readonly CheckBox chkNodes = Chk("węzły", true, "Punkty węzłów");
     readonly CheckBox chkSecs = Chk("odcinki", false, "Nazwy odcinków izolowanych na torach");
     readonly CheckBox chkLens = Chk("długości", false, "Długości torów [m]");
@@ -74,6 +75,8 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         this.path = path; this.apply = apply;
         WindowState = WindowState.Maximized; ShowInTaskbar = true;
         doc = StationDoc.Load(path);
+        chkSnap.IsChecked = doc.Root["planBgs"] is not JsonArray { Count: > 0 };      // rysowanie po podkładzie – bez przyciągania
+        RenderOptions.SetBitmapScalingMode(panel, BitmapScalingMode.HighQuality);      // podkłady: wygładzanie przy skalowaniu
 
         var root = new DockPanel();
         // --- pasek narzędzi
@@ -121,6 +124,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         bar.Children.Add(bandBtn);
         ToolBtn(Tool.Select, "↖ Wskaż / przesuń", "Zaznaczanie obiektów i przeciąganie węzłów, napisów i peronów. Przeciąganie pustego miejsca – przesuwanie obrazu, kółko – powiększenie. W każdym narzędziu: środkowy przycisk myszy albo Spacja + LPM – przesuwanie widoku. Del – usuń zaznaczony obiekt.", Key.V);
         ToolBtn(Tool.Track, "━ Tor", "Rysowanie toru: klikaj kolejne punkty (węzeł, tor – podział, puste miejsce – nowy węzeł). Shift – poziomo. PPM / Esc – koniec ciągu. Przesuwanie widoku w trakcie: środkowy przycisk myszy albo Spacja + LPM, kółko – powiększenie.", Key.T);
+        ToolBtn(Tool.Arc, "◠ Łuk", "Łuk po okręgu: klik – początek (węzeł, tor albo puste miejsce), klik – punkt na łuku, klik – koniec. Ctrl+klik zamiast punktu na łuku – od razu koniec łuku stycznego do toru, który kończy się w początku. Kolejne kliknięcia ciągną dalsze łuki od końca. Promień [m] zapisuje się w torze, długość liczy się po łuku. PPM / Esc – koniec.", Key.O);
         ToolBtn(Tool.Section, "┅ Odcinek", "Odcinki izolowane: klik na torze przypisuje mu odcinek z pola obok; Ctrl+klik pobiera odcinek klikniętego toru. Tory odcinka są podświetlone.", Key.I);
         ToolBtn(Tool.Turnout, "⌐ Rozjazd", "Klik na torze (miejsce zwrotnicy), potem: klik na drugim torze – łącznik rozjazdowy z dwiema zwrotnicami (ukos – pion – ukos), albo klik w pustym miejscu – odgałęzienie z nowym torem do tego punktu. Kierunek ukosu: w stronę drugiego kliknięcia.", Key.R);
         ToolBtn(Tool.Switch, "⑂ Zwrotnica", "Klik na węźle z 3 torami – nowa zwrotnica (iglica po stronie pojedynczego toru).", Key.Z);
@@ -139,7 +143,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         bar.Children.Add(chkSameSec); bar.Children.Add(chkSwSec);
         bar.Children.Add(new Border { Width = 12 });
         bar.Children.Add(Lbl("Posterunek:")); bar.Children.Add(postBox);
-        bar.Children.Add(Lbl("Siatka:")); gridBox.ItemsSource = new[] { "1", "4", "8", "16", "25", "Ig-10" }; gridBox.ToolTip = "Krok przyciągania. Ig-10 – 10 m wzdłuż × 4,75 m (rozstaw torów) w skali planu."; gridBox.SelectedIndex = 2; bar.Children.Add(gridBox);
+        bar.Children.Add(Lbl("Siatka:")); gridBox.ItemsSource = new[] { "1", "4", "8", "16", "25", "Ig-10" }; gridBox.ToolTip = "Krok przyciągania. Ig-10 – 10 m wzdłuż × 4,75 m (rozstaw torów) w skali planu."; gridBox.SelectedIndex = 2; bar.Children.Add(gridBox); bar.Children.Add(chkSnap);
         bar.Children.Add(Lbl("Obraz:")); bar.Children.Add(pageBox);
         pageBox.SelectionChanged += (a, e) =>
         {
@@ -629,7 +633,9 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         var d = Math.Max(Math.Abs(dx), Math.Abs(dy));
         return new Point(a.X + Math.Sign(dx == 0 ? 1 : dx) * d, a.Y + Math.Sign(dy) * d);
     }
-    Point Snap(Point p) { double g = Grid, gy = GridY; return new Point(Math.Round(p.X / g) * g, Math.Round(p.Y / gy) * gy); }
+    /// <summary>Przyciąganie do siatki: przełącznik w pasku, Alt – chwilowo odwrotnie.</summary>
+    bool SnapOn => (chkSnap.IsChecked == true) ^ Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
+    Point Snap(Point p) { if (!SnapOn) return new Point(Math.Round(p.X, 2), Math.Round(p.Y, 2)); double g = Grid, gy = GridY; return new Point(Math.Round(p.X / g) * g, Math.Round(p.Y / gy) * gy); }
     double R => Math.Max(6, 9 / panel.Scale);
 
     void SetBandMode(bool on)
@@ -641,7 +647,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
 
     void SetTool(Tool t)
     {
-        tool = t; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; szlakPend = null;
+        tool = t; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; szlakPend = null; arcMid = null;
         foreach (var (k, b) in toolBtns) { b.IsChecked = k == t; b.Background = k == t ? new SolidColorBrush(Color.FromRgb(0x0a, 0x4a, 0x66)) : new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)); }
         status.Text = ((string)toolBtns[t].ToolTip).Split("  [")[0] + (t != Tool.Select ? "   ·  Esc / PPM / V – powrót do „Wskaż”" : "");
         panel.InvalidateVisual();
@@ -783,6 +789,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                     if (k == "te") { var nid = st.TrackEnds.First(t => t.Value.Id == id).Key; Select("te", nid); StartDrag(nid, w); return true; }
                     var n = PickNode(w);
                     if (n != null) { Select("node", n); StartDrag(n, w); return true; }
+                    if (PickBend(w) is { } bp) { Select("edge", bp.E); var q = st.Edges[bp.E].Pts[bp.I]; StartDragObj(w, q.X, q.Y); dragBend = bp; return true; }
                     if (k == "blk") { Select("block", id); return true; }
                     if (k == "link") { pageBox.SelectedIndex = st.Pages.FindIndex(p => p.Id == id); return true; }
                     foreach (var (pn, _) in doc.Ports) if (st.Nodes.TryGetValue(pn, out var pnd) && PortRect(pnd).Contains(w)) { Select("port", pn); return true; }
@@ -790,7 +797,11 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                     for (int ci = 0; ci < V.Crossings.Count; ci++) { var c = V.Crossings[ci]; if (Math.Abs(w.X - c.X) < 6 && w.Y > c.Y0 - 16 && w.Y < c.Y1 + 16) { Select("crossing", null, ci); return true; } }
                     int li = PickLabel(w); if (li >= 0) { Select("label", null, li); StartDragObj(w, V.Labels[li].X, V.Labels[li].Y); return true; }
                     var ed = PickEdge(w);
-                    if (ed != null && e?.ClickCount == 2) { SelectTrack(ed); return true; }
+                    if (ed != null && e?.ClickCount == 2)
+                    {
+                        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) { SelectTrack(ed); return true; }
+                        BendAdd(ed, w); return true;
+                    }
                     if (ed != null) { Select("edge", ed); return true; }
                     int pi = PickPlatform(w); if (pi >= 0) { Select("platform", null, pi); StartDragObj(w, V.Platforms[pi].X, V.Platforms[pi].Y); return true; }
                     selKind = null; ShowProps();
@@ -803,37 +814,13 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                     var nid = NodeAt(w, true, shift);
                     if (chainFrom == null) { chainFrom = nid; chainSec = null; Rebuild(); status.Text = "Początek toru – wskaż kolejny punkt (PPM – koniec)"; return true; }
                     if (nid == chainFrom) return true;
-                    var (ax, _) = doc.Pos(chainFrom); var (bx, _) = doc.Pos(nid);
-                    int vdir = 0;
-                    if (Math.Abs(ax - bx) < 0.5)
-                    {
-                        vdir = VerticalDir(chainFrom, nid);
-                        if (vdir == 0) { doc.Undo(); Rebuild(); return true; }
-                    }
-                    // pierwszy tor ciągu: przedłużenie toru (koniec toru) albo odgałęzienie zwrotnicy dziedziczy jego odcinek
-                    if (chainSec == null && chkSameSec.IsChecked == true)
-                    {
-                        var swAt = doc.Switches.Select(x => (JsonObject)x.Value).FirstOrDefault(x => StationDoc.Sv(x["node"]) == chainFrom);
-                        var at = doc.EdgesAt(chainFrom);
-                        if (swAt != null) chainSec = StationDoc.Sv(swAt["sec"]);
-                        else if (at.Count == 1 && !doc.Signals.Any(x => StationDoc.Sv(x.Value["node"]) == chainFrom)) chainSec = StationDoc.Sv(at[0]["sec"]);
-                    }
-                    var endEdges = doc.EdgesAt(nid);
-                    var eid = doc.AddEdge(chainFrom, nid, chkSameSec.IsChecked == true ? chainSec : null, Post);
-                    // ciąg dochodzący do końca istniejącego toru (lub wychodzący z niego) – jeden odcinek, bez przypadkowej przerwy izolacyjnej
-                    if (chkSameSec.IsChecked == true && endEdges.Count == 1 && !doc.Signals.Any(x => StationDoc.Sv(x.Value["node"]) == nid) && !doc.Switches.Any(x => StationDoc.Sv(x.Value["node"]) == nid))
-                    {
-                        var target = StationDoc.Sv(endEdges[0]["sec"]); var mine = StationDoc.Sv(doc.Edge(eid)["sec"]);
-                        if (target != mine && !st.Blocks.Values.Any(b => b.SecsWE.Contains(target)))
-                            foreach (var x in doc.EdgeObjs.Where(x => StationDoc.Sv(x["sec"]) == mine)) x["sec"] = target;
-                    }
-                    if (vdir != 0) doc.Edge(eid)["dir"] = vdir;
-                    chainSec = StationDoc.Sv(doc.Edge(eid)["sec"]);
-                    chainFrom = nid;
+                    var eid = AddChainEdge(nid);
+                    if (eid == null) { doc.Undo(); Rebuild(); return true; }
                     Changed($"Dodano tor (odcinek {Station.Lbl(chainSec)}) – wskaż kolejny punkt, PPM kończy");
                     Select("edge", eid);
                     return true;
                 }
+                case Tool.Arc: ArcClick(w); return true;
                 case Tool.Section:
                 {
                     var ed = PickEdge(w);
@@ -1194,8 +1181,10 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         status.Text = $"Znaleziono {hits.Count}: {h.Kind} {Station.Lbl(h.Id)} (Enter – następny)";
     }
 
-    void StartDrag(string nid, Point w) { dragging = true; dragSnap = false; dragStart = w; dragOrig = doc.Pos(nid); dragNode = nid; }
-    void StartDragObj(Point w, double x, double y) { dragging = true; dragSnap = false; dragStart = w; dragOrig = (x, y); dragNode = null; }
+    void StartDrag(string nid, Point w) { dragging = true; dragSnap = false; dragStart = w; dragOrig = doc.Pos(nid); dragNode = nid; dragBend = null; }
+    void StartDragObj(Point w, double x, double y) { dragging = true; dragSnap = false; dragStart = w; dragOrig = (x, y); dragNode = null; dragBend = null; }
+    /// <summary>Przeciągany punkt załamania toru na planie.</summary>
+    (string E, int I)? dragBend;
     string dragNode;
 
     public void Move(Point w, MouseEventArgs e) { mouse = w; Safe(() => { if (dispMode && !DecoTool(tool)) DMove(w, e); else MoveCore(w, e); }); if (dispMode && (rectFrom != null || crossFrom != null)) panel.InvalidateVisual(); }
@@ -1207,7 +1196,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         if (!dragSnap) { doc.Snapshot(); dragSnap = true; }
         if (groupDrag)
         {
-            double g = Grid, gy = GridY, dx = Math.Round((w.X - dragStart.X) / g) * g, dy = Math.Round((w.Y - dragStart.Y) / gy) * gy;
+            double g = Grid, gy = GridY, dx = SnapOn ? Math.Round((w.X - dragStart.X) / g) * g : Math.Round(w.X - dragStart.X, 2), dy = SnapOn ? Math.Round((w.Y - dragStart.Y) / gy) * gy : Math.Round(w.Y - dragStart.Y, 2);
             // przesuwanie tylko w jednej osi (Ctrl – dowolnie)
             if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { if (Math.Abs(dx) >= Math.Abs(dy)) dy = 0; else dx = 0; }
             GroupMove(dx - groupApplied.X, 0); GroupMove(0, dy - groupApplied.Y); groupApplied = (dx, dy);
@@ -1215,6 +1204,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         }
         var p = Snap(new Point(dragOrig.X + w.X - dragStart.X, dragOrig.Y + w.Y - dragStart.Y));
         if (dragNode != null) doc.MoveNode(dragNode, p.X, p.Y);
+        else if (dragBend is { } db) doc.MoveEdgePt(db.E, db.I, p.X, p.Y);
         else if (selKind == "label") { doc.Labels[selIdx]["x"] = p.X; doc.Labels[selIdx]["y"] = p.Y; }
         else if (selKind == "platform") { doc.Platforms[selIdx]["x"] = p.X; doc.Platforms[selIdx]["y"] = p.Y; }
         dirty = true; Rebuild();
@@ -1286,7 +1276,8 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         if (bgCal > 0 || bgOp != null) { bgCal = 0; bgOp = null; bgPts.Clear(); status.Text = "Operacja na podkładzie przerwana"; panel.InvalidateVisual(); return; }
         if (dispMode && DecoTool(tool)) { rectFrom = null; crossFrom = null; SetTool(Tool.Select); panel.InvalidateVisual(); return; }
         if (dispMode) { Safe(() => DRight(w)); return; }
-        if (chainFrom != null || szlakFrom != null || rectFrom != null || linkFrom != null || turnFrom != null || crossFrom != null || szlakPend != null) { szlakPend = null; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; linkFrom = null; turnFrom = null; crossFrom = null; status.Text = "Zakończono"; return; }
+        if (chainFrom != null || szlakFrom != null || rectFrom != null || linkFrom != null || turnFrom != null || crossFrom != null || szlakPend != null) { szlakPend = null; arcMid = null; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; linkFrom = null; turnFrom = null; crossFrom = null; status.Text = "Zakończono"; return; }
+        if (!dispMode && tool == Tool.Select && PickBend(w) is { } rb) { Safe(() => { doc.Snapshot(); doc.RemoveEdgePt(rb.E, rb.I); Changed("Usunięto punkt załamania toru"); }); return; }
         if (tool != Tool.Select) SetTool(Tool.Select);
     }
 
@@ -1426,7 +1417,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         var az = new SolidColorBrush(Color.FromRgb(0x00, 0xa0, 0xff));
         var pen = new Pen(az, 2 / scale);
         double r = 4 / scale;
-        double fs = Math.Clamp(9 / scale, 5, 30);
+        double fs = Math.Clamp(9 / scale, 0.05, 30);   // stała wielkość na ekranie także przy dużym przybliżeniu (podkład)
         if (chkSecs.IsChecked == true)
         {
             var ob = new SolidColorBrush(Color.FromRgb(0xff, 0x9c, 0x30));
@@ -1483,6 +1474,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         // węzły – drobne punkty (ułatwiają trafienie)
         if (chkNodes.IsChecked == true)
             foreach (var n in st.Nodes.Values) if (OnPage(n.X)) dc.DrawEllipse(panel.PlanView ? new SolidColorBrush(Color.FromArgb(0x70, 0x30, 0x60, 0xc0)) : new SolidColorBrush(Color.FromArgb(0x90, 0x60, 0x60, 0x60)), null, new Point(n.X, n.Y), panel.PlanView ? Math.Min(r * 0.4, 1.8) : r * 0.7, panel.PlanView ? Math.Min(r * 0.4, 1.8) : r * 0.7);
+        if (!dispMode) BendOverlay(dc, scale);
         switch (selKind)
         {
             case "node": case "te": if (doc.Nodes.ContainsKey(selId)) { var p = doc.Pos(selId); dc.DrawEllipse(null, pen, new Point(p.X, p.Y), 7, 7); break; } break;
@@ -1585,6 +1577,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             case Key.R: SetTool(Tool.Turnout); break;
             case Key.X: SetTool(Tool.Crossing); break;
             case Key.U: SetTool(Tool.Gantry); break;
+            case Key.O: SetTool(Tool.Arc); break;
             case Key.G: chkGrid.IsChecked = chkGrid.IsChecked != true; panel.InvalidateVisual(); break;
             case Key.F when ctrl: findBox.Focus(); findBox.SelectAll(); break;
             case Key.A when ctrl: SelectRect(panel.Page != null ? new Rect(panel.Page.X0, -1e5, panel.Page.X1 - panel.Page.X0, 2e5) : new Rect(-1e6, -1e6, 2e6, 2e6)); break;
@@ -1866,6 +1859,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             props.Children.Add(T(plain ? "Zwykły punkt na torze. Del – zamiana na tor (scalenie), Shift+Del – usunięcie razem z torami." : $"Węzeł: {doc.EdgesAt(selId).Count} tory{(doc.Switches.Any(x => StationDoc.Sv(x.Value["node"]) == selId) ? ", zwrotnica" : "")}{(doc.Signals.Any(x => StationDoc.Sv(x.Value["node"]) == selId) ? ", sygnalizator" : "")}. Del – usunięcie razem z torami.", 10.5, Brushes.Gray));
             if (doc.Bumpers.ContainsKey(selId)) props.Children.Add(Btn("Usuń kozioł oporowy (symbol)", (a, e) => Safe(() => { doc.Snapshot(); doc.Bumpers.Remove(selId); Changed("Usunięto kozioł oporowy", false); })));
             else if (doc.EdgesAt(selId).Count == 1 && !doc.TrackEnds.ContainsKey(selId)) props.Children.Add(Btn("Dodaj kozioł oporowy (symbol)", (a, e) => Safe(() => { doc.Snapshot(); doc.Bumpers[selId] = new JsonObject(); Changed("Dodano kozioł oporowy (symbol)", false); })));
+            FilletButton(selId);
             if (plain) props.Children.Add(Btn("Zamień na tor (scal tory)", (a, e) => Safe(() => { doc.Snapshot(); doc.MergeNode(selId); Changed("Węzeł zamieniony na tor", false); })));
         }
         if (selKind == "sw" && doc.Switches.ContainsKey(selId))
@@ -2259,7 +2253,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
     {
         var d = new Microsoft.Win32.OpenFileDialog { Filter = "Układ LCS (*.json)|*.json", InitialDirectory = Path.GetDirectoryName(path) };
         if (d.ShowDialog(this) != true) return;
-        try { var nd = StationDoc.Load(d.FileName); nd.Build(); doc = nd; path = d.FileName; dirty = false; selKind = null; Rebuild(true); ShowProps(); }
+        try { var nd = StationDoc.Load(d.FileName); nd.Build(); doc = nd; path = d.FileName; dirty = false; selKind = null; chkSnap.IsChecked = doc.Root["planBgs"] is not JsonArray { Count: > 0 }; Rebuild(true); ShowProps(); }
         catch (Exception ex) { MessageBox.Show(this, "Nie można wczytać pliku: " + ex.Message); }
     }
 
