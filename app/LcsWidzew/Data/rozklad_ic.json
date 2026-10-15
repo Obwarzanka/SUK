@@ -1,0 +1,2792 @@
+{
+ "date": "C:/Users/micha/AppData/Local/Temp/claude/C--Users-micha-Documents-symulator/27fb41ff-14d1-483f-a395-800f713f5eaf/scratchpad/pkpic/d.json",
+ "source": "https://ptrc.gay/pkpic/ (PKP Intercity)",
+ "trains": [
+  {
+   "num": "1910/1",
+   "name": "TUWIM",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 1020,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 1200,
+     "dep": 1260,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 1620,
+     "dep": 2280,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 2580,
+     "dep": 2580,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "16170/1",
+   "name": "KARKONOSZE",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Szklarska Poręba Górna",
+   "appear": 2316,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 2520,
+     "dep": 2640,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "83172/3",
+   "name": "PODHALANIN",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Świnoujście",
+   "destination": "Zakopane",
+   "appear": 6402,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 6600,
+     "dep": 6960,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "38172/3",
+   "name": "PODHALANIN",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Zakopane",
+   "destination": "Świnoujście",
+   "appear": 6540,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 6720,
+     "dep": 7020,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "61170/1",
+   "name": "KARKONOSZE",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Szklarska Poręba Górna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 13230,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 13440,
+     "dep": 13950,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1001/0",
+   "name": "NAREW",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Łódź Fabryczna",
+   "destination": "Białystok",
+   "appear": 14010,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 14340,
+     "dep": 14400,
+     "stop": true,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 14700,
+     "dep": 15420,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 15780,
+     "dep": 16140,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "9111/0",
+   "name": "TUWIM",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Centralna",
+   "appear": 15078,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 15390,
+     "dep": 15390,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 15720,
+     "dep": 17760,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 18090,
+     "dep": 18360,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "82170/1",
+   "name": "UZNAM",
+   "cat": "IC",
+   "veh": "EP08",
+   "origin": "Świnoujście",
+   "destination": "Chełm",
+   "appear": 16200,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 16440,
+     "dep": 16680,
+     "stop": true,
+     "track": "7",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1329/8",
+   "name": "REYMONT",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Łódź Fabryczna",
+   "destination": "Kraków Główny",
+   "appear": 16770,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 17070,
+     "dep": 17070,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 17400,
+     "dep": 18480,
+     "stop": true,
+     "track": "5",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 18840,
+     "dep": 18960,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1511/0",
+   "name": "LAZUR",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 17970,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 18300,
+     "dep": 18300,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 18660,
+     "dep": 19860,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 20250,
+     "dep": 20310,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1529/8",
+   "name": "KOCIEWIE",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 18630,
+   "fromSide": "O",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 18960,
+     "dep": 19290,
+     "stop": true,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 19620,
+     "dep": 20280,
+     "stop": true,
+     "track": "3",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 20610,
+     "dep": 20670,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1O"
+  },
+  {
+   "num": "1620/1",
+   "name": "ASNYK",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Wrocław Główny",
+   "appear": 19020,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 19200,
+     "dep": 19440,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "9101/0",
+   "name": "ZOSIA",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 19260,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 19620,
+     "dep": 19620,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 20040,
+     "dep": 21420,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 21780,
+     "dep": 21840,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1821/0",
+   "name": "WŁÓKNIARZ",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Łódź Fabryczna",
+   "destination": "Szczecin Główny",
+   "appear": 20250,
+   "fromSide": "O",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 20580,
+     "dep": 20670,
+     "stop": true,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 21000,
+     "dep": 22020,
+     "stop": true,
+     "track": "5",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 22380,
+     "dep": 22500,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1O"
+  },
+  {
+   "num": "1523/2",
+   "name": "MAZURY",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Łódź Fabryczna",
+   "destination": "Olsztyn Główny",
+   "appear": 21660,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 22008,
+     "dep": 22008,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 22320,
+     "dep": 23460,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 23820,
+     "dep": 23910,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "91133/2",
+   "name": "KORCZAK",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 22440,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 22770,
+     "dep": 22830,
+     "stop": true,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 23190,
+     "dep": 24450,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 24840,
+     "dep": 24930,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1513/2",
+   "name": "SŁOWINIEC",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 25116,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 25440,
+     "dep": 25440,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 25770,
+     "dep": 27120,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 27480,
+     "dep": 27660,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1622/3",
+   "name": "BACZYŃSKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Wrocław Główny",
+   "appear": 26220,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 26400,
+     "dep": 26520,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "9109/8",
+   "name": "USZATEK",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 26700,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 27030,
+     "dep": 27030,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 27360,
+     "dep": 29310,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 29580,
+     "dep": 29640,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1424/5",
+   "name": "CHEMIK",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Płock",
+   "destination": "Katowice",
+   "appear": 27570,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 27750,
+     "dep": 27870,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "4520/1",
+   "name": "HUTNIK",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Bielsko-Biała Główna",
+   "destination": "Gdynia Główna",
+   "appear": 28440,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 28650,
+     "dep": 28770,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "3820/1",
+   "name": "BARBAKAN",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Kraków Główny",
+   "destination": "Szczecin Główny",
+   "appear": 29070,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 29250,
+     "dep": 29370,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "5118/9",
+   "name": "KATAMARAN",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 29790,
+   "fromSide": "A",
+   "toSide": null,
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 30000,
+     "dep": 30060,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 30420,
+     "dep": 31620,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 32040,
+     "dep": 32040,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": null
+  },
+  {
+   "num": "6133/2",
+   "name": "DĄBROWSKA",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Wrocław Główny",
+   "destination": "Białystok",
+   "appear": 30750,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 30960,
+     "dep": 31200,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "5334/5",
+   "name": "KAZIMIERZ",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Bydgoszcz Główna",
+   "destination": "Zakopane",
+   "appear": 31206,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 31410,
+     "dep": 31560,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1815/4",
+   "name": "POBRZEŻE",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Kołobrzeg",
+   "appear": 31860,
+   "fromSide": "O",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 32190,
+     "dep": 32190,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 32580,
+     "dep": 34320,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 34680,
+     "dep": 34740,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": true,
+   "emptyOut": false,
+   "from": "2O",
+   "to": "1A"
+  },
+  {
+   "num": "1624/5",
+   "name": "KRASIŃSKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Białystok",
+   "destination": "Wrocław Główny",
+   "appear": 33480,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 33660,
+     "dep": 33840,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "7320/1",
+   "name": "CEGIELSKI",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Poznań Główny",
+   "destination": "Kraków Główny",
+   "appear": 36150,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 36330,
+     "dep": 36450,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1906/7",
+   "name": "PRZĄŚNICZKA",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 36792,
+   "fromSide": "A",
+   "toSide": null,
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 36960,
+     "dep": 37020,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 37290,
+     "dep": 38040,
+     "stop": true,
+     "track": "2",
+     "platform": "II",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 38340,
+     "dep": 38340,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": null
+  },
+  {
+   "num": "6131/0",
+   "name": "NAŁKOWSKA",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Wrocław Główny",
+   "destination": "Białystok",
+   "appear": 37950,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 38160,
+     "dep": 38400,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1514/5",
+   "name": "ŻEGLARZ",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 39750,
+   "fromSide": null,
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 39870,
+     "dep": 39870,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 40260,
+     "dep": 41520,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 41850,
+     "dep": 41910,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": null,
+   "to": "1A"
+  },
+  {
+   "num": "5621/0",
+   "name": "SŁOWACKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Olsztyn Główny",
+   "destination": "Wrocław Główny",
+   "appear": 40620,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 40800,
+     "dep": 40920,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "3560/1",
+   "name": "WITKACY",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Zakopane",
+   "destination": "Gdynia Główna",
+   "appear": 41922,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 42120,
+     "dep": 43050,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "45103/2",
+   "name": "FLISAK",
+   "cat": "TLK",
+   "veh": "EP07",
+   "origin": "Katowice",
+   "destination": "Gdynia Główna",
+   "appear": 42186,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 42390,
+     "dep": 42510,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "5422/3",
+   "name": "DOKER",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Gdynia Główna",
+   "destination": "Katowice",
+   "appear": 42870,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 43050,
+     "dep": 43170,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "2820/1",
+   "name": "KOZIOŁEK",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Lublin Główny",
+   "destination": "Szczecin Główny",
+   "appear": 43980,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 44148,
+     "dep": 44280,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "5116/7",
+   "name": "GENERAŁ KRUSZEWSKI",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 44160,
+   "fromSide": "A",
+   "toSide": null,
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 44340,
+     "dep": 44400,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 44760,
+     "dep": 45960,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 46380,
+     "dep": 46380,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": null
+  },
+  {
+   "num": "6129/8",
+   "name": "MICKIEWICZ",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Wrocław Główny",
+   "destination": "Białystok",
+   "appear": 45210,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 45420,
+     "dep": 45600,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "9102/3",
+   "name": "JAGNA",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 47160,
+   "fromSide": null,
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 47280,
+     "dep": 47280,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 47610,
+     "dep": 48690,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 49020,
+     "dep": 49080,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": null,
+   "to": "1A"
+  },
+  {
+   "num": "1626/7",
+   "name": "LEŚMIAN",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Białystok",
+   "destination": "Wrocław Główny",
+   "appear": 47820,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 48000,
+     "dep": 48240,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "8323/2",
+   "name": "SUKIENNICE",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Szczecin Główny",
+   "destination": "Kraków Główny",
+   "appear": 49080,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 49260,
+     "dep": 50640,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "3822/3",
+   "name": "SUKIENNICE",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Kraków Główny",
+   "destination": "Szczecin Główny",
+   "appear": 51210,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 51390,
+     "dep": 51690,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "1902/3",
+   "name": "JAGNA",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 51420,
+   "fromSide": "A",
+   "toSide": null,
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 51600,
+     "dep": 51660,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 52020,
+     "dep": 53160,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 53490,
+     "dep": 53490,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": null
+  },
+  {
+   "num": "6127/6",
+   "name": "LEŚMIAN",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Wrocław Główny",
+   "destination": "Białystok",
+   "appear": 52380,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 52560,
+     "dep": 52800,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1516/7",
+   "name": "GENERAŁ KRUSZEWSKI",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 54300,
+   "fromSide": null,
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 54420,
+     "dep": 54420,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 54840,
+     "dep": 55920,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 56250,
+     "dep": 56310,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": null,
+   "to": "1A"
+  },
+  {
+   "num": "1628/9",
+   "name": "MICKIEWICZ",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Białystok",
+   "destination": "Wrocław Główny",
+   "appear": 55020,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 55200,
+     "dep": 55320,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "8221/0",
+   "name": "KOZIOŁEK",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Szczecin Główny",
+   "destination": "Lublin Główny",
+   "appear": 55602,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 55770,
+     "dep": 55950,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1904/5",
+   "name": "TELIMENA",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 57000,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 57180,
+     "dep": 57300,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 57660,
+     "dep": 58500,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 58800,
+     "dep": 58800,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "5360/1",
+   "name": "WITKACY",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Gdynia Główna",
+   "destination": "Zakopane",
+   "appear": 57030,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 57240,
+     "dep": 58260,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "4523/2",
+   "name": "DOKER",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Katowice",
+   "destination": "Gdynia Główna",
+   "appear": 57942,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 58110,
+     "dep": 58230,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "54102/3",
+   "name": "FLISAK",
+   "cat": "TLK",
+   "veh": "EP07",
+   "origin": "Gdynia Główna",
+   "destination": "Katowice",
+   "appear": 58170,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 58380,
+     "dep": 58500,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "5114/5",
+   "name": "ŻEGLARZ",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 58740,
+   "fromSide": "A",
+   "toSide": null,
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 58950,
+     "dep": 59040,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 59370,
+     "dep": 60600,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 60960,
+     "dep": 60960,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": null
+  },
+  {
+   "num": "6521/0",
+   "name": "SŁOWACKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Wrocław Główny",
+   "destination": "Olsztyn Główny",
+   "appear": 59730,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 59910,
+     "dep": 60000,
+     "stop": true,
+     "track": "5",
+     "platform": "I",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "19132/3",
+   "name": "KORCZAK",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 61530,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 61740,
+     "dep": 61830,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 62220,
+     "dep": 63420,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 63780,
+     "dep": 63780,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "1630/1",
+   "name": "NAŁKOWSKA",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Białystok",
+   "destination": "Wrocław Główny",
+   "appear": 62370,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 62550,
+     "dep": 62670,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "9106/7",
+   "name": "PRZĄŚNICZKA",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Łódź Fabryczna",
+   "destination": "Warszawa Wschodnia",
+   "appear": 62700,
+   "fromSide": null,
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 62820,
+     "dep": 62820,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 63120,
+     "dep": 63780,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 64050,
+     "dep": 64110,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": null,
+   "to": "1A"
+  },
+  {
+   "num": "3720/1",
+   "name": "CEGIELSKI",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Kraków Główny",
+   "destination": "Poznań Główny",
+   "appear": 64650,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 64830,
+     "dep": 64950,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "1900/1",
+   "name": "ZOSIA",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 64860,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 65040,
+     "dep": 65130,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 65490,
+     "dep": 66690,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 67110,
+     "dep": 67110,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "8114/5",
+   "name": "POBRZEŻE",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Kołobrzeg",
+   "destination": "Łódź Fabryczna",
+   "appear": 65970,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 66180,
+     "dep": 66240,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 66600,
+     "dep": 68160,
+     "stop": true,
+     "track": "5",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 68520,
+     "dep": 68520,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "6125/4",
+   "name": "KRASIŃSKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Wrocław Główny",
+   "destination": "Białystok",
+   "appear": 66750,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 67020,
+     "dep": 67200,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1908/9",
+   "name": "USZATEK",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Warszawa Wschodnia",
+   "destination": "Łódź Fabryczna",
+   "appear": 67602,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 67770,
+     "dep": 67830,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 68100,
+     "dep": 69360,
+     "stop": true,
+     "track": "2",
+     "platform": "II",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 69630,
+     "dep": 69750,
+     "stop": true,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "1518/9",
+   "name": "KATAMARAN",
+   "cat": "IC",
+   "veh": "EP07",
+   "origin": "Łódź Fabryczna",
+   "destination": "Gdynia Główna",
+   "appear": 68820,
+   "fromSide": null,
+   "toSide": "A",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 68940,
+     "dep": 68940,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    },
+    {
+     "post": "LF",
+     "arr": 69300,
+     "dep": 70860,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 71190,
+     "dep": 71250,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": null,
+   "to": "1A"
+  },
+  {
+   "num": "1632/3",
+   "name": "DĄBROWSKA",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Białystok",
+   "destination": "Wrocław Główny",
+   "appear": 69480,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 69660,
+     "dep": 69900,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "8321/0",
+   "name": "BARBAKAN",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Szczecin Główny",
+   "destination": "Kraków Główny",
+   "appear": 70080,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 70260,
+     "dep": 72000,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "3534/5",
+   "name": "KAZIMIERZ",
+   "cat": "IC",
+   "veh": "EU160",
+   "origin": "Zakopane",
+   "destination": "Bydgoszcz Główna",
+   "appear": 70380,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 70590,
+     "dep": 70650,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "5420/1",
+   "name": "HUTNIK",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Gdynia Główna",
+   "destination": "Bielsko-Biała Główna",
+   "appear": 70380,
+   "fromSide": "M",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 70680,
+     "dep": 70800,
+     "stop": true,
+     "track": "4",
+     "platform": "III",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "1M",
+   "to": "1O"
+  },
+  {
+   "num": "4125/4",
+   "name": "CHEMIK",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Katowice",
+   "destination": "Płock",
+   "appear": 72390,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 72570,
+     "dep": 72810,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  },
+  {
+   "num": "5112/3",
+   "name": "SŁOWINIEC",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 73050,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 73230,
+     "dep": 73290,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 73620,
+     "dep": 74940,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 75300,
+     "dep": 75300,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "6123/2",
+   "name": "BACZYŃSKI",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Wrocław Główny",
+   "destination": "Warszawa Wschodnia",
+   "appear": 74040,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 74250,
+     "dep": 74400,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "5122/3",
+   "name": "MAZURY",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Olsztyn Główny",
+   "destination": "Łódź Fabryczna",
+   "appear": 76650,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 76830,
+     "dep": 76890,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 77220,
+     "dep": 78120,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 78420,
+     "dep": 78420,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "8121/0",
+   "name": "WŁÓKNIARZ",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Szczecin Główny",
+   "destination": "Łódź Fabryczna",
+   "appear": 78228,
+   "fromSide": "O",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 78540,
+     "dep": 78600,
+     "stop": true,
+     "track": "3",
+     "platform": "II",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 78960,
+     "dep": 80880,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 81180,
+     "dep": 81180,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2O",
+   "to": "1O"
+  },
+  {
+   "num": "5128/9",
+   "name": "KOCIEWIE",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 78660,
+   "fromSide": "O",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 78990,
+     "dep": 79050,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 79380,
+     "dep": 81300,
+     "stop": true,
+     "track": "5",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 81600,
+     "dep": 81600,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2O",
+   "to": "1O"
+  },
+  {
+   "num": "5110/1",
+   "name": "LAZUR",
+   "cat": "IC",
+   "veh": "EU200",
+   "origin": "Gdynia Główna",
+   "destination": "Łódź Fabryczna",
+   "appear": 80280,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 80460,
+     "dep": 80520,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 80880,
+     "dep": 82140,
+     "stop": true,
+     "track": "9",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 82500,
+     "dep": 82500,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "3128/9",
+   "name": "REYMONT",
+   "cat": "IC",
+   "veh": "ED160",
+   "origin": "Kraków Główny",
+   "destination": "Łódź Fabryczna",
+   "appear": 80550,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 125,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 80730,
+     "dep": 80790,
+     "stop": true,
+     "track": "2",
+     "platform": "III",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 81120,
+     "dep": 81720,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 82020,
+     "dep": 82020,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "6121/0",
+   "name": "ASNYK",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Wrocław Główny",
+   "destination": "Warszawa Wschodnia",
+   "appear": 82380,
+   "fromSide": "C",
+   "toSide": "A",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 82590,
+     "dep": 82650,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2C",
+   "to": "1A"
+  },
+  {
+   "num": "1100/1",
+   "name": "NAREW",
+   "cat": "IC",
+   "veh": "ED161",
+   "origin": "Białystok",
+   "destination": "Łódź Fabryczna",
+   "appear": 84000,
+   "fromSide": "A",
+   "toSide": "O",
+   "len": 190,
+   "unit": true,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 84180,
+     "dep": 84240,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    },
+    {
+     "post": "LF",
+     "arr": 84600,
+     "dep": 85320,
+     "stop": true,
+     "track": "7",
+     "platform": "IV",
+     "passenger": true
+    },
+    {
+     "post": "LW",
+     "arr": 85650,
+     "dep": 85650,
+     "stop": false,
+     "track": null,
+     "platform": null,
+     "passenger": false
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": true,
+   "from": "2A",
+   "to": "1O"
+  },
+  {
+   "num": "28170/1",
+   "name": "UZNAM 440 URSA",
+   "cat": "IC",
+   "veh": "EP08",
+   "origin": "Chełm",
+   "destination": "Świnoujście",
+   "appear": 84630,
+   "fromSide": "A",
+   "toSide": "C",
+   "len": 260,
+   "unit": false,
+   "stops": [
+    {
+     "post": "LW",
+     "arr": 84840,
+     "dep": 85200,
+     "stop": true,
+     "track": "1",
+     "platform": "II",
+     "passenger": true
+    }
+   ],
+   "emptyIn": false,
+   "emptyOut": false,
+   "from": "2A",
+   "to": "1C"
+  }
+ ]
+}

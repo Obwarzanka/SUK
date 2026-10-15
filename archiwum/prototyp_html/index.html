@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator LCS Łódź Widzew</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="top">
+  <div class="title">LCS Łódź Widzew · <b>ŁW</b> <span id="post-status" class="ps-off"></span></div>
+  <div id="clock">06:00:00</div>
+  <div id="rgb" title="Wskaźnik kontroli kolorów / „życia” wizualizacji (Ie-20 §7 ust. 3)"><span class="r"></span><span class="g"></span><span class="b"></span><span id="life"></span></div>
+  <div id="power" title="Lampki urządzeń zasilających (§14 ust. 3, §23)">
+    <span id="l-mains" class="lamp on">SIEĆ</span><span id="l-ups" class="lamp off">UPS</span><span id="l-gen" class="lamp off">AGR</span><span id="l-nn" class="lamp on">NN</span>
+  </div>
+  <div class="speed" title="Tempo symulacji">
+    <button data-s="p">⏸</button><button data-s="1">1×</button><button data-s="2" class="active">2×</button><button data-s="5">5×</button><button data-s="10">10×</button>
+  </div>
+  <nav>
+    <button data-panel="plan">Plan ruchu</button>
+    <button data-panel="routes">Tablica przebiegów</button>
+    <button data-panel="log">Rejestr</button>
+    <button data-panel="book">Książka E-1758</button>
+    <button data-panel="instr">Instruktor</button>
+    <button data-panel="score">Ocena</button>
+    <button data-panel="help">Pomoc (F1)</button>
+    <button id="btn-mute" title="Dźwięk alarmów">🔊</button>
+    <button id="btn-logout">Wyloguj</button>
+  </nav>
+</header>
+
+<main>
+  <div id="view"><svg id="panel" viewBox="0 0 1800 580" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <aside id="side"><button id="side-close" title="Zamknij">✕</button><div id="side-body"></div></aside>
+</main>
+
+<footer>
+  <div id="alarm-bar"><div class="al-head">Alarmy <span id="al-count"></span> <button id="btn-ack">Kwituj (KW)</button></div><div id="alarms"></div></div>
+  <div id="cmdbar">
+    <span class="prompt">Polecenie&gt;</span><input id="cmd" autocomplete="off" spellcheck="false" placeholder="np. PP A S1 · Z- 13 · SZ S1 · BK WA1 · POMOC">
+    <span id="cmdres"></span>
+  </div>
+  <div id="hint">Najedź kursorem na obiekt, aby zobaczyć podpowiedź.</div>
+</footer>
+
+<div id="menu"></div>
+
+<div id="confirm" class="modal">
+  <div class="dlg special">
+    <h2>Polecenie nastawcze specjalne – potwierdzenie</h2>
+    <p>Kod: <b id="cf-code"></b><br>Adres: <b id="cf-addr"></b> · pozostało <b id="cf-time"></b></p>
+    <p class="small">Przed potwierdzeniem obowiązkowo sprawdź poprawność adresu i kodu polecenia (Ie-20 §13 ust. 7). Uwagi:</p>
+    <ul id="cf-notes"></ul>
+    <label>Wpisz ponownie adres obiektu: <input id="cf-input" autocomplete="off"></label>
+    <div id="cf-err" class="err"></div>
+    <div class="btns"><button id="cf-ok" class="danger">Potwierdź</button><button id="cf-cancel">Wycofaj (Esc)</button></div>
+  </div>
+</div>
+
+<div id="login" class="modal" style="display:flex">
+  <div class="dlg">
+    <h2>Symulator komputerowych urządzeń srk – LCS Łódź Widzew</h2>
+    <p class="small">Prototyp szkoleniowy wg instrukcji Ie-20 i zobrazowania Ie-104. Układ torowy uproszczony – nie jest regulaminem technicznym posterunku. Logowanie jest symboliczne (bez hasła).</p>
+    <label>Użytkownik: <input id="lg-name" value="Dyżurny ruchu"></label>
+    <label>Rola: <select id="lg-role"><option>dyżurny ruchu</option><option>nastawniczy</option><option>instruktor</option></select></label>
+    <label>Scenariusz: <select id="lg-sc"></select></label>
+    <div class="btns"><button id="lg-go" class="primary">Zaloguj i rozpocznij</button><button id="lg-resume" style="display:none">Zaloguj (kontynuuj)</button></div>
+  </div>
+</div>
+
+<script src="js/layout.js"></script>
+<script src="js/interlocking.js"></script>
+<script src="js/trains.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

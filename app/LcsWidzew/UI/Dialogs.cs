@@ -1,0 +1,288 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using LcsWidzew.Sim;
+
+namespace LcsWidzew.UI;
+
+/// <summary>Wspólny wygląd okien pomocniczych (ciemny motyw).</summary>
+public class DarkWindow : Window
+{
+    protected static readonly Brush Fg = new SolidColorBrush(Color.FromRgb(0xd8, 0xd8, 0xd8));
+    protected static readonly Brush Panel2 = new SolidColorBrush(Color.FromRgb(0x18, 0x18, 0x18));
+    public DarkWindow(string title, double w, double h)
+    {
+        Title = title; Width = w; Height = h; Background = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x12)); Foreground = Fg;
+        FontFamily = new FontFamily("Segoe UI"); WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
+    }
+    protected static TextBlock T(string s, double size = 12, Brush b = null, bool bold = false) =>
+        new() { Text = s, FontSize = size, Foreground = b ?? Fg, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2) };
+    protected static Button Btn(string s, RoutedEventHandler h, Brush bg = null)
+    {
+        var b = new Button { Content = s, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 4, 6, 4), Background = bg ?? new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)), Foreground = Brushes.White };
+        b.Click += h; return b;
+    }
+    protected static TextBox Box(string v = "") => new() { Text = v, Background = Brushes.Black, Foreground = Brushes.White, CaretBrush = Brushes.White, BorderBrush = Brushes.DimGray, Padding = new Thickness(3), Margin = new Thickness(0, 2, 0, 4) };
+    protected static DataGrid Grid()
+    {
+        return new DataGrid
+        {
+            AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column, Background = Brushes.Black,
+            RowBackground = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x14)), AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x1a)),
+            Foreground = Fg, FontFamily = new FontFamily("Consolas"), FontSize = 11.5, GridLinesVisibility = DataGridGridLinesVisibility.None, CanUserAddRows = false
+        };
+    }
+    protected static void Col(DataGrid g, string h, string path, double w = double.NaN)
+        => g.Columns.Add(new DataGridTextColumn { Header = h, Binding = new Binding(path), Width = double.IsNaN(w) ? new DataGridLength(1, DataGridLengthUnitType.Star) : new DataGridLength(w) });
+}
+
+// ---------------------------------------------------------------------- logowanie
+public class LoginWindow : DarkWindow
+{
+    public string UserName, Role, Scenario; public bool Restart;
+    public LoginWindow(bool loggedBefore) : base("Logowanie – LCS Łódź Widzew", 520, 400)
+    {
+        ResizeMode = ResizeMode.NoResize;
+        var sp = new StackPanel { Margin = new Thickness(18) };
+        sp.Children.Add(T("Symulator komputerowych urządzeń srk – LCS Łódź Widzew", 15, Brushes.White, true));
+        sp.Children.Add(T("Szkolenie wg Ie-20 (zobrazowanie wg Ie-104). Topologia stacji z OpenStreetMap, semafory i zależności – założenia do weryfikacji z regulaminem technicznym. Logowanie symboliczne (bez hasła).", 11, Brushes.Gray));
+        sp.Children.Add(T("Użytkownik:"));
+        var name = Box("Dyżurny ruchu"); sp.Children.Add(name);
+        sp.Children.Add(T("Rola:"));
+        var role = new ComboBox { ItemsSource = new[] { "dyżurny ruchu", "nastawniczy", "instruktor" }, SelectedIndex = 0 }; sp.Children.Add(role);
+        sp.Children.Add(T("Scenariusz:"));
+        var sc = new ComboBox { ItemsSource = Trains.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 }; sp.Children.Add(sc);
+        var desc = T(Trains.Scenarios[0].Desc, 11, Brushes.Gray); sp.Children.Add(desc);
+        sc.SelectionChanged += (a, b) => desc.Text = Trains.Scenarios[sc.SelectedIndex].Desc;
+        var bp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+        void Go(bool restart) { UserName = name.Text.Trim() == "" ? "Dyżurny" : name.Text.Trim(); Role = (string)role.SelectedItem; Scenario = Trains.Scenarios[sc.SelectedIndex].Key; Restart = restart; DialogResult = true; }
+        bp.Children.Add(Btn(loggedBefore ? "Zaloguj i rozpocznij od nowa" : "Zaloguj i rozpocznij", (a, b) => Go(true), new SolidColorBrush(Color.FromRgb(0x0a, 0x4a, 0x66))));
+        if (loggedBefore) bp.Children.Add(Btn("Zaloguj (kontynuuj)", (a, b) => Go(false)));
+        bp.Children.Add(Btn("Anuluj", (a, b) => DialogResult = false));
+        sp.Children.Add(bp);
+        Content = sp;
+        Loaded += (a, b) => { name.Focus(); name.SelectAll(); };
+    }
+}
+
+// ---------------------------------------------------------------------- polecenie specjalne
+public class SpecialConfirmWindow : DarkWindow
+{
+    public SpecialConfirmWindow(Simulator sim) : base("Polecenie nastawcze specjalne – potwierdzenie", 580, 430)
+    {
+        var p = sim.Pending;
+        BorderBrush = Brushes.Red; BorderThickness = new Thickness(2); Topmost = true;
+        var sp = new StackPanel { Margin = new Thickness(16) };
+        sp.Children.Add(T("POLECENIE SPECJALNE", 15, Brushes.OrangeRed, true));
+        sp.Children.Add(T($"Kod: {Simulator.Codes[p.Code].Code} – {p.Desc}", 13, Brushes.White, true));
+        sp.Children.Add(T($"Adres: {Model.Station.Lbl(p.Arg)}   (obiekty zamarkowane na pomarańczowo)", 13, Brushes.White, true));
+        var left = T("", 12, Brushes.Gold); sp.Children.Add(left);
+        sp.Children.Add(T("Przed potwierdzeniem obowiązkowo sprawdź poprawność adresu i kodu polecenia (Ie-20 §13 ust. 7). Uwagi:", 11, Brushes.Gray));
+        foreach (var n in p.Notes) sp.Children.Add(T("• " + n, 12));
+        sp.Children.Add(T("Wpisz ponownie adres obiektu:"));
+        var box = Box(); box.CharacterCasing = CharacterCasing.Upper; sp.Children.Add(box);
+        var err = T("", 12, Brushes.Tomato); sp.Children.Add(err);
+        var bp = new StackPanel { Orientation = Orientation.Horizontal };
+        void Ok()
+        {
+            var r = sim.ConfirmPending(box.Text);
+            if (!r.Ok && sim.Pending != null) { err.Text = r.Msg; return; }
+            Close();
+        }
+        bp.Children.Add(Btn("Potwierdź", (a, b) => Ok(), new SolidColorBrush(Color.FromRgb(0x6a, 0, 0))));
+        bp.Children.Add(Btn("Wycofaj (Esc)", (a, b) => { sim.CancelPending(); Close(); }));
+        sp.Children.Add(bp);
+        Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        box.KeyDown += (a, e) => { if (e.Key == Key.Enter) Ok(); if (e.Key == Key.Escape) { sim.CancelPending(); Close(); } };
+        var tm = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        tm.Tick += (a, b) => { if (sim.Pending == null) { tm.Stop(); Close(); return; } left.Text = sim.T < sim.Pending.NotBefore ? $"Potwierdzenie możliwe za {Math.Ceiling(sim.Pending.NotBefore - sim.T)} s (Ie-104 § 11 ust. 13)" : $"Pozostało {Math.Max(0, Math.Ceiling(sim.Pending.Until - sim.T))} s na potwierdzenie"; };
+        tm.Start(); Closed += (a, b) => tm.Stop();
+        Loaded += (a, b) => box.Focus();
+    }
+}
+
+// ---------------------------------------------------------------------- książka E-1758
+public class BookWindow : DarkWindow
+{
+    public BookWindow(Simulator sim) : base("Książka kontroli urządzeń (E-1758)", 700, 620)
+    {
+        var dock = new DockPanel { Margin = new Thickness(12) };
+        var form = new StackPanel(); DockPanel.SetDock(form, Dock.Top);
+        var d = sim.BookDrafts.FirstOrDefault();
+        form.Children.Add(T(d != null ? $"Wymagany zapis po poleceniu specjalnym (§14 ust. 4){(sim.BookDrafts.Count > 1 ? $" – oczekujących: {sim.BookDrafts.Count}" : "")}" : "Nowy zapis", 13, Brushes.Gold, true));
+        var text = Box(d != null ? $"{sim.Clock(d.Until)} – użyto polecenia specjalnego: {d.Desc} ({d.Line}).\r\nOkoliczności / przyczyna: \r\nWprowadzone obostrzenia: " : "");
+        text.AcceptsReturn = true; text.Height = 110; text.TextWrapping = TextWrapping.Wrap; form.Children.Add(text);
+        form.Children.Add(T("Powiadomiono automatyka (imię i nazwisko, godz.):"));
+        var auto = Box(); form.Children.Add(auto);
+        var list = Grid();
+        Col(list, "Czas", "Czas", 70); Col(list, "Użytkownik", "Uzytkownik", 110); Col(list, "Treść", "Tresc"); Col(list, "Powiadomiono", "Automatyk", 140);
+        list.ItemsSource = sim.Book.AsEnumerable().Reverse().ToList();
+        form.Children.Add(Btn("Zapisz w książce", (a, b) =>
+        {
+            if (text.Text.Trim() == "") return;
+            var dr = sim.BookDrafts.FirstOrDefault(); if (dr != null) sim.BookDrafts.RemoveAt(0);
+            sim.Book.Add(new BookEntry { Czas = sim.Clock(), Uzytkownik = sim.User?.Name ?? "-", Tresc = text.Text.Trim(), Automatyk = auto.Text.Trim(), ForCode = dr?.Code });
+            sim.Log("E-1758", text.Text.Trim().Split('\n')[0], "Książka", "E-1758");
+            if (dr != null && auto.Text.Trim() == "") sim.Remark($"Zapis po poleceniu {dr.Line} bez informacji o powiadomieniu automatyka (§14 ust. 4)");
+            Close();
+            if (sim.BookDrafts.Count > 0) new BookWindow(sim) { Owner = Owner }.Show();
+        }, new SolidColorBrush(Color.FromRgb(0x0a, 0x4a, 0x66))));
+        form.Children.Add(T("Zapisy:", 12, Brushes.Gray));
+        dock.Children.Add(form); dock.Children.Add(list);
+        Content = dock;
+    }
+}
+
+// ---------------------------------------------------------------------- plan ruchu
+public class PlanWindow : DarkWindow
+{
+    public class Row { public string Nr { get; set; } public string Kat { get; set; } public string Z { get; set; } public string Do { get; set; } public string Wypr { get; set; } public string Odj { get; set; } public string Tor { get; set; } public string Stan { get; set; } }
+    public PlanWindow(Simulator sim) : base("Plan ruchu – posterunek ŁW", 900, 420)
+    {
+        var g = Grid();
+        foreach (var (h, p, w) in new[] { ("Nr", "Nr", 60.0), ("Kat.", "Kat", 45), ("Z (szlak)", "Z", 170), ("Do (szlak)", "Do", 210), ("Wyprawienie", "Wypr", 80), ("Odjazd", "Odj", 65), ("Tor", "Tor", 45), ("Stan", "Stan", double.NaN) }) Col(g, h, p, w);
+        var dock = new DockPanel { Margin = new Thickness(8) };
+        var info = T("Wyprawienie = godzina wyprawienia z posterunku sąsiedniego. Tor = zalecany tor przyjęcia.", 11, Brushes.Gray); DockPanel.SetDock(info, Dock.Top);
+        dock.Children.Add(info); dock.Children.Add(g); Content = dock;
+        string Nb(string sz) => sz == null ? "–" : sim.L.Blocks.TryGetValue(sz, out var b) ? $"{sz} ({(b.Internal ? "tunel / LCS" : b.Nbr)})" : sz;
+        void Refresh()
+        {
+            g.ItemsSource = sim.Trains.Queue.OrderBy(q => q.T).Select(q =>
+            {
+                var t = sim.Trains.List.FirstOrDefault(x => x.Num == q.Num || x.Num == q.Num + "M" || (q.Term?.NewNum != null && x.Num == q.Term.NewNum));
+                string st = !q.Done ? (q.T <= sim.T ? "oczekuje na szlak" : "planowy") : t == null ? "obsłużony" : t.State == "dwell" ? "postój" : t.ReadySince != null && t.V < 0.1 ? "gotowy do odjazdu" + (t.WaitingAt != null ? $" ({t.WaitingAt})" : "") : t.WaitingAt != null ? $"stoi przed {t.WaitingAt}" : "w ruchu";
+                var dest = q.Term?.Reverse == true ? $"kończy bieg → {q.Term.NewNum} do {Nb(q.Term.To)}" : q.Term?.Odstaw == true ? "kończy bieg, odstawienie" : Nb(q.To);
+                return new Row { Nr = q.Num, Kat = q.Cat, Z = q.StartSec != null ? (q.Loco ? "manewry: " : "tor ") + Model.Station.Lbl(q.StartSec) + " (" + Model.Station.PostOf(q.StartSec) + ")" : Nb(q.From), Do = q.Loco ? "–" : dest, Wypr = sim.Clock(q.T), Odj = q.Dep is double d ? sim.Clock(d) : (q.Stop ? "" : "bez post."), Tor = q.Track, Stan = st };
+            }).ToList();
+        }
+        Refresh();
+        var tm = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) }; tm.Tick += (a, b) => Refresh(); tm.Start(); Closed += (a, b) => tm.Stop();
+    }
+}
+
+// ---------------------------------------------------------------------- tablica przebiegów
+public class RoutesWindow : DarkWindow
+{
+    public class Row { public string Typ { get; set; } public string Od { get; set; } public string Do { get; set; } public string V { get; set; } public string Zwrotnice { get; set; } public string Odcinki { get; set; } public string Ochronna { get; set; } }
+    public RoutesWindow(Simulator sim) : base("Tablica przebiegów (generowana z topologii)", 1000, 600)
+    {
+        var all = sim.RouteTable.OrderBy(k => k.Key).SelectMany(k => k.Value).Select(r => new Row
+        {
+            Typ = (r.Type == "P" ? "poc." : "man.") + (r.Variant > 0 ? " w" + r.Variant : ""), Od = r.Start, Do = Model.Station.Lbl(r.End), V = $"{r.VMax:0}{(r.VSet > 0 ? "*" : "")}", Zwrotnice = r.SwText + (r.Ders.Count > 0 ? " " + string.Join(" ", r.Ders.Select(Model.Station.Lbl)) : ""),
+            Odcinki = string.Join(" ", r.Secs.Select(Model.Station.Lbl)), Ochronna = Model.Station.Lbl(r.Overlap ?? "")
+        }).ToList();
+        var g = Grid();
+        Col(g, "Typ", "Typ", 60); Col(g, "Od", "Od", 70); Col(g, "Do", "Do", 70); Col(g, "V [km/h]", "V", 60); Col(g, "Zwrotnice", "Zwrotnice", 330); Col(g, "Odcinki", "Odcinki"); Col(g, "Dr. ochr.", "Ochronna", 70);
+        var f = Box(); f.ToolTip = "Filtr (np. S1, W17_1)";
+        var info = T($"{all.Count} przebiegów. Filtr:", 11, Brushes.Gray);
+        f.TextChanged += (a, b) => g.ItemsSource = all.Where(r => f.Text == "" || (r.Od + " " + r.Do).Contains(f.Text, StringComparison.OrdinalIgnoreCase)).ToList();
+        g.ItemsSource = all;
+        var dock = new DockPanel { Margin = new Thickness(8) };
+        var top = new StackPanel(); top.Children.Add(info); top.Children.Add(f); DockPanel.SetDock(top, Dock.Top);
+        dock.Children.Add(top); dock.Children.Add(g); Content = dock;
+    }
+}
+
+// ---------------------------------------------------------------------- instruktor
+public class InstructorWindow : DarkWindow
+{
+    public InstructorWindow(Simulator sim, Action<string> restart) : base("Panel instruktora", 560, 520)
+    {
+        var sp = new StackPanel { Margin = new Thickness(12) };
+        sp.Children.Add(T("Usterki", 14, Brushes.White, true));
+        var ft = new ComboBox { ItemsSource = Trains.Faults.Select(f => f.Name).ToList(), SelectedIndex = 0 };
+        var tg = new ComboBox();
+        void Fill()
+        {
+            var t = Trains.Faults[ft.SelectedIndex].Target;
+            tg.ItemsSource = t switch
+            {
+                "sec" => sim.L.Sections.Keys.OrderBy(x => x).ToList(),
+                "sw" => sim.L.Switches.Keys.OrderBy(x => x.Length).ThenBy(x => x).ToList(),
+                "sig" => sim.L.Signals.Values.Where(s => s.Type != "odstepowy").Select(s => s.Name).OrderBy(x => x).ToList(),
+                "block" => sim.L.Blocks.Keys.ToList(),
+                _ => new List<string> { "(cała nastawnia)" }
+            };
+            tg.SelectedIndex = 0;
+        }
+        ft.SelectionChanged += (a, b) => Fill(); Fill();
+        sp.Children.Add(ft); sp.Children.Add(tg);
+        var bp = new StackPanel { Orientation = Orientation.Horizontal };
+        string Target() => Trains.Faults[ft.SelectedIndex].Target == "" ? null : (string)tg.SelectedItem;
+        bp.Children.Add(Btn("Wprowadź", (a, b) => sim.Trains.ApplyFault(Trains.Faults[ft.SelectedIndex].Key, Target(), false)));
+        bp.Children.Add(Btn("Usuń", (a, b) => sim.Trains.ApplyFault(Trains.Faults[ft.SelectedIndex].Key, Target(), true)));
+        sp.Children.Add(bp);
+
+        sp.Children.Add(T("Pociąg dodatkowy", 14, Brushes.White, true));
+        var from = new ComboBox { ItemsSource = sim.L.Blocks.Keys.ToList(), SelectedIndex = 0 };
+        var cat = new ComboBox { ItemsSource = Trains.Cats.Keys.ToList(), SelectedIndex = 0 };
+        var to = new ComboBox { ItemsSource = new[] { "" }.Concat(sim.L.Blocks.Keys).ToList(), SelectedIndex = 0 };
+        var num = Box(); var stop = new CheckBox { Content = "postój na ŁW", IsChecked = true, Foreground = Fg };
+        sp.Children.Add(T("Ze szlaku / kategoria / numer / do szlaku:", 11, Brushes.Gray));
+        sp.Children.Add(from); sp.Children.Add(cat); sp.Children.Add(num); sp.Children.Add(to); sp.Children.Add(stop);
+        sp.Children.Add(Btn("Dodaj do kolejki", (a, b) => sim.Trains.Enqueue((string)from.SelectedItem, (string)cat.SelectedItem, num.Text.Trim(), (string)to.SelectedItem, stop.IsChecked == true)));
+
+        sp.Children.Add(T("Lokomotywa manewrowa", 14, Brushes.White, true));
+        var locoSec = new ComboBox { ItemsSource = sim.L.Sections.Keys.Where(k => k.Contains(":it") || k.Contains(":JT")).OrderBy(k => k).ToList(), SelectedIndex = 0 };
+        var locoDir = new ComboBox { ItemsSource = new[] { "czołem na wschód (w prawo)", "czołem na zachód (w lewo)" }, SelectedIndex = 0 };
+        sp.Children.Add(locoSec); sp.Children.Add(locoDir);
+        sp.Children.Add(Btn("Postaw lokomotywę", (a, b) => { if (!sim.Trains.AddLoco((string)locoSec.SelectedItem, locoDir.SelectedIndex == 0 ? 1 : -1, null)) MessageBox.Show("Odcinek zajęty lub nieznany."); }));
+        sp.Children.Add(T("Scenariusz", 14, Brushes.White, true));
+        var sc = new ComboBox { ItemsSource = Trains.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 };
+        sp.Children.Add(sc);
+        sp.Children.Add(Btn("Uruchom od nowa", (a, b) => { restart(Trains.Scenarios[sc.SelectedIndex].Key); Close(); }));
+        Content = new ScrollViewer { Content = sp };
+    }
+}
+
+// ---------------------------------------------------------------------- ocena
+public class ScoreWindow : DarkWindow
+{
+    public ScoreWindow(Simulator sim) : base("Ocena przebiegu ćwiczenia", 620, 520)
+    {
+        var s = sim.Stats;
+        var sp = new StackPanel { Margin = new Thickness(14) };
+        void Line(string a, object b) { var p = new DockPanel(); var tb = T(b.ToString(), 12, Brushes.White, true); DockPanel.SetDock(tb, Dock.Right); p.Children.Add(tb); p.Children.Add(T(a)); sp.Children.Add(p); }
+        Line("Polecenia wykonane", s.Cmds); Line("Polecenia odrzucone", s.Rejected); Line("Polecenia specjalne", s.Special);
+        Line("Zapisy w książce E-1758", sim.Book.Count); Line("Brakujące zapisy po poleceniach specjalnych", sim.BookDrafts.Count);
+        Line("Pociągi przyjęte / wyprawione", $"{s.TrainsIn} / {s.TrainsOut}"); Line("Wyprawienia w niewłaściwym kierunku", s.WrongDir);
+        Line("Łączny czas postoju pociągów przed semaforami", $"{s.DelaySum:0} s"); Line("Minięcia sygnału „Stój”", s.Spad);
+        sp.Children.Add(T("Uwagi (zgodność z Ie-20):", 13, Brushes.Gold, true));
+        if (sim.Remarks.Count == 0) sp.Children.Add(T("Brak uwag.", 12, Brushes.Gray));
+        foreach (var (t, x) in sim.Remarks) sp.Children.Add(T($"{t} – {x}"));
+        Content = new ScrollViewer { Content = sp };
+    }
+}
+
+// ---------------------------------------------------------------------- pomoc
+public class HelpWindow : DarkWindow
+{
+    public HelpWindow() : base("Pomoc", 760, 680)
+    {
+        var sp = new StackPanel { Margin = new Thickness(14) };
+        sp.Children.Add(T("Obsługa myszą", 14, Brushes.White, true));
+        sp.Children.Add(T("LPM na semaforze – początek przebiegu; LPM na drugim semaforze, ramce blokady szlaku lub końcu toru – koniec i wybór rodzaju przebiegu. PPM na semaforze, odcinku, blokadzie; klik na zwrotnicy – menu poleceń. Kółko – powiększenie, przeciąganie LPM – przesuwanie obrazu. Esc – rezygnacja."));
+        sp.Children.Add(T("Polecenia specjalne są dwuetapowe: zainicjowanie, ponowne wpisanie adresu i potwierdzenie w ciągu 30 s (§13 ust. 7–9). Po wykonaniu otwiera się książka kontroli urządzeń.", 12));
+        sp.Children.Add(T("Barwy zobrazowania (Ie-104)", 14, Brushes.White, true));
+        foreach (var (b, t) in new[] { (PanelView.Grey, "stan podstawowy"), (PanelView.Red, "odcinek zajęty; semafor „Stój”"), (PanelView.Green, "przebieg pociągowy / sygnał zezwalający"), (PanelView.Yellow, "przebieg manewrowy, droga ochronna"), (PanelView.Magenta, "zwalnianie czasowe, zastopowanie, zamknięcie"), (PanelView.White, "brak kontroli (miganie), sygnał zastępczy / manewrowy"), (PanelView.DarkRed, "oczekiwanie na pierwszy przejazd (po zerowaniu)") })
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal };
+            p.Children.Add(new Border { Width = 30, Height = 5, Background = b, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+            p.Children.Add(T(t)); sp.Children.Add(p);
+        }
+        sp.Children.Add(T("Polecenia", 14, Brushes.White, true));
+        sp.Children.Add(T("Składnia: adres(y) i kod polecenia (Ie-104 § 11 ust. 7), np. „E S1 Pociąg”, „13 Minus”, „S1 SZ”, „2A Wbl”. Dopuszczalny też zapis w stylu EbiScreen: „POC E S1”. Wielkość liter nie ma znaczenia; adresy dotyczą wyświetlanego obrazu.", 12, Brushes.Gray));
+        sp.Children.Add(T("Przebieg wariantowy: podaj punkt pośredni – zwrotnicę z położeniem lub odcinek – np. „E 13+ S3 Pociąg”, albo Ctrl+klik na pulpicie przed wskazaniem końca. Przebieg manewrowy przez kilka tarcz: „Tm10 R6 Manewr” – system złoży go z przebiegów elementarnych.", 12, Brushes.Gray));
+        foreach (var (k, c) in Simulator.Codes)
+        {
+            var p = new DockPanel();
+            var a = T(c.Code, 12, c.Special ? Brushes.OrangeRed : Brushes.LightSkyBlue); a.Width = 90; a.FontFamily = new FontFamily("Consolas");
+            p.Children.Add(a); p.Children.Add(T((c.Special ? "[specjalne] " : "") + c.Desc)); sp.Children.Add(p);
+        }
+        sp.Children.Add(T("Blokady (elektroniczna samoczynna, Ie-104 § 8 pkt 17): 1M – Marysin (LK16, jednotorowa), 1C/2C – Chojny (LK540), 2A/1A – Andrzejów (LK17), 2O/1O – Olechów (LK541, blokada liniowa bez odstępów); wewnętrzne LCS: 2F/1F – Niciarniana↔Widzew, 2T/1T/102T/101T – tunel Fabryczna↔Niciarniana. Strzałka: szara dwustronna – stan neutralny, żółta – kierunek ustawiony, migający grot – żądanie pozwolenia, migający trzon – zwalnianie, czerwona – AZK, różowa – szlak zamknięty. Lampka TOR – możliwa zmiana kierunku.", 11, Brushes.Gray));
+        Content = new ScrollViewer { Content = sp };
+    }
+}
