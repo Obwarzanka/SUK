@@ -65,7 +65,7 @@ Pozostałe elementy:
 - **Model układu:** `Model/Station.cs` (wczytany, tylko do odczytu) i `Model/StationDoc.cs` (dokument edytora na `JsonObject`, z cofaniem).
 - **Edytor:** `UI/EditorWindow.cs` + `UI/EditorWindow.Display.cs` (tryb zobrazowania, klasa `partial`). Kontrola układu: `StationDoc.Problems()` zwraca problemy z miejscem na rysunku (węzeł albo `edge:id`), okno „Kontrola układu” numeruje je na rysunku.
 - **Podgląd komputera zależności:** `UI/KzWindow.cs` (przebiegi, utwierdzenia, liczniki czasu, blokady, łącze).
-- Testy trybu edytora `--editshot p.png <tryb>`: `kafelki orto|esri "lat, lon" out.json [mapka.png]`, `podklad orto|osm|esri "lat, lon" szer wys out.json`, `skala out.json [podkład]`, `dclear out.json`, `fuzz N seed`, `dfuzz N seed`, `deco out.json`, `validate`, `problems i`, `display out.json`, `plan`, `planskew`, `autoname`, `block ID [nowaNazwa]`, `blockpanel ID`, `szlakdiag`, `script`, `szlaki`, `szlaki2`, `rozjazd`, `normalize`, `respace`, `select`, `zoom`, `demo`, `userszlak`. Wynik tekstowy w `p.png.txt`.
+- Testy trybu edytora `--editshot p.png <tryb>`: `bramka out.json`, `kafelki orto|esri "lat, lon" out.json [mapka.png]`, `podklad orto|osm|esri "lat, lon" szer wys out.json`, `skala out.json [podkład]`, `dclear out.json`, `fuzz N seed`, `dfuzz N seed`, `deco out.json`, `validate`, `problems i`, `display out.json`, `plan`, `planskew`, `autoname`, `block ID [nowaNazwa]`, `blockpanel ID`, `szlakdiag`, `script`, `szlaki`, `szlaki2`, `rozjazd`, `normalize`, `respace`, `select`, `zoom`, `demo`, `userszlak`. Wynik tekstowy w `p.png.txt`.
 - **Testy bez okna** (z `bin/Release/net8.0-windows`):
   - `--selftest out.txt` – scenariusz z automatycznym dyżurnym (postęp w `out.txt.postep`);
   - `--edtest out.txt` – operacje edytora;
@@ -85,7 +85,7 @@ Model danych `station.json`:
 - zwrotnice: `kind` (typ rozjazdu, np. „Rz 1:9 R190”), `radius`, `ratio`, `vbok` (puste – z typu, tabela `SwitchDef.Types`), `vprosto`, `manual`;
 - tory: `radius` (łuk [m]), `cant` (przechyłka [mm]) – na razie tylko dane, bez wpływu na prędkość;
 - tory (Ig-10): `cat` – `gz` główny zasadniczy / `gd` główny dodatkowy / brak = boczny (grubość osi na planie), `elec: true` – zelektryfikowany (niebieski); wypełnia właściciel (panel toru albo panel grupy po zaznaczeniu toru);
-- sygnalizator: `lamps` – liczba komór na planie Ig-10 (brak = domyślna: wjazdowy 5, wyjazdowy 4 / 3 bez Ms2, odstępowy 3, tarcze 1);
+- sygnalizator: `mount` – konstrukcja na planie (maszt / `wysiegnik` / `nad` / `bramka` + `gantry` / `karzel`), bramki w `gantries`; `lamps` – liczba komór na planie Ig-10 (brak = domyślna: wjazdowy 5, wyjazdowy 4 / 3 bez Ms2, odstępowy 3, tarcze 1);
 - sygnalizator `pk`: `routes` P/M/PM.
 
 **Pułapki techniczne:**
@@ -182,6 +182,13 @@ Nie ma jeszcze (brak danych w układzie): kilometraż i oś stacji, ukresy W17, 
 - Naprawione: `Num` (odczyt liczb z pól podkładu) nie czytał liczb całkowitych zapisanych w pamięci (np. `rot = 3`, numer kafelka) – zwracał wartość domyślną.
 - Test: `--editshot p.png kafelki orto|esri "lat, lon" out.json [mapka.png]` (skala, dołożenie kafelków – punkt stacji w miejscu Δ < 0,01 j., druga mozaika Esri 2048 px wyrównana Δ < 0,01 j., zapis dwóch podkładów, zrzut okna mapki). Zrzuty: `zrzuty/Mapka_kafelki_ortofotomapy.png`, `zrzuty/Dwa_podklady_mozaiki.png`.
 - Pamięć: kafelek 1024 px ≈ 4 MB po wczytaniu – kilkadziesiąt kafelków bez problemu; 2048 px – czterokrotnie więcej.
+
+**ZROBIONE (2026-10-16, cd.): bramki sygnałowe i konstrukcje semaforów na planie** (polecenie właściciela: „czy mogę bramkę zrobić i na niej semafor powiesić” – „logika bez zmian, po prostu zmiany w UT i edytorze”)
+- Znaki wg wykazu znaków planów (poradnik UTK t. I, s. 671, poz. 9.8): 9.8.3 maszt prosty (dotychczasowy), 9.8.7 maszt z wysięgnikiem (załamanie masztu w stronę toru), 9.8.8 na bramce lub wysięgniku (kreska prostopadła przez tor, poprzeczka po drugiej stronie, komory przy osi toru), 9.8.5 karzełkowy (komory przy podstawie). `Ig10.Signal` rysuje wg `SignalDef.Mount`, `Ig10.Gantry` – belka bramki z poprzeczkami podpór i oznaczeniem; także w oknie „Plan stacji”.
+- Model: `gantries` { klucz `POST:oznaczenie` → `label`, `post`, `x`, `y0`, `y1` } (`Station.Gantries`, `GantryDef`), sygnalizator: `mount` ("" / `wysiegnik` / `nad` / `bramka` / `karzel`) i `gantry`. `Model/StationDoc.Gantry.cs`: `AddGantry`, `AttachNear` (sygnalizatory w zasięgu belki, w poziomie ≤ max(12 j., 10 px)), `AttachToGantry` (węzeł dosuwa się do bramki tylko wtedy, gdy nie przeskoczy sąsiedniego węzła – kierunek torów i przebiegi bez zmian), `MoveGantry`, `DeleteGantry` (sygnalizatory wracają na maszt).
+- Edytor (`UI/EditorWindow.Gantry.cs`): narzędzie „⊤ Bramka” (U) – przeciągnięcie w pionie w poprzek torów, semafory w pobliżu przypinają się same; panel bramki (oznaczenie, końce belki, położenie X przesuwa przypięte, lista, „Przypnij sygnalizatory w pobliżu”, Del); panel semafora – „Konstrukcja na planie” i wybór bramki. Zobrazowanie (pulpit, Ie-104) i komputer zależności – bez zmian.
+- Naprawiony błąd edytora: przycisk „Odcinek zwrotnicowy na łącznik” pokazywał się przy każdym zaznaczonym obiekcie (brak nawiasów przy `if (selKind == "sw")`).
+- Test: `--editshot p.png bramka out.json` (bramka narzędziem przy kolumnie 11 sygnalizatorów, tablica przebiegów z ochroną boczną identyczna przed / po przypięciu, przesunięciu i konstrukcjach, Del, Ctrl+Z, zapis). Zrzut: `zrzuty/Plan_bramka_sygnalowa.png`.
 
 **Do zrobienia w etapie 1:**
 - Ten sam tor na dwóch obrazach (granica stacji).

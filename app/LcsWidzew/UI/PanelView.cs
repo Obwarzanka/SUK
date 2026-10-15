@@ -648,6 +648,7 @@ public class PanelView : FrameworkElement
             g.TrackNumber(e.Track, new Point(e.Pts[0].X, e.Pts[0].Y), new Point(e.Pts[^1].X, e.Pts[^1].Y), e.Elec ? Ig10.Elec : null);
         }
         foreach (var sw in L.Switches.Values) g.Switch(L, sw, null, ly.Numbers);
+        if (ly.Signals) foreach (var gn in L.Gantries.Values) g.Gantry(gn);
         if (ly.Signals) foreach (var s in L.Signals.Values) g.Signal(L, s);
         if (ly.Ends) foreach (var d in L.Derailers.Values)
         {

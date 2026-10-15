@@ -70,6 +70,8 @@ public class SignalDef
     /// <summary>Liczba komór (plan schematyczny, Ig-10 zał. 8 / Ie-4); 0 – domyślna dla typu (DefaultLamps).</summary>
     public int Lamps;
     public int LampCount => Lamps > 0 ? Lamps : Type switch { "wjazdowy" => 5, "wyjazdowy" => NoShunt ? 3 : 4, "odstepowy" => 3, _ => 1 };
+    /// <summary>Konstrukcja na planie (Ig-10 9.8): "" maszt prosty, "wysiegnik", "nad" (wysięgnik nad torem), "bramka", "karzel"; Gantry – bramka.</summary>
+    public string Mount = "", Gantry;
     public bool PkTrain => Type == "pk" && PkRoutes.Contains('P');
     public bool PkShunt => Type == "pk" && PkRoutes.Contains('M');
     /// <summary>Może rozpoczynać przebieg manewrowy (podaje Ms2).</summary>
@@ -130,6 +132,8 @@ public class PlatformDef { public string Name; public double X, Y, W, H; }
 public class LabelDef { public double X, Y; public string Text, Anchor; }
 /// <summary>Przejazd kolejowo-drogowy: Kind „Y” albo „T” – oznaczenie na końcach linii.</summary>
 public class CrossingDef { public string Name, Kind = "Y"; public double X, Y0, Y1; }
+/// <summary>Bramka sygnałowa na planie schematycznym: pionowa belka w poprzek torów (x, od y0 do y1).</summary>
+public class GantryDef { public string Id, Label, Post; public double X, Y0, Y1; }
 public class DashedDef { public double X0, X1, Y; }
 public class TrackEndDef { public string Id, Label, Disp; public bool Marker; }
 /// <summary>Reguła tablicy przebiegów z edytora: wyłączenie przebiegu albo wskazanie przebiegu zasadniczego.</summary>
@@ -156,6 +160,7 @@ public class Station
     public List<PlatformDef> Platforms = new();
     public List<LabelDef> Labels = new();
     public List<CrossingDef> Crossings = new();
+    public Dictionary<string, GantryDef> Gantries = new();
     public List<DashedDef> Dashed = new();
     public List<RouteRule> RouteRules = new();
     public double Width = 2000, Height = 1125;
@@ -281,7 +286,7 @@ public class Station
             {
                 Name = p.Name, Node = S(v, "node"), Dir = v.GetProperty("dir").GetInt32(), Type = S(v, "type"), Szlak = S(v, "szlak"), Track = S(v, "track"),
                 Label = S(v, "label", Lbl(p.Name)), Repeats = S(v, "repeats"), Post = S(v, "post", PostOf(p.Name)),
-                PkRoutes = S(v, "routes", "PM"),
+                PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"),
                 Lamps = v.TryGetProperty("lamps", out var lm) && lm.ValueKind == JsonValueKind.Number ? lm.GetInt32() : v.TryGetProperty("lamps", out var lm2) && lm2.ValueKind == JsonValueKind.String && int.TryParse(lm2.GetString(), out var lmi) ? lmi : 0,
                 NoShunt = v.TryGetProperty("shunt", out var sh) && (sh.ValueKind == JsonValueKind.False || (sh.ValueKind == JsonValueKind.String && sh.GetString() == "false"))
             };
@@ -318,6 +323,9 @@ public class Station
             st.Labels.Add(new LabelDef { X = p.GetProperty("x").GetDouble(), Y = p.GetProperty("y").GetDouble(), Text = S(p, "text"), Anchor = S(p, "anchor", "start") });
         if (r.TryGetProperty("crossings", out var cr))
             foreach (var p in cr.EnumerateArray()) st.Crossings.Add(new CrossingDef { Name = S(p, "name"), Kind = S(p, "kind", "Y"), X = p.GetProperty("x").GetDouble(), Y0 = p.GetProperty("y0").GetDouble(), Y1 = p.GetProperty("y1").GetDouble() });
+        if (r.TryGetProperty("gantries", out var gn) && gn.ValueKind == JsonValueKind.Object)
+            foreach (var p in gn.EnumerateObject())
+                st.Gantries[p.Name] = new GantryDef { Id = p.Name, Label = S(p.Value, "label", Lbl(p.Name)), Post = S(p.Value, "post", PostOf(p.Name)), X = p.Value.GetProperty("x").GetDouble(), Y0 = p.Value.GetProperty("y0").GetDouble(), Y1 = p.Value.GetProperty("y1").GetDouble() };
         if (r.TryGetProperty("dashed", out var da))
             foreach (var p in da.EnumerateArray()) st.Dashed.Add(new DashedDef { X0 = p.GetProperty("x0").GetDouble(), X1 = p.GetProperty("x1").GetDouble(), Y = p.GetProperty("y").GetDouble() });
         if (r.TryGetProperty("routeRules", out var rr))

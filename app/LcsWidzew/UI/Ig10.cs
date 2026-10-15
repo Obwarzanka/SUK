@@ -217,21 +217,53 @@ public sealed class Ig10
         var n = L.Nodes[s.Node]; var o = new Point(n.X, n.Y);
         double dir = s.Dir >= 0 ? 1 : -1;
         var along = new Vector(dir, 0); var right = new Vector(0, dir);   // oś Y w dół: na wschód – prawa strona to dół
+        int k = s.LampCount; double r = 1 * u;
+        void Lamps(Point c0)
+        {
+            for (int i = 0; i < k; i++)
+            {
+                var c = c0 - along * (r + i * 2 * r);
+                dc.DrawEllipse(lit != null && i < lit.Length ? lit[i] : Paper, P(0.18, ink), c, r, r);
+                if (lit != null) continue;
+                if (s.Type == "tm") { dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, -0.7) * r, c + new Vector(0.7, 0.7) * r); dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, 0.7) * r, c + new Vector(0.7, -0.7) * r); }
+                else dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, 0.7) * r, c + new Vector(0.7, -0.7) * r);
+            }
+        }
+        var lblBrush = s.Type == "odstepowy" ? Grey : ink;
+        if (s.Mount is "nad" or "bramka")
+        {
+            // 9.8.8 – na bramce lub wysięgniku: kreska prostopadła przez tor, poprzeczka po drugiej stronie toru, komory przy osi toru
+            bool gantry = s.Mount == "bramka" && s.Gantry != null && L.Gantries.ContainsKey(s.Gantry);
+            var top = o - right * 3 * u; var bot = o + right * 2.2 * r;
+            if (!gantry) { dc.DrawLine(P(0.18, ink), top, bot); dc.DrawLine(P(0.18, ink), top - along * 1 * u, top + along * 1 * u); }
+            else dc.DrawLine(P(0.18, ink), o, bot);
+            Lamps(o + right * 1.1 * r);
+            Text(s.Label, (o - along * (2 * r * k + 0.8 * u)).X, (o + right * 1.1 * r).Y, 1.8, lblBrush, dir > 0 ? 1 : -1);
+            return;
+        }
         var bse = o + right * 3 * u;
         dc.DrawLine(P(0.18, ink), o, bse);
         dc.DrawLine(P(0.18, ink), bse - along * 0.0 + new Vector(0, -1) * 1 * u, bse + new Vector(0, 1) * 1 * u);
-        var c0 = bse - along * 2 * u;
-        dc.DrawLine(P(0.18, ink), bse, c0);
-        int k = s.LampCount; double r = 1 * u;
-        for (int i = 0; i < k; i++)
+        if (s.Mount == "karzel") Lamps(bse);                                   // 9.8.5 – karzełkowy: komory przy podstawie
+        else if (s.Mount == "wysiegnik")
         {
-            var c = c0 - along * (r + i * 2 * r);
-            dc.DrawEllipse(lit != null && i < lit.Length ? lit[i] : Paper, P(0.18, ink), c, r, r);
-            if (lit != null) continue;
-            if (s.Type == "tm") { dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, -0.7) * r, c + new Vector(0.7, 0.7) * r); dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, 0.7) * r, c + new Vector(0.7, -0.7) * r); }
-            else dc.DrawLine(P(0.18, ink), c + new Vector(-0.7, 0.7) * r, c + new Vector(0.7, -0.7) * r);
+            // 9.8.7 – maszt z wysięgnikiem: maszt z załamaniem w stronę toru
+            var a1 = bse - along * 1 * u; var a2 = a1 - right * 0.6 * u; var c0w = a2 - along * 1 * u;
+            dc.DrawLine(P(0.18, ink), bse, a1); dc.DrawLine(P(0.18, ink), a1, a2); dc.DrawLine(P(0.18, ink), a2, c0w);
+            Lamps(c0w);
         }
+        else { var c0 = bse - along * 2 * u; dc.DrawLine(P(0.18, ink), bse, c0); Lamps(c0); }   // 9.8.3 – maszt prosty
         // opis po stronie podstawy (za słupkiem w kierunku jazdy)
-        Text(s.Label, bse.X + along.X * 1 * u, bse.Y, 1.8, s.Type == "odstepowy" ? Grey : ink, dir > 0 ? -1 : 1);
+        Text(s.Label, bse.X + along.X * 1 * u, bse.Y, 1.8, lblBrush, dir > 0 ? -1 : 1);
+    }
+
+    /// <summary>Bramka sygnałowa: belka w poprzek torów (0,35 mm) z poprzeczkami podpór na końcach, oznaczenie przy górnym końcu.</summary>
+    public void Gantry(GantryDef g, Brush color = null)
+    {
+        var ink = color ?? Ink;
+        var a = new Point(g.X, g.Y0 - 3 * u); var b = new Point(g.X, g.Y1 + 3 * u);
+        dc.DrawLine(P(0.35, ink), a, b);
+        foreach (var p in new[] { a, b }) dc.DrawLine(P(0.35, ink), p - new Vector(1.2 * u, 0), p + new Vector(1.2 * u, 0));
+        Text(g.Label, g.X, a.Y - 1.8 * u, 1.8, ink);
     }
 }

@@ -184,6 +184,7 @@ public class PlanLiveView : FrameworkElement
         if (S.Trains != null) foreach (var t in S.Trains.List.Where(t => !t.Gone)) DrawTrain(dc, S, t, px, t.Num == Follow);
         // sygnalizatory
         bool blink = (Environment.TickCount64 / 500) % 2 == 0;
+        if (ly.Signals) foreach (var gn in L.Gantries.Values) g.Gantry(gn);
         if (ly.Signals) foreach (var s in L.Signals.Values) DrawSignal(g, L, s, S.Sigs[s.Name], S, blink);
         // nazwy posterunków
         foreach (var (pid, pname) in L.Posts)

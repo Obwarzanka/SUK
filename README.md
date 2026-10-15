@@ -120,6 +120,7 @@ Podział, scalenie i prostowanie toru na planie zmieniają też obraz. Nowe tory
 | Narzędzie | Klawisz | Działanie |
 |---|---|---|
 | Wskaż / przesuń | – | zaznaczanie, przeciąganie węzłów, napisów i peronów; prostokąt – zaznaczenie grupy (wyrównanie, rozsunięcie torów, prostowanie rozjazdów) |
+| ⊤ Bramka | U | bramka sygnałowa na planie (znak 9.8.8): przeciągnij w pionie w poprzek torów – semafory w pobliżu przypinają się i dosuwają do bramki; konstrukcję semafora (maszt, maszt z wysięgnikiem, wysięgnik nad torem, bramka, karzełkowy) wybierasz w jego panelu. Tylko plan – zależności i pulpit bez zmian |
 | Tor | T | rysowanie toru punkt po punkcie (Shift – poziomo), PPM/Esc kończy |
 | Odcinek | – | przypisanie torów do odcinków izolowanych (Ctrl+klik pobiera odcinek) |
 | **Rozjazd** | R | **rysuje nowe połączenie**: klik na torze, potem na drugim torze tworzy łącznik ukos–pion–ukos z dwiema zwrotnicami; klik w puste miejsce tworzy odgałęzienie |
