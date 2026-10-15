@@ -57,6 +57,47 @@ public static class GeoPodklad
     public record Result(string File, int W, int H, double Mpp, string Attribution, JsonObject Geo);
 
     static byte[] Get(string url) => http.GetByteArrayAsync(url).GetAwaiter().GetResult();
+    public static HttpClient Http => http;
+
+    /// <summary>
+    /// Kafelki mozaiki (Web Mercator z15) do katalogu podklady/&lt;źródło&gt;_z15_&lt;n&gt;: ortofotomapa – WMS Geoportalu w EPSG:3857
+    /// dokładnie w granicach kafelka (n × n px), zdjęcia Esri – sklejone z kafelków o 1–2 poziomy dokładniejszych. Już pobrane – pomijane.
+    /// </summary>
+    public static string Mosaic(string src, int n, List<(int X, int Y)> tiles, string baseDir, Action<string> progress)
+    {
+        const int z = WebTiles.PickZ;
+        var dir = Path.Combine(baseDir, $"{src}_z{z}_{n}"); Directory.CreateDirectory(dir);
+        int k = 0;
+        foreach (var (x, y) in tiles)
+        {
+            k++;
+            var file = Path.Combine(dir, $"{x}_{y}.jpg");
+            if (File.Exists(file)) continue;
+            progress?.Invoke($"Pobieranie kafelka {k}/{tiles.Count}…");
+            if (src == "orto")
+            {
+                var (a, b, c, d) = WebTiles.Bbox3857(x, y, z);
+                var data = Get(FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={a:0.###},{b:0.###},{c:0.###},{d:0.###}&WIDTH={n}&HEIGHT={n}&FORMAT=image/jpeg"));
+                BitmapSource img;
+                try { img = Decode(data); } catch { throw new InvalidOperationException("Geoportal nie zwrócił obrazu (przeciążony?) – spróbuj później albo wybierz zdjęcia satelitarne Esri"); }
+                if (img.PixelWidth != n || img.PixelHeight != n) throw new InvalidOperationException($"Geoportal zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {n}×{n}");
+                File.WriteAllBytes(file, data);
+            }
+            else
+            {
+                int sub = n / 256, zz = z + (int)Math.Round(Math.Log2(sub));
+                var buf = new byte[n * n * 4];
+                for (int j = 0; j < sub; j++)
+                    for (int i = 0; i < sub; i++)
+                    {
+                        var img = Decode(Get(string.Format(CultureInfo.InvariantCulture, EsriTiles, zz, x * sub + i, y * sub + j)));
+                        img.CopyPixels(new Int32Rect(0, 0, 256, 256), buf, n * 4, (j * 256 * n + i * 256) * 4);
+                    }
+                Save(buf, n, n, file);
+            }
+        }
+        return dir;
+    }
 
     static BitmapSource Decode(byte[] data)
     {
@@ -240,7 +281,7 @@ public partial class EditorWindow
             ["file"] = BgRel(res.File), ["x"] = Math.Round(c.X - w / 2, 2), ["y"] = Math.Round(c.Y - h / 2, 2), ["w"] = Math.Round(w, 2),
             ["sy"] = Math.Round(doc.Uy / doc.Ux, 5), ["rot"] = 0, ["opacity"] = 0.85, ["attribution"] = res.Attribution, ["geo"] = res.Geo,
         };
-        doc.Root["planBg"] = bg;
+        doc.PlanBgs.Add(bg); bgActive = doc.PlanBgs.Count - 1;
         if (Math.Abs(doc.Uy / doc.Ux - 1) < 1e-6) bg.Remove("sy");
         Changed($"Podkład w skali planu 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0}: {res.W}×{res.H} px, 1 px = {res.Mpp:0.###} m ({res.W * res.Mpp:0} × {res.H * res.Mpp:0} m).{note}" +
             (doc.RealScale ? " Bez zniekształceń – rysuj tory po zdjęciu, długości wyjdą rzeczywiste." : $" Plan ma skalę poprzeczną 1:{doc.ScaleAcross:0}, więc zdjęcie jest rozciągnięte ×{doc.Uy / doc.Ux:0.#} w pionie – dla zdjęcia bez zniekształceń wybierz skalę rzeczywistą.") + $" Obróć: „1. Wyrównaj tor do poziomu”. {res.Attribution}");
@@ -267,12 +308,12 @@ public partial class EditorWindow
         var res = Task.Run(() => src == "osm" ? GeoPodklad.Osm(lat, lon, wM, hM, 0.6, file, null) : src == "esri" ? GeoPodklad.Esri(lat, lon, wM, hM, 0.3, file, null) : GeoPodklad.Orto(lat, lon, wM, hM, 0.5, file, null)).GetAwaiter().GetResult();
         Ok(File.Exists(res.File), $"pobrano {res.W}×{res.H} px, {res.Mpp:0.###} m/px → {res.File}");
         ApplyGeoBackground(res);
-        var bi = BgImage(BgFile(Bg)); var t = BgXf(Bg, bi);
+        var bi = BgPx(Bg); var t = BgXf(Bg, bi);
         double mW = (BgToWorld(t, new Point(bi.PixelWidth, 0)).X - BgToWorld(t, new Point(0, 0)).X) / doc.Ux;
         double mH = (BgToWorld(t, new Point(0, bi.PixelHeight)).Y - BgToWorld(t, new Point(0, 0)).Y) / doc.Uy;
         Ok(Math.Abs(mW - res.W * res.Mpp) < 0.5 && Math.Abs(mH - res.H * res.Mpp) < 0.5, $"na planie: {mW:0.#} m × {mH:0.#} m w skali 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0} (rozciągnięcie pionowe {t.Sy})");
         doc.Save(outJson);
-        Ok(StationDoc.Load(outJson).Root["planBg"]?["geo"]?["mpp"] != null, "zapis podkładu z georeferencją");
+        Ok((StationDoc.Load(outJson).Root["planBgs"] as JsonArray)?.LastOrDefault()?["geo"]?["mpp"] != null, "zapis podkładu z georeferencją");
         // zrzut: środek podkładu, ok. 1200 m szerokości widoku
         var mid = BgToWorld(t, new Point(bi.PixelWidth / 2.0, bi.PixelHeight / 2.0));
         ZoomForTest(mid.X, mid.Y, Math.Max(0.05, panel.ActualWidth / (1200 * doc.Ux)));

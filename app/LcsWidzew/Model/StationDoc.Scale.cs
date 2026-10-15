@@ -96,6 +96,14 @@ public partial class StationDoc
         return $"zmieniono {n} torów" + (maxId != null ? $" (największa zmiana {maxD:0} m – tor {maxId})" : "") + $", pominięto {skip} (szlaki, łączniki obrazów, długości wpisane)";
     }
 
+    /// <summary>Podkłady planu (od dołu): obrazy i mozaiki kafelków. Zapis „planBgs”; dawny pojedynczy „planBg” – przenoszony.</summary>
+    public JsonArray PlanBgs { get { if (Root["planBgs"] is not JsonArray a) Root["planBgs"] = a = new JsonArray(); return a; } }
+    void MigrateBg()
+    {
+        if (Root["planBg"] is not JsonObject one) return;
+        Root.Remove("planBg"); PlanBgs.Add(one);
+    }
+
     /// <summary>Zmiana skali planu z przeskalowaniem rysunku (węzły, tory, napisy, perony, przejazdy) – długości w metrach bez zmian.</summary>
     public void RescalePlan(double along, double across)
     {
@@ -106,7 +114,7 @@ public partial class StationDoc
         foreach (var l in ((JsonArray)Root["labels"]).OfType<JsonObject>()) { l["x"] = Math.Round(D(l["x"]) * kx, 1); l["y"] = Math.Round(D(l["y"]) * ky, 1); }
         foreach (var p in ((JsonArray)Root["platforms"]).OfType<JsonObject>()) foreach (var (k, f) in new[] { ("x", kx), ("y", ky), ("w", kx), ("h", ky) }) p[k] = Math.Round(D(p[k]) * f, 1);
         foreach (var c in ((JsonArray)Root["crossings"]).OfType<JsonObject>()) foreach (var (k, f) in new[] { ("x", kx), ("y0", ky), ("y1", ky) }) c[k] = Math.Round(D(c[k]) * f, 1);
-        if (Root["planBg"] is JsonObject bg)
+        foreach (var bg in (Root["planBgs"] as JsonArray ?? new JsonArray()).OfType<JsonObject>())
         {
             // podkład zostaje na swoim miejscu względem planu: skala obrazu ×kx, rozciągnięcie pionowe ×ky/kx
             bg["x"] = Math.Round(D(bg["x"]) * kx, 2); bg["y"] = Math.Round(D(bg["y"]) * ky, 2);

@@ -16,7 +16,7 @@ public partial class StationDoc
 
     static readonly JsonSerializerOptions Opt = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver() };
 
-    public StationDoc(JsonObject root) { Root = root; Ensure(); EnsureDisplayDeco(); EnsurePlanScale(); }
+    public StationDoc(JsonObject root) { Root = root; Ensure(); EnsureDisplayDeco(); EnsurePlanScale(); MigrateBg(); }
     public static StationDoc Load(string path) => new((JsonObject)JsonNode.Parse(File.ReadAllText(path)));
     public string Json() => Root.ToJsonString(Opt);
     /// <summary>Zapis z kopią poprzedniej wersji: plik .bak oraz kopie z datą w katalogu „kopie” (ostatnie 30).</summary>

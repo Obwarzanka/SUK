@@ -32,7 +32,7 @@ public class PlanLayers
 
 /// <summary>
 /// Plan schematyczny w edytorze: podkład (plan Semaforka, mapa, skan) do odrysowania torów i warstwy Ig-10.
-/// Podkład jest tylko tłem edytora – nie trafia na pulpit ani do „Plan stacji”. Zapis w station.json: „planBg”.
+/// Podkłady są tylko tłem edytora – nie trafiają na pulpit ani do „Plan stacji”. Zapis w station.json: „planBgs” (lista, od dołu).
 /// </summary>
 public partial class EditorWindow
 {
@@ -43,7 +43,40 @@ public partial class EditorWindow
     readonly List<Point> bgPts = new();
     static readonly Dictionary<string, BitmapSource> bgCache = new();
 
-    JsonObject Bg => doc?.Root["planBg"] as JsonObject;
+    /// <summary>Indeks aktywnego podkładu (operacje: obrót, skala, przesunięcie, usuwanie).</summary>
+    int bgActive;
+    JsonArray Bgs => doc?.Root["planBgs"] as JsonArray;
+    JsonObject Bg
+    {
+        get
+        {
+            var a = Bgs; if (a == null || a.Count == 0) return null;
+            bgActive = Math.Clamp(bgActive, 0, a.Count - 1); return a[bgActive] as JsonObject;
+        }
+    }
+    static bool IsTiles(JsonObject bg) => StationDoc.Sv(bg?["type"]) == "tiles";
+    public record BgSize(int PixelWidth, int PixelHeight);
+    /// <summary>Kafelki mozaiki [(x, y)] i ich zakres (x0, y0 – lewy górny kafelek).</summary>
+    static List<(int X, int Y)> Tiles(JsonObject bg) => (bg["tiles"] as JsonArray ?? new JsonArray()).OfType<JsonArray>().Select(t => ((int)StationDoc.D(t[0]), (int)StationDoc.D(t[1]))).ToList();
+    static (int X0, int Y0, int Cols, int Rows) TileSpan(JsonObject bg)
+    {
+        var t = Tiles(bg); int x0 = (int)Num(bg["tx0"], 0), y0 = (int)Num(bg["ty0"], 0);
+        return t.Count == 0 ? (x0, y0, 1, 1) : (x0, y0, t.Max(q => q.X) - x0 + 1, t.Max(q => q.Y) - y0 + 1);
+    }
+    string TileFile(JsonObject bg, int x, int y)
+    {
+        var d = StationDoc.Sv(bg["dir"]) ?? "";
+        var full = Path.IsPathRooted(d) ? d : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(path) ?? ".", d));
+        return Path.Combine(full, $"{x}_{y}.jpg");
+    }
+    /// <summary>Rozmiar podkładu w pikselach: obraz albo mozaika (kolumny × n).</summary>
+    BgSize BgPx(JsonObject bg)
+    {
+        if (bg == null) return null;
+        if (IsTiles(bg)) { var (_, _, c, r) = TileSpan(bg); int n = (int)Num(bg["n"], 1024); return new BgSize(c * n, r * n); }
+        var img = BgImage(BgFile(bg)); return img == null ? null : new BgSize(img.PixelWidth, img.PixelHeight);
+    }
+    string BgName(JsonObject bg) => IsTiles(bg) ? $"{(StationDoc.Sv(bg["src"]) == "esri" ? "satelita" : "ortofotomapa")} – {Tiles(bg).Count} kaf." : Path.GetFileName(StationDoc.Sv(bg["file"]) ?? "?");
     string BgFile(JsonObject bg)
     {
         var f = StationDoc.Sv(bg?["file"]); if (string.IsNullOrEmpty(f)) return null;
@@ -66,8 +99,15 @@ public partial class EditorWindow
     /// Sy – dodatkowe rozciągnięcie pionowe planu (skala poprzeczna inna niż podłużna, np. mapa: ×4 przy 1:2000 / 1:500).
     /// </summary>
     record struct BgT(Point O, double Rot, double S, double Sy);
-    static double Num(JsonNode n, double def) => n is JsonValue v && v.TryGetValue<double>(out var d) ? d : n is JsonValue s && s.TryGetValue<string>(out var t) && double.TryParse(t.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d2) ? d2 : def;
-    BgT BgXf(JsonObject bg, BitmapSource img)
+    /// <summary>Liczba z pola JSON: liczba (także int w pamięci) albo tekst z liczbą; inaczej def.</summary>
+    static double Num(JsonNode n, double def)
+    {
+        if (n is not JsonValue v) return def;
+        if (v.TryGetValue<string>(out var t)) return double.TryParse(t.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d2) ? d2 : def;
+        try { return StationDoc.D(n); } catch { return def; }
+    }
+    BgT BgXf(JsonObject bg, BitmapSource img) => BgXf(bg, new BgSize(img.PixelWidth, img.PixelHeight));
+    BgT BgXf(JsonObject bg, BgSize img)
     {
         double w = Num(bg["w"], img.PixelWidth), sy = Num(bg["sy"], 1);
         return new BgT(new Point(Num(bg["x"], 0), Num(bg["y"], 0)), Num(bg["rot"], 0), w / Math.Max(1, img.PixelWidth), sy > 1e-4 ? sy : 1);
@@ -77,7 +117,7 @@ public partial class EditorWindow
         double r = t.Rot * Math.PI / 180, x = px.X * t.S, y = px.Y * t.S;
         return t.O + new Vector(x * Math.Cos(r) - y * Math.Sin(r), (x * Math.Sin(r) + y * Math.Cos(r)) * t.Sy);
     }
-    static void BgStore(JsonObject bg, BitmapSource img, BgT t)
+    static void BgStore(JsonObject bg, BgSize img, BgT t)
     {
         bg["x"] = Math.Round(t.O.X, 2); bg["y"] = Math.Round(t.O.Y, 2); bg["rot"] = Math.Round(t.Rot, 3);
         bg["w"] = Math.Round(img.PixelWidth * t.S, 2);
@@ -86,19 +126,29 @@ public partial class EditorWindow
 
     void DrawPlanBackground(DrawingContext dc, double scale)
     {
-        var bg = Bg; if (bg == null || bg["hidden"] is JsonValue hv && hv.TryGetValue<bool>(out var h) && h) return;
-        var img = BgImage(BgFile(bg)); if (img == null) return;
-        var t = BgXf(bg, img);
-        double op = bg["opacity"] != null ? Math.Clamp(Num(bg["opacity"], 0.45), 0.05, 1) : 0.45;
-        dc.PushTransform(new TranslateTransform(t.O.X, t.O.Y)); dc.PushTransform(new ScaleTransform(1, t.Sy)); dc.PushTransform(new RotateTransform(t.Rot)); dc.PushOpacity(op);
-        dc.DrawImage(img, new Rect(0, 0, img.PixelWidth * t.S, img.PixelHeight * t.S));
-        dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+        if (Bgs is { } all) foreach (var o in all.OfType<JsonObject>()) DrawOneBg(dc, o);
         // znaczniki kalibracji
         var pen = new Pen(Brushes.OrangeRed, 2 / scale);
         void Mark(Point p) { dc.DrawLine(pen, p + new Vector(-8, 0) / scale, p + new Vector(8, 0) / scale); dc.DrawLine(pen, p + new Vector(0, -8) / scale, p + new Vector(0, 8) / scale); }
         if (bgCal >= 2) Mark(bgP1); if (bgCal >= 3) { Mark(bgQ1); dc.DrawLine(new Pen(Brushes.OrangeRed, 1 / scale) { DashStyle = DashStyles.Dash }, bgP1, bgQ1); }
         if (bgCal >= 4) Mark(bgP2);
         if (bgOp != null) foreach (var p in bgPts) { Mark(p); dc.DrawLine(new Pen(Brushes.OrangeRed, 1 / scale) { DashStyle = DashStyles.Dash }, p, mouse); }
+    }
+
+    void DrawOneBg(DrawingContext dc, JsonObject bg)
+    {
+        if (bg["hidden"] is JsonValue hv && hv.TryGetValue<bool>(out var h) && h) return;
+        var sz = BgPx(bg); if (sz == null) return;
+        var t = BgXf(bg, sz);
+        double op = bg["opacity"] != null ? Math.Clamp(Num(bg["opacity"], 0.45), 0.05, 1) : 0.45;
+        dc.PushTransform(new TranslateTransform(t.O.X, t.O.Y)); dc.PushTransform(new ScaleTransform(1, t.Sy)); dc.PushTransform(new RotateTransform(t.Rot)); dc.PushOpacity(op);
+        if (IsTiles(bg))
+        {
+            var (x0, y0, _, _) = TileSpan(bg); double n = Num(bg["n"], 1024) * t.S;
+            foreach (var (x, y) in Tiles(bg)) if (BgImage(TileFile(bg, x, y)) is { } ti) dc.DrawImage(ti, new Rect((x - x0) * n, (y - y0) * n, n, n));
+        }
+        else if (BgImage(BgFile(bg)) is { } img) dc.DrawImage(img, new Rect(0, 0, img.PixelWidth * t.S, img.PixelHeight * t.S));
+        dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
     }
 
     /// <summary>Kalibracja dwoma punktami: punkt podkładu → miejsce na planie (węzeł albo kliknięte miejsce).</summary>
@@ -115,7 +165,7 @@ public partial class EditorWindow
                 var q2 = Target(w); bgCal = 0;
                 var dp = bgP2 - bgP1; var dq = q2 - bgQ1;
                 if (dp.Length < 1e-6) { status.Text = "✗ Punkty podkładu w tym samym miejscu – kalibracja przerwana"; break; }
-                var bg = Bg; var img = BgImage(BgFile(bg)); if (img == null) break;
+                var bg = Bg; var img = BgPx(bg); if (img == null) break;
                 var t = BgXf(bg, img); string msg;
                 if (Math.Abs(t.Sy - 1) < 1e-6)
                 {
@@ -169,7 +219,7 @@ public partial class EditorWindow
             panel.InvalidateVisual(); return;
         }
         var op = bgOp; var p1 = bgPts[0]; var p2 = bgPts[1]; bgOp = null; bgPts.Clear(); panel.InvalidateVisual();
-        var bg = Bg; var img = BgImage(BgFile(bg)); if (img == null) { status.Text = "✗ Brak obrazu podkładu"; return; }
+        var bg = Bg; var img = BgPx(bg); if (img == null) { status.Text = "✗ Brak obrazu podkładu"; return; }
         var t = BgXf(bg, img); string msg;
         double? AskM(string title, string label, double def)
         {
@@ -225,14 +275,44 @@ public partial class EditorWindow
         props.Children.Add(T("Podkład do odrysowania", 13, Brushes.White, true));
         props.Children.Add(T("Ortofotomapa (zdjęcia lotnicze z Geoportalu) i mapa OSM trafiają na plan od razu w skali – wystarczy obrócić tor do poziomu. Plan z Semaforka, skan albo zdjęcie ustaw w skali planu (wyrównaj tor do poziomu, skala wzdłuż – dwa punkty i odległość w metrach, w poprzek – dwa tory i rozstaw), potem rysuj tory narzędziem Tor po podkładzie – długości wyjdą z rysunku. Podkład widać tylko w edytorze.", 10.5, Brushes.Gray));
         var bg = Bg;
-        props.Children.Add(Btn(bg == null ? "Nowy podkład: zdjęcia lotnicze / mapa / Semaforek / plik…" : "Zmień podkład (zdjęcia / mapa / Semaforek / plik)…", (a, e) => BgNewDialog()));
+        props.Children.Add(Btn("Kafelki ortofotomapy z mapki…", (a, e) => OpenTilePicker()));
+        props.Children.Add(Btn("Dodaj podkład: obszar / Semaforek / plik…", (a, e) => BgNewDialog()));
         if (bg == null) { PlanLayersPanel(); return; }
-        var full = BgFile(bg); var img = BgImage(full);
-        props.Children.Add(T(img == null ? "✗ Nie można wczytać: " + full : $"{Path.GetFileName(full)} ({img.PixelWidth}×{img.PixelHeight})", 10.5, img == null ? Brushes.OrangeRed : Brushes.LightGray));
-        if (StationDoc.Sv(bg["attribution"]) is { Length: > 0 } attr) props.Children.Add(T(attr, 10.5, Brushes.Gray));
-        if (img != null)
+        // lista podkładów (od dołu): aktywny – do obracania, skalowania, przesuwania, usuwania
+        var arr = Bgs;
+        props.Children.Add(T($"Podkłady ({arr.Count}) – zaznaczony jest aktywny:", 10.5, Brushes.Gray));
+        for (int i = arr.Count - 1; i >= 0; i--)
         {
-            var t = BgXf(bg, img);
+            var o = arr[i] as JsonObject; int idx = i;
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+            var rb = new RadioButton { Content = $"{i + 1}. {BgName(o)}", IsChecked = i == bgActive, Foreground = i == bgActive ? Brushes.White : Brushes.LightGray, GroupName = "bgs", VerticalAlignment = VerticalAlignment.Center, MaxWidth = 210 };
+            rb.Checked += (a, e) => { if (bgActive != idx) { bgActive = idx; ShowProps(); panel.InvalidateVisual(); } };
+            row.Children.Add(rb);
+            var vis = new CheckBox { IsChecked = !(o?["hidden"] is JsonValue v && v.TryGetValue<bool>(out var hh) && hh), ToolTip = "pokaż", Margin = new Thickness(6, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
+            vis.Click += (a, e) => { if (vis.IsChecked == true) o.Remove("hidden"); else o["hidden"] = true; dirty = true; panel.InvalidateVisual(); };
+            row.Children.Add(vis);
+            foreach (var (txt, d) in new[] { ("↑", 1), ("↓", -1) })
+            {
+                var b = new Button { Content = txt, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(1, 0, 0, 0), ToolTip = d > 0 ? "wyżej (na wierzch)" : "niżej", IsEnabled = idx + d >= 0 && idx + d < arr.Count };
+                b.Click += (a, e) => Safe(() => { var j = idx + d; if (j < 0 || j >= arr.Count) return; doc.Snapshot(); var x = arr[idx]; arr.RemoveAt(idx); arr.Insert(j, x); bgActive = j; Changed("Zmieniono kolejność podkładów"); });
+                row.Children.Add(b);
+            }
+            props.Children.Add(row);
+        }
+        bg = Bg;
+        props.Children.Add(T("Aktywny podkład", 12, Brushes.White, true));
+        if (IsTiles(bg))
+            props.Children.Add(T($"Mozaika: {Tiles(bg).Count} kafelków z{Num(bg["z"], 15):0} po {Num(bg["n"], 1024):0} px; kolejne kafelki z mapki dokładają się do niej we właściwym miejscu.", 10.5, Brushes.LightGray));
+        else
+        {
+            var full = BgFile(bg); var img = BgImage(full);
+            props.Children.Add(T(img == null ? "✗ Nie można wczytać: " + full : $"{Path.GetFileName(full)} ({img.PixelWidth}×{img.PixelHeight})", 10.5, img == null ? Brushes.OrangeRed : Brushes.LightGray));
+        }
+        var img2 = BgPx(bg);
+        if (StationDoc.Sv(bg["attribution"]) is { Length: > 0 } attr) props.Children.Add(T(attr, 10.5, Brushes.Gray));
+        if (img2 != null)
+        {
+            var t = BgXf(bg, img2);
             props.Children.Add(T($"1 piksel podkładu ≈ {t.S / doc.Ux:0.###} m wzdłuż, {t.S * t.Sy / doc.Uy:0.###} m w poprzek" + (Math.Abs(t.Rot) > 0.01 ? $" (obrót {t.Rot:0.##}°)" : ""), 10.5, Brushes.Gray));
         }
         props.Children.Add(Btn("1. Wyrównaj tor do poziomu (2 punkty)", (a, e) => StartBgOp("level")));
@@ -240,22 +320,18 @@ public partial class EditorWindow
         props.Children.Add(Btn("3. Skala w poprzek: 2 tory + rozstaw [m]", (a, e) => StartBgOp("across")));
         if (!doc.RealScale) props.Children.Add(Btn($"Rozciągnij pionowo ×{doc.Uy / doc.Ux:0.##} (zniekształca zdjęcie)", (a, e) => Safe(() =>
         {
-            var b = Bg; var im = BgImage(BgFile(b)); if (im == null) return;
+            var b = Bg; var im = BgPx(b); if (im == null) return;
             var t = BgXf(b, im); doc.Snapshot(); BgStore(b, im, t with { Sy = doc.Uy / doc.Ux });
             Changed($"Podkład: rozciągnięcie pionowe ×{doc.Uy / doc.Ux:0.##} (skala poprzeczna 1:{doc.ScaleAcross:0} przy podłużnej 1:{doc.ScaleAlong:0})");
         })));
         props.Children.Add(Btn("Przesuń podkład (punkt → miejsce)", (a, e) => StartBgOp("move")));
         props.Children.Add(Btn("Dopasuj dwoma punktami (do węzłów)", (a, e) => { bgOp = null; bgCal = 1; status.Text = "Podkład 1/4: kliknij punkt na podkładzie (np. środek rozjazdu, który już jest na planie). PPM / Esc – przerwij"; }));
-        var hidden = bg["hidden"] is JsonValue hv && hv.TryGetValue<bool>(out var hb) && hb;
-        var chk = new CheckBox { Content = "pokaż podkład", IsChecked = !hidden, Foreground = Brushes.White, Margin = new Thickness(0, 4, 0, 2) };
-        chk.Click += (a, e) => { if (chk.IsChecked == true) bg.Remove("hidden"); else bg["hidden"] = true; dirty = true; panel.InvalidateVisual(); };
-        props.Children.Add(chk);
         props.Children.Add(T("Przezroczystość", 10.5, Brushes.Gray));
         var sl = new Slider { Minimum = 0.05, Maximum = 1, Value = bg["opacity"] != null ? Num(bg["opacity"], 0.45) : 0.45, Margin = new Thickness(0, 0, 0, 4) };
         sl.ValueChanged += (a, e) => { bg["opacity"] = Math.Round(sl.Value, 2); dirty = true; panel.InvalidateVisual(); };
         props.Children.Add(sl);
         foreach (var (k, lbl) in new[] { ("x", "Położenie X"), ("y", "Położenie Y"), ("w", "Szerokość na planie"), ("sy", "Rozciągnięcie pionowe (×, 1 – bez)"), ("rot", "Obrót [°]") }) Field(bg, k, lbl);
-        props.Children.Add(Btn("Usuń podkład", (a, e) => Safe(() => { doc.Snapshot(); doc.Root.Remove("planBg"); Changed("Usunięto podkład"); })));
+        props.Children.Add(Btn("Usuń aktywny podkład", (a, e) => Safe(() => { doc.Snapshot(); var ar = Bgs; ar.RemoveAt(bgActive); if (ar.Count == 0) doc.Root.Remove("planBgs"); bgActive = Math.Max(0, bgActive - 1); Changed("Usunięto podkład"); })));
         PlanLayersPanel();
     }
 
@@ -321,9 +397,8 @@ public partial class EditorWindow
         double x0 = st.Nodes.Count > 0 ? st.Nodes.Values.Min(n => n.X) : 0, x1 = st.Nodes.Count > 0 ? st.Nodes.Values.Max(n => n.X) : 2000;
         double y0 = st.Nodes.Count > 0 ? st.Nodes.Values.Min(n => n.Y) : 0;
         doc.Snapshot();
-        var bg = Bg ?? new JsonObject();
-        bg["file"] = rel;
-        if (Bg == null) { bg["x"] = Math.Round(x0, 1); bg["y"] = Math.Round(y0, 1); bg["w"] = Math.Round(Math.Max(500, x1 - x0), 1); bg["rot"] = 0; bg["opacity"] = 0.45; doc.Root["planBg"] = bg; }
+        var bg = new JsonObject { ["file"] = rel, ["x"] = Math.Round(x0, 1), ["y"] = Math.Round(y0, 1), ["w"] = Math.Round(Math.Max(500, x1 - x0), 1), ["rot"] = 0, ["opacity"] = 0.6 };
+        doc.PlanBgs.Add(bg); bgActive = doc.PlanBgs.Count - 1;
         Changed("Wczytano podkład " + Path.GetFileName(full) + " – ustaw go w skali (panel z prawej) albo dopasuj dwoma punktami");
     }
 
@@ -354,7 +429,7 @@ public partial class EditorWindow
     {
         var log = new System.Text.StringBuilder(); FuzzMode = true;
         PlanForTest(); doc.EnsureDisplay();
-        string Topo() { var r = (JsonObject)doc.Root.DeepClone(); foreach (var e in ((JsonArray)r["edges"]).OfType<JsonObject>()) e.Remove("pts"); foreach (var (_, n) in (JsonObject)r["nodes"]) { ((JsonObject)n).Remove("x"); ((JsonObject)n).Remove("y"); } foreach (var k in new[] { "labels", "platforms", "crossings", "dashed", "planBg" }) r.Remove(k); return r.ToJsonString(); }
+        string Topo() { var r = (JsonObject)doc.Root.DeepClone(); foreach (var e in ((JsonArray)r["edges"]).OfType<JsonObject>()) e.Remove("pts"); foreach (var (_, n) in (JsonObject)r["nodes"]) { ((JsonObject)n).Remove("x"); ((JsonObject)n).Remove("y"); } foreach (var k in new[] { "labels", "platforms", "crossings", "dashed", "planBg", "planBgs" }) r.Remove(k); return r.ToJsonString(); }
         int Routes() => new LcsWidzew.Sim.Simulator(doc.Build()).RouteTable.Values.Sum(l => l.Count);
         string before = doc.Root.ToJsonString(), topo0 = Topo(); int r0 = Routes();
         var rep = AutoLayout();
@@ -378,7 +453,7 @@ public partial class EditorWindow
         var log = new System.Text.StringBuilder(); FuzzMode = true;
         PlanForTest();
         SetBackground(img);
-        var bg = Bg; var bi = BgImage(BgFile(bg));
+        var bg = Bg; var bi = BgPx(bg);
         log.AppendLine($"podkład: {StationDoc.Sv(bg?["file"])}, obraz {bi?.PixelWidth}×{bi?.PixelHeight}");
         // dwa węzły daleko od siebie; punkty podkładu – tam, gdzie leżą po przesunięciu i obrocie (symulacja)
         var ns = st.Nodes.Values.Where(n => n.Edges.Count > 1).OrderBy(n => n.X).ToList();
@@ -461,7 +536,7 @@ public partial class EditorWindow
         // podkład w skali
         if (img != null)
         {
-            SetBackground(img); var bi = BgImage(BgFile(Bg));
+            SetBackground(img); var bi = BgPx(Bg);
             // obrót podkładu o 3°, potem wyrównanie: dwa piksele jednej linii poziomej obrazu mają wyjść na tej samej wysokości
             doc.Snapshot(); Bg["rot"] = 3; Changed();
             Point Wp(double fx, double fy) => BgToWorld(BgXf(Bg, bi), new Point(bi.PixelWidth * fx, bi.PixelHeight * fy));
@@ -477,13 +552,15 @@ public partial class EditorWindow
             StartBgOp("move"); BgOpClick(m0); BgOpClick(m0 + new Vector(37, -12));
             Ok((Wp(0.5, 0.5) - (m0 + new Vector(37, -12))).Length < 0.05, "przesunięcie podkładu");
             // dopasowanie dwoma punktami przy rozciągniętym podkładzie (osobno poziomo i pionowo)
-            var q1 = Wp(0.2, 0.3) + new Vector(15, 8); var q2 = Wp(0.8, 0.7) + new Vector(40, 30);
+            // miejsca docelowe z dala od węzłów (dopasowanie przyciąga do węzła – tu ma trafić w kliknięty punkt)
+            Point Free(Point q) { for (int g = 0; g < 50 && PickNode(q) != null; g++) q += new Vector(3 * R, 2 * R); return q; }
+            var q1 = Free(Wp(0.2, 0.3) + new Vector(15, 8)); var q2 = Free(Wp(0.8, 0.7) + new Vector(40, 30));
             var s1 = Wp(0.2, 0.3); var s2 = Wp(0.8, 0.7);
             bgCal = 1; BgCalClick(s1); BgCalClick(q1); BgCalClick(s2); BgCalClick(q2);
             Ok((Wp(0.2, 0.3) - q1).Length < 0.1 && (Wp(0.8, 0.7) - q2).Length < 0.1, "dopasowanie dwoma punktami podkładu rozciągniętego pionowo");
             doc.Save(outJson);
             var re = StationDoc.Load(outJson);
-            Ok(re.Root["planBg"]?["sy"] != null && re.ScaleAlong == doc.ScaleAlong, "zapis podkładu (rozciągnięcie) i skali planu");
+            Ok((re.Root["planBgs"] as JsonArray)?.LastOrDefault()?["sy"] != null && re.ScaleAlong == doc.ScaleAlong, "zapis podkładu (rozciągnięcie) i skali planu");
             panel.FitAll();
         }
         else doc.Save(outJson);
