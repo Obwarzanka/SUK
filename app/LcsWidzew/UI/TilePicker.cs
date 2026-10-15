@@ -211,7 +211,18 @@ public partial class EditorWindow
         foreach (var o in (Bgs ?? new JsonArray()).OfType<JsonObject>().Where(IsTiles)) foreach (var t in Tiles(o)) win.Existing.Add(t);
         if (win.ShowDialog() != true || win.Selected.Count == 0) return;
         string src = win.Source == 1 ? "esri" : "orto"; int n = win.N; var tiles = win.Selected.ToList();
-        await RunBg(() => { var dir = GeoPodklad.Mosaic(src, n, tiles, BgDir, Progress); return () => AddTiles(src, n, tiles, dir); });
+        await RunBg(() =>
+        {
+            var m = GeoPodklad.Mosaic(src, n, tiles, BgDir, Progress);
+            return () =>
+            {
+                foreach (var f in m.Failed) App.LogError(new Exception(f), "podkład – kafelek " + src);
+                if (m.Ok.Count > 0) AddTiles(src, n, m.Ok, m.Dir);
+                if (m.Failed.Count > 0)
+                    status.Text = (m.Ok.Count > 0 ? status.Text + "   ⚠ " : "✗ ") + $"Nie pobrano {m.Failed.Count} z {tiles.Count} kafelków ({m.Failed[0]})" +
+                        (m.Failed.Count > 1 ? $" i {m.Failed.Count - 1} innych" : "") + " – zaznacz je jeszcze raz na mapce (pobrane się nie powtórzą)" + (src == "orto" ? " albo wybierz zdjęcia Esri." : ".");
+            };
+        });
     }
 
     /// <summary>Początek mapki: środek istniejącej mozaiki, ostatni podkład geograficzny albo cała Polska.</summary>
@@ -301,7 +312,7 @@ public partial class EditorWindow
         GeoPodklad.TryLatLon(latlon, out var lat, out var lon);
         var (gx, gy) = WebTiles.LatLonToPx(lat, lon, WebTiles.PickZ); int cx = (int)(gx / 256), cy = (int)(gy / 256);
         var first = new List<(int, int)> { (cx - 1, cy), (cx, cy), (cx + 1, cy) };
-        var dir = Task.Run(() => GeoPodklad.Mosaic(src, 1024, first, BgDir, null)).GetAwaiter().GetResult();
+        var dir = Task.Run(() => GeoPodklad.Mosaic(src, 1024, first, BgDir, null)).GetAwaiter().GetResult().Dir;
         Ok(first.All(t => File.Exists(Path.Combine(dir, $"{t.Item1}_{t.Item2}.jpg"))), $"pobrano 3 kafelki → {dir}");
         AddTiles(src, 1024, first, dir, false);
         var a = Bg; Ok(IsTiles(a) && Tiles(a).Count == 3, "mozaika na planie");
@@ -324,12 +335,22 @@ public partial class EditorWindow
         // druga mozaika z innego źródła i rozdzielczości – wyrównana geograficznie
         string src2 = src == "orto" ? "esri" : "orto";
         var two = new List<(int, int)> { (cx, cy) };
-        var dir2 = Task.Run(() => GeoPodklad.Mosaic(src2, 2048, two, BgDir, null)).GetAwaiter().GetResult();
+        var dir2 = Task.Run(() => GeoPodklad.Mosaic(src2, 2048, two, BgDir, null)).GetAwaiter().GetResult().Dir;
         AddTiles(src2, 2048, two, dir2, false);
         var b = Bg;
         Ok(Bgs.Count == 2 && (Geo(b, lat, lon) - p0).Length < 0.05, $"druga mozaika ({src2}, 2048 px) wyrównana do pierwszej (Δ {(Geo(b, lat, lon) - p0).Length:0.###}), obrót {Num(b["rot"], 0):0.##}°");
         doc.Save(outJson);
         Ok((StationDoc.Load(outJson).Root["planBgs"] as JsonArray)?.Count == 2, "zapis dwóch podkładów");
+        // kafelek nieistniejący (poza siatką) – reszta się pobiera, błąd w wyniku
+        var mix = new List<(int, int)> { (cx + 1, cy + 1), (cx, -5) };
+        var mr = Task.Run(() => GeoPodklad.Mosaic(src, 1024, mix, BgDir, null)).GetAwaiter().GetResult();
+        Ok(mr.Ok.Count == 1 && mr.Failed.Count == 1, $"nieudany kafelek nie przerywa pobierania: pobrane {mr.Ok.Count}, nieudane {mr.Failed.Count} ({mr.Failed.FirstOrDefault()})");
+        Ok(!Directory.GetFiles(mr.Dir, "*.tmp").Any(), "brak plików tymczasowych po pobieraniu");
+        // większa paczka (16 kafelków wzdłuż linii) – wszystkie mimo losowych odmów serwera
+        var many = Enumerable.Range(0, 16).Select(i => (cx - 8 + i, cy + 3)).ToList();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var mm = Task.Run(() => GeoPodklad.Mosaic(src, 1024, many, BgDir, null)).GetAwaiter().GetResult();
+        Ok(mm.Ok.Count == 16, $"16 kafelków: pobrane {mm.Ok.Count}, nieudane {mm.Failed.Count} w {sw.Elapsed.TotalSeconds:0} s" + (mm.Failed.Count > 0 ? " – " + mm.Failed[0] : ""));
         bgActive = 0; ShowProps();
         ZoomForTest(p0.X, p0.Y, Math.Max(0.05, panel.ActualWidth / (1600 * doc.Ux)));
         // okno mapki z zaznaczeniem (zrzut po wczytaniu kafelków mapy)

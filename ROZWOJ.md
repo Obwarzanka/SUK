@@ -190,6 +190,11 @@ Nie ma jeszcze (brak danych w układzie): kilometraż i oś stacji, ukresy W17, 
 - Naprawiony błąd edytora: przycisk „Odcinek zwrotnicowy na łącznik” pokazywał się przy każdym zaznaczonym obiekcie (brak nawiasów przy `if (selKind == "sw")`).
 - Test: `--editshot p.png bramka out.json` (bramka narzędziem przy kolumnie 11 sygnalizatorów, tablica przebiegów z ochroną boczną identyczna przed / po przypięciu, przesunięciu i konstrukcjach, Del, Ctrl+Z, zapis). Zrzut: `zrzuty/Plan_bramka_sygnalowa.png`.
 
+**ZROBIONE (2026-10-16, cd.): niezawodne pobieranie podkładów** (zgłoszenie właściciela: „podkłady mi się nie ładują jak chcę je pobrać”)
+- Przyczyna: Geoportal (load balancer F5) losowo zwraca **404** – ok. 1/3 zapytań, za każdym razem inne kafelki; przy 4 zapytaniach naraz ponad połowa. Dotychczasowy kod przerywał całe pobieranie na pierwszym błędzie i nic nie trafiało na plan (u właściciela: 44 kafelki ortofotomapy pobrane, mozaika nie powstała; Esri zadziałało).
+- Teraz (`GeoPodklad.Mosaic`, `Tile`, `GetFresh`, `Retry`): każde zapytanie do Geoportalu nowym połączeniem (`Connection: close`) i bez ciasteczek (HttpClient bez `UseCookies` – Geoportal przypina sesję do jednego serwera), do 6 prób na kafelek, Geoportal po 2 naraz, Esri po 4; nieudany kafelek nie przerywa reszty – pobrane trafiają na plan, nieudane w komunikacie (z przyczyną) i w `Data/bledy.log`, przy ponownym zaznaczeniu dociągają się tylko brakujące. Zapis kafelków przez plik `.tmp` (przerwane pobieranie nie zostawia uszkodzonego pliku). Kafelek spoza mapy – błąd od razu. To samo zabezpieczenie (próby, nowe połączenie) przy pobieraniu obszaru ortofotomapy, kafelków OSM / Esri i obrazu z URL.
+- Test `kafelki`: 16 kafelków Geoportalu wzdłuż linii – 16 / 16 w 15 s; nieudany kafelek nie przerywa pobierania; brak plików `.tmp`.
+
 **Do zrobienia w etapie 1:**
 - Ten sam tor na dwóch obrazach (granica stacji).
 - Osobne obrazy z własnym układem współrzędnych zamiast zakresów X.

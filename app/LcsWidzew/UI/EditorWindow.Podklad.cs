@@ -20,7 +20,8 @@ public static class GeoPodklad
     static readonly HttpClient http = CreateHttp();
     static HttpClient CreateHttp()
     {
-        var h = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        // bez ciasteczek – Geoportal przypina sesję do jednego serwera za load balancerem (bywa wadliwy i zwraca 404)
+        var h = new HttpClient(new SocketsHttpHandler { UseCookies = false, PooledConnectionLifetime = TimeSpan.FromSeconds(30) }) { Timeout = TimeSpan.FromSeconds(60) };
         h.DefaultRequestHeaders.UserAgent.ParseAdd("LcsSymulator/1.0 (symulator szkoleniowy LCS; edytor planu schematycznego)");
         return h;
     }
@@ -57,46 +58,88 @@ public static class GeoPodklad
     public record Result(string File, int W, int H, double Mpp, string Attribution, JsonObject Geo);
 
     static byte[] Get(string url) => http.GetByteArrayAsync(url).GetAwaiter().GetResult();
+    /// <summary>Kilka prób (serwery map bywają przeciążone, Geoportal losowo zwraca 404).</summary>
+    static byte[] Retry(Func<byte[]> get, int n = 6)
+    {
+        for (int i = 1; ; i++)
+        {
+            try { return get(); }
+            catch (Exception) when (i < n) { Thread.Sleep(400 * i); }
+        }
+    }
+    /// <summary>Zapytanie nowym połączeniem (Connection: close) – ponowna próba trafia na inny serwer za load balancerem.</summary>
+    static byte[] GetFresh(string url)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Get, url); req.Headers.ConnectionClose = true;
+        using var resp = http.Send(req, HttpCompletionOption.ResponseContentRead);
+        resp.EnsureSuccessStatusCode();
+        using var ms = new MemoryStream(); resp.Content.ReadAsStream().CopyTo(ms); return ms.ToArray();
+    }
     public static HttpClient Http => http;
+
+    public record MosaicResult(string Dir, List<(int X, int Y)> Ok, List<string> Failed);
 
     /// <summary>
     /// Kafelki mozaiki (Web Mercator z15) do katalogu podklady/&lt;źródło&gt;_z15_&lt;n&gt;: ortofotomapa – WMS Geoportalu w EPSG:3857
     /// dokładnie w granicach kafelka (n × n px), zdjęcia Esri – sklejone z kafelków o 1–2 poziomy dokładniejszych. Już pobrane – pomijane.
+    /// Geoportal – po 2 kafelki naraz, Esri – po 4; każdy kafelek do 6 prób (Geoportal losowo zwraca 404 z wadliwego serwera –
+    /// każda próba nowym połączeniem); nieudany kafelek nie przerywa reszty – wynik: pobrane i nieudane (z przyczyną).
     /// </summary>
-    public static string Mosaic(string src, int n, List<(int X, int Y)> tiles, string baseDir, Action<string> progress)
+    public static MosaicResult Mosaic(string src, int n, List<(int X, int Y)> tiles, string baseDir, Action<string> progress)
     {
         const int z = WebTiles.PickZ;
         var dir = Path.Combine(baseDir, $"{src}_z{z}_{n}"); Directory.CreateDirectory(dir);
-        int k = 0;
-        foreach (var (x, y) in tiles)
+        var ok = new System.Collections.Concurrent.ConcurrentBag<(int X, int Y)>(); var failed = new System.Collections.Concurrent.ConcurrentBag<string>();
+        int done = 0;
+        Parallel.ForEach(tiles, new ParallelOptions { MaxDegreeOfParallelism = src == "orto" ? 2 : 4 }, t =>
         {
-            k++;
-            var file = Path.Combine(dir, $"{x}_{y}.jpg");
-            if (File.Exists(file)) continue;
-            progress?.Invoke($"Pobieranie kafelka {k}/{tiles.Count}…");
-            if (src == "orto")
+            var (x, y) = t; var file = Path.Combine(dir, $"{x}_{y}.jpg");
+            Exception last = null;
+            for (int attempt = 1; attempt <= 6 && !File.Exists(file); attempt++)
             {
-                var (a, b, c, d) = WebTiles.Bbox3857(x, y, z);
-                var data = Get(FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={a:0.###},{b:0.###},{c:0.###},{d:0.###}&WIDTH={n}&HEIGHT={n}&FORMAT=image/jpeg"));
-                BitmapSource img;
-                try { img = Decode(data); } catch { throw new InvalidOperationException("Geoportal nie zwrócił obrazu (przeciążony?) – spróbuj później albo wybierz zdjęcia satelitarne Esri"); }
-                if (img.PixelWidth != n || img.PixelHeight != n) throw new InvalidOperationException($"Geoportal zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {n}×{n}");
-                File.WriteAllBytes(file, data);
+                try { Tile(src, n, x, y, file); last = null; }
+                catch (Exception ex) { last = ex; if (ex is InvalidOperationException { Message: "kafelek poza mapą" }) break; if (attempt < 6) Thread.Sleep(400 * attempt); }
             }
-            else
-            {
-                int sub = n / 256, zz = z + (int)Math.Round(Math.Log2(sub));
-                var buf = new byte[n * n * 4];
-                for (int j = 0; j < sub; j++)
-                    for (int i = 0; i < sub; i++)
-                    {
-                        var img = Decode(Get(string.Format(CultureInfo.InvariantCulture, EsriTiles, zz, x * sub + i, y * sub + j)));
-                        img.CopyPixels(new Int32Rect(0, 0, 256, 256), buf, n * 4, (j * 256 * n + i * 256) * 4);
-                    }
-                Save(buf, n, n, file);
-            }
+            if (File.Exists(file)) ok.Add(t); else failed.Add($"{x}_{y}: {Reason(last)}");
+            progress?.Invoke($"Pobieranie kafelków {Interlocked.Increment(ref done)}/{tiles.Count}…" + (failed.IsEmpty ? "" : $" (nieudane: {failed.Count})"));
+        });
+        return new MosaicResult(dir, ok.OrderBy(q => q.Y).ThenBy(q => q.X).ToList(), failed.OrderBy(f => f).ToList());
+    }
+
+    static string Reason(Exception ex) => ex switch
+    {
+        null => "?",
+        HttpRequestException h => "brak połączenia / błąd serwera" + (h.StatusCode != null ? $" ({(int)h.StatusCode})" : "") + " – " + h.Message,
+        TaskCanceledException => "serwer nie odpowiedział w 60 s",
+        _ => ex.Message
+    };
+
+    /// <summary>Jeden kafelek mozaiki – zapis przez plik tymczasowy (przerwane pobieranie nie zostawia uszkodzonego pliku).</summary>
+    static void Tile(string src, int n, int x, int y, string file)
+    {
+        const int z = WebTiles.PickZ;
+        if (x < 0 || y < 0 || x >= 1 << z || y >= 1 << z) throw new InvalidOperationException("kafelek poza mapą");
+        if (src == "orto")
+        {
+            var (a, b, c, d) = WebTiles.Bbox3857(x, y, z);
+            var data = GetFresh(FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={a:0.###},{b:0.###},{c:0.###},{d:0.###}&WIDTH={n}&HEIGHT={n}&FORMAT=image/jpeg"));
+            BitmapSource img;
+            try { img = Decode(data); } catch { throw new InvalidOperationException("Geoportal nie zwrócił obrazu (przeciążony albo poza zasięgiem ortofotomapy)"); }
+            if (img.PixelWidth != n || img.PixelHeight != n) throw new InvalidOperationException($"Geoportal zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {n}×{n}");
+            var tmp = file + ".tmp"; File.WriteAllBytes(tmp, data); File.Move(tmp, file, true);
         }
-        return dir;
+        else
+        {
+            int sub = n / 256, zz = z + (int)Math.Round(Math.Log2(sub));
+            var buf = new byte[n * n * 4];
+            for (int j = 0; j < sub; j++)
+                for (int i = 0; i < sub; i++)
+                {
+                    var img = Decode(Get(string.Format(CultureInfo.InvariantCulture, EsriTiles, zz, x * sub + i, y * sub + j)));
+                    img.CopyPixels(new Int32Rect(0, 0, 256, 256), buf, n * 4, (j * 256 * n + i * 256) * 4);
+                }
+            Save(buf, n, n, file);
+        }
     }
 
     static BitmapSource Decode(byte[] data)
@@ -111,7 +154,9 @@ public static class GeoPodklad
         var bs = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, buf, w * 4);
         var enc = new JpegBitmapEncoder { QualityLevel = 90 }; enc.Frames.Add(BitmapFrame.Create(bs));
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-        using var fs = File.Create(file); enc.Save(fs);
+        var tmp = file + ".tmp";
+        using (var fs = File.Create(tmp)) enc.Save(fs);
+        File.Move(tmp, file, true);
     }
 
     static void CheckSize(int w, int h)
@@ -136,7 +181,7 @@ public static class GeoPodklad
                 double minE = left + px * mpp, maxE = minE + tw * mpp, maxN = top - py * mpp, minN = maxN - th * mpp;
                 progress?.Invoke($"Pobieranie ortofotomapy {++k}/{nx * ny}…");
                 var url = FormattableString.Invariant($"{OrtoWms}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:2180&BBOX={minN:0.###},{minE:0.###},{maxN:0.###},{maxE:0.###}&WIDTH={tw}&HEIGHT={th}&FORMAT=image/jpeg");
-                var img = Decode(Get(url));
+                var img = Decode(Retry(() => GetFresh(url)));
                 if (img.PixelWidth != tw || img.PixelHeight != th) throw new InvalidOperationException($"Serwer zwrócił obraz {img.PixelWidth}×{img.PixelHeight} zamiast {tw}×{th}");
                 img.CopyPixels(new Int32Rect(0, 0, tw, th), buf, W * 4, (py * W + px) * 4);
             }
@@ -168,7 +213,7 @@ public static class GeoPodklad
             for (long tx = tx0; tx <= tx1; tx++)
             {
                 progress?.Invoke($"Pobieranie {what} {++k}/{count}…");
-                var img = Decode(Get(string.Format(CultureInfo.InvariantCulture, template, z, tx, ty)));
+                var img = Decode(Retry(() => Get(string.Format(CultureInfo.InvariantCulture, template, z, tx, ty))));
                 // część kafelka w prostokącie wyniku
                 long gx0 = Math.Max(tx * 256, x0), gy0 = Math.Max(ty * 256, y0), gx1 = Math.Min(tx * 256 + 256, x0 + W), gy1 = Math.Min(ty * 256 + 256, y0 + H);
                 if (gx1 <= gx0 || gy1 <= gy0) continue;
@@ -185,7 +230,7 @@ public static class GeoPodklad
     {
         if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var u) || (u.Scheme != "http" && u.Scheme != "https")) throw new InvalidOperationException("Podaj pełny adres obrazu (https://…)");
         progress?.Invoke("Pobieranie obrazu…");
-        var data = Get(u.AbsoluteUri);
+        var data = Retry(() => Get(u.AbsoluteUri), 3);
         BitmapSource img;
         try { img = Decode(data); }
         catch { throw new InvalidOperationException("Pod tym adresem nie ma obrazu (to strona?) – na obrazie PPM → „Kopiuj adres obrazu” i wklej ten adres"); }
