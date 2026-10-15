@@ -260,6 +260,7 @@ public partial class Simulator
                         if (c.Kind == "szlakM") { var fs = L.Blocks[c.End].FirstSec(s.Dir); rd.Secs.Add(fs); rd.Edges.AddRange(L.Sections[fs].Edges); }
                         rd.Sw.AddRange(c.Reqs);
                         rd.Ders.AddRange(L.Derailers.Values.Where(d => rd.Secs.Contains(d.Sec)).Select(d => d.Name));
+                        rd.Flank.AddRange(FlankFor(rd));
                         if (type == "P" && c.Kind == "sig")
                         {
                             var nx = Forward(c.EndNode, s.Dir, c.Edges[^1]);
@@ -272,6 +273,45 @@ public partial class Simulator
             }
         }
         return all;
+    }
+
+    /// <summary>
+    /// Ochrona boczna przebiegu (poradnik UTK 1.5.8, Tabela 22: zwrotnice „utwierdzone w ochronie bocznej”, wykolejnice,
+    /// sygnalizatory „utwierdzone w ochronie przebiegu”). Od każdej zwrotnicy przebiegu wzdłuż nieużywanej gałęzi do pierwszego
+    /// elementu, który może zatrzymać lub odwrócić jazdę w stronę przebiegu: wykolejnica (założona), sygnalizator zwrócony
+    /// w stronę przebiegu („Stój”), zwrotnica osiągnięta od strony gałęzi (położenie kierujące w drugą gałąź). Zwrotnica
+    /// osiągnięta od ostrza nie chroni (obie gałęzie prowadzą w stronę przebiegu) – wtedy ochrony brak.
+    /// </summary>
+    List<(string Kind, string Id, string Pos, string For)> FlankFor(RouteDef rd)
+    {
+        var res = new List<(string, string, string, string)>();
+        var inRoute = rd.Sw.Select(q => q.Num).ToHashSet();
+        foreach (var (num, pos) in rd.Sw)
+        {
+            var sw = L.Switches[num];
+            string edge = pos == "+" ? sw.Minus : sw.Plus, nid = sw.Node;
+            for (int k = 0; k < 10 && edge != null && L.Edges.ContainsKey(edge) && !L.Edges[edge].Dismantled; k++)
+            {
+                var nn = L.Other(edge, nid); var node = L.Nodes[nn];
+                if (rd.Edges.Contains(edge)) break;
+                var der = L.Derailers.Values.FirstOrDefault(d => d.Node == nn || (d.Sec == L.Edges[edge].Sec && d.Node == nid));
+                if (der != null && !rd.Ders.Contains(der.Name)) { res.Add(("der", der.Name, "on", num)); break; }
+                int toward = L.EdgeDir(edge, nn);      // kierunek jazdy od nn tym torem w stronę przebiegu
+                var sig = node.Signals.Select(x => L.Signals[x]).FirstOrDefault(x => x.Dir == toward && x.Name != rd.Start && (x.IsTrain || x.ForShunts));
+                if (sig != null && toward != 0) { res.Add(("sig", sig.Name, "stop", num)); break; }
+                if (node.Switch != null)
+                {
+                    var t = L.Switches[node.Switch];
+                    if (edge == t.Tip || inRoute.Contains(t.Num)) break;
+                    res.Add(("sw", t.Num, edge == t.Plus ? "-" : "+", num));
+                    break;
+                }
+                if (node.Edges.Count != 2 || L.Boundaries.ContainsKey(nn) || L.TrackEnds.ContainsKey(nn)) break;
+                nid = nn; edge = node.Edges.First(x => x != edge);
+            }
+        }
+        // ten sam element dla kilku zwrotnic – raz; sprzeczne położenia tej samej zwrotnicy – bez ochrony
+        return res.GroupBy(f => (f.Item1, f.Item2)).Where(g => g.Select(x => x.Item3).Distinct().Count() == 1).Select(g => g.First()).ToList();
     }
 
     /// <summary>Wybór przebiegu: zasadniczy albo wariantowy przechodzący przez punkty pośrednie (zwrotnica, odcinek, sygnalizator).</summary>

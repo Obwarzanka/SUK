@@ -103,6 +103,29 @@ public static class SelfTest
         }
         Prog("koniec pętli");
         sb.AppendLine($"WYNIK: nastawione {ok.Count} z {todo.Count} przebiegów; kontrola zależności {conflictOk} z {conflictTotal}");
+        // ochrona boczna (poradnik UTK 1.5.8, Tabela 22) – osobny symulator bez pociągów
+        {
+            var fs = new Simulator(st) { User = sim.User };
+            var all = fs.RouteTable.Values.SelectMany(v => v).ToList();
+            int withFlank = all.Count(r => r.Flank.Count > 0), fOk = 0, fTot = 0;
+            void F(bool c, string m) { fTot++; if (c) fOk++; sb.AppendLine($"ochrona boczna: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            var fr = all.Where(r => r.Variant == 0 && r.Type == "P" && r.EndKind == "sig" && r.Flank.Any(f => f.Kind == "sw")).FirstOrDefault(r => fs.WhyNot(r).Count == 0);
+            if (fr != null)
+            {
+                var f = fr.Flank.First(x => x.Kind == "sw");
+                fs.Page = PageOf(fr.Start); var res = fs.Exec(Cmd(fr));
+                for (int k = 0; k < 160 && !fs.Routes.Values.Any(x => x.Id == fr.Id && x.State == "set"); k++) fs.Tick(0.25);
+                sb.AppendLine($"ochrona boczna: przebieg {fr.Id}: {(res.Ok ? "OK" : "ODRZ " + res.Msg)}, ochrona: {fr.FlankText}");
+                F(fs.Sws[f.Id].Pos == f.Pos && fs.Sws[f.Id].Flank.Count == 1 && fs.Routes.Values.Any(x => x.Id == fr.Id && x.State == "set"), $"zwr. {Station.Lbl(f.Id)} przestawiona do „{f.Pos}” i utwierdzona w ochronie, sygnał zezwalający");
+                fs.Page = PageOf(f.Id); var mv = fs.Exec($"{f.Id} {(f.Pos == "+" ? "Minus" : "Plus")}");
+                F(!mv.Ok, $"przestawienie zwrotnicy ochronnej odrzucone: {mv.Msg}");
+                var r2 = all.FirstOrDefault(r => r.Sw.Any(q => q.Num == f.Id && q.Pos != f.Pos));
+                if (r2 != null) F(fs.WhyNot(r2).Any(x => x.Contains("ochronie bocznej")), $"przebieg {r2.Id} (zwr. {Station.Lbl(f.Id)} w drugim położeniu) zablokowany ochroną boczną");
+                fs.Page = PageOf(fr.Start); fs.Exec($"{fr.Start} ZDP", true); fs.Tick(0.25);
+                F(fs.Sws[f.Id].Flank.Count == 0, "po zwolnieniu przebiegu zwrotnica ochronna wolna");
+            }
+            sb.AppendLine($"OCHRONA BOCZNA: przebiegi z ochroną {withFlank} z {all.Count}; kontrola {fOk} z {fTot}");
+        }
         foreach (var r in todo.Where(r => !ok.Contains(r.Id))) sb.AppendLine($"NIE NASTAWIONO {r.Id} ({Cmd(r)}): " + (failed.TryGetValue(r, out var why) ? why : done.Contains(r) ? "przyjęty, ale nie doszedł do sygnału zezwalającego" : string.Join(", ", sim.WhyNot(r).Take(3))));
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pociągi: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.State} wait={t.WaitingAt}")));

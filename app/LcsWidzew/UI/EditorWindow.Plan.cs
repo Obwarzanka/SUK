@@ -223,27 +223,22 @@ public partial class EditorWindow
     {
         PlanScalePanel();
         props.Children.Add(T("Podkład do odrysowania", 13, Brushes.White, true));
-        props.Children.Add(T("Plan Semaforka, skan albo mapa jako tło. Ustaw go w skali planu (wyrównaj tor do poziomu, skala wzdłuż – dwa punkty i odległość w metrach, w poprzek – dwa tory i rozstaw), potem rysuj tory narzędziem Tor po podkładzie – długości wyjdą z rysunku. Podkład widać tylko w edytorze.", 10.5, Brushes.Gray));
+        props.Children.Add(T("Ortofotomapa (zdjęcia lotnicze z Geoportalu) i mapa OSM trafiają na plan od razu w skali – wystarczy obrócić tor do poziomu. Plan z Semaforka, skan albo zdjęcie ustaw w skali planu (wyrównaj tor do poziomu, skala wzdłuż – dwa punkty i odległość w metrach, w poprzek – dwa tory i rozstaw), potem rysuj tory narzędziem Tor po podkładzie – długości wyjdą z rysunku. Podkład widać tylko w edytorze.", 10.5, Brushes.Gray));
         var bg = Bg;
-        props.Children.Add(Btn(bg == null ? "Wczytaj podkład…" : "Zmień plik podkładu…", (a, e) => Safe(() =>
-        {
-            if (FuzzMode || NoPrompt) return;   // testy bez okna – bez okna wyboru pliku
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Obrazy|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.webp|Wszystkie|*.*" };
-            if (dlg.ShowDialog(this) != true) return;
-            SetBackground(dlg.FileName);
-        })));
+        props.Children.Add(Btn(bg == null ? "Nowy podkład: zdjęcia lotnicze / mapa / Semaforek / plik…" : "Zmień podkład (zdjęcia / mapa / Semaforek / plik)…", (a, e) => BgNewDialog()));
         if (bg == null) { PlanLayersPanel(); return; }
         var full = BgFile(bg); var img = BgImage(full);
         props.Children.Add(T(img == null ? "✗ Nie można wczytać: " + full : $"{Path.GetFileName(full)} ({img.PixelWidth}×{img.PixelHeight})", 10.5, img == null ? Brushes.OrangeRed : Brushes.LightGray));
+        if (StationDoc.Sv(bg["attribution"]) is { Length: > 0 } attr) props.Children.Add(T(attr, 10.5, Brushes.Gray));
         if (img != null)
         {
             var t = BgXf(bg, img);
-            props.Children.Add(T($"1 piksel podkładu ≈ {1 / (t.S * doc.Ux):0.###} m wzdłuż, {1 / (t.S * t.Sy * doc.Uy):0.###} m w poprzek" + (Math.Abs(t.Rot) > 0.01 ? $" (obrót {t.Rot:0.##}°)" : ""), 10.5, Brushes.Gray));
+            props.Children.Add(T($"1 piksel podkładu ≈ {t.S / doc.Ux:0.###} m wzdłuż, {t.S * t.Sy / doc.Uy:0.###} m w poprzek" + (Math.Abs(t.Rot) > 0.01 ? $" (obrót {t.Rot:0.##}°)" : ""), 10.5, Brushes.Gray));
         }
         props.Children.Add(Btn("1. Wyrównaj tor do poziomu (2 punkty)", (a, e) => StartBgOp("level")));
         props.Children.Add(Btn("2. Skala wzdłuż: 2 punkty + odległość [m]", (a, e) => StartBgOp("along")));
         props.Children.Add(Btn("3. Skala w poprzek: 2 tory + rozstaw [m]", (a, e) => StartBgOp("across")));
-        props.Children.Add(Btn($"Mapa: rozciągnij pionowo ×{doc.Uy / doc.Ux:0.##}", (a, e) => Safe(() =>
+        props.Children.Add(Btn($"Rozciągnij pionowo ×{doc.Uy / doc.Ux:0.##} (zniekształca zdjęcie)", (a, e) => Safe(() =>
         {
             var b = Bg; var im = BgImage(BgFile(b)); if (im == null) return;
             var t = BgXf(b, im); doc.Snapshot(); BgStore(b, im, t with { Sy = doc.Uy / doc.Ux });

@@ -1,5 +1,0 @@
-kotwice (zwrotnice, sygnalizatory, końce torów): 67
-sygnalizatory przeniesione ze starego układu: 81
-  pominięte – odstępowe SBL (szlaki – nie przenoszone): 24
-  pominięte – za daleko od toru (> 80): 17
-zobrazowanie: węzły 182 z 297 (dokładnie ze starego pulpitu 148), tory 185 z 327

@@ -232,6 +232,7 @@ public partial class Simulator
                 if (s == null) return ($"Nieznany sygnalizator „{a0}”", null, null);
                 if (!L.Signals[s].IsTrain) return ("Sygnał zastępczy możliwy tylko na semaforze", null, null);
                 if (Sigs[s].Aspect == Aspect.Train) return ("Semafor wyświetla sygnał zezwalający", null, null);
+                if (Sigs[s].Flank.Count > 0) return ($"Semafor utwierdzony w ochronie bocznej przebiegu {FlankOwner(Sigs[s].Flank, null)}", null, null);
                 return (null, s, new() { s });
             }
             case "ZDP":
@@ -247,6 +248,7 @@ public partial class Simulator
                 var w = Resolve(a0, "sw");
                 if (w == null) return ($"Nieznana zwrotnica „{a0}”", null, null);
                 if (Sws[w].Lock != null) return ("Zwrotnica utwierdzona w przebiegu", null, null);
+                if (Sws[w].Flank.Count > 0) return ($"Zwrotnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(Sws[w].Flank, null)}", null, null);
                 if (Sws[w].Stopped) return ("Zwrotnica zastopowana", null, null);
                 return (null, w, new() { w, L.Switches[w].Sec });
             }
@@ -378,12 +380,14 @@ public partial class Simulator
                 if (L.Derailers.ContainsKey(k))
                 {
                     var d = Ders[k]; if (d.Lock != null) return new(false, "Wykolejnica utwierdzona w przebiegu");
+                    if (d.Flank.Count > 0) return new(false, $"Wykolejnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(d.Flank, null)}");
                     if (SecOcc(L.Derailers[k].Sec)) return new(false, "Odcinek zajęty");
                     d.MovingTo = code == "PLUS"; d.MoveUntil = T + Cfg.SwTime; return new(true, code == "PLUS" ? "zakładanie wykolejnicy" : "zdejmowanie wykolejnicy");
                 }
                 var w = Sws[k]; var pos = code == "PLUS" ? "+" : "-";
                 if (w.NoData) return new(false, "Brak danych o zwrotnicy");
                 if (w.Lock != null) return new(false, "Zwrotnica utwierdzona w przebiegu");
+                if (w.Flank.Count > 0) return new(false, $"Zwrotnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(w.Flank, null)}");
                 if (w.Stopped) return new(false, "Zwrotnica zastopowana (Ie-20 §15 ust. 6)");
                 if (w.Local) return new(false, "Zwrotnica przekazana do nastawiania lokalnego");
                 if (w.Rozpr) return new(false, "Sygnalizowane rozprucie – najpierw KSR po sprawdzeniu w terenie");

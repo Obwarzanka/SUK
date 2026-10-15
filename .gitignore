@@ -1,3 +1,6 @@
 bin/
 obj/
 *.user
+__pycache__/
+app/LcsWidzew/Data/ostatni_uklad.txt
+app/LcsWidzew/Data/bledy.log

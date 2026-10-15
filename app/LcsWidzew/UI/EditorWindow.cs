@@ -1291,7 +1291,13 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
     /// <summary>Tło edytora: siatka (oczko = krok przyciągania; gęstsza siatka rozrzedza się przy oddaleniu), granice obrazów.</summary>
     public void DrawBack(DrawingContext dc, double scale)
     {
+        // siatka pod podkładem – podkład (zdjęcie, mapa, plan) ma być czytelny
+        DrawGrid(dc, scale);
         if (panel.PlanView) DrawPlanBackground(dc, scale);
+    }
+
+    void DrawGrid(DrawingContext dc, double scale)
+    {
         if (st == null || chkGrid.IsChecked != true) return;
         var v = panel.ViewWorld; double g = Grid, gy = GridY;
         while (g * scale < 7) g *= 5;

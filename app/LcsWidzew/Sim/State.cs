@@ -18,6 +18,8 @@ public class MoveInfo { public string Target, From; public double Until, Started
 public class SwState
 {
     public string Num, Pos = "+", Lock;
+    /// <summary>Przebiegi, których ochronę boczną zapewnia zwrotnica (utwierdzona w położeniu ochronnym).</summary>
+    public HashSet<string> Flank = new();
     public MoveInfo Moving;
     public bool Stopped, Rozpr, NoCtrl, Frozen, Damaged, NoData, Local;
 }
@@ -25,6 +27,8 @@ public class SwState
 public class SigState
 {
     public string Name, Route, RouteEnd;
+    /// <summary>Przebiegi, w których ochronie bocznej sygnalizator jest utwierdzony przy sygnale „Stój”.</summary>
+    public HashSet<string> Flank = new();
     public Aspect Aspect = Aspect.Stop;
     public bool Closed, LampFault, NoData, FailAlarm, Dark;
     /// <summary>Sygnał na semaforze odstępowym: S1, S2, S4 (zielone migające), S5 (pomarańczowe); null – inne.</summary>
@@ -32,7 +36,7 @@ public class SigState
     public double SzUntil;
 }
 
-public class DerState { public string Name, Lock; public bool On = true; public bool? MovingTo; public double MoveUntil; }
+public class DerState { public string Name, Lock; public bool On = true; public bool? MovingTo; public double MoveUntil; public HashSet<string> Flank = new(); }
 
 /// <summary>Żądanie ustawienia kierunku WYJAZD od końca EndIdx (-1 – od posterunku spoza obszaru LCS).</summary>
 public class BlockReq { public int EndIdx; public double At; public bool Alarmed; public string ForTrain; }
@@ -72,7 +76,10 @@ public class RouteDef
     public string Id, Start, End, EndKind, Type, EndNode, Overlap;
     public List<string> Edges = new(), Secs = new(), Ders = new();
     public List<(string Num, string Pos)> Sw = new();
+    /// <summary>Ochrona boczna: Kind „sw” (zwrotnica w położeniu Pos), „der” (wykolejnica założona), „sig” (sygnalizator „Stój”); For – zwrotnica przebiegu, którą chroni.</summary>
+    public List<(string Kind, string Id, string Pos, string For)> Flank = new();
     public int Minus, Variant;
+    public string FlankText => string.Join(" ", Flank.Select(f => f.Kind switch { "sw" => Model.Station.Lbl(f.Id) + f.Pos, "der" => Model.Station.Lbl(f.Id), _ => Model.Station.Lbl(f.Id) + "(S1)" }));
     public string SwText => string.Join(" ", Sw.Select(q => Model.Station.Lbl(q.Num) + q.Pos));
     /// <summary>Klucz przebiegu w regułach edytora: położenia zwrotnic (posortowane).</summary>
     public string SwKey => string.Join(" ", Sw.Select(q => q.Num + q.Pos).OrderBy(x => x, StringComparer.Ordinal));

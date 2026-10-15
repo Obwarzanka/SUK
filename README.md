@@ -102,6 +102,7 @@ Przycisk w lewym górnym rogu edytora przełącza tryb. Edytor otwiera się na z
   - **Napis (N), Peron (P), Przejazd (X)** – elementy pulpitu. Zobrazowanie i plan schematyczny mają osobne kopie: przesunięcie, dodanie albo usunięcie napisu na obrazie nie zmienia planu i odwrotnie. Przy pierwszym otwarciu zobrazowanie dostaje kopię obecnych.
 - **Plan schematyczny (układ torowy)** – cały węzeł na jednym arkuszu, znakami umownymi wg **Ig-10** (zał. 8): osie torów (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, semafory i tarcze z komorami, kozły, wykolejnice, liczniki osi / złącza izolowane, perony, przejazdy. Kategorię toru i sieć trakcyjną ustawiasz w panelu toru (cały tor: Shift+dwuklik, potem przyciski w panelu grupy), liczbę komór – w panelu sygnalizatora (`lamps`). Okno „Plan stacji” używa tych samych znaków.
   - **Skala planu (Ig-10 § 3)** (panel po prawej, gdy nic nie jest zaznaczone): 1:2000 wzdłuż / 1:500 w poprzek albo 1:4000 / 1:1000. Zmiana skali przeskalowuje rysunek, długości zostają. **„Długości torów z rysunku”** – długość toru wynika z rysunku (ile jednostek planu, tyle metrów wg skali; skos liczony z obu skal), bez wpisywania. Szlaki (rysowane w skróceniu), łączniki obrazów i tory z długością wpisaną ręcznie (wpisanie długości odcinka albo odznaczenie „Długość z rysunku” w panelu toru) – bez zmian. Bez tej opcji długości są danymi i przesuwanie węzłów ich nie zmienia. Siatka „Ig-10” = 10 m × 4,75 m; linijki, podpowiedź, rysowany tor i miarka pokazują metry.
+  - **Nowy podkład** (ten sam panel): ortofotomapa (zdjęcia lotnicze z Geoportalu), mapa OpenStreetMap, zdjęcia satelitarne Esri – podajesz środek („szer., dł.”, np. z Google Maps), wymiary w metrach i rozdzielczość; podkład pobiera się i trafia na plan od razu w skali (bez rozciągania), zostaje go obrócić („1. Wyrównaj tor do poziomu”). Plan z Semaforka: adres obrazu (PPM na obrazie → „Kopiuj adres obrazu”) albo plik z dysku – potem skala wzdłuż / w poprzek. Pliki podkładów: katalog `podklady` obok pliku układu.
   - **Podkład** (ten sam panel): „Wczytaj podkład…” – plan Semaforka, skan albo mapa. Ustawienie w skali planu: **1. Wyrównaj tor do poziomu** (2 punkty na osi toru), **2. Skala wzdłuż** (2 punkty + odległość w m, np. z kilometrażu), **3. Skala w poprzek** (2 sąsiednie tory + rozstaw, zwykle 4,75 m), **Mapa: rozciągnij pionowo** (mapa ma jedną skalę, plan – dwie), **Przesuń podkład**, „Dopasuj dwoma punktami” (do węzłów). Pola: położenie, szerokość, rozciągnięcie pionowe, obrót; przezroczystość. PPM/Esc przerywa. Podkład widać tylko w edytorze. Potem rysuj tory narzędziem Tor po podkładzie.
   - **Zbiorcze zaznaczanie**: przycisk **„⬚ Zaznacz obszarem”** (Q) – przeciąganie po pustym miejscu rysuje prostokąt zaznaczenia (bez Shift; Shift dodaje), w planie i w zobrazowaniu. Ctrl+A – wszystko na obrazie. Grupę przeciągasz, przesuwasz strzałkami, usuwasz Del.
   - **Warstwy planu** (Ig-10): włączanie i wyłączanie sygnalizatorów, numerów, liczników osi, peronów, przejazdów, kozłów i wykolejnic, napisów, łuków. W „Plan stacji” – przycisk „Warstwy ▾”.
@@ -192,21 +193,9 @@ Przycisk **„Sprawdź”** wykrywa błędy budowy układu, m.in.:
 
 ---
 
-## Generator układu torowego z OpenStreetMap
+## Wersje układu
 
-Nowy projekt układu (tylko układ torowy, bez zobrazowania i szlaków) z danych OSM / OpenRailwayMap, jako propozycja do poprawek w edytorze. Stacje i arkusze planu są w pliku konfiguracji.
-
-```bash
-python tools/gen_uklad.py tools/gen_uklad_lodz.json app/LcsWidzew/Data/projekty/uklad_osm.json app/LcsWidzew/Data/projekty/uklad_osm_raport.txt
-```
-
-Otwarcie w programie: `LcsWidzew.exe --station Data/projekty/uklad_osm.json` albo zwykłe uruchomienie (np. `uruchom.bat`) – program pokaże **listę wersji układu**: ★ podstawowy `Data/station.json` i projekty z `Data/projekty`. Ostatni wybór jest zapamiętany.
-
-Nowy układ ze starym pulpitem (zobrazowaniem) – przeniesienie po numerach zwrotnic, nazwach sygnalizatorów i końcach torów:
-
-```bash
-python tools/przenies_zobrazowanie.py app/LcsWidzew/Data/station.json app/LcsWidzew/Data/projekty/uklad_osm.json app/LcsWidzew/Data/projekty/uklad_osm_zobrazowanie.json
-``` Raport podaje, czego w OSM brakuje (np. sygnalizatorów, numerów zwrotnic). Dane OSM: © współtwórcy OpenStreetMap, licencja ODbL.
+Zwykłe uruchomienie (np. `uruchom.bat`) pokazuje **listę wersji układu**: ★ podstawowy `Data/station.json` i pliki z `Data/projekty` (np. własne stacje zapisane przez „Zapisz jako…”). Ostatni wybór jest zapamiętany. Generator układu z OpenStreetMap został usunięty (2026-10-16) – stacje rysuje się w edytorze na podkładzie.
 
 ## Rozkład jazdy
 
@@ -258,7 +247,7 @@ Planowane dalsze kroki: teren za sterownikami obiektowymi, stanowisko instruktor
 symulator/
 ├── README.md, PLAN.md, uruchom.bat
 ├── Zrodla/                    ← Ie-20, Ie-104, materiały PKP PLK
-├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), dawny generator układu
+├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py)
 ├── zrzuty/                    ← zrzuty ekranu
 └── app/LcsWidzew/             ← aplikacja C# / WPF (.NET 8)
     ├── Data/station.json      ← układ obszaru LCS (edytowany w edytorze)

@@ -9,6 +9,7 @@ public partial class Simulator
         var sig = Sigs[rt.Start];
         if (sig.Closed) why.Add($"sygnalizator {rt.Start} zamknięty indywidualnie");
         if (forSetting && sig.Route != null) why.Add($"sygnalizator {rt.Start} jest już początkiem przebiegu");
+        if (sig.Flank.Any(u => u != rt.Uid)) why.Add($"sygnalizator {rt.Start} utwierdzony w ochronie bocznej przebiegu {FlankOwner(sig.Flank, rt.Uid)}");
         for (int i = 0; i < rt.Secs.Count; i++)
         {
             var sc = rt.Secs[i]; var s = Secs[sc]; bool last = i == rt.Secs.Count - 1;
@@ -28,9 +29,38 @@ public partial class Simulator
             if (cur != pos)
             {
                 if (w.Lock != null && w.Lock != rt.Uid) why.Add($"zwr. {num} utwierdzona w innym przebiegu");
+                if (w.Flank.Any(u => u != rt.Uid)) why.Add($"zwr. {num} utwierdzona w ochronie bocznej przebiegu {FlankOwner(w.Flank, rt.Uid)}");
                 if (w.Stopped) why.Add($"zwr. {num} zastopowana");
                 if (!Power.NN) why.Add("wyłączone napięcie nastawcze");
                 if (forSetting && SecOcc(L.Switches[num].Sec)) why.Add($"zwr. {num} – odcinek zajęty");
+            }
+        }
+        foreach (var d in rt.Ders) if (Ders[d].Flank.Any(u => u != rt.Uid)) why.Add($"wykolejnica {d} utwierdzona w ochronie bocznej przebiegu {FlankOwner(Ders[d].Flank, rt.Uid)}");
+        // ochrona boczna
+        foreach (var (kind, id, fpos, _) in rt.Flank)
+        {
+            if (kind == "sw")
+            {
+                var w = Sws[id]; var cur = w.Moving?.Target ?? w.Pos;
+                if (cur == fpos) continue;
+                if (w.Lock != null && w.Lock != rt.Uid) why.Add($"ochrona boczna: zwr. {id} utwierdzona w innym przebiegu");
+                if (w.Flank.Any(u => u != rt.Uid)) why.Add($"ochrona boczna: zwr. {id} utwierdzona w ochronie innego przebiegu w położeniu {cur}");
+                if (w.Stopped) why.Add($"ochrona boczna: zwr. {id} zastopowana");
+                if (w.Rozpr || w.NoData || w.Local) why.Add($"ochrona boczna: zwr. {id} bez kontroli / rozprucie / nastawianie lokalne");
+                if (!Power.NN) why.Add("ochrona boczna: wyłączone napięcie nastawcze");
+                if (forSetting && SecOcc(L.Switches[id].Sec)) why.Add($"ochrona boczna: zwr. {id} – odcinek zajęty");
+            }
+            else if (kind == "der")
+            {
+                var d = Ders[id]; bool on = d.MovingTo ?? d.On;
+                if (on) continue;
+                if (d.Lock != null && d.Lock != rt.Uid) why.Add($"ochrona boczna: wykolejnica {id} zdjęta w innym przebiegu");
+                if (forSetting && SecOcc(L.Derailers[id].Sec)) why.Add($"ochrona boczna: wykolejnica {id} – odcinek zajęty");
+            }
+            else
+            {
+                var s = Sigs[id];
+                if (s.Aspect != Aspect.Stop || (forSetting && s.Route != null)) why.Add($"ochrona boczna: sygnalizator {id} – sygnał zezwalający / początek przebiegu");
             }
         }
         if (rt.Overlap != null)
@@ -55,7 +85,7 @@ public partial class Simulator
     public List<string> WhyNot(RouteDef rd)
     {
         var r = new Route { Id = rd.Id, Start = rd.Start, End = rd.End, EndKind = rd.EndKind, Type = rd.Type, EndNode = rd.EndNode, Overlap = rd.Overlap, Uid = "probe" };
-        r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders);
+        r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders); r.Flank.AddRange(rd.Flank);
         return RouteObstacles(r, true);
     }
 
@@ -66,7 +96,7 @@ public partial class Simulator
             Variant = rd.Variant, VCalc = rd.VCalc, VSet = rd.VSet, Id = rd.Id, Start = rd.Start, End = rd.End, EndKind = rd.EndKind, Type = rd.Type, EndNode = rd.EndNode, Overlap = rd.Overlap,
             Uid = "R" + seq++, T0 = T
         };
-        r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders);
+        r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders); r.Flank.AddRange(rd.Flank);
         var why = RouteObstacles(r, true);
         if (why.Count > 0) return (false, why, null);
         foreach (var sc in r.Secs)
@@ -82,6 +112,12 @@ public partial class Simulator
             if (w.Pos != pos || (w.Moving != null && w.Moving.Target != pos)) MoveSwitch(num, pos, true);
         }
         foreach (var d in r.Ders) { Ders[d].Lock = r.Uid; Ders[d].On = false; }
+        foreach (var (kind, id, fpos, _) in r.Flank)
+        {
+            if (kind == "sw") { var w = Sws[id]; w.Flank.Add(r.Uid); if ((w.Moving?.Target ?? w.Pos) != fpos) MoveSwitch(id, fpos, true); }
+            else if (kind == "der") { var d = Ders[id]; d.Flank.Add(r.Uid); if (!(d.MovingTo ?? d.On)) { d.MovingTo = true; d.MoveUntil = T + Cfg.SwTime; } }
+            else Sigs[id].Flank.Add(r.Uid);
+        }
         Routes[r.Uid] = r;
         Sigs[r.Start].Route = r.Uid;
         if (r.EndKind == "sig") Sigs[r.End].RouteEnd = r.Uid;
@@ -93,6 +129,11 @@ public partial class Simulator
         var why = RouteObstacles(r, false);
         foreach (var (num, pos) in r.Sw) if (Sws[num].Pos != pos || !SwControlled(num)) why.Add($"zwr. {num} bez kontroli w położeniu {pos}");
         foreach (var d in r.Ders) if (Ders[d].On || Ders[d].MovingTo != null) why.Add($"wykolejnica {d} założona");
+        foreach (var (kind, id, fpos, forSw) in r.Flank)
+        {
+            if (kind == "sw" && (Sws[id].Pos != fpos || !SwControlled(id)) && Sws[forSw].Lock == r.Uid) why.Add($"ochrona boczna: zwr. {id} bez kontroli w położeniu {fpos}");
+            if (kind == "der" && (!Ders[id].On || Ders[id].MovingTo != null) && Sws[forSw].Lock == r.Uid) why.Add($"ochrona boczna: wykolejnica {id} nie założona");
+        }
         return why;
     }
 
@@ -103,6 +144,7 @@ public partial class Simulator
         if (r.Overlap != null && Secs[r.Overlap].Lock == uid) { Secs[r.Overlap].Lock = null; Secs[r.Overlap].LockType = null; }
         foreach (var (num, _) in r.Sw) if (Sws[num].Lock == uid) Sws[num].Lock = null;
         foreach (var d in r.Ders) if (Ders[d].Lock == uid) { Ders[d].Lock = null; Ders[d].On = true; }
+        foreach (var f in r.Flank) ReleaseFlank(f, uid);
         var sg = Sigs[r.Start];
         if (sg.Route == uid) { sg.Route = null; if (sg.Aspect != Aspect.Sz) sg.Aspect = Aspect.Stop; }
         if (r.EndKind == "sig" && Sigs[r.End].RouteEnd == uid) Sigs[r.End].RouteEnd = null;
@@ -164,6 +206,7 @@ public partial class Simulator
                         if (s.Lock == uid) { s.Lock = null; s.LockType = null; }
                         foreach (var (num, _) in r.Sw) if (L.Switches[num].Sec == sc && Sws[num].Lock == uid) Sws[num].Lock = null;
                         foreach (var d in r.Ders) if (L.Derailers[d].Sec == sc && Ders[d].Lock == uid) { Ders[d].Lock = null; Ders[d].On = true; }
+                        foreach (var f in r.Flank) if (L.Switches[f.For].Sec == sc) ReleaseFlank(f, uid);
                         r.Rel++;
                     }
                     else break;
@@ -177,6 +220,15 @@ public partial class Simulator
             }
         }
     }
+
+    void ReleaseFlank((string Kind, string Id, string Pos, string For) f, string uid)
+    {
+        if (f.Kind == "sw") Sws[f.Id].Flank.Remove(uid);
+        else if (f.Kind == "der") Ders[f.Id].Flank.Remove(uid);
+        else Sigs[f.Id].Flank.Remove(uid);
+    }
+
+    string FlankOwner(HashSet<string> set, string except) => string.Join(", ", set.Where(u => u != except).Select(u => Routes.TryGetValue(u, out var r) ? r.Id : u));
 
     void MoveSwitch(string num, string pos, bool byRoute = false)
     {

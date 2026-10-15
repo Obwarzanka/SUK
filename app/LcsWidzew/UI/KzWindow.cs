@@ -14,7 +14,7 @@ namespace LcsWidzew.UI;
 /// </summary>
 public class KzWindow : DarkWindow
 {
-    public class RouteRow { public string Przebieg { get; set; } public string Stan { get; set; } public string Zwolniono { get; set; } public string Odcinki { get; set; } public string Ochronna { get; set; } public string Czas { get; set; } public string ZCZ { get; set; } public string Stanowisko { get; set; } }
+    public class RouteRow { public string Przebieg { get; set; } public string Stan { get; set; } public string Zwolniono { get; set; } public string Odcinki { get; set; } public string Ochronna { get; set; } public string Boczna { get; set; } public string Czas { get; set; } public string ZCZ { get; set; } public string Stanowisko { get; set; } }
     public class SwRow { public string Zwrotnica { get; set; } public string Polozenie { get; set; } public string Utwierdzona { get; set; } public string Przestawianie { get; set; } public string Stan { get; set; } }
     public class SecRow { public string Odcinek { get; set; } public string Zajetosc { get; set; } public string Utwierdzenie { get; set; } public string Zwalnianie { get; set; } public string Uwagi { get; set; } }
     public class SigRow { public string Sygnalizator { get; set; } public string Sygnal { get; set; } public string Przebieg { get; set; } public string Uwagi { get; set; } }
@@ -33,7 +33,7 @@ public class KzWindow : DarkWindow
     public KzWindow(Func<Simulator> sim, Func<LcsServer> server) : base("Podgląd komputera zależności", 1050, 640)
     {
         getSim = sim; this.server = server; ShowInTaskbar = true;
-        foreach (var (h, p, w) in new[] { ("Przebieg", "Przebieg", 190.0), ("Stan", "Stan", 200), ("Zwolniono", "Zwolniono", 75), ("Odcinki (utwierdzone)", "Odcinki", double.NaN), ("Dr. ochronna", "Ochronna", 80), ("Od nastawienia", "Czas", 90), ("ZCZ", "ZCZ", 60), ("Stanowisko", "Stanowisko", 110) }) Col(gRoutes, h, p, w);
+        foreach (var (h, p, w) in new[] { ("Przebieg", "Przebieg", 190.0), ("Stan", "Stan", 200), ("Zwolniono", "Zwolniono", 75), ("Odcinki (utwierdzone)", "Odcinki", double.NaN), ("Dr. ochronna", "Ochronna", 80), ("Ochrona boczna", "Boczna", 130), ("Od nastawienia", "Czas", 90), ("ZCZ", "ZCZ", 60), ("Stanowisko", "Stanowisko", 110) }) Col(gRoutes, h, p, w);
         foreach (var (h, p, w) in new[] { ("Zwrotnica", "Zwrotnica", 80.0), ("Położenie", "Polozenie", 70), ("Utwierdzona w przebiegu", "Utwierdzona", 220), ("Przestawianie", "Przestawianie", 160), ("Stan", "Stan", double.NaN) }) Col(gSw, h, p, w);
         foreach (var (h, p, w) in new[] { ("Odcinek", "Odcinek", 110.0), ("Zajętość", "Zajetosc", 110), ("Utwierdzenie", "Utwierdzenie", 300), ("Zwalnianie czasowe", "Zwalnianie", 120), ("Uwagi", "Uwagi", double.NaN) }) Col(gSec, h, p, w);
         foreach (var (h, p, w) in new[] { ("Sygnalizator", "Sygnalizator", 110.0), ("Sygnał", "Sygnal", 160), ("Przebieg", "Przebieg", 240), ("Uwagi", "Uwagi", double.NaN) }) Col(gSig, h, p, w);
@@ -70,14 +70,14 @@ public class KzWindow : DarkWindow
                 gRoutes.ItemsSource = sim.Routes.Values.Select(r => new RouteRow
                 {
                     Przebieg = r.Id, Stan = r.State switch { "setting" => "nastawianie (zwrotnice / warunki)", "set" => "utwierdzony, sygnał zezwalający", "passed" => "przejechany – zwalnianie odcinkami", "stopped" => "sygnał „Stój” – przebieg utwierdzony", _ => r.State } + (r.ManualStop ? ", zatrzymany ręcznie" : ""),
-                    Zwolniono = $"{r.Rel}/{r.Secs.Count}", Odcinki = string.Join(" ", r.Secs.Skip(r.Rel).Select(L)), Ochronna = L(r.Overlap), Czas = $"{sim.T - r.T0:0} s", ZCZ = Secs(r.TimeRelUntil),
+                    Zwolniono = $"{r.Rel}/{r.Secs.Count}", Odcinki = string.Join(" ", r.Secs.Skip(r.Rel).Select(L)), Ochronna = L(r.Overlap), Boczna = r.FlankText, Czas = $"{sim.T - r.T0:0} s", ZCZ = Secs(r.TimeRelUntil),
                     Stanowisko = sim.Desks.Values.FirstOrDefault(d => sim.Control.GetValueOrDefault(Station.PostOf(r.Start)) == d.Id)?.Name ?? ""
                 }).ToList();
                 break;
             case 1:
-                gSw.ItemsSource = sim.Sws.Values.Where(w => !only || w.Lock != null || w.Moving != null || w.Stopped || w.Rozpr || w.NoCtrl || w.Frozen || w.Local || w.NoData).OrderBy(w => w.Num).Select(w => new SwRow
+                gSw.ItemsSource = sim.Sws.Values.Where(w => !only || w.Lock != null || w.Flank.Count > 0 || w.Moving != null || w.Stopped || w.Rozpr || w.NoCtrl || w.Frozen || w.Local || w.NoData).OrderBy(w => w.Num).Select(w => new SwRow
                 {
-                    Zwrotnica = L(w.Num), Polozenie = w.Pos, Utwierdzona = RouteName(w.Lock),
+                    Zwrotnica = L(w.Num), Polozenie = w.Pos, Utwierdzona = RouteName(w.Lock) + (w.Flank.Count > 0 ? (w.Lock != null ? "; " : "") + "ochrona boczna: " + string.Join(", ", w.Flank.Select(RouteName)) : ""),
                     Przestawianie = w.Moving == null ? "" : $"→ „{w.Moving.Target}”, {Math.Max(0, w.Moving.Until - sim.T):0.0} s" + (w.Frozen ? " (nie przestawia się!)" : ""),
                     Stan = string.Join(", ", new[] { w.Stopped ? "zastopowana" : null, w.Rozpr ? "ROZPRUCIE" : null, w.NoCtrl ? "brak kontroli" : null, w.Frozen ? "zamarznięta" : null, w.Local ? "sterowanie miejscowe" : null, w.NoData ? "brak danych" : null }.Where(x => x != null))
                 }).ToList();

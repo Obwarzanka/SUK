@@ -84,6 +84,7 @@ public partial class App : Application
                 if (A.Length > 3 && A[2] == "autolayout") File.WriteAllText(shot + ".txt", ed.AutoLayoutForTest(A[3]));
                 if (A.Length > 4 && A[2] == "bg") File.WriteAllText(shot + ".txt", ed.BgForTest(A[3], A[4]));
                 if (A.Length > 3 && A[2] == "dclear") File.WriteAllText(shot + ".txt", ed.DClearForTest(A[3]));
+                if (A.Length > 7 && A[2] == "podklad") File.WriteAllText(shot + ".txt", ed.BgGeoForTest(A[3], A[4], double.Parse(A[5], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[6], System.Globalization.CultureInfo.InvariantCulture), A[7]));
                 if (A.Length > 3 && A[2] == "skala") File.WriteAllText(shot + ".txt", ed.ScaleForTest(A[3], A.Length > 4 ? A[4] : null));
                 if (A.Length > 3 && A[2] == "deco") File.WriteAllText(shot + ".txt", ed.DecoForTest(A[3]));
                 if (A.Length > 3 && A[2] == "dfuzz") File.WriteAllText(shot + ".txt", ed.DFuzz(int.Parse(A[3]), A.Length > 4 ? int.Parse(A[4]) : 1));
