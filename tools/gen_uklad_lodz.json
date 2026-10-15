@@ -1,0 +1,19 @@
+{
+  "_opis": "Konfiguracja generatora układu torowego (tools/gen_uklad.py). Stacje i arkusze planu – dane, nie kod. Promień – obszar stacji wokół punktu stacji z OSM [m].",
+  "osm": ["osm/lodz_t1.json", "osm/lodz_t2.json", "osm/lodz_t3.json", "osm/lodz_t4.json"],
+  "name": "LCS Łódź Widzew – układ z OSM (projekt)",
+  "code": "LCS",
+  "stations": [
+    { "name": "Łódź Fabryczna", "code": "LF", "radius": 900 },
+    { "name": "Łódź Niciarniana", "code": "LN", "radius": 450 },
+    { "name": "Łódź Widzew", "code": "LW", "radius": 1500 },
+    { "name": "Łódź Marysin", "code": "LM", "radius": 700 }
+  ],
+  "sheets": [
+    { "name": "Łódź Fabryczna – Łódź Niciarniana – Łódź Widzew", "stations": ["LF", "LN", "LW"], "refLine": "17", "corridor": 70 },
+    { "name": "Łódź Marysin", "stations": ["LM"] }
+  ],
+  "anchors": ["kotwice_LF.json"],
+  "stub": 250,
+  "szlakMax": 250
+}

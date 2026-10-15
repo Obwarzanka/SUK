@@ -18,6 +18,32 @@ public partial class Simulator
     }
     public int EndIdxForDir(BlockDef b, int dir) { for (int i = 0; i < b.Ends.Count; i++) if (b.Ends[i].Outward == dir) return i; return -1; }
 
+    /// <summary>Szczelina kontrolna kTor (SBL): czerwona, gdy przy ustawionym kierunku dowolny odstęp zajęty albo semafor odstępowy nie zezwala.</summary>
+    public bool KTor(BlockDef b)
+    {
+        var bs = Blocks[b.Id];
+        if (b.NoBlock || b.SemiAuto || b.SecsWE.Count < 2 || bs.Dir == 0) return false;
+        return b.SecsWE.Any(SecOcc) || L.Signals.Values.Any(s => s.Szlak == b.Id && s.Type == "odstepowy" && s.Dir == bs.Dir && Sigs[s.Name].Aspect != Aspect.Train);
+    }
+
+    /// <summary>Półsamoczynna: blok końcowy możliwy na końcu e (pociąg przybył w całości, wjazd stwierdzony).</summary>
+    public bool KoReady(BlockDef b, int e)
+    {
+        if (!b.SemiAuto || e >= b.Ends.Count) return false;
+        var bs = Blocks[b.Id];
+        if (bs.AwaitEnd != e || b.SecsWE.Any(SecOcc) || bs.FreeSince == 0) return false;
+        // semafor wjazdowy wrócił do „Stój” po najechaniu pociągu (samoczynnie) – warunek spełniony przez przejazd
+        return bs.EntryOk[e] || bs.DKo[e];
+    }
+
+    /// <summary>Przeciwwtórność liniowa: po sygnale zezwalającym na wyjazd kolejny sygnał dopiero po bloku początkowym (Po).</summary>
+    public bool PwlBlocks(string sz, int dir)
+    {
+        var b = L.Blocks[sz]; if (!b.SemiAuto) return false;
+        int e = EndIdxForDir(b, dir);
+        return e >= 0 && Blocks[sz].Pwl[e];
+    }
+
     public bool BlockAllowsExit(string sz, int dir)
     {
         var b = L.Blocks[sz]; var bs = Blocks[sz];
@@ -65,21 +91,32 @@ public partial class Simulator
             if (b.SemiAuto)
             {
                 bool occ = b.SecsWE.Any(SecOcc);
-                if (bs.AwaitEnd == null && occ && bs.Dir != 0)
+                // Pwl: sygnał zezwalający na wyjazd na szlak; po jego wygaszeniu możliwy blok początkowy Po
+                for (int e = 0; e < b.Ends.Count; e++)
+                {
+                    int outw = b.Ends[e].Outward;
+                    bool exitOpen = Routes.Values.Any(r => r.End == id && r.EndKind == "szlak" && L.Signals[r.Start].Dir == outw && Sigs[r.Start].Aspect == Aspect.Train);
+                    if (exitOpen && !bs.Pwl[e]) { bs.Pwl[e] = true; bs.PoReady[e] = false; Log("Zdarzenie", $"Szlak {id}: przeciwwtórność liniowa (Pwl) – po wyprawieniu pociągu daj blok początkowy ({id} Po)", "Blokada liniowa", id); }
+                    if (bs.Pwl[e] && !exitOpen && !bs.PoReady[e]) bs.PoReady[e] = true;
+                    // semafor wjazdowy wyświetlił sygnał zezwalający dla pociągu przyjmowanego z tego szlaku
+                    if (bs.AwaitEnd == e && Sigs.TryGetValue(b.Ends[e].EntrySig ?? "", out var es) && es.Aspect == Aspect.Train) bs.EntryOk[e] = true;
+                }
+                // pociąg od posterunku sąsiedniego spoza LCS – jego blok początkowy przychodzi samoczynnie
+                if (bs.AwaitEnd == null && occ && bs.Dir != 0 && !b.Internal && EndIdxForDir(b, -bs.Dir) >= 0)
                 {
                     int recv = EndIdxForDir(b, -bs.Dir);
-                    bs.AwaitEnd = recv; bs.FreeSince = 0; bs.EndAlarmed = false;
-                    Log("Zdarzenie", "Blok początkowy – szlak zablokowany do czasu bloku końcowego" + (recv < 0 ? $" ({b.Nbr})" : ""), "Blokada liniowa", id);
+                    bs.AwaitEnd = recv; bs.FreeSince = 0; bs.EndAlarmed = false; bs.EntryOk[recv] = false; bs.DKo[recv] = false;
+                    Log("Zdarzenie", $"{b.Nbr}: blok początkowy – szlak {id} zablokowany do czasu bloku końcowego", "Blokada liniowa", id);
                 }
                 if (bs.AwaitEnd is int ae)
                 {
                     if (occ) bs.FreeSince = 0;
                     else
                     {
-                        if (bs.FreeSince == 0) { bs.FreeSince = T; if (ae >= 0) Log("Zdarzenie", $"Szlak {id} wolny – pociąg przybył; daj blok końcowy ({id} Bkon)", "Blokada liniowa", id); }
+                        if (bs.FreeSince == 0) { bs.FreeSince = T; if (ae >= 0) Log("Zdarzenie", $"Szlak {id} wolny – pociąg przybył; daj blok końcowy ({id} Ko)", "Blokada liniowa", id); }
                         if (ae < 0 && T - bs.FreeSince > Cfg.NbrDelay) { bs.AwaitEnd = null; Log("Zdarzenie", $"{b.Nbr}: blok końcowy – szlak {id} wolny", "Blokada liniowa", id); }
                         else if (ae >= 0 && !bs.EndAlarmed && T - bs.FreeSince > Cfg.ReqAlarmAfter)
-                        { bs.EndAlarmed = true; var b2 = bs; Alarm($"Blokada {id}: pociąg przybył, brak bloku końcowego – szlak zablokowany ({id} Bkon)", "Blokada liniowa", id, "bk" + id, () => b2.AwaitEnd != null); }
+                        { bs.EndAlarmed = true; var b2 = bs; Alarm($"Blokada {id}: pociąg przybył, brak bloku końcowego – szlak zablokowany ({id} Ko)", "Blokada liniowa", id, "bk" + id, () => b2.AwaitEnd != null); }
                     }
                 }
             }
@@ -93,7 +130,7 @@ public partial class Simulator
                     if (T - rq.At > 60 && !rq.Alarmed) { rq.Alarmed = true; Alarm($"Blokada {id}: brak odpowiedzi posterunku {b.Nbr} na żądanie kierunku – zmiana kierunku w trybie normalnym niemożliwa (§20 ust. 5)", "Blokada liniowa", id, "nbrsilent" + id, () => bs.Req != null); }
                 }
                 else if (Trains != null && Trains.NbrPending(id, 60))
-                { bs.Req = null; Log("Ruch", $"{b.Nbr}: odmowa pozwolenia na szlak {id} – pociąg w drodze do ŁW", "Blokada liniowa", id); }
+                { bs.Req = null; Log("Ruch", $"{b.Nbr}: odmowa pozwolenia na szlak {id} – pociąg w drodze do {PostName(b.Ends[0].Post)}", "Blokada liniowa", id); }
                 else if (BlockConds(b).Count == 0)
                 { bs.Dir = b.Ends[0].Outward; bs.Req = null; Log("Zdarzenie", $"{b.Nbr}: dano pozwolenie – kierunek WYJAZD na szlak {id}", "Blokada liniowa", id); }
             }
@@ -115,13 +152,51 @@ public partial class Simulator
         if (code is "WBL" or "OWBL" or "PZK" or "ZWBL" or "AZK" && !b.Permission)
             return new(false, b.NoBlock ? $"Szlak {id}: telefoniczne zapowiadanie – brak blokady liniowej i kierunku"
                                         : $"Szlak {id}: {b.TypeShort} – bez bloku pozwolenia, kierunek stały ({(b.DefDir > 0 ? "→ na wschód" : "← na zachód")})");
+        if (code is "BKON" or "PO" or "POZ" or "DPO" or "DKO" && !b.SemiAuto)
+            return new(false, $"Szlak {id}: {b.TypeShort} – przyciski Po, Ko, Poz, dPo, dKo dotyczą blokady półsamoczynnej");
         if (code == "BKON")
         {
-            if (!b.SemiAuto) return new(false, $"Szlak {id}: {b.TypeShort} – blok końcowy dotyczy blokady półsamoczynnej");
-            if (bs.AwaitEnd == null) return new(false, "Szlak nie jest zablokowany blokiem początkowym");
-            if (bs.AwaitEnd != e) return new(false, "Blok końcowy daje posterunek przyjmujący pociąg");
-            if (b.SecsWE.Any(SecOcc)) return new(false, "Szlak zajęty – pociąg nie przybył w całości (sprawdź koniec pociągu)");
-            bs.AwaitEnd = null; return new(true, "blok końcowy – szlak wolny");
+            if (bs.AwaitEnd == null) return new(false, "Szlak nie jest zablokowany blokiem początkowym (Po)");
+            if (bs.AwaitEnd != e) return new(false, "Blok końcowy (Ko) daje posterunek przyjmujący pociąg");
+            if (b.SecsWE.Any(SecOcc)) return new(false, "Szlak zajęty – pociąg nie przybył w całości (sprawdź sygnały końca pociągu)");
+            if (bs.FreeSince == 0) return new(false, "Nie stwierdzono przejazdu pociągu przez szlak");
+            if (!bs.EntryOk[e] && !bs.DKo[e]) return new(false, "Nie stwierdzono wjazdu na sygnał zezwalający – przy wjeździe na sygnał zastępczy lub rozkaz pisemny użyj dKo przed wjazdem pociągu");
+            bs.AwaitEnd = null; bs.EntryOk[e] = false; bs.DKo[e] = false;
+            return new(true, "blok końcowy (Ko) – szlak wolny, blok początkowy sąsiada odblokowany");
+        }
+        if (code == "PO")
+        {
+            if (bs.AwaitEnd != null) return new(false, "Szlak już zablokowany blokiem początkowym");
+            if (bs.Dir != my.Outward) return new(false, "Brak pozwolenia (kierunku) na wyprawienie pociągu z tej strony");
+            if (!bs.PoReady[e])
+                return new(false, bs.Pwl[e] ? "Sygnał zezwalający na wyjazd jeszcze wyświetlony – Po po jego wygaszeniu" : "Nie wyprawiono pociągu na sygnał zezwalający – przy wyjeździe na sygnał zastępczy lub rozkaz pisemny użyj dPo");
+            int recv = b.Ends.Count > 1 ? 1 - e : -1;
+            bs.Pwl[e] = false; bs.PoReady[e] = false; bs.AwaitEnd = recv; bs.FreeSince = 0; bs.EndAlarmed = false;
+            if (recv >= 0) { bs.EntryOk[recv] = false; bs.DKo[recv] = false; }
+            return new(true, "blok początkowy (Po) – szlak zablokowany do bloku końcowego (Ko) " + (recv < 0 ? b.Nbr : "na drugim końcu"));
+        }
+        if (code == "DPO")
+        {
+            if (bs.AwaitEnd != null) return new(false, "Szlak już zablokowany blokiem początkowym");
+            bs.Pwl[e] = false; bs.PoReady[e] = true; bs.DPoCount++;
+            return new(true, $"dPo – przeciwwtórność odwzbudzona, możliwy blok początkowy (licznik dPo: {bs.DPoCount})");
+        }
+        if (code == "DKO")
+        {
+            if (bs.AwaitEnd != e) return new(false, "dKo przed wjazdem pociągu, dla którego szlak zablokowano blokiem początkowym");
+            bs.DKo[e] = true; bs.DKoCount++;
+            return new(true, $"dKo – wjazd na sygnał zastępczy / rozkaz pisemny; po wjeździe pociągu daj Ko (licznik dKo: {bs.DKoCount})");
+        }
+        if (code == "POZ")
+        {
+            // blok pozwolenia: stacja mająca pozwolenie oddaje je sąsiedniej (odpowiedź na Wbl albo z własnej inicjatywy)
+            if (bs.AwaitEnd != null) return new(false, "Szlak zablokowany – pociąg w drodze");
+            if (bs.Pwl[e]) return new(false, "Przeciwwtórność liniowa (Pwl) – najpierw blok początkowy");
+            if (bs.Dir != 0 && bs.Dir != my.Outward && bs.Req == null) return new(false, "Pozwolenie ma druga strona");
+            if (b.Ends.Count < 2 && !b.Internal && bs.Dir != my.Outward && bs.Req == null) return new(false, "Brak pozwolenia do oddania");
+            { var why = BlockConds(b); if (why.Count > 0) return new(false, why[0]); }
+            bs.Dir = -my.Outward; bs.Req = null;
+            return new(true, "blok pozwolenia (Poz) – pozwolenie oddane, kierunek PRZYJAZD");
         }
         switch (code)
         {

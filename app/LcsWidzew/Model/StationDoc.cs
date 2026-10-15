@@ -9,14 +9,14 @@ namespace LcsWidzew.Model;
 /// Edytowalny dokument obszaru LCS (Data/station.json) – operacje edytora układu torowego.
 /// Każda zmiana działa bezpośrednio na drzewie JSON; Station powstaje z niego przez Station.Parse.
 /// </summary>
-public class StationDoc
+public partial class StationDoc
 {
     public JsonObject Root;
     readonly Stack<string> undo = new(), redo = new();
 
     static readonly JsonSerializerOptions Opt = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver() };
 
-    public StationDoc(JsonObject root) { Root = root; Ensure(); }
+    public StationDoc(JsonObject root) { Root = root; Ensure(); EnsureDisplayDeco(); EnsurePlanScale(); }
     public static StationDoc Load(string path) => new((JsonObject)JsonNode.Parse(File.ReadAllText(path)));
     public string Json() => Root.ToJsonString(Opt);
     /// <summary>Zapis z kopią poprzedniej wersji: plik .bak oraz kopie z datą w katalogu „kopie” (ostatnie 30).</summary>
@@ -65,10 +65,27 @@ public class StationDoc
     public JsonObject Boundaries => (JsonObject)Root["boundaries"];
     public JsonObject FarEnds => (JsonObject)Root["farEnds"];
     public JsonObject TrackEnds => (JsonObject)Root["trackEnds"];
+    /// <summary>Kozły oporowe – sam symbol (węzeł końca toru).</summary>
+    public JsonObject Bumpers { get { if (Root["bumpers"] is not JsonObject b) Root["bumpers"] = b = new JsonObject(); return b; } }
     public JsonObject Posts => (JsonObject)Root["posts"];
     public JsonArray Pages => (JsonArray)Root["pages"];
-    public JsonArray Labels => (JsonArray)Root["labels"];
-    public JsonArray Platforms => (JsonArray)Root["platforms"];
+    /// <summary>Napisy, perony i przejazdy: zobrazowanie i plan schematyczny mają osobne kopie (sekcja „display” – obraz pulpitu).
+    /// DecoOnDisplay = true (tryb zobrazowania edytora) – Labels/Platforms/Crossings wskazują kopie zobrazowania.</summary>
+    public bool DecoOnDisplay;
+    static readonly string[] DecoKeys = { "labels", "platforms", "crossings" };
+    JsonArray Deco(string k) => DecoOnDisplay && Disp?[k] is JsonArray a ? a : (JsonArray)Root[k];
+    public JsonArray Labels => Deco("labels");
+    public JsonArray Platforms => Deco("platforms");
+    public JsonArray Crossings => Deco("crossings");
+
+    /// <summary>Jednorazowa konwersja: zobrazowanie bez własnych napisów/peronów/przejazdów dostaje kopię obecnych.</summary>
+    public bool EnsureDisplayDeco()
+    {
+        if (Disp == null) return false;
+        bool made = false;
+        foreach (var k in DecoKeys) if (Disp[k] is not JsonArray) { Disp[k] = (Root[k] as JsonArray)?.DeepClone() ?? new JsonArray(); made = true; }
+        return made;
+    }
 
     // ------------------------------------------------------------------ cofanie
     public void Snapshot() { undo.Push(Root.ToJsonString()); redo.Clear(); if (undo.Count > 200) { var keep = undo.Take(150).Reverse().ToList(); undo.Clear(); foreach (var k in keep) undo.Push(k); } }
@@ -96,6 +113,154 @@ public class StationDoc
         do id = "e" + k++; while (used.Contains(id));
         return id;
     }
+    // ---------------------------------------------------------------- zobrazowanie (EbiScreen) – osobne od układu torowego
+    /// <summary>Sekcja „display”: położenia węzłów i przebieg torów na obrazach pulpitu (null – brak zobrazowania).</summary>
+    public JsonObject Disp => Root["display"] as JsonObject;
+    public JsonObject DispNodes => (JsonObject)Disp["nodes"];
+    public JsonObject DispEdges => (JsonObject)Disp["edges"];
+
+    /// <summary>Jednorazowa konwersja: obecny rysunek staje się zobrazowaniem. Zwraca true, gdy utworzono.</summary>
+    public bool EnsureDisplay()
+    {
+        if (Disp != null) return false;
+        var dn = new JsonObject(); var de = new JsonObject();
+        foreach (var (k, _) in Nodes) { var (x, y) = Pos(k); dn[k] = new JsonArray(x, y); }
+        foreach (var e in EdgeObjs) de[Sv(e["id"])] = e["pts"].DeepClone();
+        Root["display"] = new JsonObject { ["nodes"] = dn, ["edges"] = de };
+        EnsureDisplayDeco();
+        return true;
+    }
+
+    /// <summary>Puste zobrazowanie: żaden element nie jest na obrazach pulpitu (sekcja „display” zostaje – bez ponownej konwersji z układu).</summary>
+    public void ClearDisplay()
+    {
+        var d = Disp ?? new JsonObject();
+        d["nodes"] = new JsonObject(); d["edges"] = new JsonObject();
+        d["labels"] = new JsonArray(); d["platforms"] = new JsonArray(); d["crossings"] = new JsonArray();
+        Root["display"] = d;
+    }
+    public (double X, double Y)? DPos(string nid) => Disp != null && DispNodes[nid] is JsonArray a ? (D(a[0]), D(a[1])) : null;
+    public void SetDPos(string nid, double x, double y) => DispNodes[nid] = new JsonArray(Math.Round(x, 1), Math.Round(y, 1));
+    public List<(double X, double Y)> DPts(string eid) => Disp != null && DispEdges[eid] is JsonArray a ? a.Select(p => (D(p[0]), D(p[1]))).ToList() : null;
+    public void SetDPts(string eid, List<(double X, double Y)> pts) => DispEdges[eid] = new JsonArray(pts.Select(p => (JsonNode)new JsonArray(Math.Round(p.X, 1), Math.Round(p.Y, 1))).ToArray());
+    public bool OnDisplay(string eid) => Disp != null && DispEdges.ContainsKey(eid);
+
+    /// <summary>Usunięcie z zobrazowania elementów, których nie ma już w układzie.</summary>
+    public void CleanDisplay()
+    {
+        if (Disp == null) return;
+        foreach (var k in DispNodes.Select(x => x.Key).Where(k => !Nodes.ContainsKey(k)).ToList()) DispNodes.Remove(k);
+        var ids = EdgeObjs.Select(e => Sv(e["id"])).ToHashSet();
+        foreach (var k in DispEdges.Select(x => x.Key).Where(k => !ids.Contains(k)).ToList()) DispEdges.Remove(k);
+    }
+
+    /// <summary>Umieszczenie toru na zobrazowaniu wg rysunku układu (na polecenie użytkownika) – razem z jego węzłami.</summary>
+    public void PlaceFromLayout(string eid)
+    {
+        EnsureDisplay();
+        var e = Edge(eid); if (e == null) return;
+        foreach (var n in new[] { Sv(e["a"]), Sv(e["b"]) }) if (!DispNodes.ContainsKey(n)) { var (x, y) = Pos(n); SetDPos(n, x, y); }
+        var p = Pts(e);
+        // końce toru w położeniach węzłów na zobrazowaniu
+        p[0] = DPos(Sv(e["a"])).Value; p[^1] = DPos(Sv(e["b"])).Value;
+        SetDPts(eid, p);
+    }
+
+    /// <summary>Usunięcie elementu z zobrazowania (tor zostaje w układzie). Węzeł – razem z torami, które do niego dochodzą.</summary>
+    public void HideNode(string nid)
+    {
+        if (Disp == null) return;
+        DispNodes.Remove(nid);
+        foreach (var e in EdgesAt(nid)) DispEdges.Remove(Sv(e["id"]));
+    }
+
+    /// <summary>Podział łamanej w ułamku jej długości.</summary>
+    static (List<(double X, double Y)> A, List<(double X, double Y)> B, (double X, double Y) P) SplitPoly(List<(double X, double Y)> p, double f)
+    {
+        double total = GeoLen(p), want = total * Math.Clamp(f, 0.02, 0.98), s = 0;
+        for (int i = 0; i < p.Count - 1; i++)
+        {
+            double d = Math.Sqrt(Math.Pow(p[i + 1].X - p[i].X, 2) + Math.Pow(p[i + 1].Y - p[i].Y, 2));
+            if (s + d >= want || i == p.Count - 2)
+            {
+                var u = d > 0 ? Math.Clamp((want - s) / d, 0, 1) : 0;
+                var q = (Math.Round(p[i].X + (p[i + 1].X - p[i].X) * u, 1), Math.Round(p[i].Y + (p[i + 1].Y - p[i].Y) * u, 1));
+                return (p.Take(i + 1).Append(q).ToList(), new[] { q }.Concat(p.Skip(i + 1)).ToList(), q);
+            }
+            s += d;
+        }
+        return (p, p, p[^1]);
+    }
+
+    /// <summary>Łamana toru na zobrazowaniu w kierunku od węzła „from”.</summary>
+    List<(double X, double Y)> DPtsFrom(JsonObject e, string from)
+    {
+        var p = DPts(Sv(e["id"])); if (p == null) return null;
+        if (Sv(e["a"]) != from) p.Reverse();
+        return p;
+    }
+
+    // ---------------------------------------------------------------- odcinki kontroli niezajętości
+    /// <summary>Ustawienia odcinków (rodzaj kontroli niezajętości) – klucz: identyfikator odcinka.</summary>
+    public JsonObject SecMeta { get { if (Root["sections"] is not JsonObject m) Root["sections"] = m = new JsonObject(); return m; } }
+    /// <summary>Domyślny rodzaj kontroli niezajętości w obszarze: „lo” – liczniki osi, „ot” – obwody torowe.</summary>
+    public string DefaultDetection { get => Sv(Root["detection"]) ?? "lo"; set => Root["detection"] = value; }
+    public string SecDetection(string sec) => SecMeta[sec] is JsonObject m && Sv(m["detection"]) is string d ? d : DefaultDetection;
+    public void SetSecDetection(string sec, string det)
+    {
+        if (det == DefaultDetection) { if (SecMeta[sec] is JsonObject m) { m.Remove("detection"); if (m.Count == 0) SecMeta.Remove(sec); } }
+        else { if (SecMeta[sec] is not JsonObject m) SecMeta[sec] = m = new JsonObject(); m["detection"] = det; }
+    }
+
+    /// <summary>Posterunek odcinka: przedrostek identyfikatora (np. LW: w LW:it12).</summary>
+    public static string SecPost(string sec) => sec != null && sec.Contains(':') ? sec[..sec.IndexOf(':')] : "";
+
+    /// <summary>Zmiana identyfikatora odcinka (posterunek + nazwa) we wszystkich miejscach układu.</summary>
+    public void RenameSection(string old, string nw)
+    {
+        nw = (nw ?? "").Trim();
+        if (nw == "" || nw == old) return;
+        if (!nw.Contains(':') || nw.EndsWith(":")) throw new InvalidOperationException("Identyfikator odcinka: posterunek:nazwa (np. LW:it12, LW:JT2, LW:z15)");
+        if (EdgeObjs.Any(e => Sv(e["sec"]) == nw)) throw new InvalidOperationException($"Odcinek {nw} już istnieje – wybierz inną nazwę (albo przypisz tory narzędziem Odcinek, żeby je połączyć)");
+        foreach (var e in EdgeObjs) if (Sv(e["sec"]) == old) e["sec"] = nw;
+        foreach (var (_, v) in Switches) if (Sv(v["sec"]) == old) v["sec"] = nw;
+        foreach (var (_, v) in Derailers) if (Sv(v["sec"]) == old) v["sec"] = nw;
+        if (SecMeta[old] is JsonNode m) { SecMeta.Remove(old); SecMeta[nw] = m; }
+    }
+
+    /// <summary>
+    /// Nadanie identyfikatorów odcinkom bez nazwy („o…” – nadane przy rysowaniu) i bez posterunku: odcinek ze zwrotnicą – „z” + numery
+    /// zwrotnic, tor z numerem toru – „JT” + numer, pozostałe – „it” + kolejny numer. Zwraca liczbę zmian.
+    /// </summary>
+    public int AutoNameSections()
+    {
+        int n = 0;
+        var secs = EdgeObjs.Where(e => !IsSzlak(e) && !IsLink(e)).GroupBy(e => Sv(e["sec"]) ?? "").ToList();
+        var used = EdgeObjs.Select(e => Sv(e["sec"])).ToHashSet();
+        foreach (var g in secs)
+        {
+            var sec = g.Key; var post = SecPost(sec); var local = sec.Contains(':') ? sec[(sec.IndexOf(':') + 1)..] : sec;
+            bool noName = local == "" || System.Text.RegularExpressions.Regex.IsMatch(local, "^o\\d+$");
+            // posterunek z węzłów odcinka (najczęstszy)
+            var nodePost = g.SelectMany(e => new[] { Sv(e["a"]), Sv(e["b"]) }).Select(x => Sv(Nodes[x]?["post"])).Where(x => !string.IsNullOrEmpty(x)).GroupBy(x => x).OrderByDescending(x => x.Count()).Select(x => x.Key).FirstOrDefault();
+            bool noPost = post == "" || !Posts.ContainsKey(post);
+            if (!noName && !noPost) continue;
+            var p = noPost ? nodePost ?? Posts.Select(x => x.Key).FirstOrDefault() ?? "X" : post;
+            string baseName;
+            var swl = Switches.Where(x => Sv(x.Value["sec"]) == sec || g.Any(e => Sv(e["a"]) == Sv(x.Value["node"]) || Sv(e["b"]) == Sv(x.Value["node"]))).Select(x => Sv(x.Value["label"])).Distinct().OrderBy(x => x.Length).ThenBy(x => x).ToList();
+            var track = g.Select(e => Sv(e["track"])).FirstOrDefault(t => !string.IsNullOrEmpty(t));
+            if (!noName) baseName = local;
+            else if (swl.Count > 0 && Switches.Any(x => Sv(x.Value["sec"]) == sec)) baseName = "z" + string.Join("", swl.Take(2));
+            else if (track != null) baseName = "JT" + track;
+            else baseName = "it";
+            string id = $"{p}:{baseName}";
+            if (baseName == "it" || used.Contains(id)) { int k = 1; do id = $"{p}:{baseName}{(baseName == "it" ? "" : "_")}{k++}"; while (used.Contains(id)); }
+            if (id == sec) continue;
+            RenameSection(sec, id); used.Add(id); n++;
+        }
+        return n;
+    }
+
     /// <summary>Nowy odcinek: „o…” – nadany automatycznie przy rysowaniu, „it…” – wydzielony celowo przez użytkownika.</summary>
     public string NewSecId(string post, string prefix = "o")
     {
@@ -158,7 +323,7 @@ public class StationDoc
             }
             p[i] = (x, y);
             SetPts(e, p);
-            if (!IsSzlak(e) && !IsLink(e)) e["len"] = Math.Round(Math.Max(5, GeoLen(p)), 1);
+            AutoLen(e);
         }
         foreach (var (e, o) in oldX) KeepDir(e, o.A, o.B);
     }
@@ -192,7 +357,7 @@ public class StationDoc
                 }
             }
             p[i] = (x, y); SetPts(e, p);
-            if (!IsSzlak(e)) e["len"] = Math.Round(Math.Max(5, GeoLen(p)), 1);
+            AutoLen(e);
         }
         foreach (var (e, o) in oldX) KeepDir(e, o.A, o.B);
     }
@@ -252,7 +417,7 @@ public class StationDoc
                 for (int k = 0; k < p.Count; k++) if ((k == 0 && ia) || (k == p.Count - 1 && ib) || (k > 0 && k < p.Count - 1 && Math.Abs(p[k].Y - oy) <= 8.5)) p[k] = (p[k].X, p[k].Y + dy);
             }
             SetPts(e, p);
-            if (!IsSzlak(e)) e["len"] = Math.Round(Math.Max(5, GeoLen(p)), 1);
+            AutoLen(e);
         }
         foreach (var (e, o) in oldX) KeepDir(e, o.A, o.B);
         foreach (var l in labels ?? new()) l["y"] = Math.Round(F(D(l["y"])), 1);
@@ -285,7 +450,7 @@ public class StationDoc
         var e = new JsonObject
         {
             ["a"] = a, ["b"] = b, ["pts"] = new JsonArray(Pt(ax, ay), Pt(bx, by)), ["sec"] = sec ?? NewSecId(post),
-            ["len"] = Math.Round(Math.Max(5, Math.Sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay))), 1), ["track"] = "", ["line"] = "", ["id"] = NewEdgeId()
+            ["len"] = Math.Round(Math.Max(1, PlanLen(ax, ay, bx, by)), 1), ["track"] = "", ["line"] = "", ["id"] = NewEdgeId()
         };
         Edges.Add(e);
         return Sv(e["id"]);
@@ -315,7 +480,48 @@ public class StationDoc
         e["len"] = Math.Round(Math.Max(5, len * l1 / Math.Max(1, l1 + l2g)), 1);
         e2["len"] = Math.Round(Math.Max(5, len * l2g / Math.Max(1, l1 + l2g)), 1);
         Edges.Add(e2);
+        AutoLen(e); AutoLen(e2);
+        // zobrazowanie: tor podzielony w tym samym miejscu (w stosunku długości), nowy węzeł na obrazie
+        if (DPts(eid) is { } dp && dp.Count >= 2)
+        {
+            var (da, db, q) = SplitPoly(dp, l1 / Math.Max(0.001, l1 + l2g));
+            SetDPts(eid, da); SetDPts(Sv(e2["id"]), db); SetDPos(nid, q.X, q.Y);
+        }
         return nid;
+    }
+
+    /// <summary>Podział toru w ułamku jego długości (0–1) – nowy węzeł w układzie i na zobrazowaniu w tym samym miejscu toru.</summary>
+    public string SplitEdgeAtFraction(string eid, double f, string post = null)
+    {
+        var e = Edge(eid) ?? throw new InvalidOperationException("Brak toru");
+        var p = Pts(e); f = Math.Clamp(f, 0.05, 0.95);
+        double want = GeoLen(p) * f, acc = 0;
+        for (int i = 0; i < p.Count - 1; i++)
+        {
+            double d = Math.Sqrt(Math.Pow(p[i + 1].X - p[i].X, 2) + Math.Pow(p[i + 1].Y - p[i].Y, 2));
+            if (acc + d >= want || i == p.Count - 2)
+            {
+                var u = d > 0 ? Math.Clamp((want - acc) / d, 0.05, 0.95) : 0.5;
+                return SplitEdge(eid, p[i].X + (p[i + 1].X - p[i].X) * u, p[i].Y + (p[i + 1].Y - p[i].Y) * u, post);
+            }
+            acc += d;
+        }
+        return SplitEdge(eid, (p[0].X + p[^1].X) / 2, (p[0].Y + p[^1].Y) / 2, post);
+    }
+
+    /// <summary>Ułamek długości łamanej w punkcie najbliższym w (rzut).</summary>
+    public static double FractionAt(List<(double X, double Y)> p, double x, double y)
+    {
+        double total = Math.Max(0.001, GeoLen(p)), acc = 0, best = double.MaxValue, bf = 0.5;
+        for (int i = 0; i < p.Count - 1; i++)
+        {
+            double dx = p[i + 1].X - p[i].X, dy = p[i + 1].Y - p[i].Y, l2 = dx * dx + dy * dy, d = Math.Sqrt(l2);
+            double t = l2 == 0 ? 0 : Math.Clamp(((x - p[i].X) * dx + (y - p[i].Y) * dy) / l2, 0, 1);
+            double dist = Math.Sqrt(Math.Pow(p[i].X + t * dx - x, 2) + Math.Pow(p[i].Y + t * dy - y, 2));
+            if (dist < best) { best = dist; bf = (acc + t * d) / total; }
+            acc += d;
+        }
+        return bf;
     }
 
     /// <summary>Czy węzeł jest zwykłym punktem na torze (2 tory, bez zwrotnicy, sygnalizatora, kozła, wykolejnicy, granicy szlaku).</summary>
@@ -347,8 +553,15 @@ public class StationDoc
         int dir = d1 != 0 ? d1 : d2;
         if (Math.Abs(Pos(o1).X - Pos(o2).X) < 0.5 && dir != 0) m["dir"] = dir;
         if (string.IsNullOrEmpty(Sv(m["track"]))) m["track"] = Sv(e1["track"]) is { Length: > 0 } t1 ? t1 : Sv(e2["track"]) ?? "";
+        // zobrazowanie: łamane obu torów łączą się w jedną
+        var dp1 = DPtsFrom(e1, o1); var dp2 = DPtsFrom(e2, nid);
         Edges.Remove(e1); Edges.Remove(e2); Edges.Add(m);
         Nodes.Remove(nid);
+        if (Disp != null)
+        {
+            DispEdges.Remove(Sv(e1["id"])); DispEdges.Remove(Sv(e2["id"])); DispNodes.Remove(nid);
+            if (dp1 != null && dp2 != null) SetDPts(Sv(m["id"]), dp1.Concat(dp2.Skip(1)).ToList());
+        }
     }
 
     /// <summary>
@@ -438,7 +651,7 @@ public class StationDoc
         var e2 = new JsonObject { ["a"] = j, ["b"] = b, ["sec"] = Sv(e1["sec"]), ["track"] = "", ["line"] = "", ["id"] = NewEdgeId() };
         SetPts(e2, new() { (mx, (ay + by) / 2), (mx, by - v * k), (bx, by) });
         Edges.Add(e2);
-        foreach (var e in new[] { e1, e2 }) e["len"] = Math.Round(Math.Max(5, GeoLen(Pts(e))), 1);
+        foreach (var e in new[] { e1, e2 }) e["len"] = NewLen(Pts(e));
         return b;
     }
 
@@ -453,7 +666,7 @@ public class StationDoc
         var j = AddNode(post, kx, y);
         var e1 = new JsonObject { ["a"] = a, ["b"] = j, ["sec"] = NewSecId(post), ["track"] = "", ["line"] = "", ["id"] = NewEdgeId() };
         SetPts(e1, new() { (ax, ay), (mx, ay + v * k), (mx, y - v * k), (kx, y) });
-        e1["len"] = Math.Round(Math.Max(5, GeoLen(Pts(e1))), 1);
+        e1["len"] = NewLen(Pts(e1));
         Edges.Add(e1);
         var end = AddNode(post, xEnd, y);
         AddEdge(j, end, null, post);
@@ -490,8 +703,10 @@ public class StationDoc
         bool endSwitch = Switches.Any(x => Sv(x.Value["node"]) == end);
         if (!endSwitch && EdgesAt(end).Count != 2) throw new InvalidOperationException("Koniec odgałęzienia nie leży na torze (sygnalizator / kozioł w łączniku?) – wyprostuj ręcznie");
         var sec = Sv(chain[0]["sec"]); var sec2 = Sv(chain[^1]["sec"]);
+        // zobrazowanie łącznika (od zwrotnicy do końca) – przechodzi na nowe tory bez zmiany kształtu na obrazie
+        List<(double X, double Y)> dchain = null; { string c0 = a; foreach (var x in chain) { var dp = DPtsFrom(x, c0); if (dp == null) { dchain = null; break; } dchain = dchain == null ? dp : dchain.Concat(dp.Skip(1)).ToList(); c0 = Sv(x["a"]) == c0 ? Sv(x["b"]) : Sv(x["a"]); } }
         foreach (var x in chain) Edges.Remove(x);
-        foreach (var m in mids) Nodes.Remove(m);
+        foreach (var m in mids) { Nodes.Remove(m); if (Disp != null) DispNodes.Remove(m); }
         // koniec na swoim torze: x = zwrotnica ± 2k (tor poziomy przy końcu przesuwa się razem z nim)
         double nx = ax + sx * 2 * k;
         MoveNode(end, nx, ey);
@@ -503,15 +718,78 @@ public class StationDoc
             SetPts(e1, new() { (ax, ay), (mx, ay + v * k), (mx, (ay + ey) / 2) }); Edges.Add(e1);
             var e2 = new JsonObject { ["a"] = j, ["b"] = end, ["sec"] = sec2, ["track"] = "", ["line"] = "", ["id"] = NewEdgeId() };
             SetPts(e2, new() { (mx, (ay + ey) / 2), (mx, ey - v * k), (nx, ey) }); Edges.Add(e2);
-            foreach (var q in new[] { e1, e2 }) q["len"] = Math.Round(Math.Max(5, GeoLen(Pts(q))), 1);
+            foreach (var q in new[] { e1, e2 }) q["len"] = NewLen(Pts(q));
+            if (dchain != null) { var (da, db, qp) = SplitPoly(dchain, 0.5); SetDPts(Sv(e1["id"]), da); SetDPts(Sv(e2["id"]), db); SetDPos(j, qp.X, qp.Y); }
         }
         else
         {
             var e1 = new JsonObject { ["a"] = a, ["b"] = end, ["sec"] = sec, ["track"] = "", ["line"] = "", ["id"] = NewEdgeId() };
             SetPts(e1, new() { (ax, ay), (mx, ay + v * k), (mx, ey - v * k), (nx, ey) });
-            e1["len"] = Math.Round(Math.Max(5, GeoLen(Pts(e1))), 1); Edges.Add(e1);
+            e1["len"] = NewLen(Pts(e1)); Edges.Add(e1);
+            if (dchain != null) SetDPts(Sv(e1["id"]), dchain);
         }
         return endSwitch ? Switches.First(x => Sv(x.Value["node"]) == end).Key : null;
+    }
+
+    /// <summary>
+    /// Plan schematyczny: odgałęzienie zwrotnicy (łącznik do drugiej zwrotnicy albo odgałęzienie do toru) jako prosty skos
+    /// jak w terenie – bez kształtu pulpitowego ukos–pion–ukos. Koniec skosu przesuwa się po swoim torze tak, by skos miał
+    /// zadane pochylenie (dx = ratio·dy), ale nie dalej niż do sąsiednich węzłów toru. Zmienia tylko rysunek układu
+    /// (zobrazowanie i długości w metrach bez zmian).
+    /// </summary>
+    public bool PlanSkew(string swKey, double ratio, HashSet<string> done = null)
+    {
+        if (Switches[swKey] is not JsonObject sw) return false;
+        var a = Sv(sw["node"]);
+        var first = MinusLeg(a); if (first == null) return false;
+        bool Horizontal(JsonObject e) { var p = Pts(e); return p.All(q => Math.Abs(q.Y - p[0].Y) < 0.5); }
+        if (Horizontal(first)) return false;
+        var chain = new List<JsonObject>(); var mids = new List<string>(); string cur = a, end = null; var e = first;
+        for (int g = 0; g < 30; g++)
+        {
+            chain.Add(e);
+            var o = Sv(e["a"]) == cur ? Sv(e["b"]) : Sv(e["a"]);
+            if (!IsPlainNode(o)) { end = o; break; }
+            var next = EdgesAt(o).First(x => x != e);
+            if (Horizontal(next) || IsLink(next)) { end = o; break; }
+            mids.Add(o); e = next; cur = o;
+        }
+        if (end == null || done?.Contains(end) == true) return false;
+        var (ax, ay) = Pos(a); var (ex, ey) = Pos(end);
+        if (Math.Abs(ey - ay) < 1) return false;
+        int s = Math.Sign(ex - ax); if (s == 0) { var p0 = Pts(first); s = Math.Sign((Sv(first["a"]) == a ? p0[1].X : p0[^2].X) - ax); } if (s == 0) s = 1;
+        // koniec skosu: po swoim torze, w granicach sąsiednich węzłów
+        double want = ax + s * ratio * Math.Abs(ey - ay);
+        var others = EdgesAt(end).Where(x => !chain.Contains(x)).Select(x => Sv(x["a"]) == end ? Sv(x["b"]) : Sv(x["a"])).Select(n => Pos(n).X).ToList();
+        double lo = others.Where(x => x < ex).DefaultIfEmpty(double.NegativeInfinity).Max() + 6, hi = others.Where(x => x > ex).DefaultIfEmpty(double.PositiveInfinity).Min() - 6;
+        double nx = Math.Clamp(want, Math.Min(lo, ex), Math.Max(hi, ex));
+        if (Math.Sign(nx - ax) != s || Math.Abs(nx - ax) < 4) nx = ex;
+        nx = Math.Round(nx, 1);
+        if (Math.Abs(nx - ex) > 0.1) MoveNode(end, nx, ey);
+        (ex, ey) = Pos(end);
+        // węzły pośrednie na prostej (w proporcji dotychczasowej długości), tory jako odcinki prostej
+        var lens = chain.Select(c => GeoLen(Pts(c))).ToList(); double total = Math.Max(0.001, lens.Sum()), acc = 0;
+        string from = a;
+        for (int i = 0; i < chain.Count; i++)
+        {
+            acc += lens[i];
+            var to = i < mids.Count ? mids[i] : end;
+            if (i < mids.Count) { double f = acc / total; Nodes[to]["x"] = Math.Round(ax + (ex - ax) * f, 1); Nodes[to]["y"] = Math.Round(ay + (ey - ay) * f, 1); }
+            var (fx, fy) = Pos(from); var (tx, ty) = Pos(to);
+            var pts = new List<(double X, double Y)> { (fx, fy), (tx, ty) }; if (Sv(chain[i]["a"]) != from) pts.Reverse();
+            SetPts(chain[i], pts); chain[i].Remove("dir"); AutoLen(chain[i]);
+            from = to;
+        }
+        done?.Add(a);
+        return true;
+    }
+
+    public int PlanSkewAll(double ratio, ICollection<string> onlyNodes = null)
+    {
+        int n = 0; var done = new HashSet<string>();
+        foreach (var k in Switches.Where(x => onlyNodes == null || onlyNodes.Contains(Sv(x.Value["node"]))).Select(x => x.Key).ToList())
+            if (PlanSkew(k, ratio, done)) n++;
+        return n;
     }
 
     public void DeleteEdge(string eid)
@@ -925,6 +1203,8 @@ public class StationDoc
         if (es.Count == 0) throw new InvalidOperationException("Odcinek " + sec + " nie ma torów");
         double sum = es.Sum(e => D(e["len"]));
         foreach (var e in es) e["len"] = Math.Round(Math.Max(1, sum > 0 ? D(e["len"]) * len / sum : len / es.Count), 1);
+        // długość wpisana przy planie w skali – tor przestaje brać długość z rysunku (np. tor narysowany w skróceniu)
+        if (LenAuto) foreach (var e in es) if (!IsSzlak(e) && !IsLink(e)) e["lenFix"] = true;
     }
 
     // ------------------------------------------------------------------ reguły przebiegów
@@ -950,43 +1230,48 @@ public class StationDoc
     }
 
     // ------------------------------------------------------------------ kontrola poprawności
-    public List<string> Validate()
+    /// <summary>Problem w układzie: opis i miejsca na rysunku (węzły; „edge:id” – tor).</summary>
+    public record Problem(string Msg, List<string> Refs);
+
+    public List<string> Validate() => Problems().Select(p => p.Msg).ToList();
+
+    public List<Problem> Problems()
     {
-        var w = new List<string>();
+        var w = new List<Problem>();
+        void W(string msg, params string[] refs) => w.Add(new Problem(msg, refs.Where(r => !string.IsNullOrEmpty(r)).ToList()));
         var deg = Nodes.ToDictionary(n => n.Key, n => 0);
         foreach (var e in EdgeObjs)
         {
-            var a = Sv(e["a"]); var b = Sv(e["b"]);
-            if (!Nodes.ContainsKey(a) || !Nodes.ContainsKey(b)) { w.Add($"Krawędź {Sv(e["id"])}: nieistniejący węzeł"); continue; }
+            var a = Sv(e["a"]); var b = Sv(e["b"]); var eid = "edge:" + Sv(e["id"]);
+            if (!Nodes.ContainsKey(a) || !Nodes.ContainsKey(b)) { W($"Krawędź {Sv(e["id"])}: nieistniejący węzeł"); continue; }
             deg[a]++; deg[b]++;
-            if (Math.Abs(Pos(a).X - Pos(b).X) < 0.5 && (e["dir"] == null || (int)D(e["dir"]) == 0)) w.Add($"Tor pionowy {Sv(e["id"])} ({a}–{b}) bez kierunku jazdy – ustaw „dir” we właściwościach (1 – jazda od {a} do {b} na wschód, -1 – na zachód)");
-            if (string.IsNullOrEmpty(Sv(e["sec"]))) w.Add($"Krawędź {Sv(e["id"])}: brak odcinka izolowanego");
+            if (Math.Abs(Pos(a).X - Pos(b).X) < 0.5 && (e["dir"] == null || (int)D(e["dir"]) == 0)) W($"Tor pionowy {Sv(e["id"])} ({a}–{b}) bez kierunku jazdy – ustaw „dir” we właściwościach (1 – jazda od {a} do {b} na wschód, -1 – na zachód)", eid);
+            if (string.IsNullOrEmpty(Sv(e["sec"]))) W($"Krawędź {Sv(e["id"])}: brak odcinka izolowanego", eid);
         }
         foreach (var (k, v) in Switches)
         {
             var n = Sv(v["node"]);
-            if (!deg.TryGetValue(n, out var d) || d != 3) { w.Add($"Zwrotnica {Sv(v["label"])}: węzeł ma {d} krawędzi zamiast 3"); continue; }
-            var (x, _) = Pos(n);
+            if (!deg.TryGetValue(n, out var d) || d != 3) { W($"Zwrotnica {Sv(v["label"])}: węzeł ma {d} krawędzi zamiast 3", n); continue; }
             var sides = EdgesAt(n).Select(e => EdgeDir(e, n)).ToList();
-            if (sides.Count(s => s > 0) != 1 && sides.Count(s => s < 0) != 1) w.Add($"Zwrotnica {Sv(v["label"])}: nie da się ustalić iglicy (po jednej stronie musi być 1 krawędź, po drugiej 2)");
+            if (sides.Count(s => s > 0) != 1 && sides.Count(s => s < 0) != 1) W($"Zwrotnica {Sv(v["label"])}: nie da się ustalić iglicy (po jednej stronie musi być 1 krawędź, po drugiej 2)", n);
         }
         foreach (var (k, v) in Signals)
         {
             var n = Sv(v["node"]);
-            if (!Nodes.ContainsKey(n)) { w.Add($"Sygnalizator {k}: brak węzła"); continue; }
-            if (deg[n] > 2) w.Add($"Sygnalizator {Sv(v["label"])} stoi na węźle zwrotnicy");
-            if (Sv(v["type"]) is "to" or "sp" && (Sv(v["repeats"]) is not string r || (!Signals.ContainsKey(r) && !Blocks.ContainsKey(r)))) w.Add($"Tarcza/powtarzacz {Sv(v["label"])}: nie wskazano powtarzanego semafora (albo szlaku – informacja z sąsiedniej stacji)");
+            if (!Nodes.ContainsKey(n)) { W($"Sygnalizator {k}: brak węzła"); continue; }
+            if (deg[n] > 2) W($"Sygnalizator {Sv(v["label"])} stoi na węźle zwrotnicy", n);
+            if (Sv(v["type"]) is "to" or "sp" && (Sv(v["repeats"]) is not string r || (!Signals.ContainsKey(r) && !Blocks.ContainsKey(r)))) W($"Tarcza/powtarzacz {Sv(v["label"])}: nie wskazano powtarzanego semafora (albo szlaku – informacja z sąsiedniej stacji)", n);
         }
         foreach (var (k, v) in Signals)
         {
             if (Sv(v["type"]) is not ("wjazdowy" or "wyjazdowy" or "tm")) continue;
             var ed = EdgesAt(Sv(v["node"]));
-            if (ed.Count == 2 && Sv(ed[0]["sec"]) == Sv(ed[1]["sec"]) && !IsSzlak(ed[0])) w.Add($"Odcinek {Sv(ed[0]["sec"])} przechodzi przez sygnalizator {Sv(v["label"])} – przebiegi będą się blokować (przycisk „Odcinki na sygnalizatorach”)");
+            if (ed.Count == 2 && Sv(ed[0]["sec"]) == Sv(ed[1]["sec"]) && !IsSzlak(ed[0])) W($"Odcinek {Sv(ed[0]["sec"])} przechodzi przez sygnalizator {Sv(v["label"])} – przebiegi będą się blokować (przycisk „Odcinki na sygnalizatorach”)", Sv(v["node"]));
         }
-        foreach (var (k, v) in TrackEnds) if (!deg.TryGetValue(k, out var d) || d != 1) w.Add($"Kozioł {Sv(v["disp"])}: węzeł nie jest końcem toru");
+        foreach (var (k, v) in TrackEnds) if (!deg.TryGetValue(k, out var d) || d != 1) W($"Kozioł {Sv(v["disp"])}: węzeł nie jest końcem toru", k);
         // rozgałęzienie toru bez zwrotnicy
         var swNodes = Switches.Select(x => Sv(x.Value["node"])).ToHashSet();
-        foreach (var (n, d) in deg) if (d >= 3 && !swNodes.Contains(n)) w.Add($"Węzeł {n}: rozgałęzienie ({d} tory) bez zwrotnicy – postaw zwrotnicę (narzędzie Zwrotnica)");
+        foreach (var (n, d) in deg) if (d >= 3 && !swNodes.Contains(n)) W($"Węzeł {n}: rozgałęzienie ({d} tory) bez zwrotnicy – postaw zwrotnicę (narzędzie Zwrotnica)", n);
         // odcinek izolowany z niepołączonych części (np. kawałki na dwóch różnych torach)
         foreach (var g in EdgeObjs.Where(e => !IsSzlak(e) && !IsLink(e)).GroupBy(e => Sv(e["sec"]) ?? ""))
         {
@@ -998,21 +1283,42 @@ public class StationDoc
                 grow = false;
                 foreach (var e in es) if (!done.Contains(e) && (seen.Contains(Sv(e["a"])) || seen.Contains(Sv(e["b"])))) { seen.Add(Sv(e["a"])); seen.Add(Sv(e["b"])); done.Add(e); grow = true; }
             }
-            if (done.Count < es.Count) w.Add($"Odcinek {g.Key} składa się z niepołączonych części ({string.Join(", ", es.Where(e => !done.Contains(e)).Select(e => Sv(e["id"])))} osobno) – przypisz kawałki do właściwych odcinków (narzędzie Odcinek)");
+            var apart = es.Where(e => !done.Contains(e)).ToList();
+            if (apart.Count > 0) W($"Odcinek {g.Key} składa się z niepołączonych części ({string.Join(", ", apart.Select(e => Sv(e["id"])))} osobno) – przypisz kawałki do właściwych odcinków (narzędzie Odcinek)", apart.Select(e => "edge:" + Sv(e["id"])).ToArray());
         }
         foreach (var (k, v) in Blocks)
         {
-            foreach (var en in (JsonArray)v["ends"]) if (!Nodes.ContainsKey(Sv(en["boundary"]) ?? "")) w.Add($"Szlak {k}: brak węzła granicy");
+            foreach (var en in (JsonArray)v["ends"]) if (!Nodes.ContainsKey(Sv(en["boundary"]) ?? "")) W($"Szlak {k}: brak węzła granicy");
             if (v["internal"] is JsonValue iv && iv.TryGetValue<bool>(out var ib) && ib)
                 foreach (var en in (JsonArray)v["ends"])
                     if (string.IsNullOrEmpty(Sv(en["entrySig"])) || !Signals.ContainsKey(Sv(en["entrySig"])))
-                        w.Add($"Szlak wewnętrzny {k}: koniec {Sv(en["boundary"])} bez semafora wjazdowego – szlak nie łączy dwóch stacji. Usuń go i utwórz ponownie: klik na semafor wjazdowy, „wewnętrzny – do innej stacji LCS”, klik na semafor drugiej stacji.");
+                        W($"Szlak wewnętrzny {k}: koniec {Sv(en["boundary"])} bez semafora wjazdowego – szlak nie łączy dwóch stacji. Usuń go i utwórz ponownie (narzędzie Szlak, złącze SZLAK WEWNĘTRZNY).", Sv(en["boundary"]));
             var secs = ((JsonArray)v["secsWE"]).Select(Sv).ToList();
-            foreach (var s in secs) if (!EdgeObjs.Any(e => Sv(e["sec"]) == s)) w.Add($"Szlak {k}: odstęp {s} bez torów");
+            foreach (var s in secs) if (!EdgeObjs.Any(e => Sv(e["sec"]) == s)) W($"Szlak {k}: odstęp {s} bez torów", ((JsonArray)v["ends"]).Select(en => Sv(en["boundary"])).FirstOrDefault());
         }
-        foreach (var (k, d) in deg) if (d == 0) w.Add($"Węzeł {k} bez torów (zostanie pominięty – usuń go)");
-        foreach (var (k, v) in Ports) w.Add($"Złącze szlaku wewnętrznego {Sv(v["id"])} ({k}) niepołączone – zaznacz je i wybierz złącze drugiej stacji");
-        if (Pages.Count == 0) w.Add("Brak obrazów (stron)");
+        foreach (var g in EdgeObjs.Where(e => !IsSzlak(e) && !IsLink(e)).GroupBy(e => Sv(e["sec"]) ?? ""))
+        {
+            var post = SecPost(g.Key); var local = g.Key.Contains(':') ? g.Key[(g.Key.IndexOf(':') + 1)..] : g.Key;
+            var at = "edge:" + Sv(g.First()["id"]);
+            if (post == "" || !Posts.ContainsKey(post)) W($"Odcinek {g.Key}: brak posterunku w identyfikatorze (posterunek:nazwa) – „Nadaj identyfikatory” albo zmień we właściwościach toru", at);
+            else if (System.Text.RegularExpressions.Regex.IsMatch(local, "^o\\d+$")) W($"Odcinek {g.Key}: identyfikator nadany automatycznie przy rysowaniu – nadaj właściwy (JT – tor stacyjny, z – zwrotnicowy, it – torowy) albo „Nadaj identyfikatory”", at);
+        }
+        foreach (var (k, d) in deg) if (d == 0) W($"Węzeł {k} bez torów (zostanie pominięty – usuń go)", k);
+        foreach (var (k, v) in Ports) W($"Złącze szlaku wewnętrznego {Sv(v["id"])} ({k}) niepołączone – zaznacz je i wybierz złącze drugiej stacji", k);
+        if (Pages.Count == 0) W("Brak obrazów (stron)");
         return w;
+    }
+
+    /// <summary>Położenie miejsca problemu na rysunku (węzeł albo środek toru).</summary>
+    public (double X, double Y)? RefPos(string r)
+    {
+        if (r.StartsWith("edge:"))
+        {
+            if (Edge(r[5..]) is not JsonObject e) return null;
+            var p = Pts(e); if (p.Count == 0) return null;
+            if (p.Count == 2) return ((p[0].X + p[1].X) / 2, (p[0].Y + p[1].Y) / 2);
+            return p[p.Count / 2];
+        }
+        return Nodes.ContainsKey(r) ? Pos(r) : null;
     }
 }

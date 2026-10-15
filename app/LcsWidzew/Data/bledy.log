@@ -1,0 +1,75 @@
+[2026-10-15 18:32:35] UI: System.IO.FileNotFoundException: Could not find file 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'.
+File name: 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Encoding encoding, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at LcsWidzew.Model.Station.Load(String path) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Model\Station.cs:line 159
+   at LcsWidzew.Sim.SelfTest.Run(String stationPath, String outPath) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Sim\SelfTest.cs:line 13
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\app\LcsWidzew\App.xaml.cs:line 46
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-15 18:39:30] UI: System.IO.FileNotFoundException: Could not find file 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'.
+File name: 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Encoding encoding, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at LcsWidzew.Model.Station.Load(String path) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Model\Station.cs:line 159
+   at LcsWidzew.Sim.SelfTest.Run(String stationPath, String outPath) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Sim\SelfTest.cs:line 13
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\app\LcsWidzew\App.xaml.cs:line 46
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-15 19:09:17] UI: System.IO.FileNotFoundException: Could not find file 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'.
+File name: 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Encoding encoding, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at LcsWidzew.Model.Station.Load(String path) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Model\Station.cs:line 169
+   at LcsWidzew.Sim.SelfTest.Run(String stationPath, String outPath) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Sim\SelfTest.cs:line 13
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\app\LcsWidzew\App.xaml.cs:line 46
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-15 19:19:27] UI: System.IO.FileNotFoundException: Could not find file 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'.
+File name: 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Encoding encoding, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at LcsWidzew.Model.Station.Load(String path) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Model\Station.cs:line 169
+   at LcsWidzew.Sim.SelfTest.Run(String stationPath, String outPath) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Sim\SelfTest.cs:line 13
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\app\LcsWidzew\App.xaml.cs:line 46
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-15 19:27:40] UI: System.IO.FileNotFoundException: Could not find file 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'.
+File name: 'C:\Users\micha\Documents\symulator\app\LcsWidzew\Data\kopie\station_20261014_223000_pelny_z_Fabryczna.json'
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.OSFileStreamStrategy..ctor(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.Strategies.FileStreamHelpers.ChooseStrategyCore(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.StreamReader.ValidateArgsAndOpenPath(String path, Encoding encoding, Int32 bufferSize)
+   at System.IO.File.ReadAllText(String path, Encoding encoding)
+   at LcsWidzew.Model.Station.Load(String path) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Model\Station.cs:line 180
+   at LcsWidzew.Sim.SelfTest.Run(String stationPath, String outPath) in C:\Users\micha\Documents\symulator\app\LcsWidzew\Sim\SelfTest.cs:line 16
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\app\LcsWidzew\App.xaml.cs:line 46
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+

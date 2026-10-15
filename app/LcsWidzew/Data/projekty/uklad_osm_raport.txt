@@ -1,0 +1,20 @@
+stacje: LF (Łódź Fabryczna), LN (Łódź Niciarniana), LW (Łódź Widzew), LM (Łódź Marysin)
+arkusz Łódź Fabryczna – Łódź Niciarniana – Łódź Widzew: oś 7102 m, punktów osi 59
+arkusz Łódź Marysin: oś 1861 m, punktów osi 16
+odcinki dróg OSM: 162 krawędzie: 243
+ciągi torów: 64 – na pasach: 30 – pasy: 21 – tory poziome: 50 z 246
+plan LF: kotwic 44, największa odchyłka w kotwicy 0.08 px, torów przeniesionych 61
+zwrotnica pominięta (stopień 2 ): LF:sw202
+zwrotnica pominięta (stopień 1 ): LF:sw203
+zwrotnica pominięta (stopień 1 ): LF:sw201
+zwrotnica bez numeru w OSM: LW:sw4256179800
+zwrotnica bez numeru w OSM: LW:sw4256179802
+zwrotnica bez numeru w OSM: LW:sw4256179809
+zwrotnica bez numeru w OSM: LW:sw9117585642
+zwrotnica pominięta (stopień 2 ): LW:sw9117585643
+pominięte sygnalizatory – inny (wskaźnik, W…): 20
+LN {'węzły': 9, 'zwrotnice': 2}
+LW {'węzły': 145, 'zwrotnice': 72}
+LF {'węzły': 55, 'zwrotnice': 18, 'wyjazdowy': 16}
+LM {'węzły': 7, 'zwrotnice': 2}
+razem: węzły 216 tory 246 zwrotnice 94 sygnalizatory 16 odcinki 177 perony 2 przejazdy 5 kozły 18 wykolejnice 5

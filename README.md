@@ -77,6 +77,9 @@ Szlak wewnętrzny można wskazać oznaczeniem z obrazu dowolnej stacji. Na przyk
 
 ---
 
+### Plan stacji (podgląd terenu)
+Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całego węzła na żywo: pociągi (numer, rodzaj, prędkość, czoło na czerwono), semafory jako głowice ze światłami, zwrotnice w aktualnym położeniu (nieczynne odgałęzienie – szare). Na dole: **śledzenie składu** (widok jedzie za wybranym pociągiem), wybór **posterunku** i „Cały węzeł”. To podgląd dla instruktora i do nauki – dyżurny pracuje na pulpicie. Działa tam, gdzie pracuje komputer zależności (gra jednoosobowa, serwer).
+
 ## Edytor układu
 
 Przycisk **„Edytor układu”** w oknie pulpitu. Edytor zapisuje `app/LcsWidzew/Data/station.json`, czyli ten sam plik, który wczytuje symulator.
@@ -86,6 +89,28 @@ Przycisk **„Edytor układu”** w oknie pulpitu. Edytor zapisuje `app/LcsWidze
 - **Ctrl+Z / Ctrl+Y** cofa i ponawia zmiany.
 - **Shift** przy narzędziu jednorazowym pozwala stawiać kolejne obiekty bez wychodzenia z narzędzia.
 - **Ctrl+F** wyszukuje obiekt (sygnalizator, zwrotnicę, węzeł).
+
+### Dwa tryby: zobrazowanie i plan schematyczny
+Przycisk w lewym górnym rogu edytora przełącza tryb. Edytor otwiera się na zobrazowaniu.
+
+- **Zobrazowanie** – obrazy pulpitu (EbiScreen / SimRail), czyli to, co widzi dyżurny. Elementy są powiązane z układem torowym, ale ich położenie jest niezależne: tory mogą się zbliżać i krzyżować, bo połączeń nie tworzy obraz.
+  - przeciągnięcie węzła przesuwa go razem z końcami torów;
+  - Shift+klik albo prostokąt zaznacza grupę, przeciąganie i strzałki ją przesuwają;
+  - dwuklik na torze dodaje punkt załamania, PPM na punkcie go usuwa;
+  - Del usuwa z obrazu (układ zostaje bez zmian);
+  - lista „Nieumieszczone na obrazie” pokazuje tory układu, których dyżurny jeszcze nie widzi, z przyciskiem „Umieść”;
+  - **Napis (N), Peron (P), Przejazd (X)** – elementy pulpitu. Zobrazowanie i plan schematyczny mają osobne kopie: przesunięcie, dodanie albo usunięcie napisu na obrazie nie zmienia planu i odwrotnie. Przy pierwszym otwarciu zobrazowanie dostaje kopię obecnych.
+- **Plan schematyczny (układ torowy)** – cały węzeł na jednym arkuszu, znakami umownymi wg **Ig-10** (zał. 8): osie torów (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, semafory i tarcze z komorami, kozły, wykolejnice, liczniki osi / złącza izolowane, perony, przejazdy. Kategorię toru i sieć trakcyjną ustawiasz w panelu toru (cały tor: Shift+dwuklik, potem przyciski w panelu grupy), liczbę komór – w panelu sygnalizatora (`lamps`). Okno „Plan stacji” używa tych samych znaków.
+  - **Skala planu (Ig-10 § 3)** (panel po prawej, gdy nic nie jest zaznaczone): 1:2000 wzdłuż / 1:500 w poprzek albo 1:4000 / 1:1000. Zmiana skali przeskalowuje rysunek, długości zostają. **„Długości torów z rysunku”** – długość toru wynika z rysunku (ile jednostek planu, tyle metrów wg skali; skos liczony z obu skal), bez wpisywania. Szlaki (rysowane w skróceniu), łączniki obrazów i tory z długością wpisaną ręcznie (wpisanie długości odcinka albo odznaczenie „Długość z rysunku” w panelu toru) – bez zmian. Bez tej opcji długości są danymi i przesuwanie węzłów ich nie zmienia. Siatka „Ig-10” = 10 m × 4,75 m; linijki, podpowiedź, rysowany tor i miarka pokazują metry.
+  - **Podkład** (ten sam panel): „Wczytaj podkład…” – plan Semaforka, skan albo mapa. Ustawienie w skali planu: **1. Wyrównaj tor do poziomu** (2 punkty na osi toru), **2. Skala wzdłuż** (2 punkty + odległość w m, np. z kilometrażu), **3. Skala w poprzek** (2 sąsiednie tory + rozstaw, zwykle 4,75 m), **Mapa: rozciągnij pionowo** (mapa ma jedną skalę, plan – dwie), **Przesuń podkład**, „Dopasuj dwoma punktami” (do węzłów). Pola: położenie, szerokość, rozciągnięcie pionowe, obrót; przezroczystość. PPM/Esc przerywa. Podkład widać tylko w edytorze. Potem rysuj tory narzędziem Tor po podkładzie.
+  - **Zbiorcze zaznaczanie**: przycisk **„⬚ Zaznacz obszarem”** (Q) – przeciąganie po pustym miejscu rysuje prostokąt zaznaczenia (bez Shift; Shift dodaje), w planie i w zobrazowaniu. Ctrl+A – wszystko na obrazie. Grupę przeciągasz, przesuwasz strzałkami, usuwasz Del.
+  - **Warstwy planu** (Ig-10): włączanie i wyłączanie sygnalizatorów, numerów, liczników osi, peronów, przejazdów, kozłów i wykolejnic, napisów, łuków. W „Plan stacji” – przycisk „Warstwy ▾”.
+  - **„Rozjazdy jako skosy”** zamienia pionowe łączniki na skosy jak w terenie (tylko rysunek planu).
+  - **„Autoukład w skali”** – propozycja całego planu w skali Ig-10: długości torów z danych (1:2000), tory każdej stacji w równych pasach (1:500), łączniki jako skosy, szlaki skrócone. Kolejność torów zostaje z obecnego planu. Pulpit się nie zmienia, Ctrl+Z cofa całość. Potem popraw ręcznie, np. na podkładzie. W pasku stanu raport: największa odchyłka długości wskazuje niespójne długości w danych. Tu budujesz topologię: tory, zwrotnice, sygnalizatory, odcinki, szlaki. Z tego liczy komputer zależności. Plan można ułożyć jak w terenie, niezależnie od obrazów pulpitu.
+
+- **✂ Podziel tor / ⊕ Scal tory** (pasek, w obu trybach): klik na torze dzieli go w tym miejscu (nowy węzeł na planie i na obrazie), klik na węźle między dwoma torami łączy je w jeden. Shift – kolejne bez wychodzenia, PPM – koniec.
+
+Podział, scalenie i prostowanie toru na planie zmieniają też obraz. Nowe tory trzeba umieścić na obrazie samemu. Przy pierwszym otwarciu obecny rysunek staje się jednorazowo zobrazowaniem, a jego kopia – planem.
 
 ### Narzędzia
 
@@ -167,6 +192,22 @@ Przycisk **„Sprawdź”** wykrywa błędy budowy układu, m.in.:
 
 ---
 
+## Generator układu torowego z OpenStreetMap
+
+Nowy projekt układu (tylko układ torowy, bez zobrazowania i szlaków) z danych OSM / OpenRailwayMap, jako propozycja do poprawek w edytorze. Stacje i arkusze planu są w pliku konfiguracji.
+
+```bash
+python tools/gen_uklad.py tools/gen_uklad_lodz.json app/LcsWidzew/Data/projekty/uklad_osm.json app/LcsWidzew/Data/projekty/uklad_osm_raport.txt
+```
+
+Otwarcie w programie: `LcsWidzew.exe --station Data/projekty/uklad_osm.json` albo zwykłe uruchomienie (np. `uruchom.bat`) – program pokaże **listę wersji układu**: ★ podstawowy `Data/station.json` i projekty z `Data/projekty`. Ostatni wybór jest zapamiętany.
+
+Nowy układ ze starym pulpitem (zobrazowaniem) – przeniesienie po numerach zwrotnic, nazwach sygnalizatorów i końcach torów:
+
+```bash
+python tools/przenies_zobrazowanie.py app/LcsWidzew/Data/station.json app/LcsWidzew/Data/projekty/uklad_osm.json app/LcsWidzew/Data/projekty/uklad_osm_zobrazowanie.json
+``` Raport podaje, czego w OSM brakuje (np. sygnalizatorów, numerów zwrotnic). Dane OSM: © współtwórcy OpenStreetMap, licencja ODbL.
+
 ## Rozkład jazdy
 
 Symulator wczytuje `app/LcsWidzew/Data/rozklad.json` (GTFS). Gdy go brak, wczytuje `rozklad_ic.json` (tylko PKP IC). Import z pliku GTFS (np. `polish_trains.zip`) na wybrany dzień:
@@ -197,7 +238,19 @@ Podział jak w rzeczywistym LCS:
 - **Zobrazowanie** (`UI/PanelView.cs`) rysuje wyłącznie z **meldunków**: telegramu stanu (`Sim/Meldunki.cs`, klasa `Indication`) odbieranego przez łącze `KzLink`. Do tego zna tylko układ torowy. Nie widzi przebiegów od środka, liczników czasu ani pociągów.
 - **Utrata łączności** to usterka instruktora „Utrata łączności stanowiska z komputerem zależności”. Wszystkie obiekty przechodzą w stan „brak danych” (biały), polecenia nie są przyjmowane, a w ALARMACH pojawia się wpis.
 
-Planowane dalsze kroki: polecenia jako komunikaty (rozbiór tekstu po stronie stanowiska), teren za sterownikami obiektowymi, osobne stanowiska (np. ŁW i ŁF).
+- **Sesja stanowiska** (`Sim/Session.cs`, `ILcsSession`): okno pulpitu korzysta z komputera zależności tylko przez sesję. W grze jednoosobowej i na serwerze jest to sesja lokalna, a na stanowisku przyłączonym przez sieć – sesja sieciowa (`Net/LcsNet.cs`).
+
+## Gra wieloosobowa (Radmin VPN)
+
+1. Wszyscy instalują Radmin VPN i dołączają do tej samej sieci.
+2. Jedna osoba (serwer) klika **„Stanowiska / sieć” → „Uruchom serwer na tym komputerze”**. Okno pokazuje adresy IP; adres z Radmina zaczyna się od `26.`. Przy pierwszym uruchomieniu zapora Windows zapyta o dostęp do sieci – trzeba zezwolić (sieci prywatne).
+3. Pozostali klikają **„Stanowiska / sieć”**, wpisują adres serwera, port (domyślnie `47120`) i nazwę stanowiska, potem **„Połącz”**. Układ stacji, tablica przebiegów i rejestrator przychodzą z serwera.
+4. **Obszary sterowania:** na początku wszystkimi posterunkami steruje serwer. W oknie „Stanowiska / sieć” przy posterunku jest **„Przejmij”** (gdy posterunek ma inne stanowisko, ono musi się zgodzić) i **„Oddaj”**. Polecenia dla obiektów cudzego posterunku są odrzucane z podaniem, kto nim steruje.
+5. **Szlak wewnętrzny między posterunkami różnych dyżurnych** (np. ŁW–ŁF) działa jak w rzeczywistości: jeden daje **Wbl** (żądanie), drugi **Pzk** (pozwolenie).
+6. **Telefon** – w tym samym oknie wiadomości do wybranego stanowiska albo do wszystkich, z zapisem w rejestratorze (kategoria „Telefon”).
+7. Czas i tempo, panel instruktora i edytor układu działają na serwerze. Po rozłączeniu stanowiska jego posterunki wracają do serwera.
+
+Planowane dalsze kroki: teren za sterownikami obiektowymi, stanowisko instruktora przez sieć.
 
 ## Struktura projektu
 
@@ -225,7 +278,9 @@ Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
 |---|---|
 | `LcsWidzew.exe --selftest wynik.txt [scenariusz]` | tablica przebiegów i scenariusz z automatycznym dyżurnym |
 | `LcsWidzew.exe --edtest wynik.txt` | operacje edytora: stacje, szlaki, odstępy, PK, złącza |
-| `LcsWidzew.exe --editshot zrzut.png fuzz 300 7` | losowe operacje w edytorze (szuka błędów) |
+| `LcsWidzew.exe --editshot zrzut.png fuzz 300 7` | losowe operacje w edytorze – plan schematyczny (szuka błędów) |
+| `LcsWidzew.exe --editshot zrzut.png dfuzz 300 7` | losowe operacje w trybie zobrazowania (obraz nie może zmienić układu) |
+| `LcsWidzew.exe --editshot zrzut.png deco wynik.json` | napisy, perony, przejazdy – rozdzielenie kopii pulpitu i planu |
 | `LcsWidzew.exe --editshot zrzut.png validate` | wynik „Sprawdź” do pliku `zrzut.png.txt` |
 | `LcsWidzew.exe --screenshot zrzut.png 2 "#page=1" "E S1 Pociąg"` | zrzut pulpitu po poleceniach (`#page=N`, `#overview`, `@t`) |
 

@@ -411,6 +411,16 @@ public partial class Trains
             if (headSec != null && (headSec.Contains(":JT") || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
         }
         foreach (var (k, s) in S.Secs)
+        {
+            // licznik osi z błędem zliczenia: po przejeździe liczba osi się nie zgadza – odcinek zostaje zajęty, wymagane ZeroLO
+            if (s.Miscount && s.PrevOcc && !s.TrainOcc && s.Fault == null)
+            {
+                s.Miscount = false; s.Fault = "reset";
+                S.Alarm($"Odcinek {k}: licznik osi – niezgodność liczby osi po przejeździe, odcinek zajęty (sprawdź niezajętość, ZeroLO)", "Odcinek", k, "lo" + k, () => s.Fault == "reset");
+            }
+            s.PrevOcc = s.TrainOcc;
+        }
+        foreach (var (k, s) in S.Secs)
             if (s.Fault == "await")
             {
                 if (s.TrainOcc) s.SawTrain = true;
@@ -453,7 +463,8 @@ public partial class Trains
     // ------------------------------------------------------------------ usterki
     public static readonly (string Key, string Name, string Target)[] Faults =
     {
-        ("secOcc", "Zajętość odcinka bez pojazdu (usterka licznika osi)", "sec"),
+        ("secOcc", "Zajętość odcinka bez pojazdu (licznik osi albo obwód torowy)", "sec"),
+        ("loMiscount", "Licznik osi – błąd zliczenia osi przy przejeździe (odcinek zostaje zajęty)", "sec"),
         ("swNoCtrl", "Zwrotnica – niespodziewany brak kontroli położenia", "sw"),
         ("swFrozen", "Zwrotnica – nie przestawia się (zamarznięcie)", "sw"),
         ("swRozpr", "Zwrotnica – sygnalizacja rozprucia", "sw"),
@@ -469,6 +480,15 @@ public partial class Trains
     {
         switch (type)
         {
+            case "secOcc" when S.L.Sections.TryGetValue(target, out var sdo) && !sdo.AxleCounter:
+                // obwód torowy: zajętość bez pojazdu (zwarcie toków, uszkodzenie); po ustąpieniu przyczyny odcinek wolny bez zerowania
+                if (!clear) { S.Secs[target].Fault = "occ"; S.Alarm($"Odcinek {target} (obwód torowy): zajętość bez pojazdu", "Odcinek", target, "occ" + target, () => S.Secs[target].Fault != null); }
+                else { S.Secs[target].Fault = null; S.Log("Zdarzenie", $"Odcinek {target} (obwód torowy): zajętość ustąpiła – odcinek wolny", "Odcinek", target); }
+                break;
+            case "loMiscount":
+                if (S.L.Sections.TryGetValue(target, out var sdm) && !sdm.AxleCounter) { S.Log("Instruktor", $"Odcinek {target} kontrolowany obwodem torowym – błąd zliczenia osi nie dotyczy", "Odcinek", target); return; }
+                S.Secs[target].Miscount = !clear;
+                break;
             case "secOcc":
                 if (!clear) { S.Secs[target].Fault = "occ"; S.Alarm($"Odcinek {target}: zajętość bez pojazdu", "Odcinek", target, "occ" + target, () => S.Secs[target].Fault != null); }
                 else { S.Secs[target].Fault = "reset"; S.Alarm($"Odcinek {target}: wymagane potwierdzenie zerowania (ZeroLO)", "Odcinek", target, "rst" + target, () => S.Secs[target].Fault == "reset"); }
@@ -476,8 +496,8 @@ public partial class Trains
             case "swNoCtrl": S.Sws[target].NoCtrl = !clear; if (!clear) S.Alarm($"Zwrotnica {target}: niespodziewany brak kontroli położenia", "Zwrotnica", target, stillActive: () => S.Sws[target].NoCtrl); break;
             case "swFrozen": S.Sws[target].Frozen = !clear; break;
             case "kzLink":
-                S.Link.Down = !clear;
-                if (!clear) S.Alarm("Utrata łączności stanowiska z komputerem zależności – stan obiektów nieznany, polecenia nie są przyjmowane", "System", "", "kzlink", () => S.Link.Down);
+                S.LinkDown = !clear;
+                if (!clear) S.Alarm("Utrata łączności stanowiska z komputerem zależności – stan obiektów nieznany, polecenia nie są przyjmowane", "System", "", "kzlink", () => S.LinkDown);
                 else S.Log("Zdarzenie", "Przywrócono łączność stanowiska z komputerem zależności", "System", "");
                 break;
             case "swRozpr":

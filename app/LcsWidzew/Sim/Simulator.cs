@@ -36,6 +36,7 @@ public partial class Simulator
     public User User;
     public Stats Stats = new();
     int seq = 1;
+    long evSeq;
 
     public event Action<EventRecord> EventAdded;
     public event Action<EventRecord> AlarmAdded;
@@ -62,19 +63,27 @@ public partial class Simulator
         return $"{s / 3600 % 24:00}:{s / 60 % 60:00}:{s % 60:00}";
     }
 
-    static readonly Regex Prefix = new(@"\b(LW|LF|LN):", RegexOptions.Compiled);
-    public static string Clean(string s) => s == null ? "" : Prefix.Replace(s, "");
-    static readonly Dictionary<string, string> PostShort = new() { ["LW"] = "ŁW", ["LF"] = "ŁF", ["LN"] = "ŁN" };
+    // przedrostki posterunków (np. „LW:”) i ich skróty (np. ŁW) – z wczytanego układu, nie zaszyte w programie
+    Regex prefix;
+    Regex Prefix => prefix ??= L.Posts.Count == 0 ? new Regex("(?!)") : new Regex(@"\b(" + string.Join("|", L.Posts.Keys.Select(Regex.Escape)) + "):", RegexOptions.Compiled);
+    public string Clean(string s) => s == null ? "" : Prefix.Replace(s, "");
+    /// <summary>Skrót posterunku: inicjały nazwy (Łódź Widzew → ŁW, Koluszki → Ko).</summary>
+    public static string PostShort(Station L, string post)
+    {
+        if (string.IsNullOrEmpty(post) || !L.Posts.TryGetValue(post, out var n) || string.IsNullOrWhiteSpace(n)) return post ?? "";
+        var w = n.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(x => char.IsLetter(x[0])).ToList();
+        return w.Count == 1 ? (w[0].Length <= 4 ? w[0] : w[0][..2]) : string.Concat(w.Select(x => char.ToUpper(x[0])));
+    }
     string StationOf(string key, string text)
     {
         var p = Station.PostOf(key);
         if (p == "") { var m = Prefix.Match(text ?? ""); if (m.Success) p = m.Groups[1].Value; }
-        return PostShort.TryGetValue(p, out var s) ? s : "LCS";
+        return L.Posts.ContainsKey(p) ? PostShort(L, p) : "LCS";
     }
 
     public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System")
     {
-        var e = new EventRecord { T = T, Czas = Clock(), Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Zrodlo = zrodlo };
+        var e = new EventRecord { Id = ++evSeq, T = T, Czas = Clock(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Zrodlo = zrodlo };
         Events.Add(e);
         EventAdded?.Invoke(e);
         return e;
@@ -85,7 +94,7 @@ public partial class Simulator
     {
         key ??= text;
         if (Alarms.Any(a => a.Key == key && (!a.Ack || a.Active))) return;
-        var e = new EventRecord { T = T, Czas = Clock(), Kategoria = "Alarm", Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Key = key, StillActive = stillActive };
+        var e = new EventRecord { Id = ++evSeq, T = T, Czas = Clock(), Obszar = L.Name ?? "LCS", Kategoria = "Alarm", Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Key = key, StillActive = stillActive };
         Alarms.Add(e);
         AlarmAdded?.Invoke(e);
         Log("Alarm", text, typ, obiekt);
@@ -274,15 +283,7 @@ public partial class Simulator
         return c.OrderBy(r => r.Variant).FirstOrDefault();
     }
 
-    public bool Passes(RouteDef r, string v)
-    {
-        if (L.Switches.ContainsKey(v)) return r.Sw.Any(q => q.Num == v);
-        if (v.EndsWith("+") || v.EndsWith("-")) { var n = v[..^1]; return r.Sw.Any(q => q.Num == n && q.Pos == v[^1..]); }
-        if (L.Sections.ContainsKey(v)) return r.Secs.Contains(v);
-        if (L.Signals.TryGetValue(v, out var s)) return r.Edges.Any(e => L.Edges[e].A == s.Node || L.Edges[e].B == s.Node);
-        return false;
-    }
-
+    public bool Passes(RouteDef r, string v) => Passes(L, r, v);
     // ------------------------------------------------------------------ predykaty
     public double SzLeft(string id) => Sigs[id].SzUntil - T;
     public bool SecOcc(string id) { var s = Secs[id]; return s.TrainOcc || s.Fault != null; }
@@ -339,5 +340,45 @@ public partial class Simulator
                 s.Aspect = !s.Dark && free && bs.ReleaseUntil == null ? Aspect.Train : Aspect.Stop;
             }
         }
+        // sygnały wg stawności (S1 / S5 / S4 / S2) – od końca szlaku w stronę początku
+        foreach (var (n, s) in Sigs)
+        {
+            var d = L.Signals[n]; if (d.Type != "odstepowy") continue;
+            s.Sig = null;
+        }
+        foreach (var (n, s) in Sigs)
+        {
+            var d = L.Signals[n]; if (d.Type != "odstepowy" || s.Dark) continue;
+            s.Sig = OdstepSig(n, 0);
+        }
+    }
+
+    readonly Dictionary<string, string> nextSigCache = new();
+    /// <summary>Następny sygnalizator w kierunku jazdy za semaforem odstępowym (odstępowy albo wjazdowy; null – koniec obszaru).</summary>
+    string NextSignal(string sig)
+    {
+        if (nextSigCache.TryGetValue(sig, out var c)) return c;
+        var d = L.Signals[sig]; string node = d.Node, from = null, found = null;
+        for (int k = 0; k < 200 && found == null; k++)
+        {
+            var nx = Forward(node, d.Dir, from).FirstOrDefault(); if (nx == null) break;
+            node = L.Other(nx.Edge, node); from = nx.Edge;
+            found = L.Nodes[node].Signals.FirstOrDefault(x => L.Signals[x].Dir == d.Dir && L.Signals[x].Type is "odstepowy" or "wjazdowy");
+        }
+        return nextSigCache[sig] = found;
+    }
+
+    /// <summary>Sygnał semafora odstępowego wg stawności blokady: S1 – „Stój”; trzystawna S5 / S2; czterostawna S5 / S4 / S2.</summary>
+    string OdstepSig(string n, int depth)
+    {
+        var s = Sigs[n]; var d = L.Signals[n];
+        if (s.Aspect != Aspect.Train) return "S1";
+        int st = L.Blocks.TryGetValue(d.Szlak ?? "", out var b) ? b.Aspects : 3;
+        if (st <= 2) return "S2";
+        var nx = NextSignal(n);
+        string next = nx == null ? "S1" : L.Signals[nx].Type == "odstepowy" ? (depth < 6 ? OdstepSig(nx, depth + 1) : "S2") : (Sigs[nx].Aspect is Aspect.Train ? "S2" : "S1");
+        if (next == "S1") return "S5";
+        if (st == 4 && next == "S5") return "S4";
+        return "S2";
     }
 }

@@ -40,6 +40,7 @@ public partial class Simulator
             if (o.Lock != null && o.Lock != rt.Uid && o.LockType != "overlap") why.Add($"droga ochronna {rt.Overlap} utwierdzona w innym przebiegu");
         }
         if (rt.EndKind is "szlak" or "szlakM" && !BlockAllowsExit(rt.End, L.Signals[rt.Start].Dir)) why.Add($"blokada liniowa {rt.End}: brak kierunku WYJAZD, szlak zamknięty lub pierwszy odstęp zajęty");
+        if (forSetting && rt.EndKind == "szlak" && PwlBlocks(rt.End, L.Signals[rt.Start].Dir)) why.Add($"blokada półsamoczynna {rt.End}: przeciwwtórność liniowa (Pwl) – sygnał zezwalający już był podany, najpierw blok początkowy ({rt.End} Po)");
         if (rt.Type == "M" && L.Signals[rt.Start].Type == "wjazdowy" && !rt.Passed)
         {
             // powrót taboru manewrowego ze szlaku – na sygnał zastępczy, tylko gdy tabor stoi w pierwszym odstępie za semaforem wjazdowym

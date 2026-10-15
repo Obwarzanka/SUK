@@ -36,7 +36,11 @@ public partial class Simulator
         ["OZMK"] = new("oZmk", "odwołanie zamknięcia ruchowego", false),
         ["ZEROLO"] = new("ZeroLO", "zerowanie licznika osi sekcji kontroli niezajętości", true),
         ["WBL"] = new("Wbl", "włączenie (żądanie) kierunku blokady WYJAZD", false),
-        ["BKON"] = new("Bkon", "blok końcowy – blokada półsamoczynna (po przyjeździe całego pociągu)", false),
+        ["BKON"] = new("Ko", "blok końcowy – blokada półsamoczynna (po przyjeździe całego pociągu)", false),
+        ["PO"] = new("Po", "blok początkowy – blokada półsamoczynna (po wyprawieniu pociągu i wygaszeniu sygnału)", false),
+        ["POZ"] = new("Poz", "blok pozwolenia – oddanie pozwolenia (kierunku) stacji sąsiedniej", false),
+        ["DPO"] = new("dPo", "doraźny blok początkowy – wyjazd na sygnał zastępczy / rozkaz pisemny (licznik)", true),
+        ["DKO"] = new("dKo", "doraźny blok końcowy – wjazd na sygnał zastępczy / rozkaz pisemny (licznik)", true),
         ["OWBL"] = new("oWbl", "odwołanie włączania blokady", false),
         ["PZK"] = new("Pzk", "pozwolenie na ustawienie kierunku (PRZYJAZD)", false),
         ["ZWBL"] = new("Zwbl", "zwolnienie ustawionego kierunku", false),
@@ -53,7 +57,7 @@ public partial class Simulator
         ["Z+"] = "PLUS", ["Z-"] = "MINUS", ["ZS"] = "STOP", ["ZO"] = "OSTOP", ["SZM"] = "STOP", ["SOM"] = "OSTOP", ["OZ"] = "OSZ",
         ["ZP"] = "ZCZ", ["DZ"] = "ZDP", ["RK"] = "KSR", ["ZER"] = "ZEROLO", ["ZLO"] = "ZEROLO", ["ZT"] = "ZMK", ["OT"] = "OZMK",
         ["WZ"] = "PLUS", ["WD"] = "MINUS", ["MINUSBZ"] = "MINBZ", ["BKA"] = "AZK", ["NN1"] = "NN", ["NN0"] = "ONN", ["NSZ"] = "SZ",
-        ["POCIAG"] = "POCIAG", ["MANEWR"] = "MANEWR"
+        ["POCIAG"] = "POCIAG", ["MANEWR"] = "MANEWR", ["KO"] = "BKON", ["BKON"] = "BKON"
     };
 
     public static string Fold(string s)
@@ -85,6 +89,8 @@ public partial class Simulator
             if (dir != 0) { var i = EndIdxForDir(b, dir); if (i >= 0) return i; }
             for (int i = 0; i < b.Ends.Count; i++) if (Fold(b.Ends[i].Post ?? "") == f) return i;
         }
+        // stanowisko steruje tylko jednym końcem – ten koniec
+        if (CurDesk != null) { var mine = Enumerable.Range(0, b.Ends.Count).Where(i => Controls(b.Ends[i].Post)).ToList(); if (mine.Count == 1 && b.Ends.Count > 1) return mine[0]; }
         // szlak wewnętrzny z obu końcami na obrazie – strona musi być wskazana
         var pg = L.Pages.FirstOrDefault(p => p.Id == Page);
         if (b.Internal && b.Ends.Count == 2 && pg != null && b.Ends.All(x => pg.Posts.Contains(x.Post))) return -1;
@@ -128,32 +134,62 @@ public partial class Simulator
         return null;
     }
 
+    /// <summary>Nazwy obiektów ze spacją (np. szlak „W 101”, odcinek „W 101-1”) – po złożeniu wielkimi literami.</summary>
+    HashSet<string> MultiWordNames()
+    {
+        var all = L.Blocks.Values.SelectMany(b => new[] { b.Id }.Concat(b.Ends.Select(x => x.Label)))
+            .Concat(L.Signals.Values.SelectMany(s => new[] { s.Name, Station.Lbl(s.Name), s.Label }))
+            .Concat(L.Switches.Values.SelectMany(s => new[] { s.Num, Station.Lbl(s.Num), s.Label }))
+            .Concat(L.Sections.Keys.SelectMany(s => new[] { s, Station.Lbl(s) }))
+            .Concat(L.Derailers.Values.SelectMany(d => new[] { d.Name, Station.Lbl(d.Name), d.Label }))
+            .Concat(L.TrackEnds.Values.SelectMany(t => new[] { t.Id, t.Disp }));
+        return all.Where(x => !string.IsNullOrEmpty(x) && x.Contains(' ')).Select(x => Fold(string.Join(' ', x.Split(' ', StringSplitOptions.RemoveEmptyEntries)))).ToHashSet();
+    }
+
+    /// <summary>Sklejenie sąsiednich słów polecenia w jeden adres, gdy tworzą nazwę obiektu ze spacją („W 101 Wbl”).</summary>
+    List<string> JoinNames(List<string> toks)
+    {
+        if (toks.Count < 2) return toks;
+        var names = MultiWordNames(); if (names.Count == 0) return toks;
+        var res = new List<string>();
+        for (int i = 0; i < toks.Count;)
+        {
+            int take = 1;
+            for (int k = Math.Min(4, toks.Count - i); k >= 2; k--)
+                if (names.Contains(Fold(string.Join(' ', toks.Skip(i).Take(k))))) { take = k; break; }
+            res.Add(string.Join(' ', toks.Skip(i).Take(take))); i += take;
+        }
+        return res;
+    }
+
     // ------------------------------------------------------------------ wykonanie
     public CmdResult Exec(string line, bool confirm = false)
     {
         line = string.Join(' ', (line ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
         if (line == "") return new(false, "");
-        if (Link.Down) return new(false, "Brak łączności z komputerem zależności – polecenie nie zostało przyjęte");
+        if (LinkDown) return new(false, "Brak łączności z komputerem zależności – polecenie nie zostało przyjęte");
         var toks = line.Split(' ').ToList();
         int ci = toks.FindIndex(t => CodeOf(t) != null);
         if (ci < 0) return Reject(line, "Brak kodu polecenia (Ie-104 § 12) – np. „E S1 Pociąg”, „13 Minus”, „S1 SZ”; POMOC – lista");
         var code = CodeOf(toks[ci]);
         var orig = Fold(toks[ci]);
-        var args = toks.Where((_, i) => i != ci).ToList();
+        var args = JoinNames(toks.Take(ci).ToList()).Concat(JoinNames(toks.Skip(ci + 1).ToList())).ToList();
         if (code == "KW") { foreach (var x in Alarms) x.Ack = true; return new(true, "Alarmy potwierdzone"); }
         if (User == null) return Reject(line, "Brak zalogowanego użytkownika – polecenia zablokowane (Ie-20 §7 ust. 2)");
-        if (Pending != null && !confirm) return Reject(line, $"Zainicjowano polecenie specjalne {Pending.Code} {Station.Lbl(Pending.Arg)} – potwierdź lub wycofaj (Ie-104 § 11 ust. 16)");
+        if (Pending != null && !confirm && Pending.Desk != null && CurDesk != null && Pending.Desk != CurDesk.Id && Codes[code].Special) return Reject(line, "Inne stanowisko ma zainicjowane polecenie specjalne – spróbuj za chwilę");
+        if (Pending != null && !confirm && (Pending.Desk == null || CurDesk == null || Pending.Desk == CurDesk.Id)) return Reject(line, $"Zainicjowano polecenie specjalne {Pending.Code} {Station.Lbl(Pending.Arg)} – potwierdź lub wycofaj (Ie-104 § 11 ust. 16)");
         // dawne skróty z parametrem (ZB n +, BK szlak)
         if (orig == "ZB" && args.Count > 1) { code = args[1] == "-" ? "MINBZ" : "PLUSBZ"; args = args.Take(1).ToList(); }
         if (orig == "BK") code = "WBL";
         if (orig == "STW") return RunAllStop(line);
 
         var info = Codes[code];
+        if (CheckControl(code, args) is string ctlErr) return Reject(line, ctlErr);
         if (info.Special && !confirm)
         {
             var (err, target, targets) = SpecialPrecheck(code, args);
             if (err != null) return Reject(line, err);
-            Pending = new Pending { Code = code, Arg = target, Line = line, Until = T + Cfg.SpecialConfirm, NotBefore = T + Cfg.SpecialMinWait, Notes = SpecialNotes(code), Desc = info.Desc, Targets = targets };
+            Pending = new Pending { Code = code, Arg = target, Line = line, Until = T + Cfg.SpecialConfirm, NotBefore = T + Cfg.SpecialMinWait, Notes = SpecialNotes(code), Desc = info.Desc, Targets = targets, Desk = CurDesk?.Id };
             Log("Polecenie", "Zainicjowano polecenie specjalne: " + line, "Polecenie", target, "PC");
             return new(true, "Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)");
         }
@@ -162,7 +198,7 @@ public partial class Simulator
         if (r.Ok)
         {
             Log("Polecenie", line + (r.Msg != "" ? " – " + r.Msg : ""), "Polecenie", args.FirstOrDefault() ?? "", "PC");
-            if (info.Special) { Stats.Special++; BookDrafts.Add(new Pending { Code = code, Arg = Pending?.Arg ?? args.FirstOrDefault(), Line = line, Until = T, Desc = info.Desc }); SpecialExecuted?.Invoke(line); }
+            if (info.Special) { Stats.Special++; BookDrafts.Add(new Pending { Code = code, Arg = Pending?.Arg ?? args.FirstOrDefault(), Line = line, Until = T, Desc = info.Desc, Desk = CurDesk?.Id }); SpecialExecuted?.Invoke(line); }
         }
         else { Stats.Rejected++; Log("Odrzucone", line + " – " + r.Msg, "Polecenie", "", "PC"); }
         return r;
@@ -225,6 +261,7 @@ public partial class Simulator
                 var sc = Resolve(a0, "sec", "sw");
                 if (sc != null && L.Switches.ContainsKey(sc)) sc = L.Switches[sc].Sec;
                 if (sc == null) return ($"Nieznany odcinek „{a0}”", null, null);
+                if (!L.Sections[sc].AxleCounter) return ($"Odcinek {Station.Lbl(sc)} jest kontrolowany obwodem torowym – zerowanie licznika osi go nie dotyczy (zajętość ustępuje samoczynnie po usunięciu przyczyny)", null, null);
                 return Secs[sc].Fault is "reset" or "occ" ? (null, sc, L.Switches.Values.Where(x => x.Sec == sc).Select(x => x.Num).Append(sc).ToList()) : ($"Odcinek {Station.Lbl(sc)} nie wymaga zerowania", null, null);
             }
             case "AZK":
@@ -366,6 +403,10 @@ public partial class Simulator
             }
             case "WBL":
             case "BKON":
+            case "PO":
+            case "POZ":
+            case "DPO":
+            case "DKO":
             case "OWBL":
             case "PZK":
             case "ZWBL":

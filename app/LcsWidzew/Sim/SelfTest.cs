@@ -10,8 +10,11 @@ public static class SelfTest
     public static void Run(string stationPath, string outPath)
     {
         var sb = new StringBuilder();
-        var st = Station.Load(stationPath);
-        var sim = new Simulator(st);
+        var sw0 = System.Diagnostics.Stopwatch.StartNew();
+        void Prog(string m) => File.AppendAllText(outPath + ".postep", $"{sw0.Elapsed.TotalSeconds:0.0}s {m}{(char)10}");
+        Prog("start");
+        var st = Station.Load(stationPath); Prog("wczytano");
+        var sim = new Simulator(st); Prog("tablica przebiegów");
         var tr = new Trains(sim);
         sb.AppendLine($"Węzły {st.Nodes.Count}, krawędzie {st.Edges.Count}, zwrotnice {st.Switches.Count}, semafory {st.Signals.Count}, odcinki {st.Sections.Count}");
         foreach (var e in st.Edges.Values) if (Math.Abs(st.Nodes[e.A].X - st.Nodes[e.B].X) < 0.5) sb.AppendLine("UWAGA krawędź pionowa: " + e.Id + " " + e.Sec);
@@ -25,24 +28,82 @@ public static class SelfTest
 
         sim.User = new User { Name = "test", Role = "dyżurny ruchu" };
         tr.Load("podstawowy");
-        var plan = new (double T, string Cmd)[]
+        // Scenariusz z tablicy przebiegów wczytanego układu (bez nazw konkretnej stacji):
+        // dla każdego szlaku jeden przebieg wyjazdowy (z Wbl / Pzk), dla każdego semafora wjazdowego jeden wjazd, jeden manewr.
+        string PageOf(string key) { var p = Station.PostOf(key); return st.Pages.FirstOrDefault(x => x.Posts.Contains(p))?.Id ?? sim.Page; }
+        CmdResult Ex(string page, string c, bool log = true)
         {
-            (1, "#LF"), (1, "G2 1T Pociąg"), (1, "#LW"), (1, "W L2 Pociąg"), (40, "#LF"), (40, "B1 1F Pociąg"), (40, "#LW"), (70, "H S5 Pociąg"),
-            (150, "1M Pzk"), (160, "E S1 Pociąg"), (175, "A R4 Pociąg"), (230, "L2 2F Pociąg"), (240, "1O Wbl"), (250, "#LF"), (250, "C2 2T Pociąg"),
-            (300, "L E4 Pociąg"), (300, "#LW"), (310, "S1 1A Pociąg"), (320, "S5 1O Pociąg"), (400, "M4 1M Pociąg"),
-            (420, "Tm10 R6 Manewr"), (430, "2A Zwbl"), (440, "E 13 S3 Pociąg"),
-        };
-        int pi = 0;
+            sim.Page = page; var r = sim.Exec(c);
+            if (log) sb.AppendLine($"{sim.Clock()} [{page}] > {c}: {(r.Ok ? "OK" : "ODRZ")} {r.Msg}");
+            return r;
+        }
+        string Cmd(RouteDef r) => $"{r.Start} {r.End} {(r.Type == "M" ? "Manewr" : "Pociąg")}";
+        var basic = sim.RouteTable.Values.SelectMany(v => v).Where(r => r.Variant == 0).ToList();
+        var todo = new List<RouteDef>();
+        foreach (var g in basic.Where(r => r.Type == "P" && r.EndKind == "szlak").GroupBy(r => r.End).OrderBy(g => g.Key)) todo.Add(g.OrderBy(r => r.Start).First());
+        foreach (var g in basic.Where(r => r.Type == "P" && r.EndKind != "szlak" && st.Signals.TryGetValue(r.Start, out var s) && s.Type == "wjazdowy").GroupBy(r => r.Start).OrderBy(g => g.Key)) todo.Add(g.OrderBy(r => r.End).First());
+        var man = basic.Where(r => r.Type == "M" && st.Signals.TryGetValue(r.Start, out var s) && s.Type != "wjazdowy").OrderBy(r => r.Id).FirstOrDefault(); if (man != null) todo.Add(man);
+        sb.AppendLine($"Scenariusz: {todo.Count} przebiegów do nastawienia (szlaki {todo.Count(r => r.EndKind == "szlak")}, wjazdy {todo.Count(r => r.Type == "P" && r.EndKind != "szlak")}, manewry {(man != null ? 1 : 0)})");
+        var done = new HashSet<RouteDef>(); var ok = new HashSet<string>(); var failed = new Dictionary<RouteDef, string>(); var lastWbl = new Dictionary<string, double>();
+        bool conflictChecked = false; int conflictOk = 0, conflictTotal = 0;
         for (int i = 0; i < 4 * 900; i++)
         {
-            while (pi < plan.Length && plan[pi].T <= sim.T)
-            {
-                var c = plan[pi].Cmd; pi++;
-                if (c.StartsWith("#")) { sim.Page = c[1..]; continue; }
-                var r = sim.Exec(c); sb.AppendLine($"{sim.Clock()} [{sim.Page}] > {c}: {(r.Ok ? "OK" : "ODRZ")} {r.Msg}");
-            }
             sim.Tick(0.25);
+            if (i % 20 != 0) continue;
+            // posterunki sąsiednie i drugi koniec szlaku wewnętrznego dają pozwolenie
+            foreach (var (id, bs) in sim.Blocks)
+            {
+                if (bs.Req == null) continue;
+                var b = st.Blocks[id];
+                if (bs.Req.EndIdx == -1) Ex(PageOf(b.Ends[0].Post + ":"), id + " Pzk");
+                else if (b.Internal) Ex(PageOf(b.Ends[1 - bs.Req.EndIdx].Post + ":"), id + " Pzk");
+            }
+            // przebieg nastawiony (sygnał zezwalający) – sprawdzony, zwolnij go, żeby zrobić miejsce kolejnym
+            foreach (var ru in sim.Routes.Values.Where(x => x.State == "set" && todo.Any(r => r.Id == x.Id) && !ok.Contains(x.Id)).ToList())
+            {
+                ok.Add(ru.Id);
+                sb.AppendLine($"{sim.Clock()} nastawiony {ru.Id}, sygnał {sim.Sigs[ru.Start].Aspect}");
+                sim.Page = PageOf(ru.Start);
+                var rr = sim.Exec($"{ru.Start} {(ru.Type == "M" ? "ZDM" : "ZDP")}", true);
+                if (!rr.Ok) sb.AppendLine($"   zwolnienie {ru.Id}: ODRZ {rr.Msg}");
+            }
+            foreach (var r in todo.Where(r => !done.Contains(r)).ToList())
+            {
+                if (failed.ContainsKey(r) || sim.Sigs[r.Start].Route != null) continue;
+                var page = PageOf(r.Start);
+                if (r.EndKind == "szlak" && !sim.BlockAllowsExit(r.End, st.Signals[r.Start].Dir))
+                {
+                    if (sim.T - lastWbl.GetValueOrDefault(r.End, -1e9) > 60)
+                    {
+                        lastWbl[r.End] = sim.T;
+                        var w = Ex(page, $"{r.End} Wbl {(st.Signals[r.Start].Dir > 0 ? "E" : "W")}");
+                        if (!w.Ok && (w.Msg.StartsWith("Nieznan") || st.Blocks[r.End].Ends.Count == 1 && st.Blocks[r.End].Type is "sbl1" or "pol1")) failed[r] = "Wbl: " + w.Msg;
+                    }
+                    continue;
+                }
+                if (sim.WhyNot(r).Count > 0) continue;   // poczekaj, aż droga się zwolni
+                var res = Ex(page, Cmd(r));
+                if (res.Ok) done.Add(r); else if (res.Msg.StartsWith("Nieznan")) failed[r] = res.Msg;
+            }
+            // kontrola zależności: drugi przebieg z sygnalizatora będącego już początkiem przebiegu musi zostać odrzucony
+            if (!conflictChecked && done.Count > 0)
+            {
+                conflictChecked = true;
+                foreach (var d in done.ToList())
+                {
+                    var other = basic.FirstOrDefault(x => x.Start == d.Start && x.Id != d.Id && x.Type == d.Type);
+                    if (other == null) continue;
+                    conflictTotal++;
+                    var r = Ex(PageOf(other.Start), Cmd(other), false);
+                    sb.AppendLine($"{sim.Clock()} kontrola: {Cmd(other)} przy nastawionym {d.Id}: {(r.Ok ? "PRZYJĘTE – BŁĄD" : "odrzucone (dobrze)")} {r.Msg}");
+                    if (!r.Ok) conflictOk++;
+                }
+            }
+            if (i % 200 == 0) Prog($"krok {i} T={sim.T:0} pociągi {tr.List.Count} nastawione {done.Count}/{todo.Count}");
         }
+        Prog("koniec pętli");
+        sb.AppendLine($"WYNIK: nastawione {ok.Count} z {todo.Count} przebiegów; kontrola zależności {conflictOk} z {conflictTotal}");
+        foreach (var r in todo.Where(r => !ok.Contains(r.Id))) sb.AppendLine($"NIE NASTAWIONO {r.Id} ({Cmd(r)}): " + (failed.TryGetValue(r, out var why) ? why : done.Contains(r) ? "przyjęty, ale nie doszedł do sygnału zezwalającego" : string.Join(", ", sim.WhyNot(r).Take(3))));
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pociągi: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.State} wait={t.WaitingAt}")));
         File.WriteAllText(outPath, sb.ToString());
@@ -65,9 +126,10 @@ public static class SelfTest
         {
             sim.Page = page; var r = sim.Exec(c);
             if (r.Ok) sb.AppendLine($"{sim.Clock()} [{page}] {c}: {r.Msg}");
-            if (r.Ok && c.Contains("Wbl"))
+            var bid = st.Blocks.Keys.Where(k => c.StartsWith(k + " ")).OrderByDescending(k => k.Length).FirstOrDefault();   // nazwa szlaku może mieć spację
+            if (r.Ok && c.Contains("Wbl") && bid != null)
             {
-                var bid = c.Split(' ')[0]; var bd = st.Blocks[bid];
+                var bd = st.Blocks[bid];
                 sb.AppendLine($"     dbg {bid}: odstępy {string.Join(",", bd.SecsWE.Select(x => x + (sim.SecOcc(x) ? "*" : "")))}; pociągi: {string.Join(" ", tr.List.Where(t => t.Segs.Any(q => q.E != null && bd.SecsWE.Contains(st.Edges[q.E].Sec))).Select(t => t.Num))}");
             }
             return r;

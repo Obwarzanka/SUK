@@ -117,6 +117,35 @@ public static class EditorTest
                 }
                 foreach (var ev in km.Events.Where(ev => ev.Kategoria is "Ruch" || ev.TypObiektu == "Blokada liniowa")) Out($"   {ev.Czas} {ev.Zdarzenie}");
             }
+            // blokada półsamoczynna (Po / Ko / Pwl / dPo) i SBL czterostawna (S1 / S5 / S4 / S2) – KOMPUTERY.pdf 1.6
+            {
+                var k = StationDoc.New("PB", "Blokady 2");
+                var w0 = k.AddNode("PB", 20, 500); var wa = k.AddNode("PB", 400, 500); var wb = k.AddNode("PB", 1700, 500); var w1 = k.AddNode("PB", 1990, 500);
+                k.AddEdge(w0, wa, null, "PB"); var mid2 = k.AddEdge(wa, wb, null, "PB"); k.AddEdge(wb, w1, null, "PB");
+                k.AddSignal(wa, "A", "wjazdowy", 1, "PB"); k.AddSignal(wb, "B", "wjazdowy", -1, "PB");
+                var nf = k.SplitEdge(mid2, 1200, 500, "PB"); k.AddSignal(nf, "F", "wyjazdowy", 1, "PB");
+                k.AddBlock("1E", wb, w1, false, "Wschód", "1", "1", 1, "pol", 1);
+                k.AddBlock("1W", wa, w0, false, "Zachód", "1", "1", 1, "sbl", 4); k.Blocks["1W"]["aspects"] = 4;
+                var ks = k.Build(); var km = new Simulator(ks); new Trains(km); km.User = new User { Name = "T", Role = "d" }; km.Page = ks.Pages[0].Id;
+                void Run(double s) { for (int i = 0; i < s * 4; i++) km.Tick(0.25); }
+                var bs = km.Blocks["1E"];
+                Out("PBL: " + km.Exec("F 1E Pociąg").Msg); Run(15);
+                Out($"PBL: sygnał F {km.Sigs["PB:F"].Aspect}, Pwl {bs.Pwl[0]}");
+                Out("PBL: Po przy wyświetlonym sygnale: " + km.Exec("1E Po").Msg);
+                Out("PBL: " + km.Exec("F Stój").Msg); Run(1);
+                Out("PBL: " + km.Exec("F ZCZ").Msg); Run(130);
+                Out("PBL: ponowny przebieg przed Po: " + km.Exec("F 1E Pociąg").Msg);
+                Out("PBL: " + km.Exec("1E Po").Msg + $" (oczekuje Ko: {bs.AwaitEnd})");
+                Run(10); Out($"PBL: Ko od posterunku sąsiedniego – szlak wolny: {bs.AwaitEnd == null}");
+                Out("PBL: przebieg po Ko: " + km.Exec("F 1E Pociąg").Msg);
+                Out("PBL: dPo: " + km.Exec("1E dPo").Msg); Run(6); Out("PBL: potwierdzenie dPo: " + km.ConfirmPending("1E").Msg);
+                // SBL czterostawna: wolny szlak – od semafora wjazdowego (Stój) wstecz S5, S4, S2
+                Run(2);
+                string Sg(int j) => km.Sigs[$"1W/{j}+"].Sig;
+                Out($"SBL 4-stawna, szlak wolny: 1W/1+ {Sg(1)}, 1W/2+ {Sg(2)}, 1W/3+ {Sg(3)} (A – Stój)");
+                km.Secs[ks.Blocks["1W"].SecsWE[2]].Fault = "occ"; Run(1);
+                Out($"SBL 4-stawna, odstęp 3 zajęty: 1W/1+ {Sg(1)}, 1W/2+ {Sg(2)}, 1W/3+ {Sg(3)}; kTor {km.KTor(ks.Blocks["1W"])}");
+            }
             // PK – punkt końcowy przebiegu; złącza SZLAK WEWNĘTRZNY łączące dwie stacje
             {
                 var p = StationDoc.New("PA", "Stacja A"); p.Posts["PB"] = "Stacja B";
@@ -166,6 +195,22 @@ public static class EditorTest
                 real.SetRule("LW:E", es3[0].End, "P", es3[0].SwKey, null, null, 30);
                 var es4 = new Simulator(real.Build()).RouteTable["LW:E"].First(r => r.End == es3[0].End && r.SwKey == es3[0].SwKey);
                 Out($"Po ustaleniu 30 km/h: V{es4.VMax:0} (ustalona {es4.VSet:0}, wyliczona {es4.VCalc:0})");
+            }
+            // kontrola niezajętości: obwód torowy i licznik osi; identyfikatory odcinków
+            {
+                var q = new StationDoc((System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(real.Root.ToJsonString()));
+                int p0 = q.Problems().Count(x => x.Msg.StartsWith("Odcinek") && x.Msg.Contains("identyfikator"));
+                int ren = q.AutoNameSections();
+                int p1 = q.Problems().Count(x => x.Msg.StartsWith("Odcinek") && x.Msg.Contains("identyfikator"));
+                Out($"Identyfikatory odcinków: problemów przed {p0}, nadano {ren}, po {p1}");
+                q.SetSecDetection("LW:JT1", "ot");
+                var qs = new Simulator(q.Build()); new Trains(qs); qs.User = new User { Name = "T", Role = "d" };
+                Out($"LW:JT1 – {qs.L.Sections["LW:JT1"].DetectionName}, LW:JT2 – {qs.L.Sections["LW:JT2"].DetectionName}");
+                qs.Trains.ApplyFault("secOcc", "LW:JT1", false); Out($"OT zajętość: {qs.Secs["LW:JT1"].Fault}"); qs.Trains.ApplyFault("secOcc", "LW:JT1", true); Out($"OT po usunięciu: {qs.Secs["LW:JT1"].Fault ?? "wolny"}");
+                qs.Trains.ApplyFault("secOcc", "LW:JT1", false); Out("ZeroLO na obwodzie torowym: " + qs.Exec("JT1 ZeroLO").Msg); qs.Trains.ApplyFault("secOcc", "LW:JT1", true);
+                qs.Trains.ApplyFault("secOcc", "LW:JT2", false); qs.Trains.ApplyFault("secOcc", "LW:JT2", true); Out($"LO po usunięciu: {qs.Secs["LW:JT2"].Fault}");
+                var sJ3 = qs.Secs["LW:JT3"]; qs.Trains.ApplyFault("loMiscount", "LW:JT3", false); sJ3.PrevOcc = true; qs.Tick(0.1);
+                Out($"LO błąd zliczenia po przejeździe: {sJ3.Fault}, alarm: {qs.Alarms.LastOrDefault()?.Zdarzenie}");
             }
             Out($"Widzew po edycji 2A: odstępy {rs.Blocks["2A"].SecsWE.Count}, przebiegi {rsim.RouteTable.Values.Sum(l => l.Count)}");
         }

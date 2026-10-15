@@ -28,22 +28,35 @@ public class PanelView : FrameworkElement
     public IPanelEditor Editor;
     /// <summary>Widok edytora: tory ciągłe (bez przerw położenia zwrotnic i przerw izolacyjnych – granice odcinków jako cienkie kreski).</summary>
     public bool EditView;
+    /// <summary>Plan schematyczny węzła (układ torowy): białe tło, cienkie czarne tory, symbole planu – bez stanów pulpitu.</summary>
+    public bool PlanView;
     /// <summary>Obraz poglądowy całego obszaru LCS (Ie-104 § 7 ust. 9): tory, sygnały, blokady i numery pociągów bez opisów; klik – obraz szczegółowy.</summary>
     public bool Overview;
     public event Action<string> OverviewClicked;
     bool editDrag;
     public double Scale => scale;
-    Simulator sim;
-    /// <summary>Komputer zależności, z którym połączone jest stanowisko. Zobrazowanie korzysta tylko z układu torowego (Lay) i meldunków (I).</summary>
-    public Simulator Sim { get => sim; set { sim = value; I = null; } }
-    Station Lay => sim?.L;
-    KzLink Link => sim?.Link;
+    IPulpitSource sim;
+    /// <summary>Źródło meldunków (komputer zależności lokalnie albo przez sieć). Zobrazowanie korzysta tylko z układu torowego (Lay) i meldunków (I).</summary>
+    public IPulpitSource Sim { get => sim; set { sim = value; I = null; } }
+    /// <summary>Geometria rysowana zamiast źródła meldunków (edytor: układ torowy albo zobrazowanie).</summary>
+    public Station Geometry;
+    Station Lay => Geometry ?? sim?.L;
     /// <summary>Ostatni odebrany telegram stanu.</summary>
     Indication I;
-    Indication Ind => I ??= Link?.Receive();
+    Indication Ind => I ??= sim?.Receive();
     public PageDef Page;
     public string SelStart, SelSwitch;
     public List<string> SelVia = new();
+    /// <summary>Możliwe końce przebiegu od wybranego początku: klucze sygnalizatorów, znaczników końca, „blk:węzeł granicy” szlaku.</summary>
+    public HashSet<string> Targets = new();
+
+    /// <summary>Możliwy koniec przebiegu – turkusowe kółko i wypełniony kwadrat pod symbolem (jak na pulpicie).</summary>
+    void TargetMark(DrawingContext dc, Rect r)
+    {
+        var c = new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
+        dc.DrawEllipse(null, new Pen(SetFrame, 1.4), c, Math.Max(r.Width, r.Height) / 2 + 5, Math.Max(r.Width, r.Height) / 2 + 5);
+        dc.DrawRoundedRectangle(SetFrame, null, r, 3, 3);
+    }
     public event Action<string, MouseButtonEventArgs> SignalClicked, SwitchClicked, SectionClicked, BlockClicked, TrackEndClicked, DerailerClicked, LinkClicked;
     public event Action<string> Hover;
 
@@ -56,6 +69,8 @@ public class PanelView : FrameworkElement
         Yellow = B(0xff, 0xf0, 0x00), Magenta = B(0xff, 0x40, 0xff), White = B(0xff, 0xff, 0xff), DarkRed = B(0x90, 0x00, 0x00), Cyan = B(0x00, 0xd0, 0xd0),
         Azure = B(0x00, 0xa0, 0xff), Orange = B(0xff, 0x8c, 0x00), Dim = B(0x40, 0x40, 0x40), Label = B(0xd0, 0xd0, 0xd0), SwLabel = B(0xb4, 0xb4, 0xb4),
         PlatformLine = B(0xb0, 0xb0, 0xb0), SigName = B(0xe8, 0xc0, 0x00), TmName = B(0x18, 0xc0, 0xc0), CrossPink = B(0xf0, 0x80, 0xf0), Dim2 = B(0x80, 0x80, 0x80);
+    static readonly Brush SetFrame = B(0x20, 0xe0, 0xc0);
+    static readonly Brush TargetSym = B(0x3a, 0x3a, 0x3a);
     static readonly Typeface Mono = new("Consolas"), MonoB = new(new FontFamily("Consolas"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
     public PanelView()
@@ -74,6 +89,17 @@ public class PanelView : FrameworkElement
         var ys = Lay.Nodes.Values.Where(n => n.X >= Page.X0 && n.X < Page.X1).Select(n => n.Y).ToList();
         if (ys.Count == 0) ys = new() { 300, 900 };
         double x0 = Page.X0, x1 = Page.X1, y0 = Math.Min(70, ys.Min() - 60), y1 = ys.Max() + 70;
+        scale = Math.Min(ActualWidth / (x1 - x0), ActualHeight / (y1 - y0));
+        offX = (ActualWidth - (x1 - x0) * scale) / 2 - x0 * scale; offY = (ActualHeight - (y1 - y0) * scale) / 2 - y0 * scale;
+        InvalidateVisual();
+    }
+
+    /// <summary>Cały plan (wszystkie węzły) w oknie – po autoukładzie planu.</summary>
+    public void FitAll()
+    {
+        if (Lay == null || Lay.Nodes.Count == 0 || ActualWidth < 10) return;
+        var ns = Lay.Nodes.Values.Where(n => n.X > Station.Hidden + 1).ToList(); if (ns.Count == 0) return;
+        double x0 = ns.Min(n => n.X) - 40, x1 = ns.Max(n => n.X) + 40, y0 = ns.Min(n => n.Y) - 60, y1 = ns.Max(n => n.Y) + 60;
         scale = Math.Min(ActualWidth / (x1 - x0), ActualHeight / (y1 - y0));
         offX = (ActualWidth - (x1 - x0) * scale) / 2 - x0 * scale; offY = (ActualHeight - (y1 - y0) * scale) / 2 - y0 * scale;
         InvalidateVisual();
@@ -152,6 +178,7 @@ public class PanelView : FrameworkElement
             if (s.Type is "odstepowy" or "to" or "sp") continue;
             var n = L.Nodes[s.Node];
             if (Math.Abs(w.X - (n.X - s.Dir * 4)) < 13 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);
+            if (s.Type == "wjazdowy" && Math.Abs(w.X - (n.X + s.Dir * 16)) < 8 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);   // trójkąt końca przebiegu wyjazdowego
         }
         foreach (var sw in L.Switches.Values) { var n = L.Nodes[sw.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("sw", sw.Num); }
         foreach (var d in L.Derailers.Values) { var n = L.Nodes[d.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("der", d.Name); }
@@ -198,7 +225,7 @@ public class PanelView : FrameworkElement
                 var s = S.Secs[id];
                 var st = s.Fault switch { "reset" => "wymagane potwierdzenie zerowania", "await" => "oczekiwanie na pierwszy przejazd", "occ" => "zajęty (usterka?)", _ => s.TrainOcc ? "zajęty" : "wolny" };
                 var vs = L.Sections[id].Edges.Select(x => L.Edges[x]).Select(x => x.VMax > 0 ? x.VMax : 0).Where(x => x > 0).Distinct().ToList();
-                return $"Odcinek {lbl} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  PPM: polecenia";
+                return $"Odcinek {lbl} – {L.Sections[id].DetectionName}, posterunek {L.Posts.GetValueOrDefault(Model.StationDoc.SecPost(id)) ?? "?"} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  PPM: polecenia";
             }
             case "blk":
             {
@@ -299,7 +326,6 @@ public class PanelView : FrameworkElement
         if (closed && BlinkOn) { dc.DrawRectangle(Red, null, new Rect(mp.X + 16, mp.Y + 8, 24, 9)); Text(dc, "STOP", mp.X + 28, mp.Y + 12.5, 6.5, White, true, dpi, MonoB); }
         var rc = MidRect(b);
         if (S.Pending?.Targets.Contains(b.Id) == true) dc.DrawRectangle(null, new Pen(Orange, 2), rc);
-        else if (SelStart != null) dc.DrawRectangle(null, new Pen(Azure, 0.8), rc);
     }
 
     /// <summary>Obszar symbolu blokady przy danym końcu (strzałka w osi toru za semaforem wjazdowym i oznaczenie szlaku nad nią).</summary>
@@ -339,10 +365,18 @@ public class PanelView : FrameworkElement
     // ------------------------------------------------------------------ rysowanie
     protected override void OnRender(DrawingContext dc)
     {
-        I = Link?.Receive();                                   // telegram stanu z komputera zależności
-        var bgBrush = I?.Pending?.Code == "SZ" ? BgSz : Bg;   // Ie-104 § 4 ust. 18 – przekolorowanie tła przed sygnałem zastępczym
+        I = sim?.Receive();                                    // telegram stanu z komputera zależności
+        var bgBrush = PlanView ? Brushes.White : I?.Pending?.Code == "SZ" ? BgSz : Bg;   // Ie-104 § 4 ust. 18 – przekolorowanie tła przed sygnałem zastępczym
         dc.DrawRectangle(bgBrush, null, new Rect(0, 0, ActualWidth, ActualHeight));
-        if (sim == null || Page == null) return;
+        if (PlanView && Lay != null && Page != null)
+        {
+            dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, offX, offY));
+            try { Editor?.DrawBack(dc, scale); DrawPlan(dc, Lay, VisualTreeHelper.GetDpi(this).PixelsPerDip); Editor?.Draw(dc, scale); RenderError = null; }
+            catch (Exception ex) { RenderError = ex.Message; }
+            finally { dc.Pop(); }
+            return;
+        }
+        if (sim == null || Page == null || I == null || Lay == null) return;
         var S = I; var L = Lay;
         dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, offX, offY));
         dc.PushClip(new RectangleGeometry(new Rect(Page.X0, -100, Page.X1 - Page.X0, 1400)));
@@ -419,9 +453,16 @@ public class PanelView : FrameworkElement
                 if (EditView) break;
                 var sw = L.Nodes[n].Switch; if (sw == null) continue;
                 var def = L.Switches[sw]; var w = S.Sws[sw];
-                if (def.Plus != e.Id && def.Minus != e.Id) continue;
-                bool active = w.Moving == null && !w.NoCtrl && w.Pos == (def.Plus == e.Id ? "+" : "-");
-                if (!active) { c = w.NoData ? White : Grey; if (n == e.A) gapA = 6; else gapB = 6; }
+                bool moving = w.Moving != null || w.NoCtrl;
+                if (def.Plus != e.Id && def.Minus != e.Id)
+                {
+                    // iglica: w trakcie przekładania (albo bez kontroli położenia) odcięta od obu odgałęzień
+                    if (moving && def.Tip == e.Id) { if (n == e.A) gapA = Math.Max(gapA, 4); else gapB = Math.Max(gapB, 4); }
+                    continue;
+                }
+                bool active = !moving && w.Pos == (def.Plus == e.Id ? "+" : "-");
+                // nieczynne odgałęzienie: wyraźna przerwa przy zwrotnicy (szersza niż zaokrąglony koniec toru)
+                if (!active) { c = w.NoData ? White : Grey; if (n == e.A) gapA = 9; else gapB = 9; }
             }
             Shorten(pts, gapA, gapB);
             if (pend.Contains(e.Sec)) DrawPoly(dc, new Pen(Orange, 11), pts);
@@ -502,8 +543,18 @@ public class PanelView : FrameworkElement
             // „+” – położenie zasadnicze, od strony odgałęzienia zasadniczego
             int pd = L.EdgeDir(sw.Plus, sw.Node); if (pd == 0) pd = -sw.TipDir;
             Text(dc, "+", lx + pd * (5 + sw.Label.Length * 3.2), ly - 2, 8, White, true, dpi, Mono);
-            if (SelSwitch == sw.Num || SelVia.Contains(sw.Num) || SelVia.Contains(sw.Num + "+") || SelVia.Contains(sw.Num + "-"))
-                dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(lx - 14, ly - 7, 28, 14));
+            if (SelVia.Contains(sw.Num) || SelVia.Contains(sw.Num + "+") || SelVia.Contains(sw.Num + "-"))
+            {
+                // wariant przebiegu przez tę zwrotnicę – turkusowy prostokąt na torze
+                dc.DrawRoundedRectangle(SetFrame, null, new Rect(n.X - 11, n.Y - 10, 22, 20), 2.5, 2.5);
+                dc.DrawLine(new Pen(TargetSym, 3), new Point(n.X - 8, n.Y), new Point(n.X + 8, n.Y));
+            }
+            else if (SelSwitch == sw.Num)
+            {
+                // zaznaczona zwrotnica – ramka wokół jej zobrazowania na torze (iglica i początki obu odgałęzień)
+                double fx = n.X - sw.TipDir * 6;
+                dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(fx - 15, n.Y - 9 + (minusDown ? 3 : -3), 30, 18), 3, 3);
+            }
         }
         foreach (var d in L.Derailers.Values)
         {
@@ -513,18 +564,29 @@ public class PanelView : FrameworkElement
             dc.DrawRectangle(c, null, new Rect(n.X - 2.5, n.Y - 9, 5, 18));
             Text(dc, d.Label, n.X, n.Y + 17, 9, SwLabel, true, dpi, Mono);
         }
+        // kozły oporowe – sam symbol: nawias zamykający koniec toru, otwarty w stronę toru
+        foreach (var nid in L.Bumpers)
+        {
+            if (!L.Nodes.TryGetValue(nid, out var n) || !OnPage(n.X) || n.Edges.Count != 1) continue;
+            int od = -L.EdgeDir(n.Edges[0], nid); if (od == 0) od = 1;                 // na zewnątrz toru
+            double bx = n.X + od * 1, t = -od * 6;
+            var pen = new Pen(Grey, 2.4) { StartLineCap = PenLineCap.Square, EndLineCap = PenLineCap.Square };
+            dc.DrawLine(pen, new Point(bx, n.Y - 8), new Point(bx, n.Y + 8));
+            dc.DrawLine(pen, new Point(bx, n.Y - 8), new Point(bx + t, n.Y - 8));
+            dc.DrawLine(pen, new Point(bx, n.Y + 8), new Point(bx + t, n.Y + 8));
+        }
         // znaczniki końca przebiegu manewrowego (półkole, Ie-104 § 8 pkt 6) i kozły
         foreach (var (nid, te) in L.TrackEnds)
         {
             var n = L.Nodes[nid]; if (!OnPage(n.X)) continue;
+            if (Targets.Contains(te.Id)) TargetMark(dc, new Rect(n.X - 10, n.Y - 19, 20, 14));
             dc.DrawLine(new Pen(Grey, 3), new Point(n.X, n.Y - 7), new Point(n.X, n.Y + 7));
             if (!te.Marker) continue;
-            bool end = S.Routes.Values.Any(r => r.End == te.Id);
+            bool end = S.Routes.Values.Any(r => r.End == te.Id && r.State != "setting");
             var g = new StreamGeometry();
             using (var ctx = g.Open()) { ctx.BeginFigure(new Point(n.X - 6, n.Y - 9), false, false); ctx.ArcTo(new Point(n.X + 6, n.Y - 9), new Size(6, 6), 0, false, SweepDirection.Clockwise, true, false); }
             dc.DrawGeometry(null, new Pen(end ? Red : Grey, 1.6), g);
             Text(dc, te.Disp, n.X, n.Y + 15, 9, TmName, true, dpi, Mono);
-            if (SelStart != null) dc.DrawRectangle(null, new Pen(Azure, 0.8), new Rect(n.X - 10, n.Y - 18, 20, 12));
         }
 
         foreach (var s in L.Signals.Values) if (OnPageNode(s.Node)) DrawSignal(dc, s, dpi);
@@ -554,6 +616,65 @@ public class PanelView : FrameworkElement
             dc.DrawText(new FormattedText("Błąd rysowania: " + RenderError, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono, 13, Red, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(10, 10));
     }
     public string RenderError;
+
+    /// <summary>
+    /// Plan schematyczny węzła wg Ig-10 [D-27] (znaki umowne – załącznik nr 8): cały obszar na jednym arkuszu, osie torów
+    /// (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, sygnalizatory świetlne z komorami, kozły, wykolejnice,
+    /// liczniki osi / złącza izolowane, perony, przejazdy. Do edycji topologii – nie trafia na pulpit.
+    /// </summary>
+    void DrawPlan(DrawingContext dc, Station L, double dpi)
+    {
+        var g = new Ig10(dc, 2.5, dpi); var ly = PlanLayers.Current;
+        var grey = B(0x70, 0x70, 0x70);
+        if (ly.Platforms) foreach (var p in L.Platforms) g.Platform(p);
+        foreach (var e in L.Edges.Values)
+        {
+            if (e.Link) continue;
+            g.Track(e, e.Pts.Select(q => new Point(q.X, q.Y)).ToList());
+        }
+        // łuki: promień (i przechyłka) przy torze
+        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => x.Radius > 0 && !x.Link))
+        {
+            var m = e.Pts[e.Pts.Count / 2]; var m0 = e.Pts.Count == 2 ? ((e.Pts[0].X + e.Pts[1].X) / 2, (e.Pts[0].Y + e.Pts[1].Y) / 2) : m;
+            Text(dc, $"R={e.Radius:0}{(e.Cant > 0 ? $" h={e.Cant:0}" : "")}", m0.Item1, m0.Item2 + 8, 6.5, grey, true, dpi, Mono);
+        }
+        // kontrola niezajętości: liczniki osi / złącza izolowane na granicach odcinków
+        if (ly.Detection) foreach (var (p, v, det) in Ig10.SectionBoundaries(L)) { if (det == "ot") g.InsulatedJoint(p, v); else g.AxleCounter(p, v); }
+        // numery torów w przerwie osi toru
+        if (ly.Numbers) foreach (var (sec, sd) in L.Sections)
+        {
+            var e = sd.Edges.Select(x => L.Edges[x]).Where(x => !x.Link && x.Track != "").OrderByDescending(x => x.Len).FirstOrDefault();
+            if (e == null) continue;
+            g.TrackNumber(e.Track, new Point(e.Pts[0].X, e.Pts[0].Y), new Point(e.Pts[^1].X, e.Pts[^1].Y), e.Elec ? Ig10.Elec : null);
+        }
+        foreach (var sw in L.Switches.Values) g.Switch(L, sw, null, ly.Numbers);
+        if (ly.Signals) foreach (var s in L.Signals.Values) g.Signal(L, s);
+        if (ly.Ends) foreach (var d in L.Derailers.Values)
+        {
+            var n = L.Nodes[d.Node]; var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => !x.Link);
+            var v = e == null ? new Vector(1, 0) : new Vector(e.Pts[^1].X - e.Pts[0].X, e.Pts[^1].Y - e.Pts[0].Y);
+            g.Derailer(new Point(n.X, n.Y), v, d.Label);
+        }
+        // kozły oporowe i końce torów: „]” zwrócony w stronę toru
+        if (ly.Ends) foreach (var nid in L.TrackEnds.Keys.Concat(L.Bumpers).Distinct())
+        {
+            if (!L.Nodes.TryGetValue(nid, out var n)) continue;
+            var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => !x.Link); if (e == null) continue;
+            var pts = e.Pts.Select(q => new Point(q.X, q.Y)).ToList(); if (e.A != nid) pts.Reverse();
+            g.BufferStop(pts[0], pts[1] - pts[0]);
+            if (ly.Texts && L.TrackEnds.TryGetValue(nid, out var te) && !string.IsNullOrEmpty(te.Disp)) g.Text(te.Disp, n.X, n.Y + 10, 1.8, grey);
+        }
+        if (ly.Texts) foreach (var b in L.Blocks.Values)
+            foreach (var en in b.Ends) { var n = L.Nodes[en.Boundary]; g.Text((en.Label ?? b.Id) + (b.Internal ? "" : " → " + b.Nbr), n.X + en.Outward * 40, n.Y - 12, 1.8, grey); }
+        if (ly.Texts) foreach (var l in L.Labels) g.Text(l.Text, l.X, l.Y, 1.8, grey, l.Anchor == "middle" ? 0 : l.Anchor == "end" ? 1 : -1);
+        if (ly.Crossings) foreach (var c in L.Crossings) g.Crossing(c);
+        // nazwy posterunków (Ig-10 zał. 1: pełne nazwy)
+        if (ly.Texts) foreach (var (pid, pname) in L.Posts)
+        {
+            var ns = L.Nodes.Values.Where(n => n.Post == pid && n.Edges.Count > 1).ToList(); if (ns.Count == 0) continue;
+            g.Text(pname, (ns.Min(n => n.X) + ns.Max(n => n.X)) / 2, ns.Min(n => n.Y) - 40, 4);
+        }
+    }
 
     /// <summary>Symbol kontrolny (Ie-104 § 4 ust. 16): wzorzec barw, biały na szarym, symbol migania.</summary>
     void DrawControlSymbol(DrawingContext dc, double x, double y)
@@ -621,9 +742,17 @@ public class PanelView : FrameworkElement
         // oznaczenie szlaku (np. it1Z, 1ŁF) – nad torem szlakowym, za strzałką (szlak zewnętrzny, jak w SimRail)
         if (!b.Internal && b.SecsWE.Count == 1 && !string.IsNullOrEmpty(b.Label) && b.Label != name) { var ip = P(d1 + 26); Text(dc, b.Label, ip.X, ip.Y - 13, 8.5, SwLabel, true, dpi, Mono); }
         if (closedHere || (closedThere && BlinkOn)) { dc.DrawRectangle(Red, null, new Rect(lx, lp.Y + 8, 24, 9)); Text(dc, "STOP", lx + 12, lp.Y + 12.5, 6.5, White, true, dpi, MonoB); }
+        // półsamoczynna: Pwl (czerwona – przeciwwtórność liniowa), Ko (biała – wjazd stwierdzony, można dać blok końcowy); SBL: kTor (czerwona)
+        double ly2 = lp.Y + 19;
+        if (b.SemiAuto)
+        {
+            if (bs.Pwl.Length > ei && bs.Pwl[ei]) { dc.DrawRectangle(Red, null, new Rect(lx, ly2, 20, 9)); Text(dc, "Pwl", lx + 10, ly2 + 4.5, 6.5, White, true, dpi, MonoB); }
+            if (bs.KoReady.Length > ei && bs.KoReady[ei]) { dc.DrawRectangle(White, null, new Rect(lx + 22, ly2, 16, 9)); Text(dc, "Ko", lx + 30, ly2 + 4.5, 6.5, Bg, true, dpi, MonoB); }
+        }
+        else if (bs.KTor) { dc.DrawRectangle(Red, null, new Rect(lx, ly2, 24, 9)); Text(dc, "kTor", lx + 12, ly2 + 4.5, 6.5, White, true, dpi, MonoB); }
         var rc = BlockRect(b, ei);
         if (S.Pending?.Targets.Contains(b.Id) == true) dc.DrawRectangle(null, new Pen(Orange, 2), rc);
-        else if (SelStart != null) dc.DrawRectangle(null, new Pen(Azure, 0.8), rc);
+
     }
 
     static void DrawArrowHead(DrawingContext dc, double tipX, double cy, int d, Brush c)
@@ -713,7 +842,7 @@ public class PanelView : FrameworkElement
         if (s.Type == "pk")
         {
             // PK – punkt końcowy przebiegu: mały trójkąt w osi toru; czerwony, gdy kończy się w nim nastawiony przebieg
-            bool endHere = S.Routes.Values.Any(r => r.End == s.Name);
+            bool endHere = S.Routes.Values.Any(r => r.End == s.Name && r.State != "setting");
             var pc = endHere ? Red : SwLabel;
             dc.DrawGeometry(null, new Pen(pc, 1.6), Tri(cx + d * 5, cy, d, 4.5, false));
             Text(dc, string.IsNullOrEmpty(s.Label) ? "PK" : s.Label.StartsWith("PK") ? s.Label : "PK " + s.Label, cx, cy + (d > 0 ? 13 : -12), 8, pc, true, dpi, Mono);
@@ -740,17 +869,22 @@ public class PanelView : FrameworkElement
         else if (st.Route != null || st.RouteEnd != null) c = Red;
         else if (st.Closed) c = Magenta;
         else c = Grey;
+        if (c == Grey && Targets.Contains(s.Name) && !Targets.Contains("blk:" + s.Node)) c = TargetSym;      // symbol na turkusowym polu – ciemny
         double tipX = cx + d * 8;
         double x0 = Math.Min(tipX, tipX - d * 22);
         if (S.Pending?.Targets.Contains(s.Name) == true) dc.DrawRectangle(Orange, null, new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
+        else if (Targets.Contains(s.Name) && !Targets.Contains("blk:" + s.Node)) TargetMark(dc, new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
         if (s.Type == "tm")
             dc.DrawGeometry(null, new Pen(c, 2.4) { LineJoin = PenLineJoin.Miter }, Chevron(tipX, cy, d, h, 10));
         else if (s.Type == "wjazdowy")
         {
             dc.DrawGeometry(c, null, Tri(tipX, cy, d, h + 1, true));
             // funkcja końca przebiegu wyjazdowego (Ie-104 § 8 pkt 3 lit. f) – mały trójkąt skierowany przeciwnie
-            bool endR = S.Routes.Values.Any(r => r.EndNode == s.Node && r.EndKind is "szlak" or "szlakM" or "gr");
-            dc.DrawGeometry(endR ? Red : Grey, null, Tri(cx - d * 15, cy, -d, 4, true));
+            bool endR = S.Routes.Values.Any(r => r.EndNode == s.Node && r.State != "setting" && r.EndKind is "szlak" or "szlakM" or "gr");
+            // po stronie stacji, za semaforem, skierowany w stronę szlaku (jak na pulpicie)
+            dc.DrawRectangle(Bg, null, new Rect(cx + d * 15 - 6, cy - 4, 12, 8));      // przerwa w torze pod trójkątem
+            dc.DrawGeometry(endR ? Red : Grey, null, Tri(cx + d * 18, cy, -d, 5, true));
+            if (Targets.Contains("blk:" + s.Node)) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(cx + d * 15 - 7, cy - 9, 14, 18), 3, 3);
         }
         else
         {
@@ -758,7 +892,10 @@ public class PanelView : FrameworkElement
             dc.DrawGeometry(c, null, Tri(tipX, cy, d, h + 1, true));
             if (!s.NoShunt) dc.DrawGeometry(null, new Pen(c, 2.4) { LineJoin = PenLineJoin.Miter }, Chevron(tipX - d * 11.5, cy, d, h + 1, 9));
         }
-        if (SelStart == s.Name || SelVia.Contains(s.Name)) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
+        if (SelStart == s.Name) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(x0 - 4, cy - h - 5, 30, 2 * h + 10), 3, 3);
+        else if (SelVia.Contains(s.Name)) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
+        // przebieg od tego sygnalizatora w trakcie nastawiania – turkusowa ramka (jak na pulpicie), droga jeszcze nie wyświetlona
+        if (st.Setting) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 1.8), new Rect(x0 - 4, cy - h - 5, 30, 2 * h + 10), 3, 3);
         Text(dc, s.Label, cx, cy + (d > 0 ? 17 : -16), 10, s.Type == "tm" ? TmName : SigName, true, dpi, Mono);
     }
 

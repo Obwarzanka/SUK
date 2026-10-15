@@ -6,6 +6,8 @@ public class SecState
 {
     public string Id;
     public bool TrainOcc, Closed, NoData, SawTrain;
+    /// <summary>Licznik osi: błąd zliczenia przy najbliższym przejeździe (usterka instruktora), PrevOcc – zajętość w poprzednim kroku.</summary>
+    public bool Miscount, PrevOcc;
     public string Fault;          // null | "occ" (zajętość bez pojazdu) | "reset" (wymagane zerowanie) | "await" (oczekiwanie na 1. przejazd)
     public string Lock, LockType; // przebieg utwierdzający; "train" | "shunt" | "overlap"
     public double? TimeRel;
@@ -25,6 +27,8 @@ public class SigState
     public string Name, Route, RouteEnd;
     public Aspect Aspect = Aspect.Stop;
     public bool Closed, LampFault, NoData, FailAlarm, Dark;
+    /// <summary>Sygnał na semaforze odstępowym: S1, S2, S4 (zielone migające), S5 (pomarańczowe); null – inne.</summary>
+    public string Sig;
     public double SzUntil;
 }
 
@@ -46,6 +50,14 @@ public class BlockState
     public bool NbrSilent, NbrStop;
     /// <summary>Blokada półsamoczynna: po wjeździe pociągu na szlak (blok początkowy) – posterunek, który musi dać blok końcowy (-1 – sąsiedni spoza LCS).</summary>
     public int? AwaitEnd; public double FreeSince; public bool EndAlarmed;
+    /// <summary>
+    /// Półsamoczynna (KOMPUTERY.pdf 1.6.2), dla każdego końca: Pwl – przeciwwtórność liniowa (po sygnale zezwalającym na wyjazd,
+    /// do bloku początkowego Po); PoReady – można dać Po (sygnał wygaszony albo dPo); EntryOk – semafor wjazdowy wyświetlił sygnał
+    /// zezwalający dla przyjmowanego pociągu (warunek Ko; dKo go zastępuje przy wjeździe na Sz / rozkaz pisemny).
+    /// </summary>
+    public bool[] Pwl = new bool[2], PoReady = new bool[2], EntryOk = new bool[2], DKo = new bool[2];
+    /// <summary>Liczniki użyć przycisków doraźnych dPo / dKo.</summary>
+    public int DPoCount, DKoCount;
     public bool Busy => ReleaseUntil != null || AzkUntil != null;
 }
 
@@ -83,6 +95,8 @@ public class Route : RouteDef
 public class Pending
 {
     public string Code, Arg, Arg2, Line, Desc;
+    /// <summary>Stanowisko, które zainicjowało polecenie.</summary>
+    public string Desk;
     public List<string> Targets = new();
     public double Until, NotBefore;
     public List<string> Notes = new();
@@ -92,9 +106,11 @@ public class Pending
 public class EventRecord : System.ComponentModel.INotifyPropertyChanged
 {
     public double T;
+    /// <summary>Numer kolejny wpisu (synchronizacja rejestratora na stanowiskach sieciowych).</summary>
+    public long Id;
     public string Czas { get; set; }
-    public string Obszar { get; set; } = "LCS Widzew";
-    public string Stacja { get; set; } = "ŁW";
+    public string Obszar { get; set; } = "LCS";
+    public string Stacja { get; set; } = "";
     public string TypObiektu { get; set; }
     public string Obiekt { get; set; }
     public string Kategoria { get; set; }
@@ -108,7 +124,7 @@ public class EventRecord : System.ComponentModel.INotifyPropertyChanged
     public bool Active { get => active; set { active = value; Changed(nameof(Active)); Changed(nameof(Stan)); } }
     public string Stan => (Ack ? "potw." : "NIEPOTW.") + (Active ? " / trwa" : " / ustąpił");
     public string Key;
-    public Func<bool> StillActive;
+    [System.Text.Json.Serialization.JsonIgnore] public Func<bool> StillActive;
     public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
     void Changed(string n) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(n));
 }

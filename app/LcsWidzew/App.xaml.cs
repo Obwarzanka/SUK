@@ -64,6 +64,12 @@ public partial class App : Application
                 if (A.Length > 2 && A[2] == "demo") ed.DemoTools();
                 if (A.Length > 3 && A[2] == "blockpanel") File.WriteAllText(shot + ".txt", ed.BlockPanelTest(A[3]));
                 if (A.Length > 3 && A[2] == "block") File.WriteAllText(shot + ".txt", ed.BlockForTest(A[3], A.Length > 4 ? A[4] : null));
+                if (A.Length > 2 && A[2] == "plan") ed.PlanForTest();
+                if (A.Length > 2 && A[2] == "splitmerge") File.WriteAllText(shot + ".txt", ed.SplitMergeForTest());
+                if (A.Length > 2 && A[2] == "planskew") File.WriteAllText(shot + ".txt", ed.PlanSkewForTest());
+                if (A.Length > 3 && A[2] == "display") File.WriteAllText(shot + ".txt", ed.DisplayForTest(A[3]));
+                if (A.Length > 2 && A[2] == "autoname") File.WriteAllText(shot + ".txt", ed.AutoNameForTest());
+                if (A.Length > 3 && A[2] == "problems") File.WriteAllText(shot + ".txt", ed.ProblemsForTest(int.Parse(A[3])));
                 if (A.Length > 2 && A[2] == "validate") File.WriteAllText(shot + ".txt", ed.ValidateText());
                 if (A.Length > 2 && A[2] == "szlakdiag") File.WriteAllText(shot + ".txt", ed.SzlakDiag());
                 if (A.Length > 2 && A[2] == "userszlak") File.WriteAllText(shot + ".txt", ed.UserSzlakTest());
@@ -75,6 +81,12 @@ public partial class App : Application
                 if (A.Length > 6 && A[2] == "respace") ed.ZoomForTest(double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[5], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[6], System.Globalization.CultureInfo.InvariantCulture));
                 if (A.Length > 5 && A[2] == "zoom") ed.ZoomForTest(double.Parse(A[3], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture), double.Parse(A[5], System.Globalization.CultureInfo.InvariantCulture));
                 if (A.Length > 3 && A[2] == "select") ed.SelectForTest(A[3]);
+                if (A.Length > 3 && A[2] == "autolayout") File.WriteAllText(shot + ".txt", ed.AutoLayoutForTest(A[3]));
+                if (A.Length > 4 && A[2] == "bg") File.WriteAllText(shot + ".txt", ed.BgForTest(A[3], A[4]));
+                if (A.Length > 3 && A[2] == "dclear") File.WriteAllText(shot + ".txt", ed.DClearForTest(A[3]));
+                if (A.Length > 3 && A[2] == "skala") File.WriteAllText(shot + ".txt", ed.ScaleForTest(A[3], A.Length > 4 ? A[4] : null));
+                if (A.Length > 3 && A[2] == "deco") File.WriteAllText(shot + ".txt", ed.DecoForTest(A[3]));
+                if (A.Length > 3 && A[2] == "dfuzz") File.WriteAllText(shot + ".txt", ed.DFuzz(int.Parse(A[3]), A.Length > 4 ? int.Parse(A[4]) : 1));
                 if (A.Length > 3 && A[2] == "fuzz") File.WriteAllText(shot + ".txt", ed.Fuzz(int.Parse(A[3]), A.Length > 4 ? int.Parse(A[4]) : 1));
                 ed.UpdateLayout();
                 var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap((int)ed.ActualWidth, (int)ed.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
@@ -86,7 +98,17 @@ public partial class App : Application
             ed.Show();
             return;
         }
+        // zwykłe uruchomienie bez --station: wybór wersji układu (podstawowy albo projekt z Data/projekty)
+        if (si < 0 && A.Length == 0)
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var chosen = UI.LayoutChooser.Choose(StationPath);
+            if (chosen == null) { Shutdown(); return; }
+            StationPath = chosen;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+        }
         var w = new MainWindow();
+        MainWindow = w;
         if (A.Length > 1 && A[0] == "--screenshot")
         {
             w.ShotPath = A[1]; w.WindowState = WindowState.Normal; w.Width = 1600; w.Height = 950;
