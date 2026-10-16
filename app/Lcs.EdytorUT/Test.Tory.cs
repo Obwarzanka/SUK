@@ -254,6 +254,37 @@ public static partial class Test
         w.View.SimClick(S(pe), MouseButton.Right);
         var tE = d0.P.Tracks.Last();
         Ok(tE.Vertices.Count == 3 && tE.Vertices[1].R == 300 && w.View.Geometry(tE).Ok, "Alt – wolny kierunek: wierzchołek z łukiem R 300");
+        // R 0 na pasku: Alt – załamanie bez łuku; uchwyt załamania tworzy łuk, powrót do wierzchołka go usuwa
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta; w.NewRBox.Text = "0";
+        var pz = Go(c, 200, 1300); w.View.SetView(Go(pz, 100, 150), 0.5);
+        w.View.SimClick(S(pz)); w.View.SimClick(S(Go(pz, 100, 120)));
+        UtView.TestMods = ModifierKeys.Alt; w.View.SimClick(S(Go(Go(pz, 100, 120), 125, 120))); UtView.TestMods = ModifierKeys.None;
+        w.View.SimClick(S(pz), MouseButton.Right);
+        var tZ = d0.P.Tracks.Last();
+        Ok(tZ.Vertices.Count == 3 && tZ.Vertices[1].R == 0 && w.View.Geometry(tZ).Notes.Any(n => n.Text.Contains("załamanie")), "R 0 i Alt – załamanie bez łuku (ostrzeżenie)");
+        w.SetTool(UtTool.Wskaz); w.View.Select(tZ.Id); w.View.SetView(tZ.Vertices[1].P, 0.25);
+        var hz = w.View.ArcHandlePoints().FirstOrDefault(h => h.I == 1);
+        Ok(hz.P != default, "załamanie ma uchwyt łuku (po wewnętrznej stronie)");
+        var vz = S(tZ.Vertices[1].P); var dz = hz.P - vz; dz.Normalize();
+        w.View.SimDrag(hz.P, vz + dz * 60);
+        var tZ2 = d0.P.Tracks.First(x => x.Id == tZ.Id); var gZ2 = w.View.Geometry(tZ2);
+        Ok(tZ2.Vertices[1].R > 10 && gZ2.Ok && gZ2.Elements.Any(e => e.Kind == ElKind.Luk), $"przeciągnięcie uchwytu załamania – powstał łuk R {tZ2.Vertices[1].R:0} m");
+        var hz2 = w.View.ArcHandlePoints().First(h => h.I == 1);
+        w.View.SimDrag(hz2.P, S(tZ2.Vertices[1].P));
+        Ok(d0.P.Tracks.First(x => x.Id == tZ.Id).Vertices[1].R == 0, "uchwyt łuku przeciągnięty do wierzchołka – łuk usunięty (R 0)");
+        // R 0 w trybie Łuk: łuk przez punkt pod kursorem (R 250, 20°)
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
+        var pr0 = Go(c, 200, 1500); w.View.SetView(Go(pr0, 90, 120), 0.5);
+        w.View.SimClick(S(pr0)); w.View.SimClick(S(Go(pr0, 90, 100)));
+        w.View.Mode = UtView.TorMode.Luk;
+        var e0 = Go(pr0, 90, 100); double th = 20 * Math.PI / 180;
+        var wR = e0 + Element.Dir(Math.PI / 2) * (250 * Math.Sin(th) * k) + Element.Right(Math.PI / 2) * (250 * (1 - Math.Cos(th)) * k);
+        w.View.SimClick(S(wR)); w.View.SimClick(S(pr0), MouseButton.Right);
+        var tR = d0.P.Tracks.Last(); var gR = w.View.Geometry(tR);
+        Ok(tR.Vertices.Any(v => Math.Abs(v.R - 250) < 1.01) && gR.Ok && XY.Dist(tR.Vertices[^1].P, wR) < 0.5 * k, $"R 0 w trybie Łuk: łuk przez punkt pod kursorem – R {tR.Vertices.Max(v => v.R):0} m, koniec w punkcie");
+        w.NewRBox.Text = "300"; w.View.Mode = UtView.TorMode.Prosta; w.SetTool(UtTool.Wskaz);
+        foreach (var id in new[] { tZ.Id, tR.Id }) d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == id));
+
         // narzędzie Równoległy: tor wzorcowy, oś nowego toru na podkładzie (początek), koniec
         var src0 = d0.P.Tracks[0]; var rs = w.View.Geometry(src0);
         w.SetTool(UtTool.Rownolegly); w.View.SetView(rs.At(200).P, 0.5);

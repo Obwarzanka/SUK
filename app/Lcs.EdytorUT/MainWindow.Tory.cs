@@ -14,7 +14,7 @@ namespace Lcs.EdytorUT;
 /// </summary>
 public partial class MainWindow
 {
-    public readonly TextBox NewRBox = new() { Width = 52, Text = "300", VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Promień łuku w nowych wierzchołkach [m] (0 – bez łuku)" };
+    public readonly TextBox NewRBox = new() { Width = 52, Text = "300", VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Promień łuku [m]; 0 – w trybie Łuk promień za kursorem (łuk przez punkt pod kursorem), przy Alt – załamanie bez łuku" };
     public readonly TextBox NewLBox = new() { Width = 40, Text = "0", VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Długość krzywych przejściowych (parabola 3°) w nowych wierzchołkach [m] (0 – bez)" };
     public readonly System.Windows.Controls.Primitives.ToggleButton ProstaBtn = new() { Content = "─ Prosta", IsChecked = true, Padding = new Thickness(4, 2, 4, 2), ToolTip = "Tor: prosta na przedłużeniu końca (Tab – łuk); Alt – wolny kierunek" },
         LukBtn = new() { Content = "◠ Łuk", Padding = new Thickness(4, 2, 4, 2), ToolTip = "Tor: łuk styczny o promieniu R, strona i kąt za kursorem (Tab – prosta); Shift – koniec równoległy do osi schematu" };
@@ -39,7 +39,7 @@ public partial class MainWindow
             ChTrack(id, "Nowy wierzchołek", t => t.Vertices.Insert(i, new UtVertex { X = p.X, Y = p.Y, R = View.NewR, L = View.NewL }));
             View.Select(id, i);
         };
-        View.ArcRadiusChanged += (id, i, r) => { ChTrack(id, "Promień łuku", t => t.Vertices[i].R = r); Message($"Łuk W{i + 1}: R {F(r)} m"); };
+        View.ArcRadiusChanged += (id, i, r) => { ChTrack(id, "Promień łuku", t => t.Vertices[i].R = r); Message(r > 0 ? $"Łuk W{i + 1}: R {F(r)} m" : $"W{i + 1}: łuk usunięty (załamanie)"); };
         View.ModeChanged += () => { ProstaBtn.IsChecked = View.Mode == UtView.TorMode.Prosta; LukBtn.IsChecked = View.Mode == UtView.TorMode.Luk; if (View.Tool == UtTool.Tor) ToolShown(); };
         ProstaBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Prosta; };
         LukBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Luk; };

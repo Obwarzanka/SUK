@@ -156,12 +156,23 @@ public partial class UtView
             return new(nv, what + (note != null ? " – " + note : "") + " – klik łączy tory", sn);
         }
         List<UtVertex> res; string info;
-        if (torMode == TorMode.Luk)
+        if (torMode == TorMode.Luk && az != null)   // bez kierunku (pierwszy odcinek) – prosta
         {
             if (az == null) return new(null, "Łuk: najpierw prosta (kierunek) albo zacznij na końcu toru", null);
             var w = ToWorld(s); var rt = Element.Right(az.Value);
             double side = (w - e).X * rt.X + (w - e).Y * rt.Y >= 0 ? 1 : -1;
             double ang;
+            if (NewR <= 0)
+            {
+                // R = 0 na pasku: łuk styczny do końca, przechodzący przez kursor – promień za kursorem (co 1 m)
+                var d = Element.Dir(az.Value); var v = w - e;
+                double along = v.X * d.X + v.Y * d.Y, lat = Math.Abs(d.X * v.Y - d.Y * v.X);
+                if (lat < 1e-3) return new(null, "Łuk (R z kursora): odsuń kursor w bok od kierunku toru", null);
+                double rf = Math.Max(1, Math.Round((along * along + lat * lat) / (2 * lat) / k));
+                ang = typed is double lf ? side * Math.Min(lf / rf, 170 * Math.PI / 180) : side * Math.Clamp(2 * Math.Atan2(lat, along), 0.5 * Math.PI / 180, 170 * Math.PI / 180);
+                res = Budowa.Arc(dv, rf, NewL, ang, k);
+                return new(res, $"łuk R {rf:0} (z kursora) {(ang > 0 ? "w prawo" : "w lewo")}, {Math.Abs(ang) * 180 / Math.PI:0.##}°, {Len3(rf * Math.Abs(ang))}", null);
+            }
             if (typed is double ls) ang = side * Math.Min(ls / RNow, 170 * Math.PI / 180);
             else if (Mods.HasFlag(ModifierKeys.Shift) && Doc != null && Budowa.ArcAngleParallel(dv, side, Doc.P.SchematAz()) is var pa && pa != 0) ang = pa;
             else ang = Budowa.ArcAngleTo(dv, RNow, k, w);
@@ -179,7 +190,7 @@ public partial class UtView
             }
             if (XY.Dist(w, e) < 1e-6) return null;
             res = Clone(dv);
-            if (az != null) { res[^1].R = RNow; res[^1].L = NewL; }
+            if (az != null) { res[^1].R = NewR; res[^1].L = NewR > 0 ? NewL : 0; }
             res.Add(new UtVertex { X = w.X, Y = w.Y });
             info = $"prosta {Len3(Geo.GroundDistance(e, w))}, az {Geo.Azimuth(e, w):0.0}°" + (az != null ? " (Alt – załamanie z łukiem)" : "");
         }
@@ -354,9 +365,30 @@ public partial class UtView
     {
         var res = new List<(int, XY)>(); var r = Geometry(t);
         for (int i = 1; i < t.Vertices.Count - 1; i++)
-            if (t.Vertices[i].R > 0 && !Locked(t.Id, i) && Budowa.ArcMid(r, i) is XY m) res.Add((i, m));
+        {
+            if (Locked(t.Id, i)) continue;
+            if (t.Vertices[i].R > 0 && Budowa.ArcMid(r, i) is XY m) res.Add((i, m));
+            else if (t.Vertices[i].R <= 0 && Bisector(t.Vertices, i) is XY u)
+            {
+                // załamanie bez łuku: uchwyt 16 px od wierzchołka do środka kąta – przeciągnięcie tworzy łuk
+                var vs = ToScreen(t.Vertices[i].P); var su = ScreenVec(u); su.Normalize();
+                res.Add((i, ToWorld(vs + su * 16)));
+            }
+        }
         return res;
     }
+
+    /// <summary>Kierunek od wierzchołka do środka kąta (tam leży łuk) albo null – wierzchołek na prostej.</summary>
+    static XY? Bisector(IReadOnlyList<UtVertex> v, int i)
+    {
+        var a = v[i - 1].P - v[i].P; var b = v[i + 1].P - v[i].P;
+        if (a.Length < 1e-9 || b.Length < 1e-9) return null;
+        var u = a * (1 / a.Length) + b * (1 / b.Length);
+        return u.Length < 1e-4 ? null : u * (1 / u.Length);       // prawie prosto (załamanie < ok. 0,01°) – bez uchwytu
+    }
+
+    /// <summary>Uchwyty łuków i załamań zaznaczonego toru na ekranie (test).</summary>
+    public List<(int I, Point P)> ArcHandlePoints() => Track(SelectedTrack) is UtTrack t ? ArcHandles(t).Select(h => (h.I, ToScreen(h.Mid))).ToList() : new();
 
     public string HitTrack(Point s)
     {
@@ -409,14 +441,14 @@ public partial class UtView
         if (!vDragMoved) return;
         if (vArc && Track(vDrag.Value.Track) is UtTrack at)
         {
-            // środek łuku za kursorem po dwusiecznej
+            // środek łuku za kursorem po dwusiecznej; przy wierzchołku (do 5 cm) – bez łuku (R 0)
             int i = vDrag.Value.Index; var vp = at.Vertices[i].P;
-            if (Budowa.ArcMid(Geometry(at), i) is XY m0)
+            if (Bisector(at.Vertices, i) is XY u)
             {
-                var u = m0 - vp; double ul = u.Length;
-                if (ul > 1e-9) { var w = ToWorld(s); double dist = ((w - vp).X * u.X + (w - vp).Y * u.Y) / ul; if (dist > 1e-3) vArcR = Budowa.RadiusForMid(at.Vertices, i, dist, KAt(vp)); }
+                var w = ToWorld(s); double dist = (w - vp).X * u.X + (w - vp).Y * u.Y, kk = KAt(vp);
+                vArcR = dist < 0.05 * kk ? 0 : Budowa.RadiusForMid(at.Vertices, i, dist, kk);
             }
-            DraftInfo?.Invoke($"Łuk W{i + 1}: R {vArcR:0} m");
+            DraftInfo?.Invoke(vArcR > 0 ? $"Łuk W{i + 1}: R {vArcR:0} m" : $"W{i + 1}: bez łuku (załamanie) – odciągnij od wierzchołka");
             InvalidateVisual(); return;
         }
         vDragTo = Snap(s, vDrag.Value.Track, vDrag.Value.Index).P;
@@ -573,12 +605,12 @@ public partial class UtView
         foreach (var (i, m) in ArcHandles(src))
         {
             var ms = ToScreen(m);
-            dc.DrawEllipse(i == SelectedVertex ? HandleSel : HandleFill, ArcHandlePen, ms, 5.5, 5.5);
-            Label(dc, v[i].L > 0 ? $"R {v[i].R:0.##} · L {v[i].L:0.##}" : $"R {v[i].R:0.##}", ms + new Vector(9, -20), Ink, dpi);
+            dc.DrawEllipse(i == SelectedVertex ? HandleSel : HandleFill, v[i].R > 0 ? ArcHandlePen : CornerHandlePen, ms, 5.5, 5.5);
+            Label(dc, v[i].R <= 0 ? "R 0 – przeciągnij" : v[i].L > 0 ? $"R {v[i].R:0.##} · L {v[i].L:0.##}" : $"R {v[i].R:0.##}", ms + new Vector(9, -20), Ink, dpi);
         }
     }
 
-    static readonly Pen ArcHandlePen = FrozenPen(Color.FromRgb(0xe0, 0x70, 0x00), 2);
+    static readonly Pen ArcHandlePen = FrozenPen(Color.FromRgb(0xe0, 0x70, 0x00), 2), CornerHandlePen = Dashed(Color.FromRgb(0xe0, 0x70, 0x00), 2);
 
     void DrawDraft(DrawingContext dc, double dpi)
     {

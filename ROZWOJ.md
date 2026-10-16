@@ -190,6 +190,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 
 **ZROBIONE 2026-10-16 – przesuwanie myszą i klawiaturą** (`UtView.Przesun.cs`): rozjazd przeciąga się od razu (bez wcześniejszego zaznaczania), łącznik w całości – także chwycony za drugi rozjazd; podgląd na kopii projektu (oba rozjazdy i tor łączący) z napisem „km … (Δ …)”. Strzałki: zaznaczony rozjazd wzdłuż toru 0,1 m (Shift 1 m), zaznaczony wierzchołek albo cały tor w kierunku strzałki na ekranie 5 cm (Shift 0,5 m) – w Schemacie góra / dół = w poprzek osi (międzytorze). Ctrl + przeciągnięcie zaznaczonego toru – przesunięcie toru z rozjazdami (odgałęzień rozjazdów nie – komunikat). PPM na rozjeździe – menu: zmień stronę, odwróć, położenie zasadnicze, zwrotnica ręczna, zaznacz odgałęzienie, usuń. Uchwyt wierzchołka zaznaczonego toru ma pierwszeństwo przed rozjazdem. Test: łącznik 1/2 przeciągnięty za rozjazd 2 o 15 m, strzałki rozjazdu i toru (międzytorze 5,00 → 5,10 m), Ctrl + przeciągnięcie, menu.
 
+**ZROBIONE 2026-10-16 – promień myszą, R 0:** R 0 na pasku w trybie Łuk – łuk styczny przez punkt pod kursorem (promień za kursorem, co 1 m; z klawiatury długość); z Alt – załamanie bez łuku. Załamanie (R 0 w wierzchołku) ma uchwyt po wewnętrznej stronie kąta (kreskowane kółko „R 0 – przeciągnij”) – przeciągnięcie tworzy łuk; uchwyt łuku przeciągnięty do wierzchołka (do 5 cm) usuwa łuk. W trybie Łuk pierwszy odcinek nowego toru jest prostą (dawniej odmowa). Test: załamanie R 0 → łuk R 541 → z powrotem R 0, łuk przez punkt (R 250, 20°).
+
 **Następny krok:** etap 5 – urządzenia na torze (semafory, tarcze, kozły, wykolejnice, liczniki osi / złącza, perony, przejazdy, kilometraż) ze znakami z bazy symboli Ig-10
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**

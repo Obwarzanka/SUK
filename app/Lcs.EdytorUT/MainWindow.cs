@@ -139,7 +139,7 @@ public partial class MainWindow : Window
         Message(View.Tool switch
         {
             UtTool.Tor => View.Mode == UtView.TorMode.Luk
-                ? "Tor – łuk: promień R z pola, strona i kąt za kursorem, długość łuku z klawiatury + Enter; Shift – koniec równoległy do osi schematu; Tab – prosta; klik na końcu innego toru – połączenie; Enter / PPM – koniec; Backspace – cofnij odcinek"
+                ? "Tor – łuk: promień R z pola (R 0 – promień za kursorem: łuk przez punkt pod kursorem), strona i kąt za kursorem, długość łuku z klawiatury + Enter; Shift – koniec równoległy do osi schematu; Tab – prosta; klik na końcu innego toru – połączenie; Enter / PPM – koniec; Backspace – cofnij odcinek"
                 : "Tor – prosta: klik – pierwszy punkt (albo koniec toru – przedłużenie), potem odcinki na przedłużeniu, długość z klawiatury + Enter; Alt – wolny kierunek; Tab – łuk; klik na końcu innego toru – połączenie łukiem / łukami odwrotnymi; Enter / PPM – koniec; Backspace – cofnij odcinek; Esc – rezygnacja",
             UtTool.Rozjazd => Katalog.Find(View.RzType)?.IsCrossing == true
                 ? $"{View.RzType}: kliknij na przecięciu dwóch torów (tor przecinający narysuj narzędziem Tor pod kątem typu)"
