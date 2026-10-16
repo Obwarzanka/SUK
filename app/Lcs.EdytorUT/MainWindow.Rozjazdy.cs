@@ -34,6 +34,7 @@ public partial class MainWindow
         RzTypeBox.SelectedIndex = 0; View.RzType = Katalog.Types[0].Name;
         RzTypeBox.SelectionChanged += (s, e) => { if (RzTypeBox.SelectedItem is string n) { View.RzType = n; if (View.Tool == UtTool.Rozjazd) ToolShown(); } };
         View.TurnoutPlace += OnTurnoutPlace;
+        View.TurnoutMenu += id => { var cm = BuildTurnoutMenu(id); cm.PlacementTarget = View; cm.IsOpen = true; };
         View.CrossoverJoin += (aId, bId) =>
         {
             string err = null; double shift = 0;
@@ -53,6 +54,23 @@ public partial class MainWindow
             Doc.Change("Przesunięcie rozjazdu", p => { var m = p.Turnouts.First(x => x.Id == master.Id); m.S += delta; });
             Message($"Rozjazd {t.Number} przesunięty o {F(Math.Abs(delta))} m");
         };
+    }
+
+    /// <summary>Menu PPM rozjazdu: strona, odwrócenie, położenie zasadnicze, zwrotnica ręczna, odgałęzienie, usunięcie.</summary>
+    public ContextMenu BuildTurnoutMenu(string id)
+    {
+        var cm = new ContextMenu();
+        var t = Doc.P.Turnouts.FirstOrDefault(x => x.Id == id); if (t == null) return cm;
+        MenuItem Item(string h, Action a, bool en = true) { var mi = new MenuItem { Header = h, IsEnabled = en }; mi.Click += (s, e) => a(); cm.Items.Add(mi); return mi; }
+        cm.Items.Add(new MenuItem { Header = $"Rozjazd {t.Number} ({t.Type})", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+        Item("Zmień stronę", () => ChTurnout(id, "Strona rozjazdu", x => x.Side = -x.Side), t.Partner == null);
+        Item("Odwróć", () => ChTurnout(id, "Kierunek rozjazdu", x => { var ty = Katalog.Find(x.Type); x.S += x.Dir * (ty.A + ty.B); x.Dir = -x.Dir; }), t.Partner == null);
+        Item(t.Zas == "-" ? "Położenie zasadnicze: na wprost (+)" : "Położenie zasadnicze: na zwrot (−)", () => ChTurnout(id, "Położenie zasadnicze", x => x.Zas = x.Zas == "-" ? "+" : "-"));
+        Item(t.Manual ? "Zwrotnica uzależniona" : "Zwrotnica ręczna (nieuzależniona)", () => ChTurnout(id, "Zwrotnica ręczna", x => x.Manual = !x.Manual));
+        cm.Items.Add(new Separator());
+        Item("Zaznacz odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); });
+        Item(t.Partner != null ? "Usuń łącznik" : "Usuń rozjazd", () => { View.SelectTurnout(id); DeleteTurnoutOrCrossing(); });
+        return cm;
     }
 
     /// <summary>Numery z okna (domyślnie kolejne wolne); null – rezygnacja.</summary>

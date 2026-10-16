@@ -408,6 +408,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.R) { SetTool(UtTool.Rozjazd); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.P) { SetTool(UtTool.Rownolegly); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;
+        else if (!inText && !ctrl && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && View.NudgeKey(e.Key, shift)) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.S) { SetSchemat(!View.Schemat); e.Handled = true; }
         else if (!inText && e.Key == Key.Back && View.Tool == UtTool.Miarka && View.MeasurePts.Count > 0) { View.MeasurePts.RemoveAt(View.MeasurePts.Count - 1); ShowMeasure(); View.InvalidateVisual(); e.Handled = true; }

@@ -117,13 +117,18 @@ public partial class UtView
         return best;
     }
 
-    /// <summary>Wskaż: wciśnięcie na zaznaczonym rozjeździe – przesuwanie wzdłuż toru.</summary>
+    /// <summary>
+    /// Wskaż: wciśnięcie na rozjeździe – zaznaczenie i przesuwanie wzdłuż toru (bez wcześniejszego zaznaczania). Drugi rozjazd łącznika
+    /// przesuwa cały łącznik – przeciągany jest wtedy rozjazd pierwszy (po swoim torze).
+    /// </summary>
     bool PressTurnout(Point s)
     {
-        if (SelectedTurnout == null || HitTurnout(s) != SelectedTurnout) return false;
-        var t = Doc.P.Turnouts.First(x => x.Id == SelectedTurnout);
-        var r = Geometry(Track(t.Track));
-        rzDrag = (t.Id, r.Nearest(ToWorld(s), 0.2).S - t.S, t.S);
+        if (HitTurnout(s) is not string id) return false;
+        var t = Doc.P.Turnouts.First(x => x.Id == id);
+        var m = t.BranchAtEnd && t.Partner != null ? Doc.P.Turnouts.FirstOrDefault(x => x.Id == t.Partner) ?? t : t;
+        if (SelectedTurnout != id) SelectTurnout(id);
+        var r = Geometry(Track(m.Track));
+        rzDrag = (m.Id, r.Nearest(ToWorld(s), 0.2).S - m.S, m.S);
         return true;
     }
 
@@ -149,13 +154,26 @@ public partial class UtView
     void DrawTurnouts(DrawingContext dc, double dpi)
     {
         if (Doc == null) return;
-        foreach (var t in Doc.P.Turnouts)
+        // przeciąganie: podgląd na kopii projektu (łącznik – oba rozjazdy i tor łączący na nowym miejscu)
+        var src = Doc.P; UtTurnout moving = null;
+        if (rzDrag is var (did, _, ds) && dragging)
         {
-            var tt = t;
-            if (rzDrag is var (did, _, ds) && did == t.Id) tt = new UtTurnout { Type = t.Type, Track = t.Track, S = ds, Dir = t.Dir, Side = t.Side, Zas = t.Zas, Number = t.Number };
-            var g = Rozjazdy.Geometry(Doc.P, tt); if (g == null) continue;
-            DrawTurnout(dc, tt, g, t.Id == SelectedTurnout || (SelectedTurnout != null && t.Partner == SelectedTurnout), dpi, Rozjazdy.Check(Doc.P, t).Count > 0);
-            if (!ReferenceEquals(tt, t)) dc.DrawLine(RzPreview, ToScreen(g.PR), ToScreen(g.KRDiv));
+            src = UtDocument.Deserialize(UtDocument.Serialize(Doc.P));
+            moving = src.Turnouts.FirstOrDefault(x => x.Id == did);
+            if (moving != null) { moving.S = ds; Rozjazdy.Sync(src); }
+        }
+        foreach (var t0 in Doc.P.Turnouts)
+        {
+            var t = src.Turnouts.FirstOrDefault(x => x.Id == t0.Id) ?? t0;
+            var g = Rozjazdy.Geometry(src, t); if (g == null) continue;
+            DrawTurnout(dc, t, g, t.Id == SelectedTurnout || (SelectedTurnout != null && t.Partner == SelectedTurnout), dpi, Rozjazdy.Check(src, t).Count > 0);
+        }
+        if (moving != null && src.Tracks.FirstOrDefault(x => x.Id == moving.Branch) is UtTrack mb)
+        {
+            dc.DrawGeometry(null, RzPreview, Line(Trasa.Compute(mb).Sample(0.5), 0));
+            var orig = Doc.P.Turnouts.First(x => x.Id == moving.Id);
+            double dlt = moving.S - orig.S;
+            if (hover is XY hv) Label(dc, $"rozjazd {moving.Number}{(moving.Partner != null ? " (łącznik)" : "")}: km {moving.S:0.00} (Δ {(dlt >= 0 ? "+" : "−")}{Math.Abs(dlt):0.00} m)", ToScreen(hv) + new Vector(12, 10), Red, dpi);
         }
         foreach (var c in Doc.P.Crossings) DrawCrossing(dc, c, c.Id == SelectedCrossing, dpi);
         if (tool == UtTool.Rozjazd) DrawRzPreview(dc, dpi);

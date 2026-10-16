@@ -51,6 +51,13 @@ public partial class MainWindow
             View.Select(n.Id);
             Message($"Tor równoległy {F(Math.Abs(d))} m po {(d > 0 ? "prawej" : "lewej")} toru {st?.Number}: długość {UtView.Len3(View.Geometry(n).Length)}");
         };
+        View.TrackMoved += (id, v) =>
+        {
+            if (Doc.P.Turnouts.Any(r => r.Branch == id)) { Message("To odgałęzienie rozjazdu – przesuń rozjazd albo jego wierzchołki"); return; }
+            ChTrack(id, "Przesunięcie toru", t => { foreach (var x in t.Vertices) { x.X += v.X; x.Y += v.Y; } });
+            var t0 = Doc.P.Tracks.First(x => x.Id == id);
+            Message($"Tor {t0.Number} przesunięty o {UtView.Len3(v.Length / Trasa.KFor(t0))}" + (Doc.P.Turnouts.Any(r => r.Track == id) ? " – rozjazdy na nim przesunęły się razem" : ""));
+        };
         View.SelectionChanged += RefreshTrackPanel;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()

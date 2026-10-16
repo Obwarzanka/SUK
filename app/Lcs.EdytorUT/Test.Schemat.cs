@@ -166,6 +166,39 @@ public static partial class Test
         if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
         Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
 
+        // --- przesuwanie myszą i klawiaturą
+        w.SetTool(UtTool.Wskaz); w.View.Select(null);
+        var zm1 = d.P.Turnouts.First(x => x.Number == "1"); var zm2 = d.P.Turnouts.First(x => x.Number == "2");
+        var gm2 = Rozjazdy.Geometry(d.P, zm2); double sm1 = zm1.S, sm2 = zm2.S;
+        Look(gm2.PR, 0.3);
+        w.View.SimDrag(S(gm2.PR), S(gm2.PR) + (S(Go(gm2.PR, lineAz, 15)) - S(gm2.PR)));
+        zm1 = d.P.Turnouts.First(x => x.Number == "1"); zm2 = d.P.Turnouts.First(x => x.Number == "2");
+        Ok(Math.Abs(zm1.S - sm1 - 15) < 0.3 && Math.Abs(zm2.S - sm2 - 15) < 0.3 && zm2.Partner == zm1.Id && Rozjazdy.Check(d.P, zm1).Count == 0 && w.View.SelectedTurnout == zm2.Id,
+            $"przeciągnięcie rozjazdu 2 bez zaznaczania: cały łącznik 1/2 o 15 m (km {zm1.S:0.00} / {zm2.S:0.00}), bez uwag");
+        w.DoUndo();
+        var zk = d.P.Turnouts.First(x => x.Number == "5"); double sk5 = zk.S;
+        w.View.SelectTurnout(zk.Id); KeyPress(w, Key.Right); KeyPress(w, Key.Right);
+        Ok(Math.Abs(d.P.Turnouts.First(x => x.Number == "5").S - sk5 - 0.2) < 1e-9, "strzałka w prawo ×2 – rozjazd 5 o 0,2 m wzdłuż toru");
+        KeyPress(w, Key.Left); KeyPress(w, Key.Left);
+        Ok(Math.Abs(d.P.Turnouts.First(x => x.Number == "5").S - sk5) < 1e-9, "strzałka w lewo ×2 – rozjazd wrócił");
+        double Gap() { var a1 = w.View.Geometry(t1); var a2 = w.View.Geometry(d.P.Tracks.First(x => x.Id == t2.Id)); return a2.Nearest(a1.At(700).P).Dist / k; }
+        double gap0 = Gap();
+        w.View.Select(t2.Id); KeyPress(w, Key.Up); KeyPress(w, Key.Up);
+        Ok(Math.Abs(Gap() - gap0 - 0.1) < 0.001 && d.UndoName == "Przesunięcie toru", $"Schemat: strzałka do góry ×2 – tor 2 o 0,1 m w poprzek, międzytorze {Gap():0.000} m");
+        w.DoUndo(); w.DoUndo();
+        Ok(Math.Abs(Gap() - gap0) < 1e-6, "Ctrl+Z ×2 – międzytorze jak było");
+        w.View.Select(t2.Id); var pm = w.View.Geometry(d.P.Tracks.First(x => x.Id == t2.Id)).At(700).P; Look(pm, 0.3);
+        UtView.TestMods = ModifierKeys.Control; w.View.SimDrag(S(pm), S(pm) + new Vector(0, -40)); UtView.TestMods = ModifierKeys.None;
+        double gapC = Gap();
+        Ok(gapC > gap0 + 0.5 && d.UndoName == "Przesunięcie toru", $"Ctrl + przeciągnięcie toru 2 o 40 px do góry: międzytorze {gap0:0.00} → {gapC:0.00} m");
+        w.DoUndo();
+        var cm = w.BuildTurnoutMenu(zk.Id);
+        var side0 = zk.Side;
+        var miSide = cm.Items.OfType<MenuItem>().First(x => x.Header as string == "Zmień stronę");
+        miSide.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Ok(d.P.Turnouts.First(x => x.Number == "5").Side == -side0 && cm.Items.OfType<MenuItem>().Any(x => (x.Header as string)?.StartsWith("Położenie zasadnicze") == true), "menu PPM rozjazdu: „Zmień stronę” działa");
+        w.DoUndo();
+
         // --- Del w narzędziu Tor (bez rysowania) i usunięcie toru z rozjazdami
         w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
         var pdel = Go(o, lineAz - 90, 60); Look(pdel, 1);

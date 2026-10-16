@@ -473,6 +473,8 @@ public partial class UtView
     /// <summary>Tor w trakcie przeciągania wierzchołka albo uchwytu łuku (podgląd) albo sam tor.</summary>
     UtTrack Dragged(UtTrack t)
     {
+        if (tDrag is var (tid, _) && tid == t.Id && dragging)
+            return new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => new UtVertex { X = v.X + tDragVec.X, Y = v.Y + tDragVec.Y, R = v.R, L = v.L }).ToList() };
         if (vDrag is not var (vid, vi) || vid != t.Id || !vDragMoved) return t;
         var src = new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => v.Clone()).ToList() };
         if (vArc) src.Vertices[vi].R = vArcR; else { src.Vertices[vi].X = vDragTo.X; src.Vertices[vi].Y = vDragTo.Y; }
