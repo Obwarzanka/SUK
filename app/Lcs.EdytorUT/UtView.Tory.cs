@@ -47,8 +47,8 @@ public partial class UtView
 
     public void Select(string track, int vertex = -1)
     {
-        if (SelectedTrack == track && SelectedVertex == vertex) return;
-        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex;
+        if (SelectedTrack == track && SelectedVertex == vertex && SelectedTurnout == null && SelectedCrossing == null) return;
+        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex; SelectedTurnout = null; SelectedCrossing = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
@@ -60,7 +60,7 @@ public partial class UtView
     public SnapResult Snap(Point s, string skipTrack = null, int skipVertex = -1)
     {
         var w = ToWorld(s);
-        if (Doc == null || Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return new(w, SnapKind.Brak, null, -1);
+        if (Doc == null || Mods.HasFlag(ModifierKeys.Control)) return new(w, SnapKind.Brak, null, -1);
         SnapResult best = null; double bd = SnapPx;
         foreach (var t in Doc.P.Tracks)
             for (int i = 0; i < t.Vertices.Count; i++)
@@ -95,7 +95,7 @@ public partial class UtView
     {
         var sn = Snap(s);
         var w = sn.P;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && DirLock() is XY d)
+        if (Mods.HasFlag(ModifierKeys.Shift) && DirLock() is XY d)
         {
             var a = draft[^1]; double t = (w.X - a.X) * d.X + (w.Y - a.Y) * d.Y;
             w = a + d * Math.Max(0, t);
@@ -121,7 +121,7 @@ public partial class UtView
             var sn = Snap(s);
             extendId = null;
             // start na końcu istniejącego toru – przedłużenie tego toru
-            if (sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t) { extendId = t.Id; extendAtStart = sn.Vertex == 0; }
+            if (sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t && !Locked(t.Id, sn.Vertex)) { extendId = t.Id; extendAtStart = sn.Vertex == 0; }
             draft.Add(sn.P);
         }
         else
@@ -131,7 +131,7 @@ public partial class UtView
             draft.Add(p);
             // klik na końcu innego toru – połączenie i koniec rysowania
             var sn = Snap(s);
-            if (sn.Kind == SnapKind.Koniec && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && draft.Count >= 2) { FinishDraft(); return; }
+            if (sn.Kind == SnapKind.Koniec && !Mods.HasFlag(ModifierKeys.Shift) && draft.Count >= 2) { FinishDraft(); return; }
         }
         LenBuf = ""; DraftChanged();
     }
@@ -141,7 +141,7 @@ public partial class UtView
     {
         if (draft.Count == 0 || len <= 0) return false;
         XY dir;
-        if ((Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) || cursor == null) && DirLock() is XY d) dir = d;
+        if ((Mods.HasFlag(ModifierKeys.Shift) || cursor == null) && DirLock() is XY d) dir = d;
         else
         {
             var c = cursor != null ? ToWorld(cursor.Value) : hover ?? draft[^1];
@@ -226,6 +226,7 @@ public partial class UtView
                 var a = t.Vertices[bi - 1].P; var b = t.Vertices[bi].P; var dd = b - a; double l2 = dd.X * dd.X + dd.Y * dd.Y;
                 bq = a + dd * Math.Clamp(((w.X - a.X) * dd.X + (w.Y - a.Y) * dd.Y) / l2, 0.02, 0.98);
             }
+            if (Locked(t.Id, bi) && Locked(t.Id, bi - 1)) { DraftInfo?.Invoke("Ten odcinek odgałęzienia ustawia rozjazd – wierzchołka nie można tu dodać"); return true; }
             VertexInserted?.Invoke(t.Id, bi, bq);
             return true;
         }
@@ -250,6 +251,8 @@ public partial class UtView
 
     void SelectAt(Point s)
     {
+        if (HitTurnout(s) is string rz) { SelectTurnout(rz); return; }
+        if (HitCrossing(s) is string cr) { SelectCrossing(cr); return; }
         if (Track(SelectedTrack) is UtTrack t)
             for (int i = 0; i < t.Vertices.Count; i++)
                 if ((ToScreen(t.Vertices[i].P) - s).Length <= HandlePx) { Select(t.Id, i); return; }
@@ -262,6 +265,7 @@ public partial class UtView
         for (int i = 0; i < t.Vertices.Count; i++)
             if ((ToScreen(t.Vertices[i].P) - s).Length <= HandlePx)
             {
+                if (Locked(t.Id, i)) { Select(t.Id, i); DraftInfo?.Invoke("Ten wierzchołek ustawia rozjazd – przesuń rozjazd (zaznacz go i przeciągnij wzdłuż toru)"); return true; }
                 vDrag = (t.Id, i); vDragTo = t.Vertices[i].P; vDragMoved = false;
                 Select(t.Id, i);
                 return true;
@@ -340,7 +344,7 @@ public partial class UtView
         {
             var (mp, az) = res.At(res.Length / 2);
             var s = ToScreen(mp + Element.Right(az) * (14 * mpp));
-            var ft = new FormattedText(t.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFont, 12, ink, dpi) { };
+            var ft = new FormattedText(t.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(UiFont.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 13, ink, dpi);
             dc.DrawRoundedRectangle(Halo, null, new Rect(s.X - ft.Width / 2 - 3, s.Y - ft.Height / 2, ft.Width + 6, ft.Height), 3, 3);
             dc.DrawText(ft, new Point(s.X - ft.Width / 2, s.Y - ft.Height / 2));
         }

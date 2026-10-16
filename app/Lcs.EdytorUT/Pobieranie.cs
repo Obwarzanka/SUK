@@ -47,7 +47,7 @@ public static class Pobieranie
         {
             ct.ThrowIfCancellationRequested();
             try { return await get(); }
-            catch (Exception ex) when (i < n && ex is not OperationCanceledException) { await Task.Delay(400 * i, ct); }
+            catch (Exception) when (i < n && !ct.IsCancellationRequested) { await Task.Delay(400 * i, ct); }   // także przekroczenie czasu (TaskCanceledException)
         }
     }
 
@@ -97,11 +97,11 @@ public static class Pobieranie
                     try { img = Decode(data); }
                     catch { last = new InvalidOperationException("Geoportal nie zwrócił obrazu (poza zasięgiem albo przeciążony)"); continue; }
                     if (img.PixelWidth != w || img.PixelHeight != h) { last = new InvalidOperationException($"Geoportal zwrócił {img.PixelWidth}×{img.PixelHeight} px zamiast {w}×{h}"); continue; }
-                    // pusty obraz z wadliwego serwera – nowa próba nowym połączeniem
-                    if (IsBlank(data)) { last = new InvalidOperationException("Geoportal zwrócił pusty obraz"); break; }
+                    // pusty obraz z wadliwego serwera
+                    if (IsBlank(data)) { last = new InvalidOperationException("Geoportal zwrócił pusty obraz"); continue; }   // spróbuj usługi standardowej, potem nowa próba
                     return data;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException) { last = ex; break; }   // błąd połączenia – nowa próba od początku
+                catch (Exception ex) when (!ct.IsCancellationRequested) { last = ex; break; }   // błąd połączenia albo brak odpowiedzi w 60 s – nowa próba od początku
             }
             await Task.Delay(400 * attempt, ct);
         }
@@ -135,12 +135,12 @@ public static class Pobieranie
                 }
                 ok.Add(new UtTile { File = file, W = g.TileSize, H = g.TileSize, Row = r, Col = c, Geo = g.TileGeo(r, c) });
             }
-            catch (OperationCanceledException) { throw; }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }   // „Przerwij” – nie przekroczenie czasu serwera
             catch (Exception ex) { failed.Add($"r{r}_c{c}: {Reason(ex)}"); }
             progress?.Report($"Ortofotomapa: {Interlocked.Increment(ref done)}/{cells.Count} kafelków" + (failed.IsEmpty ? "" : $", nieudane {failed.Count}"));
         });
         }
-        catch (OperationCanceledException) { cancelled = true; }   // pobrane do tej pory zostają w wyniku
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { cancelled = true; }   // pobrane do tej pory zostają w wyniku
         return new GridResult(ok.OrderBy(t => t.Row).ThenBy(t => t.Col).ToList(), failed.OrderBy(f => f).ToList(), cancelled);
     }
 

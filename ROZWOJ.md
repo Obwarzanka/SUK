@@ -4,7 +4,7 @@ Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–3).
+Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–4, baza symboli Ig-10).
 
 ---
 
@@ -96,6 +96,7 @@ Model danych `station.json`:
 - sygnalizator `pk`: `routes` P/M/PM.
 
 **Pułapki techniczne:**
+- Strony PDF (np. Ig-10 zał. 8) ogląda się przez `tools/pdfr` (render do PNG) – narzędzie Read bez pdftoppm nie pokazuje stron.
 - Edycja plików przez heredoc w bash psuje `\n` i ukośniki w literałach C# – zapisuj skrypt łatki (Python) narzędziem Write i uruchamiaj `python -I plik.py`; w C# zamiast `"\n"` używaj `{(char)10}`/`Environment.NewLine`.
 - `Station` dla pulpitu to `L.View` (zobrazowanie); komputer zależności zawsze liczy z `L` (układ). `Simulator` implementuje `IPulpitSource.L` jawnie jako `L.View`.
 - Węzeł ukryty na zobrazowaniu ma współrzędne `Station.Hidden` (-1e7).
@@ -148,7 +149,20 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 - Test `--test` (część „etap 3”): 158 sprawdzeń razem, **0 błędów** – m.in. ciągłość położenia i kierunku na stykach (≤ 1e-6 m), punkty łuku w odległości R, T = R·tg(α/2), łuk α − 2τ, krzywizna przejściowej 0 → 0,985/R, prosta 1000 m = odległość geodezyjna, tor równoległy 4,7500 m; budowa klikami na ortofotomapie: 3 wierzchołki, długość 150 m z klawiatury (150,0000 m), PPM, numer i kategoria z panelu, R 800 w W2, przeciąganie wierzchołka, dwuklik + Del, przedłużenie od końca, tor równoległy z panelu, przyciąganie do osi, Esc, Del toru, zapis i odczyt. Zrzuty: `zrzuty/EdytorUT_etap3_tory.png`, `EdytorUT_etap3_szyny.png`.
 - Nie sprawdzono prawdziwą myszą. Symulator (`LcsWidzew`) bez zmian.
 
-**Następny krok:** etap 4 – rozjazdy z katalogu
+**ZROBIONE 2026-10-16 – etap 4 (rozjazdy z katalogu):**
+- **Katalog** (`Lcs.Model/UtTurnout.cs` – `RozjazdTyp`, `Katalog`; plik `app/Lcs.EdytorUT/Dane/rozjazdy.json`): Rz 60E1 / 49E1 (190–1200, 1:7–1:18,5), Rkpd, Rkp, St; R, skos 1:N, a (PR → ŚR), b (ŚR → KR), V na zwrot (rozjazdy_1.pdf). **a, b przybliżone** (`approx: true`): 1:9 – 16,615 m, pozostałe a = R·tg(α/2), b = a; właściciel wpisuje katalogowe w pliku.
+- **Rozjazd zwyczajny** (`UtTurnout`): tor zasadniczy, km PR, kierunek (±1 względem km toru), strona, położenie zasadnicze (+ / −), zwrotnica nieuzależniona, numer (wpisuje projektant – okno po wskazaniu miejsca; zajęty – odrzucony). **Odgałęzienie to zwykły tor**: wierzchołki PR i ŚR (promień R typu) ustawia rozjazd (`Rozjazdy.Sync` w każdym `Change` – jedno Ctrl+Z), dalej przedłuża się je narzędziem Tor od końca; wierzchołki ustawiane przez rozjazd są zablokowane (przeciąganie, Del, wstawianie). Geometria: od PR prosto a − T, łuk R o kąt skosu, prosto do KR (T = R·tg(α/2)).
+- **Łącznik** (przeciągnięcie na tor sąsiedni, równoległy do 0,5°): dwa rozjazdy tego typu i tor łączący PR1 – ŚR1 – ŚR2 – PR2; drugi rozjazd (`BranchAtEnd`, `Partner`) trzyma się przecięcia skosu z torem (`Relink`) – przesunięcie pierwszego albo toru przesuwa łącznik. Del na którymkolwiek – cały łącznik.
+- **Skrzyżowanie (St), rozjazd krzyżowy (Rkp, Rkpd)** (`UtCrossing`): klik na przecięciu dwóch narysowanych torów (`Rozjazdy.Intersect`), kontrola kąta z typem; łuki przejazdów (R typu, styczne do obu torów; Rkp – strona do wyboru); po zmianie torów przecięcie przeliczane.
+- **Kontrola** (`Rozjazdy.Check`): poza torem, na łuku (rozjazdy łukowe – później), nachodzi na inny rozjazd.
+- **Narzędzie Rozjazd (R)**, typ z listy na pasku: wciśnij na torze w miejscu PR i przeciągnij w stronę odgałęzienia (kierunek i strona z przeciągnięcia, podgląd na bieżąco), puść na torze sąsiednim – łącznik; krzyżowy / St – klik na przecięciu. Wskaż: klik – zaznaczenie, przeciągnięcie – przesunięcie wzdłuż toru. Panel: numer, typ, położenie zasadnicze, ręczna, km PR, zmień stronę, odwróć, dane typu (a, b przybliżone), uwagi, „Odgałęzienie”, usuń.
+- Poprawione przy okazji: przekroczenie czasu Geoportalu (60 s, `TaskCanceledException`) było brane za „Przerwij” – pobieranie kończyło się zamiast ponowić; pusty obraz z pełnej rozdzielczości – od razu próba StandardResolution; testy ignorują prawdziwą klawiaturę (`UtView.IgnoreKeyboard` – pisanie przy komputerze zamieniało przeciągnięcie w przesuwanie).
+- **Baza symboli Ig-10** (prośba właściciela: rysunki rozjazdów zgodne z Ig-10, „zrób bazę z symbolami”): `Lcs.Model/Symbole.cs`, plik **`app/Lcs.EdytorUT/Dane/symbole_ig10.json`** (generator `tools/symbole_ig10.py`, potem poprawki ręczne w JSON): znak = elementy (line / poly z wypełnieniem ink / paper / circle / text „{nr}”) w mm arkusza, x wzdłuż toru, y w stronę odgałęzienia; nazwa i strona Ig-10. Na razie 11 znaków z zał. 8 s. 18–24: rozjazd zwyczajny uzależniony (zasadniczo na tor główny / odgałęźny), nieuzależniony, nieoddany do użytku; Rkpd (4 odmiany), Rkp, skrzyżowanie. Rysowanie `SymbolPainter` (px/mm = skala rysunku, co najmniej 2,6 px/mm): rozjazd – w PR wzdłuż toru po stronie odgałęzienia; krzyżowy – w punkcie matematycznym. Okno **„Symbole Ig-10…”** (pasek): wszystkie znaki z opisem i stroną Ig-10, „Wczytaj ponownie z pliku”, „Otwórz plik”.
+- Ig-10 można teraz oglądać: `tools/pdfr` (Windows.Data.Pdf) – `dotnet run --project tools/pdfr -- plik.pdf katalog od do skala` zapisuje strony jako PNG (narzędzie Read nie renderuje stron PDF bez pdftoppm). Znaki rozjazdów: s. 18–24, dalej (s. 25–40) kozły, wykolejnice, semafory, tarcze, wskaźniki – do etapu 5.
+- Test `--test` (część „etap 4”): razem 203 sprawdzenia, **0 błędów** – mijanka na skośnej linii (63° i 250°) klikami: tor 1 + równoległy 2, łącznik 1/2 przeciągnięciem (tor łączący 76,200 m = wzór, styczny w PR1 i PR2, prosta pod 1:9, ŚR2 na osi toru 2), łącznik 3/4 w drugą stronę, rozjazd 5 do bocznicy przedłużonej narzędziem Tor; położenie zasadnicze, blokada wierzchołków, przesunięcie rozjazdu z łącznikiem, nachodzenie, zajęty numer, Del + Ctrl+Z, Rkpd i St na przecięciu z torem 3 (przejazdy na osiach torów, odchyłka 0,0 mm), zapis / odczyt bez zmian; baza symboli i okno katalogu. Zrzuty: `zrzuty/EdytorUT_symbole_ig10.png`, `EdytorUT_etap4_mijanka.png`, `EdytorUT_etap4_rozjazdy_blisko.png`, `EdytorUT_etap4_skrzyzowania.png`.
+- Do decyzji / sprawdzenia przez właściciela: proporcje znaków (długość klina 8 mm, wysokość 2 mm, położenie numeru) – zał. 8 nie podaje wszystkich wymiarów, poprawki w `symbole_ig10.json`; wymiary a / b z kart katalogowych; rozjazdy łukowe (Rłj / Rłd) i podwójne (Rpj / Rpd) – kolejny krok.
+
+**Następny krok:** etap 5 – urządzenia na torze (semafory, tarcze, kozły, wykolejnice, liczniki osi / złącza, perony, przejazdy, kilometraż) ze znakami z bazy symboli Ig-10
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.

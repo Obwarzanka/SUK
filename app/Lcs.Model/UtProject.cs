@@ -21,6 +21,10 @@ public class UtProject
     public List<UtBackground> Backgrounds { get; set; } = new();
     /// <summary>Tory (osie torów – wieloboki styczne z łukami).</summary>
     public List<UtTrack> Tracks { get; set; } = new();
+    /// <summary>Rozjazdy zwyczajne (na torach, po kilometrażu).</summary>
+    public List<UtTurnout> Turnouts { get; set; } = new();
+    /// <summary>Skrzyżowania torów i rozjazdy krzyżowe.</summary>
+    public List<UtCrossing> Crossings { get; set; } = new();
     /// <summary>Ostatni widok edytora (nie podlega cofaniu).</summary>
     public UtViewState View { get; set; } = new();
 

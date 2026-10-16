@@ -70,8 +70,11 @@ public partial class MainWindow
     /// <summary>Del: zaznaczony wierzchołek (gdy zostają co najmniej 2) albo cały tor.</summary>
     public bool DeleteSelection()
     {
+        if (DeleteTurnoutOrCrossing()) return true;
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
+        if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }
+        if (Doc.P.Turnouts.Any(r => r.Branch == id) && (i < 0 || t.Vertices.Count <= 3)) { Message("To odgałęzienie rozjazdu – usuń rozjazd (zaznacz go i Del)"); return true; }
         if (i >= 0 && t.Vertices.Count > 2) { ChTrack(id, "Usunięcie wierzchołka", x => x.Vertices.RemoveAt(i)); View.Select(id); Message($"Usunięty wierzchołek W{i + 1}"); }
         else { Doc.Change("Usunięcie toru", p => p.Tracks.RemoveAll(x => x.Id == id)); View.Select(null); Message("Tor usunięty (Ctrl+Z przywraca)"); }
         return true;
@@ -81,6 +84,7 @@ public partial class MainWindow
     void RefreshTrackPanel()
     {
         TrackPanel.Children.Clear();
+        if (BuildObjPanel()) return;
         var id = View.SelectedTrack;
         var t = Doc?.P.Tracks.FirstOrDefault(x => x.Id == id);
         if (t == null) return;   // np. po cofnięciu – zaznaczenie zostaje, ponowienie przywraca panel

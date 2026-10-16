@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Północ (X) do góry, wschód (Y) w prawo.
@@ -32,12 +32,19 @@ public partial class UtView : FrameworkElement
     /// <summary>Metry na piksel ekranu.</summary>
     public double Mpp => mpp;
     public bool ShowGrid = true;
+    /// <summary>
+    /// Test: prawdziwa klawiatura nie wpływa na płótno (Spacja – przesuwanie, Ctrl – bez przyciągania, Shift – przedłużenie);
+    /// wcześniej pisanie przy komputerze w trakcie testu zamieniało przeciągnięcie w przesuwanie widoku. Klawisze testu – <see cref="TestMods"/>.
+    /// </summary>
+    public static bool IgnoreKeyboard;
+    public static ModifierKeys TestMods;
+    static ModifierKeys Mods => IgnoreKeyboard ? TestMods : Keyboard.Modifiers;
     public event Action<XY?> CursorMoved;
     public event Action ViewChanged;
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); tool = value; areaFrom = null; vDrag = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -129,11 +136,12 @@ public partial class UtView : FrameworkElement
     {
         if (b == MouseButton.Right && tool == UtTool.Kafelki) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
         if (b == MouseButton.Right) return false;
-        if (b == MouseButton.Middle || (b == MouseButton.Left && Keyboard.IsKeyDown(Key.Space))) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
+        if (b == MouseButton.Middle || (b == MouseButton.Left && !IgnoreKeyboard && Keyboard.IsKeyDown(Key.Space))) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
         if (b != MouseButton.Left) return false;
         downAt = p; downBtn = b; dragging = false;
         if (clicks >= 2 && DoubleClick(p)) { downAt = null; return true; }
-        if (tool == UtTool.Wskaz && PressVertex(p)) return true;
+        if (tool == UtTool.Wskaz && (PressTurnout(p) || PressVertex(p))) return true;
+        if (tool == UtTool.Rozjazd && RzPress(p)) return true;
         if (tool == UtTool.Kafelki) { painting = true; Paint?.Invoke(ToWorld(p), true); InvalidateVisual(); }
         else if (tool == UtTool.Obszar) areaFrom = ToWorld(p);
         else if (tool == UtTool.Przesun && SelectedBg != null) bgDragFrom = p;
@@ -150,14 +158,16 @@ public partial class UtView : FrameworkElement
         }
         else if (painting && buttonDown) { Paint?.Invoke(hover.Value, false); InvalidateVisual(); }
         else if (vDrag != null && buttonDown) { DragVertex(p); }
+        else if (rzFrom != null && buttonDown) { rzTo = hover.Value; InvalidateVisual(); }
+        else if (rzDrag != null && buttonDown) { if (downAt is Point d0 && (p - d0).Length > ClickTol) dragging = true; if (dragging) DragTurnout(p); }
         else if (downAt is Point d && buttonDown)
         {
             if ((p - d).Length > ClickTol) dragging = true;
             if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
-            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
-        if (tool != UtTool.Wskaz || vDrag != null) InvalidateVisual();
+        if (tool != UtTool.Wskaz || vDrag != null || rzDrag != null) InvalidateVisual();
     }
 
     public bool Release(Point p, MouseButton b)
@@ -174,6 +184,8 @@ public partial class UtView : FrameworkElement
         if (panFrom != null) { EndPan(); downAt = null; return true; }
         if (painting) { painting = false; downAt = null; PaintEnd?.Invoke(); InvalidateVisual(); return true; }
         if (vDrag != null) { downAt = null; EndVertexDrag(p); return true; }
+        if (rzFrom != null) { downAt = null; RzRelease(p); return true; }
+        if (rzDrag != null) { downAt = null; EndTurnoutDrag(p); return true; }
         if (downAt == null) return false;
         var w = ToWorld(p); downAt = null;
         if (areaFrom is XY a)
@@ -193,6 +205,7 @@ public partial class UtView : FrameworkElement
         if (tool == UtTool.Miarka) { MeasurePts.Add(w); MeasureChanged?.Invoke(); InvalidateVisual(); }
         else if (tool == UtTool.Kalibracja) { CalClick?.Invoke(w); InvalidateVisual(); }
         else if (tool == UtTool.Tor) DraftClick(p);
+        else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
         else if (tool == UtTool.Wskaz) SelectAt(p);
         return true;
     }
@@ -271,6 +284,7 @@ public partial class UtView : FrameworkElement
 
         DrawSelection(dc);
         DrawTracks(dc, dpi);
+        DrawTurnouts(dc, dpi);
         Overlay?.Invoke(dc);
         DrawCalibration(dc, dpi);
         DrawMeasure(dc, dpi);

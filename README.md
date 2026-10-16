@@ -86,7 +86,7 @@ Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.
 
 Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
-Stan (etapy 1–3):
+Stan (etapy 1–4):
 - **Układ współrzędnych PUWG 1992** (EPSG:2180): X na północ, Y na wschód, Z to wysokość, wszystko w metrach. Północ jest u góry.
 - **Płótno:** kółko myszy przybliża wokół kursora (od 2 mm do 2 km na piksel), przeciąganie lewym albo środkowym przyciskiem przesuwa widok. Do tego siatka o kroku 1 / 2 / 5 · 10ᵏ m, linijki ze współrzędnymi, podziałka i strzałka północy.
 - **Punkt:** w polu wpisz współrzędne z Google Maps (np. `51.7631, 19.5438`) albo `X Y` w PUWG 1992, potem Enter albo „Idź do”.
@@ -104,7 +104,11 @@ Stan (etapy 1–3):
 - **Edycja:** klik zaznacza tor i otwiera panel z numerem, kategorią, elektryfikacją, Vmax, długością w terenie, listą elementów oraz R i L każdego wierzchołka. Wierzchołki przeciąga się myszą. Dwuklik na boku dodaje wierzchołek, Del usuwa wierzchołek albo tor. W panelu jest też „Tor równoległy” (międzytorze, strona) i „Odwróć kierunek”. Błędy geometrii, np. łuk nie mieści się między wierzchołkami, widać jako czerwone kółko i opis w panelu.
 - Przy dużym przybliżeniu widać obie szyny w rozstawie 1435 mm, co ułatwia dokładne ułożenie toru na zdjęciu.
 
-Następne etapy: rozjazdy z katalogu, urządzenia, wysokości z NMT.
+- **Rozjazd (R):** typ wybierasz z listy na pasku (katalog w `Dane/rozjazdy.json`). Wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia. Program zapyta o numer. Jeśli puścisz na torze sąsiednim, powstanie łącznik: dwa rozjazdy i tor łączący. Odgałęzienie przedłużasz narzędziem Tor od jego końca. Rozjazd krzyżowy (Rkp, Rkpd) i skrzyżowanie (St) wstawiasz klikiem na przecięciu dwóch torów.
+- **Rozjazd w panelu:** numer, typ, położenie zasadnicze, zwrotnica ręczna, km PR, zmiana strony i odwrócenie, uwagi (np. rozjazd na łuku, nachodzi na inny). We „Wskaż” rozjazd przeciąga się wzdłuż toru, a łącznik idzie za nim.
+- **Znaki Ig-10:** rozjazdy rysowane są znakami z bazy `Dane/symbole_ig10.json` (zał. 8 Ig-10). Przycisk „Symbole Ig-10…” pokazuje wszystkie znaki. Po poprawkach w pliku użyj „Wczytaj ponownie”.
+
+Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/rozjazdy.json`. Następne etapy: urządzenia (semafory, tarcze, kozły…) ze znakami z bazy Ig-10, wysokości z NMT.
 
 ## Wersje układu
 

@@ -70,7 +70,7 @@ public class LivePreview
             ortoImg = (bmp, Affine.NorthUp(maxX, minY, m));
             Status = "";
         }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
         catch (Exception ex) { if (id == ortoReq) Status = "ortofotomapa: " + Pobieranie.Reason(ex) + " – spróbuj Esri"; }
         finally { if (id == ortoReq) ortoDone = id; }
         Changed?.Invoke();

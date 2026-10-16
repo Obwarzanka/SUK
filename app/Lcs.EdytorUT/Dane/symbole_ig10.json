@@ -1,0 +1,161 @@
+[
+{
+  "id": "rz_uzal_wprost",
+  "name": "Rozjazd zwyczajny ze zwrotnicą uzależnioną – zasadniczo na tor główny",
+  "ig10": "zał. 8, s. 18",
+  "anchor": "początek rozjazdu (PR), x w stronę KR, y w stronę odgałęzienia",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[0, 0], [8.0, 0], [8.0, 2.0]], "fill": "ink", "w": 0.18},
+    {"t": "text", "at": [-4.0, 2.4], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rz_uzal_zwrot",
+  "name": "Rozjazd zwyczajny ze zwrotnicą uzależnioną – zasadniczo na tor odgałęźny",
+  "ig10": "zał. 8, s. 18",
+  "anchor": "początek rozjazdu (PR), x w stronę KR, y w stronę odgałęzienia",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[0, 0], [8.0, 0.7], [8.0, 2.0]], "fill": "ink", "w": 0.18},
+    {"t": "text", "at": [-4.0, 2.4], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rz_nieuzal",
+  "name": "Rozjazd zwyczajny ze zwrotnicą nieuzależnioną",
+  "ig10": "zał. 8, s. 19",
+  "anchor": "początek rozjazdu (PR), x w stronę KR, y w stronę odgałęzienia",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[0, 0], [8.0, 0], [8.0, 2.0]], "fill": "paper", "w": 0.18},
+    {"t": "line", "pts": [[3.0, 0], [3.0, 0.75]], "w": 0.18},
+    {"t": "line", "pts": [[4.0, 0], [4.0, 1.0]], "w": 0.18},
+    {"t": "line", "pts": [[5.0, 0], [5.0, 1.25]], "w": 0.18},
+    {"t": "line", "pts": [[6.0, 0], [6.0, 1.5]], "w": 0.18},
+    {"t": "line", "pts": [[7.0, 0], [7.0, 1.75]], "w": 0.18},
+    {"t": "line", "pts": [[8.0, 0], [8.0, 2.0]], "w": 0.18},
+    {"t": "text", "at": [-4.0, 2.4], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rz_nieczynny",
+  "name": "Rozjazd zwyczajny nieoddany do użytku",
+  "ig10": "zał. 8, s. 19",
+  "anchor": "początek rozjazdu (PR), x w stronę KR, y w stronę odgałęzienia",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[0, 0], [8.0, 0], [8.0, 2.0]], "fill": "paper", "w": 0.18},
+    {"t": "text", "at": [-4.0, 2.4], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkpd_uzal_wprost",
+  "name": "Rozjazd podwójny krzyżowy ze zwrotnicami uzależnionymi – zasadniczo na tor główny",
+  "ig10": "zał. 8, s. 21",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "ink", "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "ink", "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkpd_uzal_zwrot",
+  "name": "Rozjazd podwójny krzyżowy ze zwrotnicami uzależnionymi – zasadniczo na tor odgałęźny",
+  "ig10": "zał. 8, s. 21",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.5], [8.0, 1.6]], "fill": "ink", "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.5], [-8.0, -1.6]], "fill": "ink", "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkpd_nieuzal",
+  "name": "Rozjazd podwójny krzyżowy ze zwrotnicami nieuzależnionymi",
+  "ig10": "zał. 8, s. 22",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "paper", "w": 0.18},
+    {"t": "line", "pts": [[3.5, 0], [3.5, 0.29090909090909095]], "w": 0.18},
+    {"t": "line", "pts": [[4.5, 0], [4.5, 0.5818181818181819]], "w": 0.18},
+    {"t": "line", "pts": [[5.5, 0], [5.5, 0.8727272727272729]], "w": 0.18},
+    {"t": "line", "pts": [[6.5, 0], [6.5, 1.1636363636363638]], "w": 0.18},
+    {"t": "line", "pts": [[7.5, 0], [7.5, 1.4545454545454546]], "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "paper", "w": 0.18},
+    {"t": "line", "pts": [[-3.5, 0], [-3.5, -0.29090909090909095]], "w": 0.18},
+    {"t": "line", "pts": [[-4.5, 0], [-4.5, -0.5818181818181819]], "w": 0.18},
+    {"t": "line", "pts": [[-5.5, 0], [-5.5, -0.8727272727272729]], "w": 0.18},
+    {"t": "line", "pts": [[-6.5, 0], [-6.5, -1.1636363636363638]], "w": 0.18},
+    {"t": "line", "pts": [[-7.5, 0], [-7.5, -1.4545454545454546]], "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkpd_jedna_para",
+  "name": "Rozjazd podwójny krzyżowy z jedną parą zwrotnic uzależnioną",
+  "ig10": "zał. 8, s. 23",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "ink", "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "paper", "w": 0.18},
+    {"t": "line", "pts": [[-3.5, 0], [-3.5, -0.29090909090909095]], "w": 0.18},
+    {"t": "line", "pts": [[-4.5, 0], [-4.5, -0.5818181818181819]], "w": 0.18},
+    {"t": "line", "pts": [[-5.5, 0], [-5.5, -0.8727272727272729]], "w": 0.18},
+    {"t": "line", "pts": [[-6.5, 0], [-6.5, -1.1636363636363638]], "w": 0.18},
+    {"t": "line", "pts": [[-7.5, 0], [-7.5, -1.4545454545454546]], "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkpd_nieczynny",
+  "name": "Rozjazd podwójny krzyżowy nieoddany do użytku",
+  "ig10": "zał. 8, s. 23",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "paper", "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "paper", "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "rkp",
+  "name": "Rozjazd pojedynczy krzyżowy",
+  "ig10": "zał. 8, s. 22",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "ink", "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "ink", "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+},
+{
+  "id": "st",
+  "name": "Skrzyżowanie torów kolejowych",
+  "ig10": "zał. 8, s. 24",
+  "anchor": "punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x",
+  "prims": [
+    {"t": "line", "pts": [[0, -1.0], [0, 1.0]], "w": 0.18},
+    {"t": "poly", "pts": [[2.5, 0], [8.0, 0.0], [8.0, 1.6]], "fill": "", "w": 0.18},
+    {"t": "line", "pts": [[3.5, 0], [3.5, 0.29090909090909095]], "w": 0.18},
+    {"t": "line", "pts": [[4.5, 0], [4.5, 0.5818181818181819]], "w": 0.18},
+    {"t": "line", "pts": [[5.5, 0], [5.5, 0.8727272727272729]], "w": 0.18},
+    {"t": "line", "pts": [[6.5, 0], [6.5, 1.1636363636363638]], "w": 0.18},
+    {"t": "line", "pts": [[7.5, 0], [7.5, 1.4545454545454546]], "w": 0.18},
+    {"t": "poly", "pts": [[-2.5, 0], [-8.0, -0.0], [-8.0, -1.6]], "fill": "", "w": 0.18},
+    {"t": "line", "pts": [[-3.5, 0], [-3.5, -0.29090909090909095]], "w": 0.18},
+    {"t": "line", "pts": [[-4.5, 0], [-4.5, -0.5818181818181819]], "w": 0.18},
+    {"t": "line", "pts": [[-5.5, 0], [-5.5, -0.8727272727272729]], "w": 0.18},
+    {"t": "line", "pts": [[-6.5, 0], [-6.5, -1.1636363636363638]], "w": 0.18},
+    {"t": "line", "pts": [[-7.5, 0], [-7.5, -1.4545454545454546]], "w": 0.18},
+    {"t": "text", "at": [0, 3.0], "h": 1.8, "text": "{nr}"}
+  ]
+}
+]

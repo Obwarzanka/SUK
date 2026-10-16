@@ -44,6 +44,7 @@ public static partial class Test
     public static void Start(MainWindow w, string output, string shot)
     {
         Running = true; outPath = output;
+        UtView.IgnoreKeyboard = true;
         if (shot != null) shotRails = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + "_szyny.png");
         if (shot != null) shotMap = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + "_mapka.png");
         OffScreen(w);
@@ -54,6 +55,7 @@ public static partial class Test
                 log.AppendLine("== etap 1: szkielet"); Run(w);
                 log.AppendLine("== etap 2: podkłady"); await RunBg(w);
                 log.AppendLine("== etap 3: tory"); await RunTory(w);
+                log.AppendLine("== etap 4: rozjazdy"); await RunRozjazdy(w);
                 if (shot != null) { await Settle(w); Save(w, shot); }
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
