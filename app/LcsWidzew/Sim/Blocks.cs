@@ -16,6 +16,13 @@ public partial class Simulator
         for (int i = 0; i < b.Ends.Count; i++) if (pg != null && pg.Posts.Contains(b.Ends[i].Post)) return i;
         return 0;
     }
+    /// <summary>Kierunek blokady słownie: „wyjazd z X” (koniec o tym kierunku na zewnątrz) albo „przyjazd do X” (szlak jednostronny).</summary>
+    public string DirText(BlockDef b, int dir)
+    {
+        if (dir == 0) return "neutralny";
+        var i = EndIdxForDir(b, dir); if (i >= 0) return "wyjazd z " + (L.Posts.GetValueOrDefault(b.Ends[i].Post) ?? b.Ends[i].Post);
+        var j = EndIdxForDir(b, -dir); return j >= 0 ? "przyjazd do " + (L.Posts.GetValueOrDefault(b.Ends[j].Post) ?? b.Ends[j].Post) : (dir > 0 ? "A→B" : "B→A");
+    }
     public int EndIdxForDir(BlockDef b, int dir) { for (int i = 0; i < b.Ends.Count; i++) if (b.Ends[i].Outward == dir) return i; return -1; }
 
     /// <summary>Szczelina kontrolna kTor (SBL): czerwona, gdy przy ustawionym kierunku dowolny odstęp zajęty albo semafor odstępowy nie zezwala.</summary>
@@ -147,11 +154,11 @@ public partial class Simulator
 
     CmdResult BlockCmd(string code, string id, int e)
     {
-        if (e < 0) return new(false, $"Szlak {id} wewnętrzny – podaj kierunek wyjazdu: „{id} {Codes[code].Code} E” (→ na wschód) albo „{id} {Codes[code].Code} W” (← na zachód)");
+        if (e < 0) { var bb = L.Blocks[id]; return new(false, $"Szlak {id} wewnętrzny – podaj, z którego posterunku wyjazd: " + string.Join(" albo ", bb.Ends.Select(x => $"„{id} {Codes[code].Code} {x.Post}”")) + " (albo E / W – w prawo / w lewo na obrazie)"); }
         var b = L.Blocks[id]; var bs = Blocks[id]; var my = b.Ends[e];
         if (code is "WBL" or "OWBL" or "PZK" or "ZWBL" or "AZK" && !b.Permission)
             return new(false, b.NoBlock ? $"Szlak {id}: telefoniczne zapowiadanie – brak blokady liniowej i kierunku"
-                                        : $"Szlak {id}: {b.TypeShort} – bez bloku pozwolenia, kierunek stały ({(b.DefDir > 0 ? "→ na wschód" : "← na zachód")})");
+                                        : $"Szlak {id}: {b.TypeShort} – bez bloku pozwolenia, kierunek stały ({DirText(b, b.DefDir)})");
         if (code is "BKON" or "PO" or "POZ" or "DPO" or "DKO" && !b.SemiAuto)
             return new(false, $"Szlak {id}: {b.TypeShort} – przyciski Po, Ko, Poz, dPo, dKo dotyczą blokady półsamoczynnej");
         if (code == "BKON")
@@ -209,7 +216,7 @@ public partial class Simulator
                     { var why = BlockConds(b); if (why.Count > 0) return new(false, why[0] + " (§20 ust. 4)"); }
                     bs.Dir = my.Outward; bs.Req = null;
                     var to = b.Ends.Count > 1 ? b.Ends[1 - e].Post : "";
-                    return new(true, $"kierunek {(my.Outward > 0 ? "→ na wschód" : "← na zachód")}: wyjazd z {L.Posts.GetValueOrDefault(my.Post) ?? my.Post} do {L.Posts.GetValueOrDefault(to) ?? to} (szlak wewnętrzny LCS)");
+                    return new(true, $"kierunek: wyjazd z {L.Posts.GetValueOrDefault(my.Post) ?? my.Post} do {L.Posts.GetValueOrDefault(to) ?? to} (szlak wewnętrzny LCS)");
                 }
                 if (bs.Req != null) return new(false, bs.Req.EndIdx == e ? "Żądanie już wysłane" : "Oczekuje żądanie z przeciwnej strony – Pzk");
                 if (bs.Busy) return new(false, "Trwa zmiana stanu blokady");

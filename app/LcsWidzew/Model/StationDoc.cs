@@ -16,7 +16,11 @@ public partial class StationDoc
 
     static readonly JsonSerializerOptions Opt = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver() };
 
-    public StationDoc(JsonObject root) { Root = root; Ensure(); EnsureDisplayDeco(); EnsurePlanScale(); MigrateBg(); }
+    public StationDoc(JsonObject root) { Root = root; Ensure(); EnsureDisplayDeco(); EnsurePlanScale(); MigrateBg(); OrientResult = TrackOrientation.Apply(Root); }
+    /// <summary>Ostatnia orientacja torów (A→B spójnie): odwrócone tory, węzły ze sprzecznością.</summary>
+    public TrackOrientation.Result OrientResult;
+    /// <summary>Orientacja po zmianie układu: nowe / niezgodne tory dopasowane do sąsiednich, sygnalizatory i szlaki przeliczone.</summary>
+    public void Orient() => OrientResult = TrackOrientation.Apply(Root);
     public static StationDoc Load(string path) => new((JsonObject)JsonNode.Parse(File.ReadAllText(path)));
     public string Json() => Root.ToJsonString(Opt);
     /// <summary>Zapis z kopią poprzedniej wersji: plik .bak oraz kopie z datą w katalogu „kopie” (ostatnie 30).</summary>
@@ -34,7 +38,7 @@ public partial class StationDoc
     }
 
     public static string BackupDir(string path) => Path.Combine(Path.GetDirectoryName(path) ?? ".", "kopie");
-    public Station Build() => Station.Parse(Json());
+    public Station Build() { Orient(); return Station.Parse(Json()); }
 
     /// <summary>Nowy, pusty obszar z jednym posterunkiem i jednym obrazem.</summary>
     public static StationDoc New(string post, string name)
@@ -290,15 +294,8 @@ public partial class StationDoc
         return id;
     }
 
-    /// <summary>Kierunek jazdy przy przejściu toru od węzła from (1 – wschód, -1 – zachód, 0 – nieokreślony tor pionowy).</summary>
-    public int EdgeDir(JsonObject e, string from)
-    {
-        string a = Sv(e["a"]), b = Sv(e["b"]), o = a == from ? b : a;
-        var dx = Pos(o).X - Pos(from).X;
-        if (Math.Abs(dx) >= 0.5) return Math.Sign(dx);
-        int d = e["dir"] == null ? 0 : (int)D(e["dir"]);
-        return a == from ? d : -d;
-    }
+    /// <summary>Kierunek jazdy torem od węzła from: +1 – zgodnie z A→B toru, −1 – przeciwnie (tory zorientowane spójnie – TrackOrientation).</summary>
+    public int EdgeDir(JsonObject e, string from) => Sv(e["a"]) == from ? 1 : -1;
 
     /// <summary>Tor, który staje się pionowy, zachowuje dotychczasowy kierunek jazdy (zapis „dir”).</summary>
     void KeepDir(JsonObject e, double oldAx, double oldBx)
@@ -847,8 +844,16 @@ public partial class StationDoc
         int tipSide = side.Count(x => x > 0) == 1 ? 1 : -1;
         var legs = ed.Where((e, i) => side[i] != tipSide).ToList(); if (legs.Count != 2) return null;
         var (x, y) = Pos(nid);
-        double Slope(JsonObject e) { var p = Pts(e); var q = Sv(e["a"]) == nid ? p[1] : p[^2]; var dx = Math.Abs(q.X - x); return dx < 0.01 ? 99 : Math.Abs(q.Y - y) / dx; }
-        return legs.OrderBy(Slope).Last();
+        // odchylenie od przedłużenia iglicy (jak Station.LegDev) – działa też na torach skośnych
+        var tip = ed.Where((e, i) => side[i] == tipSide).First(); var tp = Pts(tip); var tq = Sv(tip["a"]) == nid ? tp[1] : tp[^2];
+        double tx = x - tq.X, ty = y - tq.Y, tl = Math.Sqrt(tx * tx + ty * ty);
+        double Dev(JsonObject e)
+        {
+            var p = Pts(e); var q = Sv(e["a"]) == nid ? p[1] : p[^2]; double vx = q.X - x, vy = q.Y - y, vl = Math.Sqrt(vx * vx + vy * vy);
+            if (tl < 1e-9) { var dx = Math.Abs(vx); return dx < 0.01 ? 99 : Math.Abs(vy) / dx; }
+            return vl < 1e-9 ? 0 : Math.Acos(Math.Clamp((tx * vx + ty * vy) / (tl * vl), -1, 1));
+        }
+        return legs.OrderBy(Dev).Last();
     }
 
     /// <summary>
@@ -985,14 +990,15 @@ public partial class StationDoc
     public void AddBlock(string id, string boundary, string other, bool internalBlock, string nbr, string line, string tor, int defDir, bool sbl) =>
         AddBlock(id, boundary, other, internalBlock, nbr, line, tor, defDir, "sbl", sbl ? 3 : 1);
 
+    /// <summary>Kierunek (±1 wg A→B) wyjazdu od węzła boundary torem w stronę other (pierwszy tor łańcucha); 0 – brak połączenia.</summary>
+    public int OutwardDir(string boundary, string other) => Chain(boundary, other) is { Count: > 0 } ch ? EdgeDir(ch[0].E, boundary) : 0;
+
     public void AddBlock(string id, string boundary, string other, bool internalBlock, string nbr, string line, string tor, int defDir, string type, int odstepy = 1)
     {
         if (Blocks.ContainsKey(id)) throw new InvalidOperationException($"Szlak {id} już istnieje");
         var ch = Chain(boundary, other) ?? throw new InvalidOperationException("Brak toru łączącego wskazane węzły (szlak nie może przechodzić przez zwrotnice)");
         foreach (var (e, _, _) in ch) { e["szlak"] = true; e["sec"] = id + "-1"; e["track"] = ""; e["len"] = Math.Max(D(e["len"]), 300); }
-        var (bx, _) = Pos(boundary); var (ox, _) = Pos(other);
-        int outward = Math.Sign(ox - bx);
-        if (outward == 0) throw new InvalidOperationException("Granica i koniec szlaku nie mogą leżeć w jednej pionie");
+        int outward = EdgeDir(ch[0].E, boundary);           // kierunek wyjazdu wzdłuż toru (A→B), nie wg wschodu / zachodu
         string Entry(string n, int outw) => Signals.Where(s => Sv(s.Value["node"]) == n && (int)D(s.Value["dir"]) == -outw).Select(s => s.Key).FirstOrDefault() ?? "";
         var ends = new JsonArray(new JsonObject { ["boundary"] = boundary, ["outward"] = outward, ["entrySig"] = Entry(boundary, outward), ["post"] = Sv(Nodes[boundary]["post"]) });
         if (internalBlock)
@@ -1057,7 +1063,7 @@ public partial class StationDoc
         string ea = Sv(pa["entry"]), eb = Sv(pb["entry"]);
         Ports.Remove(a); Ports.Remove(b);
         AddLink(a, b, len);
-        var (fx, _) = Pos(ea); var (ox, _) = Pos(eb); int outward = Math.Sign(ox - fx);
+        int outward = OutwardDir(ea, eb); if (outward == 0) outward = 1;
         int defDir = ans.Length > 6 && ans[6].StartsWith("WYJAZD") ? outward : ans.Length > 6 && ans[6].StartsWith("PRZYJAZD") ? -outward : 0;
         var type = LcsWidzew.Model.BlockDef.Types.FirstOrDefault(t => t.Name == (ans.Length > 5 ? ans[5] : "")).Code ?? "sbl";
         int nod = ans.Length > 7 && int.TryParse(ans[7].Trim(), out var no) ? Math.Clamp(no, 1, 8) : 1;
@@ -1135,7 +1141,7 @@ public partial class StationDoc
         var ends = (JsonArray)b["ends"];
         string a = Sv(ends[0]["boundary"]);
         string z = b["far"] != null ? Sv(b["far"]) : Sv(ends[1]["boundary"]);
-        if (Pos(a).X > Pos(z).X) (a, z) = (z, a);
+        if (OutwardDir(a, z) < 0) (a, z) = (z, a);          // odstępy w kierunku A→B toru szlakowego
         var oldLabels = Signals.Where(x => Sv(x.Value["szlak"]) == id && Sv(x.Value["type"]) == "odstepowy").ToDictionary(x => x.Key, x => Sv(x.Value["label"]));
         foreach (var (k, v) in Signals.ToList()) if (Sv(v["szlak"]) == id && Sv(v["type"]) == "odstepowy") Signals.Remove(k);
         var ch = Chain(a, z) ?? throw new InvalidOperationException("Szlak " + id + " nie jest ciągłym torem");
@@ -1243,12 +1249,14 @@ public partial class StationDoc
         var w = new List<Problem>();
         void W(string msg, params string[] refs) => w.Add(new Problem(msg, refs.Where(r => !string.IsNullOrEmpty(r)).ToList()));
         var deg = Nodes.ToDictionary(n => n.Key, n => 0);
+        // orientacja torów: sprzeczności (trójkąt torowy, pętla) i zawrócenia w węźle
+        foreach (var n in (OrientResult ?? TrackOrientation.Apply(Root)).Conflicts) W($"Węzeł {n}: sprzeczny kierunek torów (trójkąt torowy albo pętla) – komputer zależności nie ustali kierunku jazdy przez ten węzeł", n);
+        foreach (var n in TrackOrientation.Reversals(Root)) W($"Węzeł {n}: tor zawraca w węźle (dwa tory pod ostrym kątem, odcinki leżą na sobie) – przejazdu przez ten węzeł nie ma; popraw rysunek", n);
         foreach (var e in EdgeObjs)
         {
             var a = Sv(e["a"]); var b = Sv(e["b"]); var eid = "edge:" + Sv(e["id"]);
             if (!Nodes.ContainsKey(a) || !Nodes.ContainsKey(b)) { W($"Krawędź {Sv(e["id"])}: nieistniejący węzeł"); continue; }
             deg[a]++; deg[b]++;
-            if (Math.Abs(Pos(a).X - Pos(b).X) < 0.5 && (e["dir"] == null || (int)D(e["dir"]) == 0)) W($"Tor pionowy {Sv(e["id"])} ({a}–{b}) bez kierunku jazdy – ustaw „dir” we właściwościach (1 – jazda od {a} do {b} na wschód, -1 – na zachód)", eid);
             if (string.IsNullOrEmpty(Sv(e["sec"]))) W($"Krawędź {Sv(e["id"])}: brak odcinka izolowanego", eid);
         }
         foreach (var (k, v) in Switches)

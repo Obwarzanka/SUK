@@ -79,6 +79,32 @@ public static class GeoPodklad
     }
     public static HttpClient Http => http;
 
+    public const string NmtService = "https://services.gugik.gov.pl/nmt/";
+    /// <summary>
+    /// Wysokości terenu [m n.p.m.] z numerycznego modelu terenu GUGiK (NMT z lotniczego skaningu laserowego, siatka ok. 1 m)
+    /// dla punktów PUWG 1992 (E, N). Paczki po 200 punktów (dłuższy adres – błąd 414), każda do 6 prób; NaN – brak danych.
+    /// </summary>
+    public static double[] Nmt(IReadOnlyList<(double E, double N)> pts, Action<string> progress)
+    {
+        var res = new double[pts.Count]; const int B = 200;
+        for (int i0 = 0; i0 < pts.Count; i0 += B)
+        {
+            int n = Math.Min(B, pts.Count - i0);
+            progress?.Invoke($"Pobieranie wysokości z NMT GUGiK: {i0 + n}/{pts.Count} punktów…");
+            var list = string.Join(",", Enumerable.Range(i0, n).Select(i => FormattableString.Invariant($"{pts[i].N:0.##} {pts[i].E:0.##}")));
+            var url = NmtService + "?request=GetHByPointList&list=" + Uri.EscapeDataString(list);
+            var txt = System.Text.Encoding.UTF8.GetString(Retry(() => GetFresh(url))).Trim();
+            var items = txt.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (items.Length != n) throw new InvalidOperationException("Usługa NMT GUGiK zwróciła nieoczekiwaną odpowiedź: " + (txt.Length > 120 ? txt[..120] + "…" : txt));
+            for (int k = 0; k < n; k++)
+            {
+                var f = items[k].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                res[i0 + k] = f.Length >= 3 && double.TryParse(f[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var h) && h > -100 && h < 3000 ? h : double.NaN;
+            }
+        }
+        return res;
+    }
+
     public record MosaicResult(string Dir, List<(int X, int Y)> Ok, List<string> Failed);
 
     /// <summary>

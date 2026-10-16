@@ -47,6 +47,17 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        if (A.Length > 1 && A[0] == "--trasy")
+        {
+            // diagnostyka: tablica przebiegów pliku – wczytany wprost, przez edytor (StationDoc), po edycji szlaku
+            string Dump(Model.Station s) => string.Join(Environment.NewLine, new Sim.Simulator(s).RouteTable.SelectMany(kv => kv.Value.Select(r => $"{kv.Key} {r.Id} [{r.SwText}]")).OrderBy(x => x));
+            File.WriteAllText(A[1] + ".a.txt", Dump(Model.Station.Load(StationPath)));
+            { var rj = (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(StationPath)); var rr = Model.TrackOrientation.Apply(rj); var r2 = Model.TrackOrientation.Apply(rj);
+              File.WriteAllText(A[1] + ".o.txt", $"migracja: odwrócone {rr.Flipped}, sprzeczne węzły {rr.Conflicts.Count}: {string.Join(" ", rr.Conflicts)} | normalizacja po migracji: odwrócone {r2.Flipped}, sprzeczne {r2.Conflicts.Count}: {string.Join(" ", r2.Conflicts)}"); }
+            var dd = Model.StationDoc.Load(StationPath); File.WriteAllText(A[1] + ".b.txt", Dump(dd.Build()));
+            if (A.Length > 2) { dd.SetOdstepy(A[2], 2); File.WriteAllText(A[1] + ".c.txt", Dump(dd.Build())); }
+            Shutdown(); return;
+        }
         if (A.Length > 0 && A[0] == "--edtest")
         {
             Sim.EditorTest.Run(A.Length > 1 ? A[1] : "edtest.txt");
@@ -88,6 +99,12 @@ public partial class App : Application
                 if (A.Length > 5 && A[2] == "kafelki") File.WriteAllText(shot + ".txt", ed.TilesForTest(A[3], A[4], A[5], A.Length > 6 ? A[6] : null));
                 if (A.Length > 4 && A[2] == "jakosc") File.WriteAllText(shot + ".txt", ed.QualityForTest(A[3], A[4]));
                 if (A.Length > 3 && A[2] == "luki") File.WriteAllText(shot + ".txt", ed.CurvesForTest(A[3]));
+                if (A.Length > 3 && A[2] == "testowo") File.WriteAllText(shot + ".txt", ed.TestowoForTest(A[3], A.Length > 4 ? double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture) : 4));
+                if (A.Length > 3 && A[2] == "mijanka") File.WriteAllText(shot + ".txt", ed.MijankaForTest(A[3], A.Length > 4 ? double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture) : 0));
+                if (A.Length > 3 && A[2] == "plantools") File.WriteAllText(shot + ".txt", ed.PlanToolsForTest(A[3]));
+                if (A.Length > 3 && A[2] == "pomiar") File.WriteAllText(shot + ".txt", ed.MeasureForTest(A[3]));
+                if (A.Length > 4 && A[2] == "ostrosc") File.WriteAllText(shot + ".txt", ed.DetailForTest(A[3], A[4]));
+                if (A.Length > 4 && A[2] == "profil") File.WriteAllText(shot + ".txt", ed.ProfileForTest(A[3], A[4]));
                 if (A.Length > 3 && A[2] == "bramka") File.WriteAllText(shot + ".txt", ed.GantryForTest(A[3]));
                 if (A.Length > 3 && A[2] == "skala") File.WriteAllText(shot + ".txt", ed.ScaleForTest(A[3], A.Length > 4 ? A[4] : null));
                 if (A.Length > 3 && A[2] == "deco") File.WriteAllText(shot + ".txt", ed.DecoForTest(A[3]));

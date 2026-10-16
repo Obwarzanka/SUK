@@ -190,8 +190,8 @@ public class PanelView : FrameworkElement
         {
             if (s.Type is "odstepowy" or "to" or "sp") continue;
             var n = L.Nodes[s.Node];
-            if (Math.Abs(w.X - (n.X - s.Dir * 4)) < 13 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);
-            if (s.Type == "wjazdowy" && Math.Abs(w.X - (n.X + s.Dir * 16)) < 8 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);   // trójkąt końca przebiegu wyjazdowego
+            if (Math.Abs(w.X - (n.X - s.VDir * 4)) < 13 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);
+            if (s.Type == "wjazdowy" && Math.Abs(w.X - (n.X + s.VDir * 16)) < 8 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);   // trójkąt końca przebiegu wyjazdowego
         }
         foreach (var sw in L.Switches.Values) { var n = L.Nodes[sw.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("sw", sw.Num); }
         foreach (var d in L.Derailers.Values) { var n = L.Nodes[d.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("der", d.Name); }
@@ -263,8 +263,8 @@ public class PanelView : FrameworkElement
     Vector BlockAxis(BlockDef b, int endIdx)
     {
         var en = b.Ends[endIdx]; var L = Lay; var n = L.Nodes[en.Boundary];
-        var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => b.SecsWE.Contains(x.Sec)) ?? n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => L.EdgeDir(x.Id, n.Id) == en.Outward);
-        return e != null ? Tangent(e, n.Id) : new Vector(en.Outward, 0);
+        var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => b.SecsWE.Contains(x.Sec)) ?? n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => L.GeoX(x.Id, n.Id) == en.VOut);
+        return e != null ? Tangent(e, n.Id) : new Vector(en.VOut, 0);
     }
 
     /// <summary>Szlak wewnętrzny z obu końcami na wyświetlanym obrazie – jeden symbol blokady w połowie szlaku.</summary>
@@ -321,6 +321,8 @@ public class PanelView : FrameworkElement
         else if (b.NoBlock) { arrowDir = 0; sa = sb = Dim; }
         else if (b.OneWay && bs.AzkUntil == null) { arrowDir = b.DefDir; if (sa == Grey) sa = sb = White; }
         if (bs.AwaitEnd != null) { sb = Red; if (!b.SecsWE.Any(S.SecOcc) && !BlinkOn) sb = Dim; if (sa == Grey || sa == White) sa = Red; }
+        // kierunek blokady (wg toru A→B) → zwrot strzałki na rysunku (oś u w prawo)
+        if (b.Ends.Count > 0) arrowDir *= b.Ends[0].VOut * b.Ends[0].Outward;
         Point P(double d) => mp + u * d;
         dc.DrawLine(new Pen(Bg, 9), P(-18), P(18));
         void Head(double at, int toward, Brush c)
@@ -637,7 +639,7 @@ public class PanelView : FrameworkElement
     /// </summary>
     void DrawPlan(DrawingContext dc, Station L, double dpi)
     {
-        var g = new Ig10(dc, 2.5, dpi); var ly = PlanLayers.Current;
+        var g = new Ig10(dc, 2.5 * L.SymbolScale, dpi, 0.9 / Math.Max(0.004, scale)); var ly = PlanLayers.Current;
         var grey = B(0x70, 0x70, 0x70);
         if (ly.Platforms) foreach (var p in L.Platforms) g.Platform(p);
         foreach (var e in L.Edges.Values)
@@ -646,10 +648,10 @@ public class PanelView : FrameworkElement
             g.Track(e, e.Pts.Select(q => new Point(q.X, q.Y)).ToList());
         }
         // łuki: promień (i przechyłka) przy torze
-        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => (x.Radius > 0 || x.Embank != 0) && !x.Link))
+        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => (x.Radius > 0 || x.Embank != 0 || !double.IsNaN(x.Grad)) && !x.Link))
         {
             var m = e.Pts[e.Pts.Count / 2]; var m0 = e.Pts.Count == 2 ? ((e.Pts[0].X + e.Pts[1].X) / 2, (e.Pts[0].Y + e.Pts[1].Y) / 2) : m;
-            var txt = string.Join(" ", new[] { e.Radius > 0 ? $"R={e.Radius:0}" : null, e.Cant > 0 ? $"h={e.Cant:0}" : null, e.Embank > 0 ? $"nasyp {e.Embank:0.#} m" : e.Embank < 0 ? $"przekop {-e.Embank:0.#} m" : null }.Where(x => x != null));
+            var txt = string.Join(" ", new[] { e.Radius > 0 ? $"R={e.Radius:0}" : null, e.Cant > 0 ? $"h={e.Cant:0}" : null, e.Embank > 0 ? $"nasyp {e.Embank:0.#} m" : e.Embank < 0 ? $"przekop {-e.Embank:0.#} m" : null, double.IsNaN(e.Grad) ? null : Math.Abs(e.Grad) < 0.05 ? "poziom" : $"i={e.Grad:0.#}‰" }.Where(x => x != null));
             Text(dc, txt, m0.Item1, m0.Item2 + 8, 6.5, grey, true, dpi, Mono);
         }
         // kontrola niezajętości: liczniki osi / złącza izolowane na granicach odcinków
@@ -680,7 +682,7 @@ public class PanelView : FrameworkElement
             if (ly.Texts && L.TrackEnds.TryGetValue(nid, out var te) && !string.IsNullOrEmpty(te.Disp)) g.Text(te.Disp, n.X, n.Y + 10, 1.8, grey);
         }
         if (ly.Texts) foreach (var b in L.Blocks.Values)
-            foreach (var en in b.Ends) { var n = L.Nodes[en.Boundary]; g.Text((en.Label ?? b.Id) + (b.Internal ? "" : " → " + b.Nbr), n.X + en.Outward * 40, n.Y - 12, 1.8, grey); }
+            foreach (var en in b.Ends) { var n = L.Nodes[en.Boundary]; g.Text((en.Label ?? b.Id) + (b.Internal ? "" : " → " + b.Nbr), n.X + en.VOut * 40, n.Y - 12, 1.8, grey); }
         if (ly.Texts) foreach (var l in L.Labels) g.Text(l.Text, l.X, l.Y, 1.8, grey, l.Anchor == "middle" ? 0 : l.Anchor == "end" ? 1 : -1);
         if (ly.Crossings) foreach (var c in L.Crossings) g.Crossing(c);
         // nazwy posterunków (Ig-10 zał. 1: pełne nazwy)
@@ -752,7 +754,7 @@ public class PanelView : FrameworkElement
         bool dup = ei == 1 && b.Ends.Count == 2 && (b.Ends[0].Label ?? b.Id) == name && (new Point(Lay.Nodes[b.Ends[0].Boundary].X, Lay.Nodes[b.Ends[0].Boundary].Y) - new Point(bn.X, bn.Y)).Length < 110;
         if (!dup) Text(dc, name, lp.X, lp.Y - 14, 10, SigName, true, dpi, Mono);
         // lampki TOR / STOP – małe, obok oznaczenia
-        double lx = lp.X + (outward > 0 ? 18 : -42);
+        double lx = lp.X + (en.VOut > 0 ? 18 : -42);
         if (FreeBar(b)) dc.DrawRectangle(Green, null, new Rect(lp.X - 6, lp.Y - 25, 12, 3));
         // oznaczenie szlaku (np. it1Z, 1ŁF) – nad torem szlakowym, za strzałką (szlak zewnętrzny, jak w SimRail)
         if (!b.Internal && b.SecsWE.Count == 1 && !string.IsNullOrEmpty(b.Label) && b.Label != name) { var ip = P(d1 + 26); Text(dc, b.Label, ip.X, ip.Y - 13, 8.5, SwLabel, true, dpi, Mono); }
@@ -843,7 +845,7 @@ public class PanelView : FrameworkElement
     void DrawSignal(DrawingContext dc, SignalDef s, double dpi)
     {
         var S = Ind; var st = S.Sigs[s.Name]; var n = Lay.Nodes[s.Node];
-        double d = s.Dir, cx = n.X, cy = n.Y, h = 6.2;
+        double d = s.VDir, cx = n.X, cy = n.Y, h = 6.2;     // zwrot na rysunku pulpitu (kierunek obowiązywania – s.Dir)
         if (s.Type == "odstepowy")
         {
             // szlak jak na pulpicie: odstępy rozdzielone przerwami, nad torem numer sygnalizatora odstępowego dla kierunku

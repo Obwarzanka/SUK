@@ -26,7 +26,7 @@ public class PlanLayers
         ("przejazdy", l => l.Crossings, (l, v) => l.Crossings = v),
         ("kozły, wykolejnice", l => l.Ends, (l, v) => l.Ends = v),
         ("napisy, szlaki, posterunki", l => l.Texts, (l, v) => l.Texts = v),
-        ("łuki (R, h), nasypy / przekopy", l => l.Radius, (l, v) => l.Radius = v),
+        ("łuki (R, h), nasypy / przekopy, pochylenia ‰", l => l.Radius, (l, v) => l.Radius = v),
     };
 }
 
@@ -147,14 +147,15 @@ public partial class EditorWindow
             // tylko widoczne kafelki, w rozdzielczości dopasowanej do przybliżenia (pamięć: kafelek 4096 px to 64 MB)
             var (x0, y0, _, _) = TileSpan(bg); int npx = (int)Num(bg["n"], 1024); double n = npx * t.S;
             var view = panel.ViewWorld; view.Inflate(view.Width * 0.15, view.Height * 0.15);
-            double onScreen = n * Math.Max(1, t.Sy) * scale; int want = 128; while (want < onScreen && want < npx) want *= 2; want = Math.Min(want, npx);
+            // piksele ekranu (fizyczne – także przy skalowaniu Windows 125 / 150 %) na kafelek
+            double onScreen = n * Math.Max(1, t.Sy) * scale * VisualTreeHelper.GetDpi(panel).DpiScaleX; int want = 128; while (want < onScreen && want < 8192) want *= 2;
             foreach (var (x, y) in Tiles(bg))
             {
                 double px = (x - x0) * npx, py = (y - y0) * npx;
                 var c = new[] { BgToWorld(t, new Point(px, py)), BgToWorld(t, new Point(px + npx, py)), BgToWorld(t, new Point(px, py + npx)), BgToWorld(t, new Point(px + npx, py + npx)) };
                 var bb = new Rect(new Point(c.Min(q => q.X), c.Min(q => q.Y)), new Point(c.Max(q => q.X), c.Max(q => q.Y)));
                 if (!bb.IntersectsWith(view)) continue;
-                if (TileImg(TileFile(bg, x, y), want) is { } ti) dc.DrawImage(ti, new Rect((x - x0) * n, (y - y0) * n, n, n));
+                if (TileBest(bg, x, y, want, npx) is { } ti) dc.DrawImage(ti, new Rect((x - x0) * n, (y - y0) * n, n, n));
             }
         }
         else if (BgImage(BgFile(bg)) is { } img) dc.DrawImage(img, new Rect(0, 0, img.PixelWidth * t.S, img.PixelHeight * t.S));
@@ -325,7 +326,9 @@ public partial class EditorWindow
         var bg = Bg;
         props.Children.Add(Btn("Kafelki ortofotomapy z mapki…", (a, e) => OpenTilePicker()));
         props.Children.Add(Btn("Dodaj podkład: obszar / Semaforek / plik…", (a, e) => BgNewDialog()));
+        GuidesPanel();
         if (bg == null) { PlanLayersPanel(); return; }
+        DetailPanel();
         // lista podkładów (od dołu): aktywny – do obracania, skalowania, przesuwania, usuwania
         var arr = Bgs;
         props.Children.Add(T($"Podkłady ({arr.Count}) – zaznaczony jest aktywny:", 10.5, Brushes.Gray));

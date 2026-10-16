@@ -102,7 +102,7 @@ public class KzWindow : DarkWindow
             case 4:
                 gBlk.ItemsSource = sim.L.Blocks.Values.Select(b => (b, s: sim.Blocks[b.Id])).Where(x => !only || x.s.Dir != x.b.DefDir || x.s.Req != null || x.s.Busy || x.s.AwaitEnd != null || x.b.SecsWE.Any(sim.SecOcc) || x.s.StopEnd.Any(v => v)).Select(x => new BlkRow
                 {
-                    Szlak = x.b.Id, Rodzaj = x.b.TypeShort, Kierunek = x.s.Dir == 0 ? "neutralny" : x.s.Dir > 0 ? "→ na wschód" : "← na zachód",
+                    Szlak = x.b.Id, Rodzaj = x.b.TypeShort, Kierunek = sim.DirText(x.b, x.s.Dir),
                     Zadanie = x.s.Req == null ? "" : $"żądanie od {(x.s.Req.EndIdx >= 0 && x.s.Req.EndIdx < x.b.Ends.Count ? sim.PostName(x.b.Ends[x.s.Req.EndIdx].Post) : "posterunku sąsiedniego")}, {sim.T - x.s.Req.At:0} s",
                     Odstepy = string.Join(" ", x.b.SecsWE.Select(sc => sim.SecOcc(sc) ? "■" : "□")),
                     Uwagi = string.Join(", ", new[] { x.s.ReleaseUntil != null ? $"zwalnianie {Secs(x.s.ReleaseUntil)}" : null, x.s.AzkUntil != null ? $"AZK {Secs(x.s.AzkUntil)}" : null, x.s.AwaitEnd != null ? "czeka na blok końcowy (Ko)" : null, x.s.Pwl.Any(v => v) ? "Pwl" : null, x.s.DPoCount + x.s.DKoCount > 0 ? $"liczniki dPo {x.s.DPoCount} / dKo {x.s.DKoCount}" : null, x.b.SemiAuto ? null : sim.KTor(x.b) ? "kTor" : null, x.s.StopEnd.Any(v => v) ? "wyjazd zamknięty" : null, x.s.NbrSilent ? "sąsiad nie odpowiada" : null }.Where(v => v != null))

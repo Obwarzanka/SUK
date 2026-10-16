@@ -102,6 +102,8 @@ Przycisk w lewym górnym rogu edytora przełącza tryb. Edytor otwiera się na z
   - **Napis (N), Peron (P), Przejazd (X)** – elementy pulpitu. Zobrazowanie i plan schematyczny mają osobne kopie: przesunięcie, dodanie albo usunięcie napisu na obrazie nie zmienia planu i odwrotnie. Przy pierwszym otwarciu zobrazowanie dostaje kopię obecnych.
 - **Plan schematyczny (układ torowy)** – cały węzeł na jednym arkuszu, znakami umownymi wg **Ig-10** (zał. 8): osie torów (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, semafory i tarcze z komorami, kozły, wykolejnice, liczniki osi / złącza izolowane, perony, przejazdy. Kategorię toru i sieć trakcyjną ustawiasz w panelu toru (cały tor: Shift+dwuklik, potem przyciski w panelu grupy), liczbę komór – w panelu sygnalizatora (`lamps`). Okno „Plan stacji” używa tych samych znaków.
   - **Skala planu (Ig-10 § 3)** (panel po prawej, gdy nic nie jest zaznaczone): 1:2000 wzdłuż / 1:500 w poprzek albo 1:4000 / 1:1000, a do rysowania po zdjęciach **skala rzeczywista** 1:2000 (albo 1:1000) w obu kierunkach – zdjęcie bez zniekształceń. Zmiana skali przeskalowuje rysunek, długości zostają. **„Długości torów z rysunku”** – długość toru wynika z rysunku (ile jednostek planu, tyle metrów wg skali; skos liczony z obu skal), bez wpisywania. Szlaki (rysowane w skróceniu), łączniki obrazów i tory z długością wpisaną ręcznie (wpisanie długości odcinka albo odznaczenie „Długość z rysunku” w panelu toru) – bez zmian. Bez tej opcji długości są danymi i przesuwanie węzłów ich nie zmienia. Siatka „Ig-10” = 10 m × 4,75 m; linijki, podpowiedź, rysowany tor i miarka pokazują metry.
+  - **Ostrzejszy podkład przy przybliżeniu** (panel planu, domyślnie włączone): oglądany z bliska kafelek mozaiki dociąga się w tle w wyższej rozdzielczości (ortofotomapa do 4096 px ≈ 0,18 m/px, Esri do 2048 px). Położenie i skala podkładu się nie zmieniają.
+  - **Profil wysokościowy** (panel toru: „Profil wysokościowy toru (NMT GUGiK)…” – ciąg toru do zwrotnic / końców; albo miarka + H): wysokości terenu z numerycznego modelu terenu GUGiK wzdłuż trasy leżącej na podkładzie z położeniem geograficznym, wykres, odcinki o stałym pochyleniu [‰] (tolerancja załomów, najkrótszy odcinek), tabela do Excela, „Zapisz pochylenia w torach” (warstwa planu „pochylenia ‰”, podpowiedź toru). To wysokość terenu, nie główki szyny; na wiaduktach NMT pokazuje dolinę.
   - **Przyciąganie do torów i węzłów**: przy rysowaniu znacznik pokazuje, gdzie trafi punkt – zielony kwadrat: węzeł, pomarańczowy krzyżyk: punkt na torze (tor zostanie tam podzielony).
   - **Rysowanie łukami**: w narzędziu Tor włącz „◠ łukiem” (klawisz C) i klikaj wzdłuż toru na zdjęciu – każdy odcinek to łuk styczny do poprzedniego.
   - **Odgałęzienie**: koniec toru przeciągnięty na środek innego toru (pomarańczowy krzyżyk) – połączenie w nowym węźle; potem wstaw zwrotnicę (Z).
@@ -141,7 +143,11 @@ Podział, scalenie i prostowanie toru na planie zmieniają też obraz. Nowe tory
 | Łącznik obrazów | – | logiczne połączenie końców torów na dwóch obrazach |
 | Szlak | – | szlak (blokada liniowa) od semafora wjazdowego |
 | Peron, Przejazd, Napis | P, X, N | perony, przejazdy (Y/T, kilometr w nazwie), napisy |
-| Miarka | M | odległość na obrazie i długość po torach [m] |
+| Miarka | M | łamana: klikaj punkty (albo przeciągnij) – długość odcinków i suma [m], kąt i pochylenie 1:n, droga po torach (także od środka toru), promień przez 3 ostatnie punkty; dwuklik / Enter / PPM – koniec, Backspace – cofnij punkt, Esc – wyczyść, **H – profil wysokościowy** wzdłuż pomiaru |
+| Semafor (plan) | S | klik na torze w miejscu sygnalizatora, klik po stronie toru, po której stoi – obowiązuje dla jazdy, przy której jest po prawej (Ctrl – po lewej); kierunek względem toru A→B, nie wschód / zachód |
+| Peron (plan) | P | klik – początek krawędzi peronu, klik – koniec wzdłuż toru (także skośnego), klik – szerokość; na zobrazowaniu – przeciągnij prostokąt |
+| Rozjazd (plan) | R | klik na torze (zwrotnica), klik na drugim torze – prosty łącznik ze zwrotnicami, albo w wolnym miejscu / na końcu toru – odgałęzienie; kąt dowolny jak na zdjęciu (na zobrazowaniu – kształt pulpitu) |
+| Prowadnice | – | przeciągnij z linijki u góry (pozioma) albo z lewej (pionowa); łapią się wysokości / osi węzłów, przyciągają punkty (Alt – nie), odstępy między nimi w metrach; przeciągnij na linijkę albo PPM – usuń |
 
 ### PK – punkt końcowy przebiegu
 Mały trójkąt w osi toru, w którym kończy się przebieg, gdy nie ma tam sygnalizatora. Stosuje się go np. przy bliskich posterunkach bez blokady.
@@ -290,3 +296,8 @@ Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
 | `LcsWidzew.exe --screenshot zrzut.png 2 "#page=1" "E S1 Pociąg"` | zrzut pulpitu po poleceniach (`#page=N`, `#overview`, `@t`) |
 
 Opcja `--station plik.json` wczytuje inny układ, np. kopię z `Data/kopie/`.
+
+
+## Stacja testowa
+
+`Data/projekty/stacja_testowa.json` („Testowo”, wybór przy uruchomieniu): tor zasadniczy ze szlakami 1Z (SBL dwukierunkowa, 3 odstępy) i 1W (PBL dwukierunkowa), tory 2 i 3, bocznica 4 (kozioł, wykolejnica Wk1, tarcza Tm1), 5 rozjazdów, semafory A, B, D1–D3, F1–F3, perony, przejazd; plan schematyczny (lekko skośny, skala rzeczywista) i osobne zobrazowanie pulpitu. Odtworzenie: `LcsWidzew.exe --editshot p.png testowo out.json`.

@@ -75,7 +75,7 @@ public partial class Simulator
     }
 
     /// <summary>
-    /// Koniec szlaku, którego dotyczy polecenie: drugi adres może wskazać kierunek wyjazdu (E / → – na wschód, W / Z / ← – na zachód)
+    /// Koniec szlaku, którego dotyczy polecenie: drugi adres może wskazać kierunek wyjazdu na obrazie pulpitu (E / → – w prawo, W / Z / ← – w lewo)
     /// albo posterunek (np. LF, LN); bez niego – koniec po stronie wyświetlanego obrazu.
     /// </summary>
     int EndFor(BlockDef b, List<string> args)
@@ -86,7 +86,12 @@ public partial class Simulator
         {
             var f = Fold(t);
             int dir = f is "E" or "WSCH" or "WSCHOD" or "→" or ">" or "->" ? 1 : f is "W" or "Z" or "ZACH" or "ZACHOD" or "←" or "<" or "<-" ? -1 : 0;
-            if (dir != 0) { var i = EndIdxForDir(b, dir); if (i >= 0) return i; }
+            if (dir != 0)
+            {
+                // w prawo / w lewo na obrazie pulpitu (zwrot końca szlaku na rysunku, nie kierunek toru A→B)
+                var vb = L.View.Blocks.GetValueOrDefault(b.Id) ?? b;
+                for (int i = 0; i < b.Ends.Count && i < vb.Ends.Count; i++) if (vb.Ends[i].VOut == dir) return i;
+            }
             for (int i = 0; i < b.Ends.Count; i++) if (Fold(b.Ends[i].Post ?? "") == f) return i;
         }
         // stanowisko steruje tylko jednym końcem – ten koniec

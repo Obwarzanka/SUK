@@ -141,7 +141,7 @@ public class PlanLiveView : FrameworkElement
         double px = 1 / Math.Max(0.05, scale);   // 1 piksel ekranu w jednostkach planu
         var ink = Brushes.Black;
         // znaki umowne Ig-10 (zał. 8); u – mm arkusza w jednostkach planu: przy powiększeniu stała wielkość na ekranie
-        var g = new Ig10(dc, Math.Min(2.5, 3 * px), VisualTreeHelper.GetDpi(this).PixelsPerDip); var ly = PlanLayers.Current;
+        var g = new Ig10(dc, Math.Min(2.5 * L.SymbolScale, 3 * px), VisualTreeHelper.GetDpi(this).PixelsPerDip); var ly = PlanLayers.Current;
         if (ly.Platforms) foreach (var p in L.Platforms) g.Platform(p);
         // tory: nieczynne odgałęzienie zwrotnicy – szare, z przerwą przy zwrotnicy
         var dead = new HashSet<string>();

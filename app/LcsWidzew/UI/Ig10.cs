@@ -13,19 +13,20 @@ namespace LcsWidzew.UI;
 public sealed class Ig10
 {
     readonly DrawingContext dc;
-    readonly double u, dip;
+    readonly double u, dip, minW;
     static readonly Typeface Font = new("Arial");
 
     static Brush Fz(byte r, byte g, byte b) { var x = new SolidColorBrush(Color.FromRgb(r, g, b)); x.Freeze(); return x; }
     public static readonly Brush Ink = Brushes.Black, Elec = Fz(0x00, 0x40, 0xd0), Grey = Fz(0x80, 0x80, 0x80), Paper = Brushes.White;
 
-    public Ig10(DrawingContext dc, double u, double pixelsPerDip) { this.dc = dc; this.u = u; dip = pixelsPerDip; }
+    /// <param name="minW">najmniejsza grubość linii w jednostkach planu (np. 1 piksel ekranu) – cienkie linie przy małych znakach nie znikają</param>
+    public Ig10(DrawingContext dc, double u, double pixelsPerDip, double minW = 0.05) { this.dc = dc; this.u = u; dip = pixelsPerDip; this.minW = minW; }
 
     Pen P(double mm, Brush b = null, double[] dash = null)
     {
-        var p = new Pen(b ?? Ink, Math.Max(0.05, mm * u)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat, LineJoin = PenLineJoin.Round };
+        var p = new Pen(b ?? Ink, Math.Max(minW, mm * u)) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat, LineJoin = PenLineJoin.Round };
         // długości kresek w mm → w jednostkach grubości pióra (WPF)
-        if (dash != null) p.DashStyle = new DashStyle(dash.Select(d => d / Math.Max(0.05, mm)), 0);
+        if (dash != null) p.DashStyle = new DashStyle(dash.Select(d => d * u / Math.Max(minW, mm * u)), 0);
         return p;
     }
     static Vector Unit(Vector v) => v.Length < 1e-9 ? new Vector(1, 0) : v / v.Length;
@@ -173,8 +174,10 @@ public sealed class Ig10
     /// <summary>Peron: obrys 0,18 mm (krawędzie wzdłuż torów), opis 1,8 mm.</summary>
     public void Platform(PlatformDef p, Brush color = null)
     {
+        if (p.Rot != 0) dc.PushTransform(new RotateTransform(p.Rot, p.X, p.Y));
         dc.DrawRectangle(Paper, P(0.18, color), new Rect(p.X, p.Y, p.W, p.H));
         Text(p.Name, p.X + p.W / 2, p.Y + p.H / 2, 1.8, color);
+        if (p.Rot != 0) dc.Pop();
     }
 
     /// <summary>Przejazd kolejowo-drogowy w poziomie szyn: krawędzie drogi przerywane (kreska 2, odstęp 1) z zakończeniami, kilometr / opis.</summary>
@@ -213,10 +216,34 @@ public sealed class Ig10
     public void Signal(Station L, SignalDef s, Brush[] lit = null, Brush color = null)
     {
         if (s.Type == "pk") return;   // PK – punkt końcowy przebiegu istnieje tylko na pulpicie
+        SignalCore(L, s, lit, color);
+    }
+
+    /// <summary>
+    /// Kierunek jazdy przy sygnalizatorze na rysunku planu (wektor jednostkowy): wzdłuż toru przed sygnalizatorem (s.Ahead),
+    /// a gdy go brak – wzdłuż toru dojazdowego. Działa na torach skośnych, pionowych i w łukach.
+    /// </summary>
+    public static Vector TravelDir(Station L, SignalDef s)
+    {
+        var n = L.Nodes[s.Node];
+        Vector T(string eid, bool from)
+        {
+            var e = L.Edges[eid]; var p = e.Pts.Select(q => new Point(q.X, q.Y)).ToList(); if (e.A != n.Id) p.Reverse();
+            for (int i = 1; i < p.Count; i++) { var v = p[i] - p[0]; if (v.Length > 1e-6) { v.Normalize(); return from ? v : -v; } }
+            return new Vector(0, 0);
+        }
+        if (s.Ahead != null && L.Edges.ContainsKey(s.Ahead)) { var v = T(s.Ahead, true); if (v.Length > 0) return v; }
+        if (s.Approach != null && L.Edges.ContainsKey(s.Approach)) { var v = T(s.Approach, false); if (v.Length > 0) return v; }
+        return new Vector(s.Dir >= 0 ? 1 : -1, 0);
+    }
+
+    void SignalCore(Station L, SignalDef s, Brush[] lit, Brush color)
+    {
         var ink = color ?? Ink;
         var n = L.Nodes[s.Node]; var o = new Point(n.X, n.Y);
-        double dir = s.Dir >= 0 ? 1 : -1;
-        var along = new Vector(dir, 0); var right = new Vector(0, dir);   // oś Y w dół: na wschód – prawa strona to dół
+        // wzdłuż toru w kierunku jazdy; prawa strona (oś Y w dół) – obrót o +90°; „L” – sygnalizator po lewej stronie toru
+        var along = TravelDir(L, s); var right = new Vector(-along.Y, along.X); if (s.Side == "L") right = -right;
+        double dir = along.X >= 0 ? 1 : -1;
         int k = s.LampCount; double r = 1 * u;
         void Lamps(Point c0)
         {
@@ -243,7 +270,7 @@ public sealed class Ig10
         }
         var bse = o + right * 3 * u;
         dc.DrawLine(P(0.18, ink), o, bse);
-        dc.DrawLine(P(0.18, ink), bse - along * 0.0 + new Vector(0, -1) * 1 * u, bse + new Vector(0, 1) * 1 * u);
+        dc.DrawLine(P(0.18, ink), bse - right * 1 * u, bse + right * 1 * u);
         if (s.Mount == "karzel") Lamps(bse);                                   // 9.8.5 – karzełkowy: komory przy podstawie
         else if (s.Mount == "wysiegnik")
         {

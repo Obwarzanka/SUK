@@ -79,6 +79,7 @@ public partial class EditorWindow
         foreach (var b in toolButtons) b.Visibility = dispMode && !toolBtns.Any(x => x.Value == b && (x.Key == Tool.Select || DecoTool(x.Key))) ? Visibility.Collapsed : Visibility.Visible;
         planBtn.Visibility = dispMode ? Visibility.Collapsed : Visibility.Visible;
         autoBtn.Visibility = planBtn.Visibility;
+        ApplyModeToolbars();
         ShowProps();
         panel.InvalidateVisual();
     }
