@@ -151,6 +151,7 @@ public partial class MainWindow
                 info.Add($"Brakuje {miss} kafelków");
                 BgDetails.Children.Add(SmallBtn("Dopobierz brakujące", () => _ = Refill(id), "Pobierz kafelki, których nie udało się pobrać"));
             }
+            BgDetails.Children.Add(SmallBtn("Napraw puste kafelki", () => _ = RepairBlank(id), "Znajdź kafelki bez zdjęcia (Geoportal czasem zwraca pusty biały obraz) i pobierz je jeszcze raz"));
         }
         else if (b.Tiles.Count > 0)
         {
@@ -343,6 +344,29 @@ public partial class MainWindow
         var b = Doc.P.Backgrounds.FirstOrDefault(x => x.Id == id);
         if (b?.Grid is UtGrid g && g.IsGlobal) return DownloadCells(g.Mpp, Missing(b));
         return Downloading.IsCompleted ? Downloading = RefillLocal(id) : Downloading;
+    }
+
+    /// <summary>Kafelki bez treści (pusty obraz z Geoportalu): pliki usunięte, kafelki zdjęte z warstwy (zostają zamówione) i pobrane ponownie.</summary>
+    public async Task<int> RepairBlank(string id)
+    {
+        var b = Doc.P.Backgrounds.FirstOrDefault(x => x.Id == id); if (b == null) return 0;
+        if (!Downloading.IsCompleted) { Message("Trwa pobieranie – poczekaj albo przerwij"); return 0; }
+        Message($"Sprawdzanie {b.Tiles.Count} kafelków…");
+        var files = b.Tiles.Select(t => (t.Row, t.Col, Full: Doc.Resolve(t.File))).ToList();
+        var blank = await Task.Run(() => files.Where(f => Pobieranie.IsBlankFile(f.Full)).ToList());
+        if (blank.Count == 0) { Message($"Wszystkie {files.Count} kafelki mają zdjęcie"); return 0; }
+        foreach (var f in blank) { try { File.Delete(f.Full); } catch { } View.Cache.Forget(f.Full); }
+        var set = blank.Select(f => (f.Row, f.Col)).ToHashSet();
+        Doc.Change("Usunięcie pustych kafelków", p =>
+        {
+            var x = p.Backgrounds.First(q => q.Id == id);
+            if (x.Grid?.IsGlobal == true) { x.Wanted ??= new(); foreach (var (r, c) in set) if (!x.Wanted.Contains(new UtCell(r, c))) x.Wanted.Add(new UtCell(r, c)); }
+            x.Tiles.RemoveAll(t => set.Contains((t.Row, t.Col)));
+        });
+        TilesChanged?.Invoke();
+        Message($"Pustych kafelków: {blank.Count} – pobieranie od nowa…");
+        await Refill(id);
+        return blank.Count;
     }
 
     async Task RefillLocal(string id)

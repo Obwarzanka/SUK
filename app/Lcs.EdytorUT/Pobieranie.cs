@@ -61,6 +61,21 @@ public static class Pobieranie
         return bi;
     }
 
+    /// <summary>
+    /// Obraz bez treści – jednolity (Geoportal czasem zwraca „200 OK” z pustym białym obrazem 115 315 B zamiast zdjęcia,
+    /// ok. 1 na 6 zapytań z wadliwego serwera; sprawdzone 2026-10-16). Miniatura 64 px: rozpiętość jasności &lt; 6.
+    /// </summary>
+    public static bool IsBlank(BitmapSource img)
+    {
+        var f = new FormatConvertedBitmap(img, PixelFormats.Gray8, null, 0);
+        int w = f.PixelWidth, h = f.PixelHeight; var px = new byte[w * h];
+        f.CopyPixels(px, w, 0);
+        byte mn = 255, mx = 0; foreach (var b in px) { if (b < mn) mn = b; if (b > mx) mx = b; }
+        return mx - mn < 6;
+    }
+    public static bool IsBlank(byte[] data) => IsBlank(Decode(data, 64));
+    public static bool IsBlankFile(string file) { try { return IsBlank(File.ReadAllBytes(file)); } catch { return true; } }
+
     public static string WmsUrl(string svc, double minX, double minY, double maxX, double maxY, int w, int h) =>
         FormattableString.Invariant($"{svc}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:2180&BBOX={minX:0.###},{minY:0.###},{maxX:0.###},{maxY:0.###}&WIDTH={w}&HEIGHT={h}&FORMAT=image/jpeg");
 
@@ -82,6 +97,8 @@ public static class Pobieranie
                     try { img = Decode(data); }
                     catch { last = new InvalidOperationException("Geoportal nie zwrócił obrazu (poza zasięgiem albo przeciążony)"); continue; }
                     if (img.PixelWidth != w || img.PixelHeight != h) { last = new InvalidOperationException($"Geoportal zwrócił {img.PixelWidth}×{img.PixelHeight} px zamiast {w}×{h}"); continue; }
+                    // pusty obraz z wadliwego serwera – nowa próba nowym połączeniem
+                    if (IsBlank(data)) { last = new InvalidOperationException("Geoportal zwrócił pusty obraz"); break; }
                     return data;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException) { last = ex; break; }   // błąd połączenia – nowa próba od początku
@@ -109,6 +126,7 @@ public static class Pobieranie
             var (r, c) = cell; var file = Path.Combine(dir, $"r{r}_c{c}.jpg");
             try
             {
+                if (File.Exists(file) && IsBlankFile(file)) File.Delete(file);   // pusty kafelek z wcześniejszego pobrania
                 if (!File.Exists(file))
                 {
                     var (minX, minY, maxX, maxY) = g.TileBox(r, c);

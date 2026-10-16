@@ -59,6 +59,14 @@ public static partial class Test
     static Button BtnIn(Panel p, string text) => Find<Button>(p, b => b.Content as string == text);
     static ToggleButton ToggleIn(Panel p, string text) => Find<ToggleButton>(p, b => b.Content as string == text && b is not CheckBox);
 
+    static void WhiteJpeg(string file, int n)
+    {
+        var px = new byte[n * n]; Array.Fill(px, (byte)255);
+        var bs = BitmapSource.Create(n, n, 96, 96, PixelFormats.Gray8, null, px, n);
+        var enc = new JpegBitmapEncoder { QualityLevel = 90 }; enc.Frames.Add(BitmapFrame.Create(bs));
+        using var f = File.Create(file); enc.Save(f);
+    }
+
     /// <summary>Obraz testowy z punktami charakterystycznymi (krzyże w znanych pikselach).</summary>
     static void MakeImage(string file, int w, int h)
     {
@@ -142,7 +150,7 @@ public static partial class Test
             Ok(ty0 <= Math.Min(wa.Y, wb.Y) && ty1 >= Math.Max(wa.Y, wb.Y) && tx1 >= Math.Max(wa.X, wb.X) && tx0 <= Math.Min(wa.X, wb.X), "kafelki pokrywają zaznaczony prostokąt");
             Ok(orto.Name == "Ortofotomapa 10 cm" && orto.Tiles.All(t => t.File.StartsWith("podklady/orto_10cm/")), "jedna warstwa „Ortofotomapa 10 cm”, pliki w podklady/orto_10cm");
             Ok(orto.Tiles.All(t => File.Exists(d.Resolve(t.File)) && !Path.IsPathRooted(t.File) && t.File.StartsWith("podklady/")), "pliki kafelków obok projektu, ścieżki względne (podklady/…)");
-            Ok(orto.Tiles.All(t => { var bi = BitmapDecoder.Create(new Uri(d.Resolve(t.File)), BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).Frames[0]; return bi.PixelWidth == 2048 && bi.PixelHeight == 2048; }), "kafelki mają 2048 × 2048 px");
+            Ok(orto.Tiles.All(t => { using var fs = File.OpenRead(d.Resolve(t.File)); var bi = BitmapDecoder.Create(fs, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).Frames[0]; return bi.PixelWidth == 2048 && bi.PixelHeight == 2048; }), "kafelki mają 2048 × 2048 px");
             var t00 = orto.Tiles[0];
             var t01 = orto.Tiles.FirstOrDefault(t => t.Row == t00.Row && t.Col == t00.Col + 1);
             var t10 = orto.Tiles.FirstOrDefault(t => t.Row == t00.Row + 1 && t.Col == t00.Col);
@@ -157,6 +165,15 @@ public static partial class Test
             w.DoUndo(); Ok(d.P.Backgrounds.Count == 0 && w.BgList.Items.Count == 0, "Ctrl+Z: ortofotomapa zdjęta z projektu");
             w.DoRedo(); Ok(d.P.Backgrounds.Count == 1, "Ctrl+Y: wróciła");
             orto = d.P.Backgrounds[0];
+            // pusty biały obraz z Geoportalu (zdarza się ok. 1 na 6 zapytań) – wykrycie i naprawa
+            Ok(d.P.Backgrounds[0].Tiles.All(t => !Pobieranie.IsBlankFile(d.Resolve(t.File))), "pobrane kafelki nie są puste (sprawdzane przy pobieraniu)");
+            var victim = d.P.Backgrounds[0].Tiles[1]; var vfile = d.Resolve(victim.File);
+            WhiteJpeg(vfile, 2048);
+            Ok(Pobieranie.IsBlankFile(vfile), "pusty biały kafelek rozpoznany");
+            int fixedN = await w.RepairBlank(d.P.Backgrounds[0].Id);
+            var mosR = d.P.Backgrounds[0];
+            Ok(fixedN == 1 && mosR.Tiles.Count == before2 && mosR.Tiles.Any(t => t.Row == victim.Row && t.Col == victim.Col) && !Pobieranie.IsBlankFile(vfile), "„Napraw puste kafelki” – 1 znaleziony i pobrany od nowa");
+            Ok(await w.RepairBlank(mosR.Id) == 0, "drugi raz – nic do naprawy");
         }
 
         // --- miarka

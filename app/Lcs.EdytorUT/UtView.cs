@@ -317,6 +317,20 @@ public class UtView : FrameworkElement
         if (bg == null || bg.Tiles.Count == 0) return;
         if (bgDragFrom != null) dc.PushTransform(new TranslateTransform(bgOffsetPx.X, bgOffsetPx.Y));
         if (bg.Grid is UtGrid g && !g.IsGlobal) dc.DrawGeometry(null, SelPen, Quad(Affine.NorthUp(g.X0, g.Y0, g.Mpp), g.Cols * g.TileSize, g.Rows * g.TileSize));
+        else if (bg.Grid is UtGrid gg)
+        {
+            // mozaika: tylko obwód (krawędzie kafelków bez sąsiada), bez kresek między kafelkami
+            var have = bg.Tiles.Select(t => (t.Row, t.Col)).ToHashSet();
+            foreach (var t in bg.Tiles)
+            {
+                Point P(double c, double r) => ToScreen(t.Geo.World(c, r));
+                int n = t.W;
+                if (!have.Contains((t.Row - 1, t.Col))) dc.DrawLine(SelPen, P(0, 0), P(n, 0));
+                if (!have.Contains((t.Row + 1, t.Col))) dc.DrawLine(SelPen, P(0, n), P(n, n));
+                if (!have.Contains((t.Row, t.Col - 1))) dc.DrawLine(SelPen, P(0, 0), P(0, n));
+                if (!have.Contains((t.Row, t.Col + 1))) dc.DrawLine(SelPen, P(n, 0), P(n, n));
+            }
+        }
         else foreach (var t in bg.Tiles) dc.DrawGeometry(null, SelPen, Quad(t.Geo, t.W, t.H));
         if (bgDragFrom != null) dc.Pop();
     }

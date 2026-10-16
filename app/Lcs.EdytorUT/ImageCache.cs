@@ -51,7 +51,8 @@ public class ImageCache
             {
                 if (!File.Exists(file)) return null;
                 var bi = new BitmapImage();
-                bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.UriSource = new Uri(file);
+                // z pamięci – plik nie zostaje otwarty (można go usunąć albo nadpisać, np. przy naprawie pustych kafelków)
+                bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = new MemoryStream(File.ReadAllBytes(file));
                 bi.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
                 if (level > 0) bi.DecodePixelWidth = Math.Max(1, fullWidth >> level);
                 bi.EndInit(); bi.Freeze();

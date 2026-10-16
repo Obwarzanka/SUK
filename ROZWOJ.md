@@ -135,6 +135,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 - Przerwane pobieranie zachowuje pobrane kafelki w projekcie (`GridResult.Cancelled`).
 - Test `--test`: 111 sprawdzeń, **0 błędów** (m.in. malowanie 3 kafelków z pominięciem pobranych, odznaczanie, PPM przesuwa, szybkie przeciągnięcie przez 6 kafelków, osobne zaznaczenie dla rozdzielczości, „Pobierz zaznaczone” dokłada do tej samej mozaiki, ten sam obszar drugi raz – bez dubli, Ctrl+Z). Zrzut: `zrzuty/EdytorUT_mapka_kafelkow.png`.
 
+**POPRAWIONE 2026-10-16: puste białe kafelki ortofotomapy** (zgłoszenie właściciela ze zrzutem: część pobranych kafelków biała). Przyczyna: Geoportal czasem zwraca „200 OK” z pustym białym obrazem (zawsze 115 315 B) zamiast zdjęcia – w próbie 6 zapytań o ten sam kafelek 1 pusty (u właściciela 9 z 44). Teraz: `Pobieranie.IsBlank` (miniatura 64 px, rozpiętość jasności < 6) – pusty obraz to nieudana próba (nowe połączenie, do 6 prób); plik pusty z wcześniejszego pobrania jest pobierany od nowa. Przycisk warstwy „Napraw puste kafelki” (sprawdza pliki, usuwa puste, dopobiera). `ImageCache` czyta pliki do pamięci (plik nie zostaje otwarty). Zaznaczona mozaika – ramka tylko po obwodzie. Test: 115 sprawdzeń, 0 błędów (m.in. podmieniony biały kafelek wykryty i pobrany od nowa).
+
 **Następny krok:** etap 3 – tory (prosta, łuk, parabola 3°; długości w terenie z `GroundDistance`).
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
