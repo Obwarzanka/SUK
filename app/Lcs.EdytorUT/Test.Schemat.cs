@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Lcs.Model;
 
@@ -201,8 +202,26 @@ public static partial class Test
         w.SetTool(UtTool.Wskaz); w.View.SelectDevice(dA.Id);
         Type(Find<TextBox>(w.TrackPanel, _ => true), "A1");
         Ok(d.P.Devices.First(x => x.Id == dA.Id).Name == "A1" && Find<TextBlock>(w.TrackPanel, x => x.Text == "Semafor świetlny A1") != null, "panel urządzenia: nazwa A → A1");
-        Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 5).SelectedItem = "4";
-        Ok(d.P.Devices.First(x => x.Id == dA.Id).Heads == 4, "semafor A1: 4 komory");
+        UtDevice DA() => d.P.Devices.First(x => x.Id == dA.Id);
+        Ok(DA().LightsOrDefault == "PCZ" && DA().LitOrDefault == 'C', "semafor domyślnie 3 komory P C Z, świeci czerwona");
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets[2].Name;
+        Ok(DA().Lights == "B*PCZ*" && DA().Heads == 4 && DA().MastOrDefault == UtDevice.MastProsty, "układ gotowy: semafor 4-komorowy z manewrową (B* P C Z*)");
+        var colorBoxes = new List<ComboBox>(); void CollectCb(DependencyObject x) { if (x is ComboBox cb && cb.Items.Contains("niebieska") && cb.Items.Count == 5) colorBoxes.Add(cb); foreach (var ch in LogicalTreeHelper.GetChildren(x).OfType<DependencyObject>()) CollectCb(ch); }
+        CollectCb(w.TrackPanel);
+        Ok(colorBoxes.Count == 4 && colorBoxes[2].SelectedItem as string == "czerwona", "panel: 4 wiersze komór, trzecia czerwona");
+        colorBoxes[0].SelectedItem = "pomarańczowa";
+        Ok(DA().Lights == "P*PCZ*", "zmiana koloru pierwszej komory na pomarańczową");
+        Click(BtnIn(w.TrackPanel, "+ komora"));
+        Ok(DA().Lights == "P*PCZ*B" && DA().Heads == 5, "+ komora – piąta (biała)");
+        var lt = Find<TextBox>(w.TrackPanel, x => x.Text == "P*PCZ*B"); lt.Text = "bpcp*z*"; Enter(lt);
+        Ok(DA().Lights == "BPCP*Z*", "komory tekstem: BPCP*Z* (5 komór, dwie pulsujące)");
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("z wysięgnikiem")).SelectedItem = "z wysięgnikiem";
+        var w24 = Find<CheckBox>(w.TrackPanel, c => c.Content as string == "W24"); w24.IsChecked = true; w24.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        var w21 = Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Cyfra wskaźnika W21") == true); w21.Text = "5"; Enter(w21);
+        Ok(DA().MastOrDefault == UtDevice.MastWysiegnik && DA().W24 && DA().W21 == "5", "maszt z wysięgnikiem, W24, W21 „5”");
+        w.View.SelectDevice(dTm.Id);
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets[6].Name;
+        Ok(d.P.Devices.First(x => x.Id == dTm.Id).MastOrDefault == UtDevice.MastKarzel && d.P.Devices.First(x => x.Id == dTm.Id).LitOrDefault == 'N', "Tm1: tarcza manewrowa karzełkowa (B N, świeci niebieska)");
         w.View.SelectDevice(dB.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "A1");
         Ok(d.P.Devices.First(x => x.Id == dB.Id).Name == "B" && w.LastMessage.Contains("zajęta"), "zajęta nazwa – odmowa");
         // przeciąganie, strzałki, menu, Del
@@ -223,6 +242,8 @@ public static partial class Test
             w.View.Select(null);
             w.View.FitPoints(new[] { r1.At(100).P, r1.At(560).P, r2.At(100).P, r2.At(560).P });
             await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_urzadzenia.png"));
+            w.View.SelectDevice(dA.Id); var pa1 = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dA.Id)).Value.P; Look(Go(pa1, lineAz, 12), 0.12);
+            await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_semafor.png")); w.View.Select(null);
         }
 
         // --- przesuwanie myszą i klawiaturą

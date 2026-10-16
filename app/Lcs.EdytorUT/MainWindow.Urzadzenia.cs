@@ -115,24 +115,100 @@ public partial class MainWindow
         row.Children.Add(SmallBtn("Zmień stronę", () => ChDevice(d.Id, "Strona urządzenia", x => x.Side = -x.Side), "Urządzenie po drugiej stronie toru"));
         if (d.Directed) row.Children.Add(SmallBtn("Odwróć kierunek", () => ChDevice(d.Id, "Kierunek urządzenia", x => x.Dir = -x.Dir), "Dla jazdy w drugą stronę"));
         P.Children.Add(row);
-        if (d.Kind == UtDevice.Semafor)
-        {
-            P.Children.Add(Label("Liczba komór"));
-            var hb = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
-            for (int i = 2; i <= 6; i++) hb.Items.Add(i.ToString());
-            hb.SelectedItem = d.Heads.ToString();
-            hb.SelectionChanged += (s, e) => { if (hb.SelectedItem is string h) ChDevice(d.Id, "Komory semafora", x => x.Heads = int.Parse(h)); };
-            P.Children.Add(hb);
-        }
-        if (d.Kind == UtDevice.TarczaMan)
-        {
-            var dw = new CheckBox { Content = "karzełkowa (bez masztu)", IsChecked = d.Dwarf, Margin = new Thickness(0, 0, 0, 6) };
-            dw.Click += (s, e) => ChDevice(d.Id, "Tarcza karzełkowa", x => x.Dwarf = dw.IsChecked == true);
-            P.Children.Add(dw);
-        }
+        if (d.Kind is UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan) BuildSignalConfig(P, d);
         foreach (var n in Urzadzenia.Check(Doc.P, d))
             P.Children.Add(new TextBlock { Text = n, Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         P.Children.Add(SmallBtn("Usuń", () => { View.SelectDevice(d.Id); DeleteDevice(); }, "Usuń urządzenie (Del)"));
         P.Children.Add(new Separator { Margin = new Thickness(0, 8, 0, 10) });
+    }
+    /// <summary>
+    /// Konfiguracja sygnalizatora świetlnego (BSK ISDR „Oznaczenia urządzeń srk”): układ gotowy, komory od masztu (kolor, pulsowanie,
+    /// kolejność), komora świecąca w stanie zasadniczym, maszt, pasy świetlne, W24, W21, zapis komór tekstem.
+    /// </summary>
+    void BuildSignalConfig(StackPanel P, UtDevice d)
+    {
+        var lamps = UtDevice.ParseLights(d.LightsOrDefault);
+        void SetLamps(List<(char C, bool Pulse)> l, string what = "Komory sygnalizatora") =>
+            ChDevice(d.Id, what, x => { x.Lights = UtDevice.FormatLights(l); x.Heads = l.Count; if (!string.IsNullOrEmpty(x.Lit) && l.All(q => q.C != x.Lit[0])) x.Lit = null; });
+
+        P.Children.Add(Label("Układ gotowy"));
+        var pre = new ComboBox { Margin = new Thickness(0, 2, 0, 6), ToolTip = "Wg BSK ISDR: ss3–ss9" };
+        pre.Items.Add("(wybierz…)");
+        foreach (var x in UtDevice.Presets) pre.Items.Add(x.Name);
+        pre.SelectedIndex = 0;
+        pre.SelectionChanged += (s, e) =>
+        {
+            if (pre.SelectedIndex <= 0) return;
+            var x = UtDevice.Presets[pre.SelectedIndex - 1];
+            ChDevice(d.Id, "Układ sygnalizatora", q => { q.Lights = x.Lights; q.Heads = UtDevice.ParseLights(x.Lights).Count; q.Lit = x.Lit.ToString(); q.Mast = x.Mast; q.W24 = x.W24; q.StripeZ = q.StripeP = false; q.W21 = null; });
+        };
+        P.Children.Add(pre);
+
+        P.Children.Add(Label("Komory od masztu (kolor, pulsuje)"));
+        var grid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
+        foreach (var w in new[] { 22.0, 112, 70, 26, 26, 26 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        for (int i = 0; i < lamps.Count; i++)
+        {
+            int ii = i; grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            void Put(UIElement el, int col) { Grid.SetRow(el, ii); Grid.SetColumn(el, col); grid.Children.Add(el); }
+            Put(new TextBlock { Text = (i + 1).ToString(), VerticalAlignment = VerticalAlignment.Center }, 0);
+            var cb = new ComboBox { Margin = new Thickness(0, 1, 4, 1) };
+            foreach (var c in UtDevice.Colors) cb.Items.Add(c.Name);
+            cb.SelectedIndex = Array.FindIndex(UtDevice.Colors, c => c.Key == lamps[i].C);
+            cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex < 0) return; var l = lamps.ToList(); l[ii] = (UtDevice.Colors[cb.SelectedIndex].Key, l[ii].Pulse); SetLamps(l); };
+            Put(cb, 1);
+            var pu = new CheckBox { Content = "pulsuje", IsChecked = lamps[i].Pulse, VerticalAlignment = VerticalAlignment.Center };
+            pu.Click += (s, e) => { var l = lamps.ToList(); l[ii] = (l[ii].C, pu.IsChecked == true); SetLamps(l); };
+            Put(pu, 2);
+            Put(SmallBtn("↑", () => { if (ii == 0) return; var l = lamps.ToList(); (l[ii - 1], l[ii]) = (l[ii], l[ii - 1]); SetLamps(l); }, "Komora bliżej masztu"), 3);
+            Put(SmallBtn("↓", () => { if (ii == lamps.Count - 1) return; var l = lamps.ToList(); (l[ii + 1], l[ii]) = (l[ii], l[ii + 1]); SetLamps(l); }, "Komora dalej od masztu"), 4);
+            Put(SmallBtn("✕", () => { if (lamps.Count <= 1) return; var l = lamps.ToList(); l.RemoveAt(ii); SetLamps(l); }, "Usuń komorę"), 5);
+        }
+        P.Children.Add(grid);
+        P.Children.Add(SmallBtn("+ komora", () => { if (lamps.Count >= 7) return; var l = lamps.ToList(); l.Add(('B', false)); SetLamps(l); }, "Nowa komora na końcu (najdalej od masztu), biała"));
+
+        P.Children.Add(Label("Komory tekstem (C Z P B N, * – pulsuje)"));
+        var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B*PCZ* – od masztu: biała pulsująca, pomarańczowa, czerwona, zielona pulsująca; Enter – zastosuj" };
+        txt.KeyDown += (s, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            var t = txt.Text.Trim().ToUpperInvariant();
+            if (!UtDevice.ValidLights(t)) { Message("Komory: litery C Z P B N (od masztu), * po literze – pulsuje, 1–7 komór"); return; }
+            SetLamps(UtDevice.ParseLights(t));
+        };
+        P.Children.Add(txt);
+
+        P.Children.Add(Label("Świeci w stanie zasadniczym"));
+        var lit = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+        var litKeys = new List<char> { ' ' }; lit.Items.Add("żadna");
+        foreach (var c in UtDevice.Colors.Where(c => lamps.Any(q => q.C == c.Key))) { litKeys.Add(c.Key); lit.Items.Add(c.Name); }
+        lit.SelectedIndex = Math.Max(0, litKeys.IndexOf(d.LitOrDefault));
+        lit.SelectionChanged += (s, e) => { if (lit.SelectedIndex >= 0) ChDevice(d.Id, "Komora świecąca", x => x.Lit = litKeys[lit.SelectedIndex] == ' ' ? "-" : litKeys[lit.SelectedIndex].ToString()); };
+        P.Children.Add(lit);
+
+        P.Children.Add(Label("Maszt"));
+        var mast = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+        foreach (var m in UtDevice.Masts) mast.Items.Add(m.Name);
+        mast.SelectedIndex = Math.Max(0, Array.FindIndex(UtDevice.Masts, m => m.Key == d.MastOrDefault));
+        mast.SelectionChanged += (s, e) => { if (mast.SelectedIndex >= 0) ChDevice(d.Id, "Maszt sygnalizatora", x => { x.Mast = UtDevice.Masts[mast.SelectedIndex].Key; x.Dwarf = x.Mast == UtDevice.MastKarzel; }); };
+        P.Children.Add(mast);
+
+        var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+        CheckBox Flag(string t, bool v, Action<UtDevice, bool> set)
+        {
+            var c = new CheckBox { Content = t, IsChecked = v, Margin = new Thickness(0, 0, 10, 2) };
+            c.Click += (s, e) => ChDevice(d.Id, t, x => set(x, c.IsChecked == true));
+            row.Children.Add(c); return c;
+        }
+        Flag("pas zielony", d.StripeZ, (x, v) => x.StripeZ = v);
+        Flag("pas pomarańczowy", d.StripeP, (x, v) => x.StripeP = v);
+        Flag("W24", d.W24, (x, v) => x.W24 = v);
+        P.Children.Add(row);
+        var w21 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        w21.Children.Add(new TextBlock { Text = "W21 (cyfra): ", VerticalAlignment = VerticalAlignment.Center });
+        var w21b = new TextBox { Text = d.W21 ?? "", Width = 40, ToolTip = "Cyfra wskaźnika W21 (np. 5), puste – brak; Enter" };
+        w21b.KeyDown += (s, e) => { if (e.Key == Key.Enter) { var v = w21b.Text.Trim(); ChDevice(d.Id, "Wskaźnik W21", x => x.W21 = v.Length > 0 ? v : null); } };
+        w21.Children.Add(w21b);
+        P.Children.Add(w21);
     }
 }

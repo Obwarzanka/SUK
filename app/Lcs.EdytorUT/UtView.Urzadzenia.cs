@@ -124,7 +124,7 @@ public partial class UtView
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p);
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
-            if (d.Id == SelectedDevice) dc.DrawEllipse(RzSel, null, b, Math.Max(8, 4 * PxPerMm), Math.Max(8, 4 * PxPerMm));
+            if (d.Id == SelectedDevice) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
             DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn);
             var notes = Urzadzenia.Check(Doc.P, d0);
             if (notes.Count > 0) { dc.DrawEllipse(null, ErrPen, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
@@ -155,7 +155,8 @@ public partial class UtView
     {
         var n = new Vector(-d.Y, d.X) * dv.Side;
         Point P(double x, double y) => b + d * (x * k) + n * (y * k);
-        var pen = new Pen(ink, Math.Max(1, 0.25 * k)); var thick = new Pen(ink, Math.Max(1.6, 0.5 * k));
+        // grubości wg Ig-10: linie znaku 0,18 mm, wyróżnienie (komora świecąca, belka) 0,45 mm
+        var pen = new Pen(ink, Math.Max(1, 0.18 * k)); var thick = new Pen(ink, Math.Max(1.6, 0.45 * k));
         void L(double x1, double y1, double x2, double y2, Pen pp = null) => dc.DrawLine(pp ?? pen, P(x1, y1), P(x2, y2));
         void C(double x, double y, double r, bool fill = false, bool cross = false)
         {
@@ -170,48 +171,94 @@ public partial class UtView
             var c = P(x, y) + d * (away * (ft.Width / 2 + 2));
             dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2));
         }
-        const double Y = 3.4;                                     // oś znaku sygnalizatora od osi toru [mm]
+        const double Y = 2.4, R = 1;                              // oś znaku sygnalizatora od osi toru, promień komory (Ø 2 mm) [mm]
         switch (dv.Kind)
         {
             case UtDevice.Semafor:
             case UtDevice.TarczaOstrz:
             case UtDevice.TarczaMan:
             {
-                // Ig-10 zał. 8 s. 27: „A ⊢○⊘” – nazwa, stopa (a = 2 mm), maszt (b = 2 mm), komory Ø 2 mm w stronę jazdy, której dotyczy
-                int heads = dv.Kind == UtDevice.Semafor ? Math.Clamp(dv.Heads, 1, 6) : 2;
-                double x0 = 0, r = 1.1;
-                bool dwarf = dv.Kind == UtDevice.TarczaMan && dv.Dwarf;
-                if (!dwarf)
+                // BSK ISDR „Oznaczenia urządzeń srk” ss3–ss9 (i Ig-10 zał. 8 s. 27): nazwa, stopa (wysokość komory), maszt ok. 2,5 komory
+                // (z wysięgnikiem – z odsadzeniem w stronę toru; karzełkowy – bez), W24 na maszcie, pasy świetlne, W21, komory od masztu
+                // w stronę jazdy. Kolory: C – kreska w poprzek masztu, Z – wzdłuż, P – ukośna, B – pusta, N – krzyż; świecąca w stanie
+                // zasadniczym – gruba kreska; mogąca pulsować – ząbki na obwodzie.
+                var lamps = UtDevice.ParseLights(dv.LightsOrDefault); char lit = dv.LitOrDefault; string mast = dv.MastOrDefault;
+                double x = 0, yy = Y;
+                L(0, Y - 1, 0, Y + 1);                             // stopa
+                if (mast == UtDevice.MastWysiegnik)
                 {
-                    L(0, 0.8, 0, Y - 1.1);                         // od toru do stopy masztu
-                    L(0, Y - 1.1, 0, Y + 1.1);                     // stopa
-                    L(0, Y, 1.8, Y);                               // maszt
-                    x0 = 1.8;
+                    L(0, Y, 3, Y); L(3, Y, 3, Y - 0.8); L(3, Y - 0.8, 4, Y - 0.8);
+                    x = 4; yy = Y - 0.8;
                 }
-                double yy = dwarf ? 2 : Y;
-                for (int i = 0; i < heads; i++)
-                    C(x0 + r + 2 * r * i, yy, r, false, dv.Kind == UtDevice.TarczaOstrz && i == heads - 1);
-                T(dv.Name, -0.8, yy, -1);
+                else if (mast == UtDevice.MastProsty) { L(0, Y, 5, Y); x = 5; }
+                if (dv.W24 && mast != UtDevice.MastKarzel) L(1.7, Y + 0.9, 2.3, Y - 0.9);   // W24 – kreska ukośna na maszcie
+                foreach (var (on, c) in new[] { (dv.StripeZ, 'Z'), (dv.StripeP, 'P') })
+                {
+                    if (!on) continue;
+                    dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1, yy + 1)));
+                    if (c == 'Z') L(x, yy, x + 1, yy); else L(x + 0.1, yy + 0.9, x + 0.9, yy - 0.9);
+                    x += 1;
+                }
+                if (!string.IsNullOrEmpty(dv.W21))
+                {
+                    dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1.6, yy + 1)));
+                    if (labels)
+                    {
+                        var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(7, 1.6 * k), ink, dpi);
+                        var cc = P(x + 0.8, yy); dc.DrawText(ft, new Point(cc.X - ft.Width / 2, cc.Y - ft.Height / 2));
+                    }
+                    x += 1.6;
+                }
+                bool litDone = false;
+                foreach (var (col, pulse) in lamps)
+                {
+                    double cx = x + R; x += 2 * R;
+                    dc.DrawEllipse(Brushes.White, pen, P(cx, yy), R * k, R * k);
+                    bool isLit = !litDone && col == lit; if (isLit) litDone = true;
+                    var mp = isLit ? thick : pen; double a = R * 0.7;
+                    switch (col)
+                    {
+                        case 'C': L(cx, yy - R, cx, yy + R, mp); break;
+                        case 'Z': L(cx - R, yy, cx + R, yy, mp); break;
+                        case 'P': L(cx - a, yy + a, cx + a, yy - a, mp); break;
+                        case 'N': L(cx - a, yy + a, cx + a, yy - a, mp); L(cx - a, yy - a, cx + a, yy + a, mp); break;
+                        case 'B': if (isLit) dc.DrawEllipse(null, thick, P(cx, yy), R * 0.55 * k, R * 0.55 * k); break;
+                    }
+                    if (pulse)
+                        foreach (var an in new[] { 45.0, 135, 225, 315 })
+                        {
+                            double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
+                            L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35);
+                        }
+                }
+                T(dv.Name, -0.6, Y, -1);
                 break;
             }
             case UtDevice.Wykolejnica:
-                L(0, -1, 0, 1, thick);                             // kreska w poprzek toru
-                L(0, 0, 0, 2.4);                                   // kierunek wykolejenia – w stronę urządzenia
-                dc.DrawGeometry(ink, null, Tri(P(0, 3.2), P(-0.6, 2.2), P(0.6, 2.2)));
-                T(dv.Name, -1.8, 3.4);
+            {
+                // BSK w1: gruba belka w poprzek toru, strzałka w przód i w stronę wykolejenia
+                var bar = new Pen(ink, Math.Max(2, 0.7 * k));
+                L(0, -2.2, 0, 2.2, bar);
+                L(-1.4, -1.4, 1.6, 1.6);
+                var tip = P(1.9, 1.9); var back = P(1.1, 1.1); var side = P(1.6, 1.1) - P(1.1, 1.6);
+                dc.DrawGeometry(ink, null, Tri(tip, back + side * 0.5, back - side * 0.5));
+                T(dv.Name, -0.6, 2.8, -1);
                 break;
+            }
             case UtDevice.Koziol:
-                L(0, -1.5, 0, 1.5, thick);                         // belka kozła (a = 1,5 mm na stronę)
+                L(0, -1.5, 0, 1.5, thick);                         // belka kozła (Ig-10 s. 25: a = 1,5 mm na stronę)
                 L(0, 0, 1, 0);                                     // b = 1 mm za belką
                 break;
             case UtDevice.LicznikOsi:
-                L(0, -2, 0, 2);                                    // a = 4 mm
-                dc.DrawEllipse(ink, null, P(-1, 0), 0.5 * k, 0.5 * k); dc.DrawEllipse(ink, null, P(1, 0), 0.5 * k, 0.5 * k);
-                T(dv.Name, 0, 3.4);
+                // BSK o9: czujnik licznika osi – dwie połączone kropki obok toru
+                L(-1.3, 1.1, 1.3, 1.1);
+                dc.DrawEllipse(ink, null, P(-0.6, 1.1), 0.5 * k, 0.5 * k); dc.DrawEllipse(ink, null, P(0.6, 1.1), 0.5 * k, 0.5 * k);
+                T(dv.Name, 0, 2.8);
                 break;
             case UtDevice.Zlacze:
-                L(0, -1.5, 0, 1.5);
-                L(0, -1.5, 0.75, -1.5); L(0, 1.5, -0.75, 1.5);
+                // BSK o4: złącze izolowane na styku dwóch odcinków izolowanych – „I”
+                L(0, -1.2, 0, 1.2);
+                L(-0.6, -1.2, 0.6, -1.2); L(-0.6, 1.2, 0.6, 1.2);
                 break;
             case UtDevice.Ukres:
                 L(0, 0.6, 0, 2.4, thick);                          // W17 – w międzytorzu po stronie urządzenia
