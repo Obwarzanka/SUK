@@ -177,3 +177,13 @@ Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decy
 - `station.json` właściciela nie jest ruszany; testy na `Testy/station_test.json` i kopiach.
 - Format sieciowy (`Indication`, polecenia tekstowe) zostaje – stanowiska ze starszą wersją nadal się łączą do kroku 9.
 - Poza zakresem (do osobnej sprawy): opisy scenariuszy w `Trains.Scenarios` mają zaszyte nazwy stacji Widzew/Fabryczna i obiekty `LW:S1`, `LW:11` – wbrew zasadzie ogólnego symulatora.
+
+---
+
+## 7. Odpowiedzi właściciela (2026-10-16)
+
+1. **Rozprucie:** „niespodziewany brak kontroli” to po prostu brak kontroli. Jeśli przy braku kontroli nastąpi zajętość odcinka – pojawia się sygnalizacja rozprucia. (KZ rozstrzyga z zajętości – zgodnie z propozycją.)
+2. **Włókna sygnalizatora:** „nic z tego” – nie modelujemy włókien rezerwowych ani przechodzenia na sygnał niższy.
+3. **Brak łączności ze sterownikiem:** na pulpicie biały migający – brak kontroli wg Ie-20.
+4. **Manewry wg tarcz (krok 8):** później.
+5. **Opóźnienie jednego cyklu** rozkaz → meldunek: akceptowalne.
