@@ -8,6 +8,8 @@ namespace LcsWidzew.Model;
 /// odgałęzienia zwrotnicy to para torów o najbliższym kierunku). Dzięki temu kierunek jazdy (±1) w komputerze zależności,
 /// blokadach i ruchu pociągów wynika z topologii, a nie z „wschodu / zachodu” rysunku – tory mogą biec skośnie, na północ,
 /// zawracać łukiem. Sygnalizatory i końce szlaków zapisane jako ±1 znaczą „zgodnie z A→B toru / przeciwnie”.
+/// <para>Każda spójna część układu jest zorientowana tak, by A→B wskazywało przeważnie w prawo (kilometraż rośnie od lewej
+/// do prawej – Ig-10 § 3 ust. 3), a nie wg kolejności rysowania.</para>
 /// <para>Stary plik (bez „orient”: „ab”) – jednorazowo: tory odwracane tak, by A→B = dawny kierunek „na wschód” (rosnące X
 /// albo pole „dir” toru pionowego); zapisane ±1 zachowują znaczenie. Po każdej edycji – normalizacja: tory niezgodne
 /// z sąsiednimi (np. narysowane od prawej) są odwracane, a sygnalizatory i szlaki przy nich – przeliczane.</para>
@@ -159,7 +161,16 @@ public static class TrackOrientation
         else
         {
             // od najstarszych torów (kolejność w pliku) – istniejąca orientacja zostaje, nowe tory dopasowują się do niej
-            foreach (var e in edges) { if (o.ContainsKey(e)) continue; o[e] = 1; q.Enqueue(e); Propagate(); }
+            foreach (var e in edges)
+            {
+                if (o.ContainsKey(e)) continue;
+                var before = o.Keys.ToHashSet(); o[e] = 1; q.Enqueue(e); Propagate();
+                // plan schematyczny (Ig-10 § 3 ust. 3): kilometraż rośnie od lewej do prawej – A→B toru = w prawo, niezależnie od tego,
+                // od którego końca tor narysowano (cała spójna część układu odwracana razem – znaczenie ±1 bez zmian)
+                var comp = o.Keys.Where(k => !before.Contains(k)).ToList();
+                double sum = comp.Sum(k => o[k] * (Pos(Sv(k["b"])).X - Pos(Sv(k["a"])).X));
+                if (sum < -1e-6) foreach (var k in comp) o[k] = -o[k];
+            }
         }
 
         int flips = o.Count(x => x.Value < 0);

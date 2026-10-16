@@ -13,14 +13,15 @@ namespace LcsWidzew.UI;
 public sealed class Ig10
 {
     readonly DrawingContext dc;
-    readonly double u, dip, minW;
+    readonly double u, dip, minW, px;
     static readonly Typeface Font = new("Arial");
 
     static Brush Fz(byte r, byte g, byte b) { var x = new SolidColorBrush(Color.FromRgb(r, g, b)); x.Freeze(); return x; }
     public static readonly Brush Ink = Brushes.Black, Elec = Fz(0x00, 0x40, 0xd0), Grey = Fz(0x80, 0x80, 0x80), Paper = Brushes.White;
 
     /// <param name="minW">najmniejsza grubość linii w jednostkach planu (np. 1 piksel ekranu) – cienkie linie przy małych znakach nie znikają</param>
-    public Ig10(DrawingContext dc, double u, double pixelsPerDip, double minW = 0.05) { this.dc = dc; this.u = u; dip = pixelsPerDip; this.minW = minW; }
+    /// <param name="px">jednostki planu na 1 piksel ekranu (edytor) – opisy i znak rozjazdu nie mniejsze niż kilkanaście pikseli; 0 – bez dolnej granicy</param>
+    public Ig10(DrawingContext dc, double u, double pixelsPerDip, double minW = 0.05, double px = 0) { this.dc = dc; this.u = u; dip = pixelsPerDip; this.minW = minW; this.px = px; }
 
     Pen P(double mm, Brush b = null, double[] dash = null)
     {
@@ -36,7 +37,7 @@ public sealed class Ig10
     public void Text(string s, double x, double y, double mm, Brush b = null, int align = 0, bool paper = false)
     {
         if (string.IsNullOrEmpty(s)) return;
-        var ft = new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Font, Math.Max(0.5, mm * u * 1.4), b ?? Ink, dip);
+        var ft = new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Font, Math.Max(0.5, Math.Max(mm * u * 1.4, mm >= 1.8 ? 11 * px : 0)), b ?? Ink, dip);
         double x0 = align < 0 ? x : align > 0 ? x - ft.Width : x - ft.Width / 2;
         if (paper) dc.DrawRectangle(Paper, null, new Rect(x0 - 0.6 * u, y - ft.Height / 2, ft.Width + 1.2 * u, ft.Height));
         dc.DrawText(ft, new Point(x0, y - ft.Height / 2));
@@ -76,7 +77,7 @@ public sealed class Ig10
         bool plusStraight = Math.Abs(up.Y) <= Math.Abs(um.Y) + 1e-6;
         // klin: 8 mm wzdłuż toru prostego, po torze zwrotnym do końca jego pierwszego odcinka (łącznik bywa krótki)
         double ls = plusStraight ? lp : lm, lc = plusStraight ? lm : lp;
-        double wl = Math.Min(8 * u, 0.6 * ls), wc = Math.Min(wl, 0.95 * lc);
+        double wl = Math.Min(Math.Max(8 * u, 22 * px), 0.6 * ls), wc = Math.Min(wl, 0.95 * lc);
         var p1 = o + up * (plusStraight ? wl : wc); var p2 = o + um * (plusStraight ? wc : wl);
         var tri = new StreamGeometry();
         using (var c = tri.Open()) { c.BeginFigure(o, true, true); c.LineTo(p1, true, false); c.LineTo(p2, true, false); }
@@ -93,14 +94,17 @@ public sealed class Ig10
             }
         }
         else if (plusStraight) dc.DrawGeometry(ink, P(0.18, ink), tri);
-        else { dc.DrawGeometry(null, P(0.18, ink), tri); dc.DrawLine(P(0.5, ink), o, p1); }
+        // zasadniczo na zwrot: klin jasny, gruba kreska wzdłuż toru, na który zwrotnica jest ułożona zasadniczo (+)
+        else { dc.DrawGeometry(Paper, P(0.18, ink), tri); dc.DrawLine(new Pen(ink, Math.Max(0.6 * u, 2.5 * px)), o, p1); }
         // kreska początku rozjazdu (poprzeczna do toru przed rozjazdem)
         var tipU = sw.Tip != null && L.Edges.ContainsKey(sw.Tip) ? Leg(sw.Tip, out _) : -up;
         var nrm = Unit(Norm(tipU));
-        dc.DrawLine(P(0.18, ink), o + nrm * 1.0 * u, o - nrm * 1.0 * u);
+        double tick = Math.Max(1.0 * u, 6 * px);
+        dc.DrawLine(P(0.18, ink), o + nrm * tick, o - nrm * tick);
         // numer – po stronie przeciwnej do odgałęzienia
         bool minusDown = um.Y > up.Y;
-        if (number) Text(sw.Label, o.X + tipU.X * 1.5 * u, o.Y + (minusDown ? -2.8 : 2.8) * u, 1.8, ink);
+        double off = Math.Max(2.8 * u, 12 * px);
+        if (number) Text(sw.Label, o.X + tipU.X * Math.Max(1.5 * u, 6 * px), o.Y + (minusDown ? -off : off), 1.8, ink);
     }
 
     // ------------------------------------------------------------------ koniec toru, wykolejnica, kontrola niezajętości

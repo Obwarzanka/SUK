@@ -188,19 +188,19 @@ public class PanelView : FrameworkElement
         var L = Lay; double r = 9;
         foreach (var s in L.Signals.Values)
         {
-            if (s.Type is "odstepowy" or "to" or "sp") continue;
+            if (s.Type is "odstepowy" or "to" or "sp" || L.HiddenSyms.Contains(s.Name)) continue;
             var n = L.Nodes[s.Node];
             if (Math.Abs(w.X - (n.X - s.VDir * 4)) < 13 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);
             if (s.Type == "wjazdowy" && Math.Abs(w.X - (n.X + s.VDir * 16)) < 8 && Math.Abs(w.Y - n.Y) < 9) return ("sig", s.Name);   // trójkąt końca przebiegu wyjazdowego
         }
         foreach (var sw in L.Switches.Values) { var n = L.Nodes[sw.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("sw", sw.Num); }
-        foreach (var d in L.Derailers.Values) { var n = L.Nodes[d.Node]; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("der", d.Name); }
+        foreach (var d in L.Derailers.Values) { var n = L.Nodes[d.Node]; if (L.HiddenSyms.Contains(d.Name)) continue; if (Math.Abs(w.X - n.X) < r && Math.Abs(w.Y - n.Y) < r + 4) return ("der", d.Name); }
         foreach (var b in L.Blocks.Values)
         {
             if (MidBlock(b)) { if (MidRect(b).Contains(w)) return ("blk", b.Id); continue; }
             for (int i = 0; i < b.Ends.Count; i++) if (OnPageNode(b.Ends[i].Boundary) && BlockRect(b, i).Contains(w)) return ("blk", b.Id);
         }
-        foreach (var (nid, te) in L.TrackEnds) { var n = L.Nodes[nid]; if (Math.Abs(w.X - n.X) < 14 && Math.Abs(w.Y - n.Y) < 16) return ("te", te.Id); }
+        foreach (var (nid, te) in L.TrackEnds) { var n = L.Nodes[nid]; if (L.HiddenSyms.Contains(nid)) continue; if (Math.Abs(w.X - n.X) < 14 && Math.Abs(w.Y - n.Y) < 16) return ("te", te.Id); }
         foreach (var e in L.Edges.Values)
         {
             if (e.Link) continue;
@@ -573,7 +573,7 @@ public class PanelView : FrameworkElement
         }
         foreach (var d in L.Derailers.Values)
         {
-            var n = L.Nodes[d.Node]; if (!OnPage(n.X)) continue;
+            var n = L.Nodes[d.Node]; if (!OnPage(n.X) || L.HiddenSyms.Contains(d.Name)) continue;
             var st = S.Ders[d.Name];
             var c = st.MovingTo != null ? (BlinkOn ? White : Grey) : st.Lock != null ? Yellow : st.On ? Grey : Dim;
             dc.DrawRectangle(c, null, new Rect(n.X - 2.5, n.Y - 9, 5, 18));
@@ -593,7 +593,7 @@ public class PanelView : FrameworkElement
         // znaczniki końca przebiegu manewrowego (półkole, Ie-104 § 8 pkt 6) i kozły
         foreach (var (nid, te) in L.TrackEnds)
         {
-            var n = L.Nodes[nid]; if (!OnPage(n.X)) continue;
+            var n = L.Nodes[nid]; if (!OnPage(n.X) || L.HiddenSyms.Contains(nid)) continue;
             if (Targets.Contains(te.Id)) TargetMark(dc, new Rect(n.X - 10, n.Y - 19, 20, 14));
             dc.DrawLine(new Pen(Grey, 3), new Point(n.X, n.Y - 7), new Point(n.X, n.Y + 7));
             if (!te.Marker) continue;
@@ -604,7 +604,7 @@ public class PanelView : FrameworkElement
             Text(dc, te.Disp, n.X, n.Y + 15, 9, TmName, true, dpi, Mono);
         }
 
-        foreach (var s in L.Signals.Values) if (OnPageNode(s.Node)) DrawSignal(dc, s, dpi);
+        foreach (var s in L.Signals.Values) if (OnPageNode(s.Node) && !L.HiddenSyms.Contains(s.Name)) DrawSignal(dc, s, dpi);
         foreach (var b in L.Blocks.Values)
         {
             if (MidBlock(b)) { DrawBlockMid(dc, b, dpi); continue; }
@@ -639,7 +639,7 @@ public class PanelView : FrameworkElement
     /// </summary>
     void DrawPlan(DrawingContext dc, Station L, double dpi)
     {
-        var g = new Ig10(dc, 2.5 * L.SymbolScale, dpi, 0.9 / Math.Max(0.004, scale)); var ly = PlanLayers.Current;
+        var g = new Ig10(dc, 2.5 * L.SymbolScale, dpi, 0.9 / Math.Max(0.004, scale), Editor != null ? 1 / Math.Max(0.004, scale) : 0); var ly = PlanLayers.Current;
         var grey = B(0x70, 0x70, 0x70);
         if (ly.Platforms) foreach (var p in L.Platforms) g.Platform(p);
         foreach (var e in L.Edges.Values)

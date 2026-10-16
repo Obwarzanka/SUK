@@ -48,6 +48,8 @@ public class Edge
 public class SwitchDef
 {
     public string Num, Node, Sec, Tip, Plus, Minus, Label, Post; public int TipDir; public bool Manual;
+    /// <summary>Położenie zasadnicze na tor zwrotny (JSON "zas": "-") – wtedy (+) to odgałęzienie. Diverging – odgałęzienie wg geometrii (prędkość na bok).</summary>
+    public bool BasicMinus; public string Diverging;
     /// <summary>Prędkość przy jeździe na bok (na ostrze i z ostrza) [km/h]; VProsto – na wprost (0 – bez ograniczenia).</summary>
     public double VBok = 40, VProsto;
     /// <summary>Typ rozjazdu (np. „Rz 60E1-190-1:9”), promień toru zwrotnego [m] i skos (np. „1:9”).</summary>
@@ -55,10 +57,20 @@ public class SwitchDef
     /// <summary>Typowe rozjazdy: typ, skos, promień [m], prędkość na bok [km/h] (Id-1 / Id-4 – wartości typowe; ostateczna z regulaminu).</summary>
     public static readonly (string Kind, string Ratio, double R, double V)[] Types =
     {
+        // zwyczajne
         ("Rz 1:9 R190", "1:9", 190, 40), ("Rz 1:9 R300", "1:9", 300, 50), ("Rz 1:12 R500", "1:12", 500, 60),
         ("Rz 1:14 R760", "1:14", 760, 80), ("Rz 1:18,5 R1200", "1:18,5", 1200, 100), ("Rz 1:26,5 R2500", "1:26,5", 2500, 130),
-        ("Rkp 1:9 R190 (krzyżowy podwójny)", "1:9", 190, 40), ("Rkj 1:9 R190 (krzyżowy pojedynczy)", "1:9", 190, 40), ("Rł (łukowy)", "", 0, 40)
+        // łukowe (oba tory w łuku – na planie schematycznym rysowane jak zwyczajne) i symetryczne
+        ("Rłj 1:9 R190 (łukowy jednostronny)", "1:9", 190, 40), ("Rłj 1:9 R300 (łukowy jednostronny)", "1:9", 300, 50), ("Rłj 1:12 R500 (łukowy jednostronny)", "1:12", 500, 60),
+        ("Rłd 1:9 R190 (łukowy dwustronny)", "1:9", 190, 40), ("Rłd 1:9 R300 (łukowy dwustronny)", "1:9", 300, 50), ("Rłd 1:12 R500 (łukowy dwustronny)", "1:12", 500, 60),
+        ("Rs 1:9 R300 (symetryczny)", "1:9", 300, 50),
+        // krzyżowe i skrzyżowanie torów
+        ("Rkp 1:9 R190 (krzyżowy podwójny)", "1:9", 190, 40), ("Rkj 1:9 R190 (krzyżowy pojedynczy)", "1:9", 190, 40),
+        ("Skrz 1:9 (skrzyżowanie torów)", "1:9", 0, 0), ("Skrz 1:12 (skrzyżowanie torów)", "1:12", 0, 0),
+        ("Rł (łukowy)", "", 0, 40)
     };
+    /// <summary>Rodzaj rozjazdu z typu: "rkp" krzyżowy podwójny, "rkj" krzyżowy pojedynczy, "skrz" skrzyżowanie torów, "rz" pozostałe.</summary>
+    public static string Class(string kind) => kind == null ? "rz" : kind.StartsWith("Rkp") ? "rkp" : kind.StartsWith("Rkj") ? "rkj" : kind.StartsWith("Skrz") ? "skrz" : "rz";
 }
 
 public class SignalDef
@@ -204,6 +216,8 @@ public class Station
     /// Elementy układu nieumieszczone na zobrazowaniu leżą poza obrazami (Hidden) i nie są rysowane.
     /// </summary>
     public Station Display;
+    /// <summary>Zobrazowanie: symbole (sygnalizatory, wykolejnice, kozły – identyfikatory) ukryte na pulpicie, choć ich węzeł leży na torze obrazu.</summary>
+    public HashSet<string> HiddenSyms = new();
     /// <summary>Współrzędna elementu nieumieszczonego na zobrazowaniu.</summary>
     public const double Hidden = -1e7;
     /// <summary>Geometria dla pulpitu: zobrazowanie, jeśli istnieje, inaczej rysunek układu.</summary>
@@ -263,11 +277,12 @@ public class Station
                 e["pts"] = p != null && p.Count >= 2 ? p.DeepClone() : new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonArray(Hidden, Hidden), new System.Text.Json.Nodes.JsonArray(Hidden + 1, Hidden));
             }
             var d = ParseCore(root.ToJsonString(), true);
+            if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
             // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
             foreach (var (k, sw) in st.Switches)
             {
                 if (!d.Switches.TryGetValue(k, out var ds)) { d.Switches[k] = ds = new SwitchDef { Num = sw.Num, Node = sw.Node, Sec = sw.Sec, Label = sw.Label, Post = sw.Post, Manual = sw.Manual, VBok = sw.VBok, VProsto = sw.VProsto, TipDir = sw.TipDir }; d.Nodes[sw.Node].Switch = k; }
-                ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus;
+                ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus; ds.Diverging = sw.Diverging; ds.BasicMinus = sw.BasicMinus;
             }
             st.Display = d;
         }
@@ -329,7 +344,8 @@ public class Station
                 // prędkość na bok: wpisana, inaczej z typu rozjazdu, inaczej 40 km/h
                 VBok = v.TryGetProperty("vbok", out var vb) && vb.ValueKind == JsonValueKind.Number ? vb.GetDouble()
                      : SwitchDef.Types.FirstOrDefault(t => t.Kind == S(v, "kind")).V is double tv && tv > 0 ? tv : 40,
-                VProsto = v.TryGetProperty("vprosto", out var vp) && vp.ValueKind == JsonValueKind.Number ? vp.GetDouble() : 0 };
+                VProsto = v.TryGetProperty("vprosto", out var vp) && vp.ValueKind == JsonValueKind.Number ? vp.GetDouble() : 0,
+                BasicMinus = S(v, "zas") == "-" };
             st.Switches[s.Num] = s; st.Nodes[s.Node].Switch = s.Num;
         }
         foreach (var p in r.GetProperty("signals").EnumerateObject())
@@ -428,14 +444,17 @@ public class Station
             if (tipIdx < 0) { Switches.Remove(sw.Num); n.Switch = null; continue; }
             sw.Tip = n.Edges[tipIdx]; sw.TipDir = tipSide;
             var legs = n.Edges.Where((_, i) => i != tipIdx).OrderBy(e => LegDev(e, n, sw.Tip)).ToList();
-            sw.Plus = legs[0]; sw.Minus = legs[1];
+            sw.Diverging = legs[1];
+            // (+) = położenie zasadnicze: zwykle tor prosty; „zas”: „-” – zasadniczo na zwrot
+            if (sw.BasicMinus) { sw.Plus = legs[1]; sw.Minus = legs[0]; } else { sw.Plus = legs[0]; sw.Minus = legs[1]; }
         }
         // ograniczenia zwrotnicowe: odgałęzienie (−) i łącznik za nim do następnej zwrotnicy – VBok; iglica i (+) – VProsto
         foreach (var sw in Switches.Values)
         {
             void Lim(string eid, double v) { if (v <= 0) return; var e = Edges[eid]; e.SwLimit = e.SwLimit > 0 ? Math.Min(e.SwLimit, v) : v; }
-            if (sw.VProsto > 0) { Lim(sw.Tip, sw.VProsto); Lim(sw.Plus, sw.VProsto); }
-            string cur = sw.Node, eid = sw.Minus;
+            var straight = sw.Plus == sw.Diverging ? sw.Minus : sw.Plus;
+            if (sw.VProsto > 0) { Lim(sw.Tip, sw.VProsto); Lim(straight, sw.VProsto); }
+            string cur = sw.Node, eid = sw.Diverging;
             for (int k = 0; k < 30 && eid != null; k++)
             {
                 var e = Edges[eid]; Lim(eid, sw.VBok);

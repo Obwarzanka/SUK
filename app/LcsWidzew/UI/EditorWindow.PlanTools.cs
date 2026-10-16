@@ -214,7 +214,8 @@ public partial class EditorWindow
         foreach (var el in planOnly) el.Visibility = dispMode ? Visibility.Collapsed : Visibility.Visible;
         foreach (var el in dispOnly) el.Visibility = dispMode ? Visibility.Visible : Visibility.Collapsed;
         if (toolBtns.TryGetValue(Tool.Platform, out var pb)) pb.ToolTip = (dispMode ? "Peron na obrazie pulpitu: przeciągnij prostokąt." : "Peron na planie: klik – początek krawędzi peronu, klik – koniec (wzdłuż toru, także skośnego), klik – szerokość w bok. Przyciąganie do siatki i prowadnic (nie do osi toru).") + "  [P]";
-        if (toolBtns.TryGetValue(Tool.Turnout, out var tb)) tb.ToolTip = "Rozjazd na planie (jak w terenie): klik na torze w miejscu zwrotnicy, potem klik na drugim torze – prosty łącznik ze zwrotnicami na obu końcach, albo klik w wolnym miejscu / na końcu toru – odgałęzienie. Kąt dowolny, tory mogą być skośne (rysowanie po zdjęciu).  [R]";
+        ApplyUtToolbars();
+        if (toolBtns.TryGetValue(Tool.Turnout, out var tb) && !Schem) tb.ToolTip = "Rozjazd na planie (jak w terenie): klik na torze w miejscu zwrotnicy, potem klik na drugim torze – prosty łącznik ze zwrotnicami na obu końcach, albo klik w wolnym miejscu / na końcu toru – odgałęzienie. Kąt dowolny, tory mogą być skośne (rysowanie po zdjęciu).  [R]";
     }
     readonly List<UIElement> planOnly = new(), dispOnly = new();
 

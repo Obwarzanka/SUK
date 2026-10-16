@@ -41,7 +41,7 @@ public partial class StationDoc
     public Station Build() { Orient(); return Station.Parse(Json()); }
 
     /// <summary>Nowy, pusty obszar z jednym posterunkiem i jednym obrazem.</summary>
-    public static StationDoc New(string post, string name)
+    public static StationDoc New(string post, string name, bool schem = false)
     {
         var r = new JsonObject
         {
@@ -49,7 +49,8 @@ public partial class StationDoc
             ["pages"] = new JsonArray(new JsonObject { ["id"] = post, ["name"] = name, ["x0"] = 0, ["x1"] = 2000, ["posts"] = new JsonArray(post) }),
             ["posts"] = new JsonObject { [post] = name },
             // nowy obszar: plan w skali rzeczywistej z długościami z rysunku, zobrazowanie puste (rysowane osobno)
-            ["planScale"] = new JsonObject { ["along"] = 2000, ["across"] = 2000, ["auto"] = true },
+            // schem – plan schematyczny Ig-10 (1:2000 / 1:500, tory w pasach, rozjazdy wg typu); bez – skala rzeczywista (rysowanie po zdjęciu)
+            ["planScale"] = new JsonObject { ["along"] = 2000, ["across"] = schem ? 500 : 2000, ["auto"] = true },
             ["display"] = new JsonObject { ["nodes"] = new JsonObject(), ["edges"] = new JsonObject(), ["labels"] = new JsonArray(), ["platforms"] = new JsonArray(), ["crossings"] = new JsonArray() }
         };
         return new StationDoc(r);
@@ -57,7 +58,7 @@ public partial class StationDoc
 
     void Ensure()
     {
-        foreach (var k in new[] { "nodes", "switches", "signals", "derailers", "blocks", "boundaries", "farEnds", "trackEnds", "posts" })
+        foreach (var k in new[] { "nodes", "switches", "signals", "derailers", "blocks", "boundaries", "farEnds", "trackEnds", "posts", "sections" })
             if (Root[k] is not JsonObject) Root[k] = new JsonObject();
         foreach (var k in new[] { "edges", "platforms", "labels", "crossings", "dashed", "pages" })
             if (Root[k] is not JsonArray) Root[k] = new JsonArray();
@@ -151,6 +152,17 @@ public partial class StationDoc
     public List<(double X, double Y)> DPts(string eid) => Disp != null && DispEdges[eid] is JsonArray a ? a.Select(p => (D(p[0]), D(p[1]))).ToList() : null;
     public void SetDPts(string eid, List<(double X, double Y)> pts) => DispEdges[eid] = new JsonArray(pts.Select(p => (JsonNode)new JsonArray(Math.Round(p.X, 1), Math.Round(p.Y, 1))).ToArray());
     public bool OnDisplay(string eid) => Disp != null && DispEdges.ContainsKey(eid);
+    /// <summary>Symbol (sygnalizator, wykolejnica, kozioł) ukryty na pulpicie – węzeł zostaje na torze obrazu.</summary>
+    public bool SymHidden(string id) => Disp?["hiddenSyms"] is JsonArray a && a.Any(x => Sv(x) == id);
+    public void SetSymHidden(string id, bool hidden)
+    {
+        if (Disp == null) return;
+        if (Disp["hiddenSyms"] is not JsonArray a) { if (!hidden) return; Disp["hiddenSyms"] = a = new JsonArray(); }
+        var cur = a.FirstOrDefault(x => Sv(x) == id);
+        if (hidden && cur == null) a.Add(id);
+        if (!hidden && cur != null) a.Remove(cur);
+        if (a.Count == 0) Disp.Remove("hiddenSyms");
+    }
 
     /// <summary>Usunięcie z zobrazowania elementów, których nie ma już w układzie.</summary>
     public void CleanDisplay()
@@ -457,19 +469,22 @@ public partial class StationDoc
     }
 
     /// <summary>Podział krawędzi w punkcie (rzut na odcinek łamanej) – nowy węzeł dziedziczy odcinek izolowany, tor i linię.</summary>
-    public string SplitEdge(string eid, double x, double y, string post)
+    public string SplitEdge(string eid, double x, double y, string post) => SplitEdge(eid, x, y, post, false);
+
+    /// <summary>Podział toru; exact – dokładnie w rzucie punktu (narzędzia UT), bez – nie bliżej niż 5 % długości od końca.</summary>
+    public string SplitEdge(string eid, double x, double y, string post, bool exact)
     {
         var e = Edge(eid); var p = Pts(e);
         int best = 0; double bd = double.MaxValue; (double X, double Y) bp = p[0];
         for (int i = 0; i < p.Count - 1; i++)
         {
             double dx = p[i + 1].X - p[i].X, dy = p[i + 1].Y - p[i].Y, l2 = dx * dx + dy * dy;
-            double t = l2 == 0 ? 0 : Math.Clamp(((x - p[i].X) * dx + (y - p[i].Y) * dy) / l2, 0.05, 0.95);
+            double t = l2 == 0 ? 0 : Math.Clamp(((x - p[i].X) * dx + (y - p[i].Y) * dy) / l2, exact ? 0.0001 : 0.05, exact ? 0.9999 : 0.95);
             var q = (X: p[i].X + t * dx, Y: p[i].Y + t * dy);
             var d = Math.Sqrt((q.X - x) * (q.X - x) + (q.Y - y) * (q.Y - y));
             if (d < bd) { bd = d; best = i; bp = q; }
         }
-        bp = (Math.Round(bp.X, 1), Math.Round(bp.Y, 1));
+        bp = (Math.Round(bp.X, 2), Math.Round(bp.Y, 2));      // jak punkty torów (0,01 j.) – podział toru poziomego zostaje poziomy
         var nid = AddNode(post ?? Sv(Nodes[Sv(e["a"])]["post"]) ?? "", bp.X, bp.Y);
         var p1 = p.Take(best + 1).Append(bp).ToList();
         var p2 = new[] { bp }.Concat(p.Skip(best + 1)).ToList();
@@ -1242,6 +1257,19 @@ public partial class StationDoc
     /// <summary>Problem w układzie: opis i miejsca na rysunku (węzły; „edge:id” – tor).</summary>
     public record Problem(string Msg, List<string> Refs);
 
+    /// <summary>Czy dwie łamane przecinają się (poza wspólnymi końcami).</summary>
+    static bool PolyCross(List<(double X, double Y)> a, List<(double X, double Y)> b)
+    {
+        static double Cr((double X, double Y) o, (double X, double Y) p, (double X, double Y) q) => (p.X - o.X) * (q.Y - o.Y) - (p.Y - o.Y) * (q.X - o.X);
+        for (int i = 0; i < a.Count - 1; i++)
+            for (int j = 0; j < b.Count - 1; j++)
+            {
+                double d1 = Cr(b[j], b[j + 1], a[i]), d2 = Cr(b[j], b[j + 1], a[i + 1]), d3 = Cr(a[i], a[i + 1], b[j]), d4 = Cr(a[i], a[i + 1], b[j + 1]);
+                if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+            }
+        return false;
+    }
+
     public List<string> Validate() => Problems().Select(p => p.Msg).ToList();
 
     public List<Problem> Problems()
@@ -1292,7 +1320,8 @@ public partial class StationDoc
             while (grow)
             {
                 grow = false;
-                foreach (var e in es) if (!done.Contains(e) && (seen.Contains(Sv(e["a"])) || seen.Contains(Sv(e["b"])))) { seen.Add(Sv(e["a"])); seen.Add(Sv(e["b"])); done.Add(e); grow = true; }
+                // skrzyżowanie torów / rozjazd krzyżowy pojedynczy: tor i skos tego samego odcinka przecinają się bez węzła
+                foreach (var e in es) if (!done.Contains(e) && (seen.Contains(Sv(e["a"])) || seen.Contains(Sv(e["b"])) || done.Any(d => PolyCross(Pts(d), Pts(e))))) { seen.Add(Sv(e["a"])); seen.Add(Sv(e["b"])); done.Add(e); grow = true; }
             }
             var apart = es.Where(e => !done.Contains(e)).ToList();
             if (apart.Count > 0) W($"Odcinek {g.Key} składa się z niepołączonych części ({string.Join(", ", apart.Select(e => Sv(e["id"])))} osobno) – przypisz kawałki do właściwych odcinków (narzędzie Odcinek)", apart.Select(e => "edge:" + Sv(e["id"])).ToArray());

@@ -82,14 +82,21 @@ public partial class MainWindow : Window
     }
 
     EditorWindow editor;
-    void Editor_Click(object sender, RoutedEventArgs e)
+    void Editor_Click(object sender, RoutedEventArgs e) => OpenEditor(EditorKind.Uklad);
+    void EditorZ_Click(object sender, RoutedEventArgs e) => OpenEditor(EditorKind.Zobrazowanie);
+
+    /// <summary>Edytor układu torowego i edytor zobrazowania – osobne okna; przejście do drugiego przekazuje niezapisaną pracę (ten sam dokument).</summary>
+    void OpenEditor(EditorKind kind)
     {
-        if (!ses.IsHost) { MessageBox.Show(this, "Edytor układu jest dostępny na serwerze (stanowisko przyłączone korzysta z układu serwera).", "Edytor układu"); return; }
-        if (editor != null) { editor.Activate(); return; }
+        if (!ses.IsHost) { MessageBox.Show(this, "Edytor jest dostępny na serwerze (stanowisko przyłączone korzysta z układu serwera).", "Edytor"); return; }
+        if (editor != null && editor.Kind == kind) { editor.Activate(); return; }
         paused = true;
-        editor = new EditorWindow(App.StationPath, ReloadStation) { Saved = p => ReloadStation(p, true) };
-        editor.Closed += (a, b) => editor = null;
-        editor.Show();
+        var (doc, path, dirty) = editor?.HandOver() ?? (null, App.StationPath, false);
+        if (editor != null) { var old = editor; editor = null; old.Close(); }
+        var ed = new EditorWindow(path, ReloadStation, kind, doc) { Saved = p => ReloadStation(p, true) };
+        if (dirty) ed.MarkDirty();
+        ed.Closed += (a, b) => { if (editor == ed) editor = null; };
+        editor = ed; ed.Show();
     }
 
     /// <summary>Wczytanie zmienionego układu (z edytora) i ponowny start symulacji.</summary>

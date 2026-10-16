@@ -27,7 +27,7 @@ public partial class EditorWindow
     // ------------------------------------------------------------------ miarka
     void MeasureDown(Point w, MouseButtonEventArgs e)
     {
-        var (p, k, id) = SnapTarget(w);
+        var (p, k, id) = dispMode ? (Snap(w), "grid", null) : SnapTarget(w);
         if (k == "grid") p = Snap(w);
         var m = MeasCur;
         if (e?.ClickCount == 2 && m != null) { MeasureFinish(); return; }   // dwuklik – koniec (punkt dodał już pierwszy klik)
@@ -42,7 +42,7 @@ public partial class EditorWindow
     {
         var m = MeasCur;
         if (m == null || m.P.Count != 1 || (w - measDownAt).Length * panel.Scale < 8) return;
-        var (p, k, id) = SnapTarget(w); if (k == "grid") p = Snap(w);
+        var (p, k, id) = dispMode ? (Snap(w), "grid", null) : SnapTarget(w); if (k == "grid") p = Snap(w);
         m.P.Add(p); m.H.Add((k, id)); MeasureFinish();
     }
 

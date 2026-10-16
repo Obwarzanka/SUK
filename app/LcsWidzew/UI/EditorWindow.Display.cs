@@ -33,8 +33,8 @@ public partial class EditorWindow
     readonly HashSet<int> dSelCross = new();
     Dictionary<int, (double X, double Y0, double Y1)> dCrossOrig;
     static bool DecoTool(Tool t) => t is Tool.Label or Tool.Platform or Tool.Crossing;
-    void DClearSel() { dSel.Clear(); dSelLabels.Clear(); dSelPlats.Clear(); dSelCross.Clear(); if (selKind is "label" or "platform" or "crossing") { selKind = null; selIdx = -1; } }
-    int DSelCount => dSel.Count + dSelLabels.Count + dSelPlats.Count + dSelCross.Count;
+    void DClearSel() { dSel.Clear(); dSelLabels.Clear(); dSelPlats.Clear(); dSelCross.Clear(); dEdge = null; if (selKind is "label" or "platform" or "crossing" or "sig" or "sw" or "te" or "der" or "edge") { selKind = null; selIdx = -1; } }
+    int DSelCount => dSel.Count + dSelLabels.Count + dSelPlats.Count + dSelCross.Count + (dEdge != null && dSel.Count == 0 ? 1 : 0);
     int PickCrossing(Point w)
     {
         for (int i = 0; i < V.Crossings.Count; i++) { var c = V.Crossings[i]; if (Math.Abs(w.X - c.X) < 6 && w.Y > c.Y0 - 16 && w.Y < c.Y1 + 16) return i; }
@@ -44,7 +44,9 @@ public partial class EditorWindow
     void DSyncSingle()
     {
         selKind = null; selIdx = -1;
-        if (dSel.Count > 0 || DSelCount != 1) return;
+        if (dEdge != null) { selKind = "edge"; selId = dEdge; return; }
+        if (DSelCount != 1) return;
+        if (dSel.Count == 1) { if (NodeElement(dSel.First()) is { } ne) { selKind = ne.Kind; selId = ne.Id; } return; }
         if (dSelLabels.Count == 1) { selKind = "label"; selIdx = dSelLabels.First(); }
         else if (dSelPlats.Count == 1) { selKind = "platform"; selIdx = dSelPlats.First(); }
         else if (dSelCross.Count == 1) { selKind = "crossing"; selIdx = dSelCross.First(); }
@@ -76,7 +78,8 @@ public partial class EditorWindow
         modeBtn.Content = dispMode ? "Tryb: ZOBRAZOWANIE (obrazy pulpitu)  ⇄" : "Tryb: PLAN SCHEMATYCZNY (układ torowy)  ⇄";
         modeBtn.Background = dispMode ? new SolidColorBrush(Color.FromRgb(0x5a, 0x3a, 0x10)) : new SolidColorBrush(Color.FromRgb(0x1f, 0x3d, 0x5a));
         // w zobrazowaniu – tylko narzędzia obrazu: wskaż, napis, peron, przejazd (kopie pulpitu, niezależne od planu)
-        foreach (var b in toolButtons) b.Visibility = dispMode && !toolBtns.Any(x => x.Value == b && (x.Key == Tool.Select || DecoTool(x.Key))) ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var b in toolButtons) b.Visibility = dispMode && !toolBtns.Any(x => x.Value == b && DispTool(x.Key)) ? Visibility.Collapsed : Visibility.Visible;
+        ApplyDispToolTips();
         planBtn.Visibility = dispMode ? Visibility.Collapsed : Visibility.Visible;
         autoBtn.Visibility = planBtn.Visibility;
         ApplyModeToolbars();
@@ -241,8 +244,8 @@ public partial class EditorWindow
         }
         for (int i = 0; i < n; i++)
         {
-            int op = rnd.Next(17);
-            string name = op switch { 0 or 1 => "przeciągnięcie węzła", 2 => "przeciągnięcie punktu załamania", 3 => "punkt załamania", 4 => "usunięcie punktu (PPM)", 5 => "prostokąt", 6 => "strzałki", 7 => "Del", 8 => "umieszczenie", 9 => "podział toru", 10 => "scalenie torów", 11 => "cofnij", 12 => "ponów", 14 => "przeciągnięcie napisu/peronu/przejazdu", 15 => "nowy napis/peron/przejazd", 16 => "Del napisu/peronu/przejazdu", _ => "obraz" };
+            int op = rnd.Next(21);
+            string name = op switch { 0 or 1 => "przeciągnięcie węzła", 2 => "przeciągnięcie punktu załamania", 3 => "punkt załamania", 4 => "usunięcie punktu (PPM)", 5 => "prostokąt", 6 => "strzałki", 7 => "Del", 8 => "umieszczenie", 9 => "podział toru", 10 => "scalenie torów", 11 => "cofnij", 12 => "ponów", 14 => "przeciągnięcie napisu/peronu/przejazdu", 15 => "nowy napis/peron/przejazd", 16 => "Del napisu/peronu/przejazdu", 17 => "tor na obrazie (ciąg UT)", 18 => "umieszczenie urządzenia UT", 19 => "przypisanie do innego elementu UT", 20 => "zaznaczenie toru + Del", _ => "obraz" };
             bool layoutOp = op is 9 or 10 or 11 or 12;
             string before = doc.Root.ToJsonString(); string layBefore = layoutOp ? null : Layout();
             try
@@ -299,6 +302,22 @@ public partial class EditorWindow
                         SetTool(Tool.Select);
                         break;
                     }
+                    case 17:
+                    {
+                        SetTool(Tool.Track); Down(Near(), null);
+                        for (int k = rnd.Next(4); k > 0; k--) Down(rnd.Next(3) == 0 ? Near() : P(), null);
+                        switch (rnd.Next(3)) { case 0: Safe(() => DChainKey(Key.Enter)); break; case 1: Right(P()); break; default: Safe(() => DChainKey(Key.Escape)); break; }
+                        SetTool(Tool.Select);
+                        break;
+                    }
+                    case 18: { SetTool(new[] { Tool.Signal, Tool.Switch, Tool.TrackEnd, Tool.Derailer }[rnd.Next(4)]); Down(P(), null); SetTool(Tool.Select); break; }
+                    case 19:
+                    {
+                        if (rnd.Next(2) == 0) { var es = DS.Edges.Values.Where(x => !x.Link && doc.OnDisplay(x.Id)).ToList(); if (es.Count > 0) Safe(() => DRebindEdge(es[rnd.Next(es.Count)].Id)); }
+                        else { var ns = Vis(); if (ns.Count > 0) Safe(() => DRebindNode(ns[rnd.Next(ns.Count)].Id)); }
+                        break;
+                    }
+                    case 20: { var a = OnEdge(); Down(a, null); Up(a, null); if (rnd.Next(2) == 0) Safe(() => DKey(Key.Delete)); break; }
                 }
             }
             catch (Exception ex) { Errors.Add($"NIEPRZECHWYCONY ({name}) " + ex.GetType().Name + ": " + ex.Message + " @ " + (ex.StackTrace ?? "").Split((char)10).FirstOrDefault(l => l.Contains("LcsWidzew"))?.Trim()); }
@@ -306,7 +325,7 @@ public partial class EditorWindow
             if (changed) counts[name] = counts.GetValueOrDefault(name) + 1;
             if (!dispMode) { Errors.Add($"{name}: edytor wyszedł z trybu zobrazowania"); ToggleDisplayMode(); }
             Check(name);
-            if (!layoutOp && Layout() != layBefore) Errors.Add($"{name}: operacja na obrazie zmieniła układ torowy");
+            if (!layoutOp && Layout() != layBefore) { var la = Layout(); int k = 0; while (k < la.Length && k < layBefore.Length && la[k] == layBefore[k]) k++; Errors.Add($"{name}: operacja na obrazie zmieniła układ torowy"); log.AppendLine($"DIAG {name} @{i}: …{layBefore.Substring(Math.Max(0, k - 120), Math.Min(260, layBefore.Length - Math.Max(0, k - 120)))}  ⇒  …{la.Substring(Math.Max(0, k - 120), Math.Min(260, la.Length - Math.Max(0, k - 120)))}"); }
             // cofnięcie operacji obrazu ma przywrócić dokładnie stan sprzed niej
             if (!layoutOp && changed && rnd.Next(4) == 0)
             {
@@ -372,14 +391,15 @@ public partial class EditorWindow
     bool DDown(Point w, MouseButtonEventArgs e)
     {
         if (DS == null) return true;
+        if (DToolDown(w, e)) return true;
         bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         // dwuklik na torze – nowy punkt załamania
         if (e?.ClickCount == 2 && DAddBend(w)) return true;
         var nid = DPickNode(w);
         if (nid != null)
         {
-            if (shift) { if (!dSel.Remove(nid)) dSel.Add(nid); ShowProps(); panel.InvalidateVisual(); return true; }
-            if (!dSel.Contains(nid)) { DClearSel(); dSel.Add(nid); ShowProps(); }
+            if (shift) { if (!dSel.Remove(nid)) dSel.Add(nid); DSyncSingle(); ShowProps(); panel.InvalidateVisual(); return true; }
+            if (!dSel.Contains(nid) || dEdge != null) { DClearSel(); dSel.Add(nid); DSyncSingle(); ShowProps(); }
             DBeginDrag(w, null);
             return true;
         }
@@ -391,6 +411,27 @@ public partial class EditorWindow
             if (shift) { if (!set.Remove(idx)) set.Add(idx); DSyncSingle(); ShowProps(); panel.InvalidateVisual(); return true; }
             if (!set.Contains(idx)) { DClearSel(); set.Add(idx); DSyncSingle(); ShowProps(); }
             DBeginDrag(w, null); return true;
+        }
+        // tor obrazu: zaznaczenie (właściwości z UT, przypisanie do innego toru UT)
+        // klik – tor (właściwości) i przeciąganie całego toru; Shift+klik – dodaj / odejmij tor; Ctrl+klik – cały ciąg (od zwrotnicy do zwrotnicy)
+        if (DPickSeg(w) is { } tsg && DS.Edges[tsg.Edge] is var te)
+        {
+            bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+            var ends = ctrl && st.Edges.ContainsKey(te.Id) ? DChainNodes(ChainOf(te.Id)) : new List<string> { te.A, te.B };
+            if (shift || ctrl)
+            {
+                if (!shift) DClearSel();
+                bool all = ends.All(dSel.Contains);
+                dEdge = null;
+                foreach (var n in ends) if (shift && all) dSel.Remove(n); else dSel.Add(n);
+                DSyncSingle(); ShowProps(); panel.InvalidateVisual();
+                status.Text = $"Zaznaczone na obrazie: węzły {dSel.Count}, tory {DSelEdges().Count} – przeciągnij tor albo węzeł grupy, strzałki, Del";
+                if (!shift) DBeginDrag(w, null);
+                return true;
+            }
+            if (!(dSel.Contains(te.A) && dSel.Contains(te.B) && dSel.Count > 2)) { DClearSel(); dEdge = te.Id; dSel.Add(te.A); dSel.Add(te.B); DSyncSingle(); ShowProps(); }
+            DBeginDrag(w, null); panel.InvalidateVisual();
+            return true;
         }
         // puste miejsce: przeciąganie – przesuwanie widoku (jak w planie); Shift+przeciąganie – zaznaczanie prostokątem
         if (!shift)
@@ -458,6 +499,7 @@ public partial class EditorWindow
 
     void DUp(Point w, MouseButtonEventArgs e)
     {
+        if (tool == Tool.Measure) { MeasureUp(w); panel.InvalidateVisual(); return; }
         if (dBand is Point bf)
         {
             dBand = null;
@@ -490,6 +532,8 @@ public partial class EditorWindow
 
     void DRight(Point w)
     {
+        if (DChainRight()) { panel.InvalidateVisual(); return; }
+        if (tool != Tool.Select) { SetTool(Tool.Select); return; }
         if (DPickPoint(w) is { } pp)
         {
             var pts = doc.DPts(pp.Edge); if (pts == null) return;
@@ -532,6 +576,13 @@ public partial class EditorWindow
 
     void DHideSel()
     {
+        if (dEdge != null)
+        {
+            if (!doc.OnDisplay(dEdge)) { DClearSel(); ShowProps(); return; }
+            doc.Snapshot(); var de = dEdge; doc.DispEdges.Remove(de); DClearSel();
+            Changed($"Tor {de} usunięty z obrazu pulpitu (układ torowy bez zmian; narysujesz go narzędziem Tor)");
+            return;
+        }
         if (dSel.Count == 0 && DSelCount > 0)
         {
             doc.Snapshot();
@@ -542,6 +593,8 @@ public partial class EditorWindow
             return;
         }
         if (dSel.Count == 0) return;
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !dShiftDel) { DHideSymbols(); return; }
+        dShiftDel = false;
         if (!NoPrompt && MessageBox.Show(this, $"Usunąć z obrazu pulpitu {dSel.Count} węzłów i tory, które do nich dochodzą?\nUkład torowy (połączenia, odcinki, sygnalizatory) zostaje bez zmian – elementy można umieścić ponownie.", "Zobrazowanie", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
         doc.Snapshot(); foreach (var n in dSel) doc.HideNode(n); DClearSel();
         Changed("Usunięto z obrazu pulpitu (układ torowy bez zmian)");
@@ -576,6 +629,7 @@ public partial class EditorWindow
         foreach (var i in dSelCross) if (i < DS.Crossings.Count) { var c = DS.Crossings[i]; dc.DrawRectangle(null, new Pen(az, 1.5 / scale), new Rect(c.X - 5, c.Y0 - 5, 10, c.Y1 - c.Y0 + 10)); }
         if (tool == Tool.Platform && rectFrom is Point rf) dc.DrawRectangle(null, new Pen(az, 1.5 / scale), new Rect(rf, Snap(mouse)));
         if (tool == Tool.Crossing && crossFrom is Point cfr) dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(0xf0, 0x80, 0xf0)), 3 / scale), cfr, new Point(cfr.X, Snap(mouse).Y));
+        DDrawTools(dc, scale);
         if (dBand is Point bf) dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x20, 0x00, 0xa0, 0xff)), new Pen(az, 1 / scale) { DashStyle = DashStyles.Dash }, new Rect(bf, dBandEnd));
         // napis trybu w rogu widoku
         var v = panel.ViewWorld;
@@ -586,6 +640,7 @@ public partial class EditorWindow
     // ------------------------------------------------------------------ panel boczny
     void DShowProps()
     {
+        DToolPanel();
         props.Children.Add(T("Zobrazowanie (obraz pulpitu EbiScreen)", 14, Brushes.White, true));
         props.Children.Add(T("Elementy obrazu są powiązane z układem torowym, ale ich położenie jest niezależne: tory mogą się zbliżać i krzyżować – połączenia tworzy tylko układ torowy.\n\n• przeciągnij węzeł – przesuwa go razem z końcami torów\n• przeciąganie pustego miejsca – przesuwanie widoku, kółko – powiększenie\n• Shift+klik / Shift+przeciąganie (prostokąt) – zaznaczenie grupy; przeciąganie węzła grupy i strzałki – przesuwanie\n• dwuklik na torze – punkt załamania, PPM na punkcie – usunięcie\n• Del – usunięcie z obrazu (układ bez zmian)\n• Napis (N), Peron (P), Przejazd (X) – elementy pulpitu; plan schematyczny ma własne, osobne", 10.5, Brushes.Gray));
         props.Children.Add(T($"Na obrazie: napisy {DS?.Labels.Count ?? 0}, perony {DS?.Platforms.Count ?? 0}, przejazdy {DS?.Crossings.Count ?? 0}", 11, Brushes.LightGray));
@@ -598,7 +653,7 @@ public partial class EditorWindow
         }
         if (dSel.Count > 0)
         {
-            props.Children.Add(T($"Zaznaczone węzły: {dSel.Count}", 11.5, Brushes.LightGray));
+            props.Children.Add(T($"Zaznaczone węzły: {dSel.Count}, tory (oba końce zaznaczone): {DSelEdges().Count}. Przeciągnij tor albo węzeł grupy, strzałki – o krok siatki. Shift+klik na torze – dodaj / odejmij, Ctrl+klik – cały ciąg.", 11.5, Brushes.LightGray));
             props.Children.Add(Btn("Wyrównaj do wspólnego Y (pierwszy zaznaczony)", (a, e) => Safe(() =>
             {
                 var y = DS.Nodes[dSel.First()].Y;
@@ -625,6 +680,8 @@ public partial class EditorWindow
             dHiddenList = new ListBox { Height = 160, Background = Brushes.Black, Foreground = Brushes.White, SelectionMode = SelectionMode.Extended };
             foreach (var e in hidden.OrderBy(e => StationDoc.Sv(e["sec"])))
                 dHiddenList.Items.Add(new ListBoxItem { Content = $"{Station.Lbl(StationDoc.Sv(e["sec"]))}{(StationDoc.Sv(e["track"]) is { Length: > 0 } t ? " tor " + t : "")}  ({StationDoc.Sv(e["id"])})", Tag = StationDoc.Sv(e["id"]) });
+            foreach (ListBoxItem li in dHiddenList.Items) if ((string)li.Tag == dHiddenSel) li.IsSelected = true;
+            dHiddenList.SelectionChanged += (a, ev) => dHiddenSel = (dHiddenList.SelectedItem as ListBoxItem)?.Tag as string;
             props.Children.Add(dHiddenList);
             props.Children.Add(Btn("Umieść zaznaczone (wg rysunku układu)", (a, ev) => Safe(() =>
             {

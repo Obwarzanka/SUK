@@ -67,7 +67,7 @@ public partial class App : Application
         base.OnStartup(e);
         if (A.Length > 1 && A[0] == "--editshot")
         {
-            var ed = new UI.EditorWindow(StationPath, null) { WindowState = WindowState.Normal, Width = 1600, Height = 950, NoPrompt = true };
+            var ed = new UI.EditorWindow(StationPath, null, A.Length > 2 && A[2] is "zobr" or "zobrnarz" ? UI.EditorKind.Zobrazowanie : UI.EditorKind.Uklad) { WindowState = WindowState.Normal, Width = 1600, Height = 950, NoPrompt = true };
             var shot = A[1];
             ed.ContentRendered += (a, b) => ed.Dispatcher.BeginInvoke(() =>
             {
@@ -101,6 +101,8 @@ public partial class App : Application
                 if (A.Length > 3 && A[2] == "luki") File.WriteAllText(shot + ".txt", ed.CurvesForTest(A[3]));
                 if (A.Length > 3 && A[2] == "testowo") File.WriteAllText(shot + ".txt", ed.TestowoForTest(A[3], A.Length > 4 ? double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture) : 4));
                 if (A.Length > 3 && A[2] == "mijanka") File.WriteAllText(shot + ".txt", ed.MijankaForTest(A[3], A.Length > 4 ? double.Parse(A[4], System.Globalization.CultureInfo.InvariantCulture) : 0));
+                if (A.Length > 3 && A[2] == "zobrnarz") File.WriteAllText(shot + ".txt", ed.DispToolsForTest(A[3]));
+                if (A.Length > 3 && A[2] == "ut") File.WriteAllText(shot + ".txt", ed.UtForTest(A[3]));
                 if (A.Length > 3 && A[2] == "plantools") File.WriteAllText(shot + ".txt", ed.PlanToolsForTest(A[3]));
                 if (A.Length > 3 && A[2] == "pomiar") File.WriteAllText(shot + ".txt", ed.MeasureForTest(A[3]));
                 if (A.Length > 4 && A[2] == "ostrosc") File.WriteAllText(shot + ".txt", ed.DetailForTest(A[3], A[4]));
