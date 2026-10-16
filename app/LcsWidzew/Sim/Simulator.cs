@@ -28,25 +28,27 @@ public partial class Simulator
     public Dictionary<string, List<RouteDef>> RouteTable = new();
     public PowerState Power = new();
     public Pending Pending;
-    public List<EventRecord> Events = new();
-    public List<EventRecord> Alarms = new();
     public List<BookEntry> Book = new();
-    public List<(string Time, string Text)> Remarks = new();
     public List<Pending> BookDrafts = new();
     public User User;
     public Stats Stats = new();
     int seq = 1;
-    long evSeq;
 
-    public event Action<EventRecord> EventAdded;
-    public event Action<EventRecord> AlarmAdded;
+    /// <summary>Rejestrator zdarzeń i alarmów – usługa wspólna modułów (Sim/Rejestrator.cs).</summary>
+    public readonly Rejestrator Rej;
+    public List<EventRecord> Events => Rej.Events;
+    public List<EventRecord> Alarms => Rej.Alarms;
+    public List<(string Time, string Text)> Remarks => Rej.Remarks;
+    public event Action<EventRecord> EventAdded { add => Rej.EventAdded += value; remove => Rej.EventAdded -= value; }
+    public event Action<EventRecord> AlarmAdded { add => Rej.AlarmAdded += value; remove => Rej.AlarmAdded -= value; }
+    public event Action Beep { add => Rej.Beep += value; remove => Rej.Beep -= value; }
     public event Action<string> SpecialExecuted;
-    public event Action Beep;
     public event Action PendingExpired;
 
     public Simulator(Station st, bool routes = true)
     {
         L = st;
+        Rej = new Rejestrator(L, () => T, () => Clock(), () => User);
         Page = L.Pages[^1].Id;
         foreach (var s in L.Sections.Keys) Secs[s] = new SecState { Id = s };
         foreach (var s in L.Switches.Keys) Sws[s] = new SwState { Num = s };
@@ -63,45 +65,14 @@ public partial class Simulator
         return $"{s / 3600 % 24:00}:{s / 60 % 60:00}:{s % 60:00}";
     }
 
-    // przedrostki posterunków (np. „LW:”) i ich skróty (np. ŁW) – z wczytanego układu, nie zaszyte w programie
-    Regex prefix;
-    Regex Prefix => prefix ??= L.Posts.Count == 0 ? new Regex("(?!)") : new Regex(@"\b(" + string.Join("|", L.Posts.Keys.Select(Regex.Escape)) + "):", RegexOptions.Compiled);
-    public string Clean(string s) => s == null ? "" : Prefix.Replace(s, "");
+    public string Clean(string s) => Rej.Clean(s);
     /// <summary>Skrót posterunku: inicjały nazwy (Łódź Widzew → ŁW, Koluszki → Ko).</summary>
-    public static string PostShort(Station L, string post)
-    {
-        if (string.IsNullOrEmpty(post) || !L.Posts.TryGetValue(post, out var n) || string.IsNullOrWhiteSpace(n)) return post ?? "";
-        var w = n.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(x => char.IsLetter(x[0])).ToList();
-        return w.Count == 1 ? (w[0].Length <= 4 ? w[0] : w[0][..2]) : string.Concat(w.Select(x => char.ToUpper(x[0])));
-    }
-    string StationOf(string key, string text)
-    {
-        var p = Station.PostOf(key);
-        if (p == "") { var m = Prefix.Match(text ?? ""); if (m.Success) p = m.Groups[1].Value; }
-        return L.Posts.ContainsKey(p) ? PostShort(L, p) : "LCS";
-    }
+    public static string PostShort(Station L, string post) => Rejestrator.PostShort(L, post);
 
-    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System")
-    {
-        var e = new EventRecord { Id = ++evSeq, T = T, Czas = Clock(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Zrodlo = zrodlo };
-        Events.Add(e);
-        EventAdded?.Invoke(e);
-        return e;
-    }
-
+    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System") => Rej.Log(kategoria, text, typ, obiekt, zrodlo);
     /// <summary>Alarm (Ie-104 § 7): lista z potwierdzeniem i znacznikiem trwania stanu alarmowego.</summary>
-    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null)
-    {
-        key ??= text;
-        if (Alarms.Any(a => a.Key == key && (!a.Ack || a.Active))) return;
-        var e = new EventRecord { Id = ++evSeq, T = T, Czas = Clock(), Obszar = L.Name ?? "LCS", Kategoria = "Alarm", Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = User?.Name ?? "", Key = key, StillActive = stillActive };
-        Alarms.Add(e);
-        AlarmAdded?.Invoke(e);
-        Log("Alarm", text, typ, obiekt);
-        Beep?.Invoke();
-    }
-
-    public void Remark(string text) { Remarks.Add((Clock(), Clean(text))); Log("Uwaga", text, "Ocena"); }
+    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null) => Rej.Alarm(text, typ, obiekt, key, stillActive);
+    public void Remark(string text) => Rej.Remark(text);
 
     // ------------------------------------------------------------------ topologia
     public record Fwd(string Edge, string Num, string Pos);
@@ -339,7 +310,7 @@ public partial class Simulator
         UpdatePower(); UpdateSwitches(); UpdateBlocks();
         Trains?.Tick(dt);
         UpdateSignals(); UpdateRoutes();
-        foreach (var a in Alarms) if (a.Active && a.StillActive != null && !a.StillActive()) a.Active = false;
+        Rej.UpdateAlarms();
     }
 
     void UpdatePower()
