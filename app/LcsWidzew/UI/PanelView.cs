@@ -11,29 +11,11 @@ namespace LcsWidzew.UI;
 /// Obraz szczegółowy posterunku wg Ie-104 (Rozdział 2, § 4–8). Rysowany w OnRender.
 /// Kółko myszy – powiększenie, przeciąganie LPM w pustym miejscu – przesuwanie.
 /// </summary>
-/// <summary>Tryb edycji układu – PanelView przekazuje mysz edytorowi (współrzędne świata) i rysuje jego nakładkę.</summary>
-public interface IPanelEditor
-{
-    bool Down(Point w, MouseButtonEventArgs e);
-    void Move(Point w, MouseEventArgs e);
-    void Up(Point w, MouseButtonEventArgs e);
-    void Right(Point w);
-    void Draw(DrawingContext dc, double scale);
-    void DrawBack(DrawingContext dc, double scale);
-    string Hover(Point w);
-}
-
 public class PanelView : FrameworkElement
 {
-    public IPanelEditor Editor;
-    /// <summary>Widok edytora: tory ciągłe (bez przerw położenia zwrotnic i przerw izolacyjnych – granice odcinków jako cienkie kreski).</summary>
-    public bool EditView;
-    /// <summary>Plan schematyczny węzła (układ torowy): białe tło, cienkie czarne tory, symbole planu – bez stanów pulpitu.</summary>
-    public bool PlanView;
     /// <summary>Obraz poglądowy całego obszaru LCS (Ie-104 § 7 ust. 9): tory, sygnały, blokady i numery pociągów bez opisów; klik – obraz szczegółowy.</summary>
     public bool Overview;
     public event Action<string> OverviewClicked;
-    bool editDrag;
     public double Scale => scale;
     IPulpitSource sim;
     /// <summary>Źródło meldunków (komputer zależności lokalnie albo przez sieć). Zobrazowanie korzysta tylko z układu torowego (Lay) i meldunków (I).</summary>
@@ -77,10 +59,10 @@ public class PanelView : FrameworkElement
     {
         ClipToBounds = true; Focusable = true;
         MouseWheel += OnWheel; MouseLeftButtonDown += OnLeftDown; MouseLeftButtonUp += OnLeftUp; MouseMove += OnMove;
-        // przesuwanie widoku w każdym narzędziu edytora: środkowy przycisk myszy (albo Spacja + LPM)
+        // przesuwanie widoku: środkowy przycisk myszy (albo Spacja + LPM)
         MouseDown += (s, e) => { if (e.ChangedButton == MouseButton.Middle) { StartPan(e.GetPosition(this)); e.Handled = true; } };
         MouseUp += (s, e) => { if (e.ChangedButton == MouseButton.Middle && panFrom != null) { panFrom = null; ReleaseMouseCapture(); Cursor = null; e.Handled = true; } };
-        MouseRightButtonUp += (s, e) => { if (Editor != null) { Editor.Right(S2W(e.GetPosition(this))); InvalidateVisual(); } else HitAndRaise(e); };
+        MouseRightButtonUp += (s, e) => HitAndRaise(e);
     }
 
     bool OnPage(double x) => Page == null || (x >= Page.X0 - 1 && x <= Page.X1 + 1);
@@ -120,8 +102,7 @@ public class PanelView : FrameworkElement
     void OnWheel(object s, MouseWheelEventArgs e)
     {
         var p = e.GetPosition(this); var w = S2W(p);
-        // szeroki zakres: cała linia w skali rzeczywistej (oddalenie) i szczegóły zdjęcia (przybliżenie)
-        scale = Math.Clamp(scale * (e.Delta > 0 ? 1.15 : 1 / 1.15), Editor != null ? 0.004 : 0.2, Editor != null ? 60 : 6);
+        scale = Math.Clamp(scale * (e.Delta > 0 ? 1.15 : 1 / 1.15), 0.2, 6);
         offX = p.X - w.X * scale; offY = p.Y - w.Y * scale;
         InvalidateVisual();
     }
@@ -129,17 +110,15 @@ public class PanelView : FrameworkElement
     {
         Focus();
         if (Keyboard.IsKeyDown(Key.Space)) { StartPan(e.GetPosition(this)); e.Handled = true; return; }
-        if (Editor != null && Editor.Down(S2W(e.GetPosition(this)), e)) { editDrag = true; CaptureMouse(); InvalidateVisual(); return; }
         dragFrom = e.GetPosition(this); dragOff = new Point(offX, offY); dragged = false; CaptureMouse();
     }
     void OnLeftUp(object s, MouseButtonEventArgs e)
     {
         ReleaseMouseCapture();
         if (panFrom != null) { panFrom = null; Cursor = null; return; }
-        if (editDrag) { editDrag = false; Editor?.Up(S2W(e.GetPosition(this)), e); InvalidateVisual(); return; }
         var was = dragged; dragFrom = null;
-        if (!was && Editor == null && Overview) { var w = S2W(e.GetPosition(this)); var pg = Lay?.PageOfX(w.X); if (pg != null) OverviewClicked?.Invoke(pg.Id); return; }
-        if (!was && Editor == null) HitAndRaise(e);
+        if (!was && Overview) { var w = S2W(e.GetPosition(this)); var pg = Lay?.PageOfX(w.X); if (pg != null) OverviewClicked?.Invoke(pg.Id); return; }
+        if (!was) HitAndRaise(e);
     }
     void OnMove(object s, MouseEventArgs e)
     {
@@ -148,13 +127,6 @@ public class PanelView : FrameworkElement
         {
             if (e.MiddleButton == MouseButtonState.Pressed || e.LeftButton == MouseButtonState.Pressed) { offX = panOff.X + (p.X - pf.X); offY = panOff.Y + (p.Y - pf.Y); InvalidateVisual(); return; }
             panFrom = null; ReleaseMouseCapture(); Cursor = null;
-        }
-        if (Editor != null && (editDrag || dragFrom == null))
-        {
-            Editor.Move(S2W(p), e);
-            Hover?.Invoke(Editor.Hover(S2W(p)));
-            InvalidateVisual();
-            return;
         }
         if (dragFrom is Point f && e.LeftButton == MouseButtonState.Pressed)
         {
@@ -238,7 +210,7 @@ public class PanelView : FrameworkElement
                 var s = S.Secs[id];
                 var st = s.Fault switch { "reset" => "wymagane potwierdzenie zerowania", "await" => "oczekiwanie na pierwszy przejazd", "occ" => "zajęty (usterka?)", _ => s.TrainOcc ? "zajęty" : "wolny" };
                 var vs = L.Sections[id].Edges.Select(x => L.Edges[x]).Select(x => x.VMax > 0 ? x.VMax : 0).Where(x => x > 0).Distinct().ToList();
-                return $"Odcinek {lbl} – {L.Sections[id].DetectionName}, posterunek {L.Posts.GetValueOrDefault(Model.StationDoc.SecPost(id)) ?? "?"} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  PPM: polecenia";
+                return $"Odcinek {lbl} – {L.Sections[id].DetectionName}, posterunek {L.Posts.GetValueOrDefault((id.Contains(':') ? id[..id.IndexOf(':')] : "")) ?? "?"} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  PPM: polecenia";
             }
             case "blk":
             {
@@ -381,16 +353,8 @@ public class PanelView : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         I = sim?.Receive();                                    // telegram stanu z komputera zależności
-        var bgBrush = PlanView ? Brushes.White : I?.Pending?.Code == "SZ" ? BgSz : Bg;   // Ie-104 § 4 ust. 18 – przekolorowanie tła przed sygnałem zastępczym
+        var bgBrush = I?.Pending?.Code == "SZ" ? BgSz : Bg;   // Ie-104 § 4 ust. 18 – przekolorowanie tła przed sygnałem zastępczym
         dc.DrawRectangle(bgBrush, null, new Rect(0, 0, ActualWidth, ActualHeight));
-        if (PlanView && Lay != null && Page != null)
-        {
-            dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, offX, offY));
-            try { Editor?.DrawBack(dc, scale); DrawPlan(dc, Lay, VisualTreeHelper.GetDpi(this).PixelsPerDip); Editor?.Draw(dc, scale); RenderError = null; }
-            catch (Exception ex) { RenderError = ex.Message; }
-            finally { dc.Pop(); }
-            return;
-        }
         if (sim == null || Page == null || I == null || Lay == null) return;
         var S = I; var L = Lay;
         dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, offX, offY));
@@ -400,7 +364,6 @@ public class PanelView : FrameworkElement
         double cxPage = (Page.X0 + Page.X1) / 2;
         try
         {
-        Editor?.DrawBack(dc, scale);
 
         Text(dc, $"Dyżurny ruchu: {S.User?.Name ?? "–"}", cxPage, 88, 10, Dim2, true, dpi, Mono);
         Text(dc, Page.Name.ToUpperInvariant(), cxPage, 118, 20, SwLabel, true, dpi, Mono);
@@ -441,8 +404,7 @@ public class PanelView : FrameworkElement
         var pend = S.Pending?.Targets ?? new List<string>();
         // nieczynne odgałęzienie zwrotnicy – szare na całej długości łącznika (ukos – pion – ukos), do następnej zwrotnicy
         var deadLeg = new HashSet<string>();
-        if (!EditView)
-            foreach (var (sw, def) in L.Switches)
+        foreach (var (sw, def) in L.Switches)
             {
                 var w = S.Sws[sw]; if (w.Moving != null || w.NoCtrl) continue;
                 var leg = w.Pos == "+" ? def.Minus : def.Plus; if (leg == null) continue;
@@ -465,7 +427,6 @@ public class PanelView : FrameworkElement
             double gapA = EndGap(e, e.A), gapB = EndGap(e, e.B); Brush c = deadLeg.Contains(e.Id) ? Grey : col;
             foreach (var n in new[] { e.A, e.B })
             {
-                if (EditView) break;
                 var sw = L.Nodes[n].Switch; if (sw == null) continue;
                 var def = L.Switches[sw]; var w = S.Sws[sw];
                 bool moving = w.Moving != null || w.NoCtrl;
@@ -493,23 +454,6 @@ public class PanelView : FrameworkElement
             if (closed) DrawPoly(dc, new Pen(bgBrush, 2.4), pts);
         }
 
-        if (EditView)
-        {
-            var jp = new Pen(B(0x10, 0x10, 0x10), 1.4);
-            foreach (var n in L.Nodes.Values)
-            {
-                if (n.Edges.Count < 2 || !OnPage(n.X)) continue;
-                var secs = n.Edges.Select(x => L.Edges[x].Sec).Distinct().ToList();
-                if (secs.Count < 2) continue;
-                // kreska poprzeczna na każdym torze, który zaczyna w węźle inny odcinek niż pozostałe
-                foreach (var x in n.Edges)
-                {
-                    var ex = L.Edges[x]; if (n.Edges.Count(y => L.Edges[y].Sec == ex.Sec) > 1) continue;
-                    var t = Tangent(ex, n.Id); var pnt = new Point(n.X + t.X * 2.5, n.Y + t.Y * 2.5); var nrm = new Vector(-t.Y, t.X) * 3.2;
-                    dc.DrawLine(jp, pnt - nrm, pnt + nrm);
-                }
-            }
-        }
 
         // oznaczenia torów stacyjnych i wyświetlacze numerów pociągów (Ie-104 § 8 pkt 26)
         var winTrains = S.Windows;
@@ -622,7 +566,6 @@ public class PanelView : FrameworkElement
             }
             foreach (var p in L.Pages) dc.DrawRectangle(null, new Pen(Dim, 2) { DashStyle = DashStyles.Dash }, new Rect(p.X0 + 4, 20, p.X1 - p.X0 - 8, 1240));
         }
-        Editor?.Draw(dc, scale);
         RenderError = null;
         }
         catch (Exception ex) { RenderError = ex.Message; }
@@ -631,67 +574,6 @@ public class PanelView : FrameworkElement
             dc.DrawText(new FormattedText("Błąd rysowania: " + RenderError, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono, 13, Red, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(10, 10));
     }
     public string RenderError;
-
-    /// <summary>
-    /// Plan schematyczny węzła wg Ig-10 [D-27] (znaki umowne – załącznik nr 8): cały obszar na jednym arkuszu, osie torów
-    /// (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, sygnalizatory świetlne z komorami, kozły, wykolejnice,
-    /// liczniki osi / złącza izolowane, perony, przejazdy. Do edycji topologii – nie trafia na pulpit.
-    /// </summary>
-    void DrawPlan(DrawingContext dc, Station L, double dpi)
-    {
-        var g = new Ig10(dc, 2.5 * L.SymbolScale, dpi, 0.9 / Math.Max(0.004, scale), Editor != null ? 1 / Math.Max(0.004, scale) : 0); var ly = PlanLayers.Current;
-        var grey = B(0x70, 0x70, 0x70);
-        if (ly.Platforms) foreach (var p in L.Platforms) g.Platform(p);
-        foreach (var e in L.Edges.Values)
-        {
-            if (e.Link) continue;
-            g.Track(e, e.Pts.Select(q => new Point(q.X, q.Y)).ToList());
-        }
-        // łuki: promień (i przechyłka) przy torze
-        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => (x.Radius > 0 || x.Embank != 0 || !double.IsNaN(x.Grad)) && !x.Link))
-        {
-            var m = e.Pts[e.Pts.Count / 2]; var m0 = e.Pts.Count == 2 ? ((e.Pts[0].X + e.Pts[1].X) / 2, (e.Pts[0].Y + e.Pts[1].Y) / 2) : m;
-            var txt = string.Join(" ", new[] { e.Radius > 0 ? $"R={e.Radius:0}" : null, e.Cant > 0 ? $"h={e.Cant:0}" : null, e.Embank > 0 ? $"nasyp {e.Embank:0.#} m" : e.Embank < 0 ? $"przekop {-e.Embank:0.#} m" : null, double.IsNaN(e.Grad) ? null : Math.Abs(e.Grad) < 0.05 ? "poziom" : $"i={e.Grad:0.#}‰" }.Where(x => x != null));
-            Text(dc, txt, m0.Item1, m0.Item2 + 8, 6.5, grey, true, dpi, Mono);
-        }
-        // kontrola niezajętości: liczniki osi / złącza izolowane na granicach odcinków
-        if (ly.Detection) foreach (var (p, v, det) in Ig10.SectionBoundaries(L)) { if (det == "ot") g.InsulatedJoint(p, v); else g.AxleCounter(p, v); }
-        // numery torów w przerwie osi toru
-        if (ly.Numbers) foreach (var (sec, sd) in L.Sections)
-        {
-            var e = sd.Edges.Select(x => L.Edges[x]).Where(x => !x.Link && x.Track != "").OrderByDescending(x => x.Len).FirstOrDefault();
-            if (e == null) continue;
-            g.TrackNumber(e.Track, new Point(e.Pts[0].X, e.Pts[0].Y), new Point(e.Pts[^1].X, e.Pts[^1].Y), e.Elec ? Ig10.Elec : null);
-        }
-        foreach (var sw in L.Switches.Values) g.Switch(L, sw, null, ly.Numbers);
-        if (ly.Signals) foreach (var gn in L.Gantries.Values) g.Gantry(gn);
-        if (ly.Signals) foreach (var s in L.Signals.Values) g.Signal(L, s);
-        if (ly.Ends) foreach (var d in L.Derailers.Values)
-        {
-            var n = L.Nodes[d.Node]; var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => !x.Link);
-            var v = e == null ? new Vector(1, 0) : new Vector(e.Pts[^1].X - e.Pts[0].X, e.Pts[^1].Y - e.Pts[0].Y);
-            g.Derailer(new Point(n.X, n.Y), v, d.Label);
-        }
-        // kozły oporowe i końce torów: „]” zwrócony w stronę toru
-        if (ly.Ends) foreach (var nid in L.TrackEnds.Keys.Concat(L.Bumpers).Distinct())
-        {
-            if (!L.Nodes.TryGetValue(nid, out var n)) continue;
-            var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => !x.Link); if (e == null) continue;
-            var pts = e.Pts.Select(q => new Point(q.X, q.Y)).ToList(); if (e.A != nid) pts.Reverse();
-            g.BufferStop(pts[0], pts[1] - pts[0]);
-            if (ly.Texts && L.TrackEnds.TryGetValue(nid, out var te) && !string.IsNullOrEmpty(te.Disp)) g.Text(te.Disp, n.X, n.Y + 10, 1.8, grey);
-        }
-        if (ly.Texts) foreach (var b in L.Blocks.Values)
-            foreach (var en in b.Ends) { var n = L.Nodes[en.Boundary]; g.Text((en.Label ?? b.Id) + (b.Internal ? "" : " → " + b.Nbr), n.X + en.VOut * 40, n.Y - 12, 1.8, grey); }
-        if (ly.Texts) foreach (var l in L.Labels) g.Text(l.Text, l.X, l.Y, 1.8, grey, l.Anchor == "middle" ? 0 : l.Anchor == "end" ? 1 : -1);
-        if (ly.Crossings) foreach (var c in L.Crossings) g.Crossing(c);
-        // nazwy posterunków (Ig-10 zał. 1: pełne nazwy)
-        if (ly.Texts) foreach (var (pid, pname) in L.Posts)
-        {
-            var ns = L.Nodes.Values.Where(n => n.Post == pid && n.Edges.Count > 1).ToList(); if (ns.Count == 0) continue;
-            g.Text(pname, (ns.Min(n => n.X) + ns.Max(n => n.X)) / 2, ns.Min(n => n.Y) - 40, 4);
-        }
-    }
 
     /// <summary>Symbol kontrolny (Ie-104 § 4 ust. 16): wzorzec barw, biały na szarym, symbol migania.</summary>
     void DrawControlSymbol(DrawingContext dc, double x, double y)
@@ -795,10 +677,9 @@ public class PanelView : FrameworkElement
         if (n.Signals.Any(x => Lay.Signals[x].Type != "odstepowy")) return 9;
         if (n.Signals.Count > 0) return 3;
         if (n.Switch != null || n.Edges.Count < 2) return 0;
-        if (EditView) return 0;
         // przerwa izolacyjna tylko na prostym przejściu toru; na załamaniu łącznika (ukos → pion) tor rysowany jest w sposób ciągły
         var other = n.Edges.Where(x => x != e.Id && Lay.Edges[x].Sec != e.Sec).ToList();
-        if (other.Count == 0 || EditView) return 0;
+        if (other.Count == 0) return 0;
         var t1 = Tangent(e, node);
         return other.Any(x => { var t2 = Tangent(Lay.Edges[x], node); return t1.X * t2.X + t1.Y * t2.Y < -0.96; }) ? 1.8 : 0;
     }

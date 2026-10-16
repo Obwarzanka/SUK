@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Lcs.EdytorUT/Lcs.EdytorUT.csproj" />
+  <Project Path="Lcs.Model/Lcs.Model.csproj" />
+  <Project Path="LcsWidzew/LcsWidzew.csproj" />
+</Solution>

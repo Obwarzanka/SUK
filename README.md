@@ -4,7 +4,7 @@ Szkoleniowy symulator komputerowego pulpitu nastawczego **LCS Łódź Widzew** o
 
 - Obsługa wg **Ie-20**: polecenia, przebiegi, blokady liniowe, postępowanie przy usterkach.
 - Zobrazowanie wg **Ie-104**, wzorowane na pulpitach LCS (EbiScreen / SimRail).
-- Wbudowany **edytor układu torowego**, a w nim stacje, szlaki, blokady, przebiegi i prędkości.
+- Osobny program **edytor układu torowego** (`EdytorUT.exe`) do rysowania układu w rzeczywistej geometrii (PUWG 1992). Jest w budowie, plan: `PLAN_EDYTOR_UT.md`.
 - **Rzeczywisty rozkład jazdy** z GTFS (IC, Polregio, ŁKA) z obiegiem jednostek ŁKA.
 
 > Symulator jest narzędziem szkoleniowym. Nie zastępuje regulaminu technicznego ani stanowiskowej instrukcji obsługi.
@@ -80,144 +80,26 @@ Szlak wewnętrzny można wskazać oznaczeniem z obrazu dowolnej stacji. Na przyk
 ### Plan stacji (podgląd terenu)
 Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całego węzła na żywo: pociągi (numer, rodzaj, prędkość, czoło na czerwono), semafory jako głowice ze światłami, zwrotnice w aktualnym położeniu (nieczynne odgałęzienie – szare). Na dole: **śledzenie składu** (widok jedzie za wybranym pociągiem), wybór **posterunku** i „Cały węzeł”. To podgląd dla instruktora i do nauki – dyżurny pracuje na pulpicie. Działa tam, gdzie pracuje komputer zależności (gra jednoosobowa, serwer).
 
-## Edytor układu
+## Edytor układu torowego (UT)
 
-Przycisk **„Edytor układu”** w oknie pulpitu. Edytor zapisuje `app/LcsWidzew/Data/station.json`, czyli ten sam plik, który wczytuje symulator.
+Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe [plik.ut.json]`. Plan budowy i decyzje są w `PLAN_EDYTOR_UT.md`.
 
-- **Zapis (Ctrl+S)** od razu odświeża pulpit symulatora.
-- Każdy zapis tworzy kopię w `Data/kopie/` (ostatnie 30). Przycisk **„Przywróć kopię…”** wczytuje starszą wersję.
-- **Ctrl+Z / Ctrl+Y** cofa i ponawia zmiany.
-- **Shift** przy narzędziu jednorazowym pozwala stawiać kolejne obiekty bez wychodzenia z narzędzia.
-- **Ctrl+F** wyszukuje obiekt (sygnalizator, zwrotnicę, węzeł).
+Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
-### Dwa tryby: zobrazowanie i plan schematyczny
-Przycisk w lewym górnym rogu edytora przełącza tryb. Edytor otwiera się na zobrazowaniu.
+Stan (etap 1):
+- **Układ współrzędnych PUWG 1992** (EPSG:2180): X na północ, Y na wschód, Z to wysokość, wszystko w metrach. Północ jest u góry.
+- **Płótno:** kółko myszy przybliża wokół kursora (od 2 mm do 2 km na piksel), przeciąganie lewym albo środkowym przyciskiem przesuwa widok. Do tego siatka o kroku 1 / 2 / 5 · 10ᵏ m, linijki ze współrzędnymi, podziałka i strzałka północy.
+- **Punkt:** w polu wpisz współrzędne z Google Maps (np. `51.7631, 19.5438`) albo `X Y` w PUWG 1992, potem Enter albo „Idź do”.
+- **Pasek stanu:** X, Y i szerokość / długość geograficzna pod kursorem, rozdzielczość (1 px = … m), przybliżona skala na ekranie.
+- **Panel obszaru:** nazwa, skala rysunku 1:500 / 1:1000 / 1:2000 (wielkość symboli Ig-10, nie zmienia geometrii), uwagi.
+- **Plik:** Nowy, Otwórz, Zapisz, Zapisz jako (`*.ut.json`, domyślnie w katalogu `projekty_ut`). Poprzednia wersja zostaje jako `.bak`, zapamiętywany jest też ostatni widok. Cofnij / Ponów: Ctrl+Z, Ctrl+Y.
 
-- **Zobrazowanie** – obrazy pulpitu (EbiScreen / SimRail), czyli to, co widzi dyżurny. Elementy są powiązane z układem torowym, ale ich położenie jest niezależne: tory mogą się zbliżać i krzyżować, bo połączeń nie tworzy obraz.
-  - przeciągnięcie węzła przesuwa go razem z końcami torów;
-  - Shift+klik albo prostokąt zaznacza grupę, przeciąganie i strzałki ją przesuwają;
-  - dwuklik na torze dodaje punkt załamania, PPM na punkcie go usuwa;
-  - Del usuwa z obrazu (układ zostaje bez zmian);
-  - lista „Nieumieszczone na obrazie” pokazuje tory układu, których dyżurny jeszcze nie widzi, z przyciskiem „Umieść”;
-  - **Napis (N), Peron (P), Przejazd (X)** – elementy pulpitu. Zobrazowanie i plan schematyczny mają osobne kopie: przesunięcie, dodanie albo usunięcie napisu na obrazie nie zmienia planu i odwrotnie. Przy pierwszym otwarciu zobrazowanie dostaje kopię obecnych.
-- **Plan schematyczny (układ torowy)** – cały węzeł na jednym arkuszu, znakami umownymi wg **Ig-10** (zał. 8): osie torów (główne grubsze, zelektryfikowane niebieskie), rozjazdy z klinem, semafory i tarcze z komorami, kozły, wykolejnice, liczniki osi / złącza izolowane, perony, przejazdy. Kategorię toru i sieć trakcyjną ustawiasz w panelu toru (cały tor: Shift+dwuklik, potem przyciski w panelu grupy), liczbę komór – w panelu sygnalizatora (`lamps`). Okno „Plan stacji” używa tych samych znaków.
-  - **Skala planu (Ig-10 § 3)** (panel po prawej, gdy nic nie jest zaznaczone): 1:2000 wzdłuż / 1:500 w poprzek albo 1:4000 / 1:1000, a do rysowania po zdjęciach **skala rzeczywista** 1:2000 (albo 1:1000) w obu kierunkach – zdjęcie bez zniekształceń. Zmiana skali przeskalowuje rysunek, długości zostają. **„Długości torów z rysunku”** – długość toru wynika z rysunku (ile jednostek planu, tyle metrów wg skali; skos liczony z obu skal), bez wpisywania. Szlaki (rysowane w skróceniu), łączniki obrazów i tory z długością wpisaną ręcznie (wpisanie długości odcinka albo odznaczenie „Długość z rysunku” w panelu toru) – bez zmian. Bez tej opcji długości są danymi i przesuwanie węzłów ich nie zmienia. Siatka „Ig-10” = 10 m × 4,75 m; linijki, podpowiedź, rysowany tor i miarka pokazują metry.
-  - **Ostrzejszy podkład przy przybliżeniu** (panel planu, domyślnie włączone): oglądany z bliska kafelek mozaiki dociąga się w tle w wyższej rozdzielczości (ortofotomapa do 4096 px ≈ 0,18 m/px, Esri do 2048 px). Położenie i skala podkładu się nie zmieniają.
-  - **Profil wysokościowy** (panel toru: „Profil wysokościowy toru (NMT GUGiK)…” – ciąg toru do zwrotnic / końców; albo miarka + H): wysokości terenu z numerycznego modelu terenu GUGiK wzdłuż trasy leżącej na podkładzie z położeniem geograficznym, wykres, odcinki o stałym pochyleniu [‰] (tolerancja załomów, najkrótszy odcinek), tabela do Excela, „Zapisz pochylenia w torach” (warstwa planu „pochylenia ‰”, podpowiedź toru). To wysokość terenu, nie główki szyny; na wiaduktach NMT pokazuje dolinę.
-  - **Przyciąganie do torów i węzłów**: przy rysowaniu znacznik pokazuje, gdzie trafi punkt – zielony kwadrat: węzeł, pomarańczowy krzyżyk: punkt na torze (tor zostanie tam podzielony).
-  - **Rysowanie łukami**: w narzędziu Tor włącz „◠ łukiem” (klawisz C) i klikaj wzdłuż toru na zdjęciu – każdy odcinek to łuk styczny do poprzedniego.
-  - **Odgałęzienie**: koniec toru przeciągnięty na środek innego toru (pomarańczowy krzyżyk) – połączenie w nowym węźle; potem wstaw zwrotnicę (Z).
-  - **Międzytorze i nasyp**: pole „Międzytorze [m]” w pasku (narzędzie Równoległy); przy rysowaniu toru podpowiedź pokazuje odległość do toru obok; w panelu toru – wysokość na nasypie (ujemna – przekop).
-  - **Łączenie torów**: przeciągnij koniec toru na koniec (albo węzeł) drugiego toru – gdy węzeł docelowy podświetli się na zielono, puść. Tory są połączone. Alternatywa: narzędzie Tor – klik na jednym końcu, klik na drugim (nowy tor łączący).
-  - **Łuk przez przeciągnięcie**: narzędzie Łuk – wciśnij na torze i przeciągnij (albo Ctrl+przeciągnij tor w „Wskaż”) – tor wygina się w łuk przez kursor.
-  - **Punkty załamania toru**: dwuklik na torze – nowy punkt (dokładnie na torze), przeciągnij go na zdjęcie; PPM na punkcie – usuń. Cały tor zaznacza Alt+dwuklik.
-  - **Przyciąganie do siatki**: przełącznik „przyciąganie” obok siatki, Alt – chwilowo odwrotnie (przy podkładzie domyślnie wyłączone).
-  - **Przesuwanie widoku** w każdym narzędziu (np. w trakcie rysowania toru): środkowy przycisk myszy albo Spacja + LPM; kółko – powiększenie.
-  - **Kafelki ortofotomapy z mapki** (ten sam panel): okno z mapą OSM i liniami kolejowymi (OpenRailwayMap) – LPM zaznacza kafelki (przeciągnięcie „maluje” je wzdłuż linii), PPM przesuwa mapę, kółko przybliża. „Pobierz zaznaczone i wstaw na plan” – mozaika trafia na plan od razu w skali; kolejne kafelki dokładają się w swoje miejsce (raz wyrównana do poziomu zostaje wyrównana). Źródło: ortofotomapa Geoportalu albo zdjęcia satelitarne Esri.
-  - **Kilka podkładów naraz**: lista w panelu – zaznaczony jest aktywny (jego dotyczą obrót, skala, przesunięcie, usuwanie), przy każdym widoczność i kolejność ↑↓, krycie osobno. Np. plan z Semaforka nad ortofotomapą.
-  - **Nowy podkład** (ten sam panel): ortofotomapa (zdjęcia lotnicze z Geoportalu), mapa OpenStreetMap, zdjęcia satelitarne Esri – podajesz środek („szer., dł.”, np. z Google Maps), wymiary w metrach i rozdzielczość; podkład pobiera się i trafia na plan od razu w skali (bez rozciągania), zostaje go obrócić („1. Wyrównaj tor do poziomu”). Plan z Semaforka: adres obrazu (PPM na obrazie → „Kopiuj adres obrazu”) albo plik z dysku – potem skala wzdłuż / w poprzek. Pliki podkładów: katalog `podklady` obok pliku układu.
-  - **Podkład** (ten sam panel): „Wczytaj podkład…” – plan Semaforka, skan albo mapa. Ustawienie w skali planu: **1. Wyrównaj tor do poziomu** (2 punkty na osi toru), **2. Skala wzdłuż** (2 punkty + odległość w m, np. z kilometrażu), **3. Skala w poprzek** (2 sąsiednie tory + rozstaw, zwykle 4,75 m), **Mapa: rozciągnij pionowo** (mapa ma jedną skalę, plan – dwie), **Przesuń podkład**, „Dopasuj dwoma punktami” (do węzłów). Pola: położenie, szerokość, rozciągnięcie pionowe, obrót; przezroczystość. PPM/Esc przerywa. Podkład widać tylko w edytorze. Potem rysuj tory narzędziem Tor po podkładzie.
-  - **Zbiorcze zaznaczanie**: przycisk **„⬚ Zaznacz obszarem”** (Q) – przeciąganie po pustym miejscu rysuje prostokąt zaznaczenia (bez Shift; Shift dodaje), w planie i w zobrazowaniu. Ctrl+A – wszystko na obrazie. Grupę przeciągasz, przesuwasz strzałkami, usuwasz Del.
-  - **Warstwy planu** (Ig-10): włączanie i wyłączanie sygnalizatorów, numerów, liczników osi, peronów, przejazdów, kozłów i wykolejnic, napisów, łuków. W „Plan stacji” – przycisk „Warstwy ▾”.
-  - **„Rozjazdy jako skosy”** zamienia pionowe łączniki na skosy jak w terenie (tylko rysunek planu).
-  - **„Autoukład w skali”** – propozycja całego planu w skali Ig-10: długości torów z danych (1:2000), tory każdej stacji w równych pasach (1:500), łączniki jako skosy, szlaki skrócone. Kolejność torów zostaje z obecnego planu. Pulpit się nie zmienia, Ctrl+Z cofa całość. Potem popraw ręcznie, np. na podkładzie. W pasku stanu raport: największa odchyłka długości wskazuje niespójne długości w danych. Tu budujesz topologię: tory, zwrotnice, sygnalizatory, odcinki, szlaki. Z tego liczy komputer zależności. Plan można ułożyć jak w terenie, niezależnie od obrazów pulpitu.
-
-- **✂ Podziel tor / ⊕ Scal tory** (pasek, w obu trybach): klik na torze dzieli go w tym miejscu (nowy węzeł na planie i na obrazie), klik na węźle między dwoma torami łączy je w jeden. Shift – kolejne bez wychodzenia, PPM – koniec.
-
-Podział, scalenie i prostowanie toru na planie zmieniają też obraz. Nowe tory trzeba umieścić na obrazie samemu. Przy pierwszym otwarciu obecny rysunek staje się jednorazowo zobrazowaniem, a jego kopia – planem.
-
-### Narzędzia
-
-| Narzędzie | Klawisz | Działanie |
-|---|---|---|
-| Wskaż / przesuń | – | zaznaczanie, przeciąganie węzłów, napisów i peronów; prostokąt – zaznaczenie grupy (wyrównanie, rozsunięcie torów, prostowanie rozjazdów) |
-| ⫴ Równoległy | E | tor obok istniejącego w międzytorzu z pola „Międzytorze [m]” (strona kursora), wzdłuż całego ciągu toru, także po łukach |
-| ◠ Łuk | O | łuk po okręgu: klik – początek, klik – punkt na łuku, klik – koniec; Ctrl+klik zamiast punktu na łuku – łuk styczny do toru; kolejne łuki ciągną się od końca. Promień [m] zapisuje się w torze, długość liczy się po łuku. Łuk o zadanym promieniu w narożniku – panel węzła z dwoma torami |
-| ⊤ Bramka | U | bramka sygnałowa na planie (znak 9.8.8): przeciągnij w pionie w poprzek torów – semafory w pobliżu przypinają się i dosuwają do bramki; konstrukcję semafora (maszt, maszt z wysięgnikiem, wysięgnik nad torem, bramka, karzełkowy) wybierasz w jego panelu. Tylko plan – zależności i pulpit bez zmian |
-| Tor | T | rysowanie toru punkt po punkcie (Shift – poziomo), PPM/Esc kończy |
-| Odcinek | – | przypisanie torów do odcinków izolowanych (Ctrl+klik pobiera odcinek) |
-| **Rozjazd** | R | **rysuje nowe połączenie**: klik na torze, potem na drugim torze tworzy łącznik ukos–pion–ukos z dwiema zwrotnicami; klik w puste miejsce tworzy odgałęzienie |
-| **Zwrotnica** | Z | **nadaje zwrotnicę istniejącemu rozgałęzieniu** (węzeł z 3 torami) |
-| Semafor / tarcza | S | wjazdowy, wyjazdowy (z Ms2 lub bez), tarcza manewrowa, tarcza ostrzegawcza (to), powtarzacz (sp), **PK** |
-| Kozioł, Wykolejnica | K, W | koniec toru / wykolejnica |
-| Łącznik obrazów | – | logiczne połączenie końców torów na dwóch obrazach |
-| Szlak | – | szlak (blokada liniowa) od semafora wjazdowego |
-| Peron, Przejazd, Napis | P, X, N | perony, przejazdy (Y/T, kilometr w nazwie), napisy |
-| Miarka | M | łamana: klikaj punkty (albo przeciągnij) – długość odcinków i suma [m], kąt i pochylenie 1:n, droga po torach (także od środka toru), promień przez 3 ostatnie punkty; dwuklik / Enter / PPM – koniec, Backspace – cofnij punkt, Esc – wyczyść, **H – profil wysokościowy** wzdłuż pomiaru |
-| Semafor (plan) | S | klik na torze w miejscu sygnalizatora, klik po stronie toru, po której stoi – obowiązuje dla jazdy, przy której jest po prawej (Ctrl – po lewej); kierunek względem toru A→B, nie wschód / zachód |
-| Peron (plan) | P | klik – początek krawędzi peronu, klik – koniec wzdłuż toru (także skośnego), klik – szerokość; na zobrazowaniu – przeciągnij prostokąt |
-| Rozjazd (plan) | R | klik na torze (zwrotnica), klik na drugim torze – prosty łącznik ze zwrotnicami, albo w wolnym miejscu / na końcu toru – odgałęzienie; kąt dowolny jak na zdjęciu (na zobrazowaniu – kształt pulpitu) |
-| Prowadnice | – | przeciągnij z linijki u góry (pozioma) albo z lewej (pionowa); łapią się wysokości / osi węzłów, przyciągają punkty (Alt – nie), odstępy między nimi w metrach; przeciągnij na linijkę albo PPM – usuń |
-
-### PK – punkt końcowy przebiegu
-Mały trójkąt w osi toru, w którym kończy się przebieg, gdy nie ma tam sygnalizatora. Stosuje się go np. przy bliskich posterunkach bez blokady.
-
-- Narzędzie Semafor/tarcza → typ **„pk – punkt końcowy przebiegu”**.
-- Kierunek: kierunek przebiegów, które w nim się kończą.
-- Rodzaj przebiegów: **pociągowe, manewrowe albo oba**. Rodzaj można zmienić później w panelu właściwości.
-- Gdy kończy się w nim nastawiony przebieg, PK świeci na czerwono.
-- Pociąg zatrzymuje się przed PK, jeśli dalej nie ma nastawionego przebiegu pociągowego.
-
-### Szlaki i blokady liniowe
-**Szlak zewnętrzny** (do posterunku spoza LCS):
-1. Narzędzie Szlak → klik na semaforze wjazdowym.
-2. Edytor idzie torem na zewnątrz stacji.
-3. Wybierz rodzaj blokady, kierunek zasadniczy i liczbę odstępów.
-
-**Szlak wewnętrzny** (między stacjami LCS, także na różnych obrazach):
-1. Narzędzie Szlak → klik na semaforze wjazdowym pierwszej stacji → rodzaj **„wewnętrzny – złącze SZLAK WEWNĘTRZNY”**. Na końcu toru pojawia się żółty kwadrat złącza (widoczny tylko w edytorze).
-2. To samo zrób na drugiej stacji. Edytor zapyta, z którym złączem połączyć i jaka jest długość szlaku.
-3. Złącze można też zaznaczyć później, wybrać złącze drugiej stacji z listy i kliknąć **„Połącz”**.
-
-Jeśli semafor ma już szlak (np. błędnie utworzony), edytor zapyta, czy usunąć stary szlak i utworzyć nowy.
-
-**Rodzaje blokad:**
-- **SBL dwukierunkowa** – samoczynna, Wbl/Pzk, jedno- lub wieloodstępowa;
-- **SBL jednokierunkowa** – kierunek stały, bez bloku pozwolenia;
-- **PBL dwukierunkowa / jednokierunkowa** – półsamoczynna, blok początkowy i końcowy;
-- **brak blokady** – telefoniczne zapowiadanie pociągów.
-
-**Panel szlaku** (zaznacz szlak; wszystkie dane blokady liniowej):
-- oznaczenie szlaku (zmiana nazwy przenosi odstępy, sygnalizatory i przebiegi);
-- rodzaj blokady i kierunek zasadniczy;
-- linia, tor szlakowy, oznaczenie szlaku na obrazie (it…), posterunki sąsiednie;
-- dla każdego końca: **napis nad strzałką** i **semafor wjazdowy**;
-- prędkość na szlaku;
-- liczba i długości odstępów, nazwy (numery) sygnalizatorów odstępowych.
-
-> Rozkład jazdy odwołuje się do szlaków zewnętrznych po nazwie (1A, 2A, 1O, 2O, 1C, 2C, 1M). Zmiana nazwy takiego szlaku odetnie od niego pociągi z rozkładu.
-
-### Prędkości i przebiegi
-- **Tor:** `vmax` w km/h.
-- **Zwrotnica:** prędkość na bok (na ostrze i z ostrza, domyślnie 40) i na wprost.
-- **Sygnalizator** – panel „Przebiegi od …”:
-  - ✓ – przebieg czynny;
-  - ★ – przebieg zasadniczy;
-  - pole liczbowe – prędkość przebiegu w granicach stacji.
-
-### Sprawdź (walidacja)
-Przycisk **„Sprawdź”** wykrywa błędy budowy układu, m.in.:
-- rozgałęzienia bez zwrotnicy (wtedy przebiegi idą „na skróty”);
-- odcinki złożone z niepołączonych kawałków (świeci tor, którym przebieg nie idzie);
-- odcinki przechodzące przez sygnalizator (przycisk „Odcinki na sygnalizatorach”);
-- szlaki wewnętrzne bez semafora na końcu i niepołączone złącza.
-
-### Symbole jak w SimRail
-| Na obrazie | W edytorze |
-|---|---|
-| WY / WJ przy końcu szlaku zewnętrznego | powtarzacz **sp** z nazwą WY/WJ, powtarza semafor sąsiedniej stacji |
-| różowa pionowa linia z Y/T i kilometrem | **Przejazd** |
-| ToP, ToC… | tarcza ostrzegawcza **to** |
-| „+” przy zwrotnicy | położenie zasadnicze |
-| tor przerywany | tor rozebrany (właściwość toru) |
-
----
+Następne etapy: podkłady (ortofotomapa, grafiki), tory z łukami i krzywymi przejściowymi, rozjazdy z katalogu, urządzenia, wysokości z NMT.
 
 ## Wersje układu
 
-**Pusty szablon:** `Data/projekty/pusty_szablon.json` – pusty obszar w skali rzeczywistej 1:2000 z długościami z rysunku. Wybierz go przy starcie, w edytorze wczytaj podkład (zdjęcia / mapa / Semaforek), narysuj stację i zapisz pod własną nazwą („Zapisz jako…” do `Data/projekty`).
 
-Zwykłe uruchomienie (np. `uruchom.bat`) pokazuje **listę wersji układu**: ★ podstawowy `Data/station.json` i pliki z `Data/projekty` (np. własne stacje zapisane przez „Zapisz jako…”). Ostatni wybór jest zapamiętany. Generator układu z OpenStreetMap został usunięty (2026-10-16) – stacje rysuje się w edytorze na podkładzie.
+Zwykłe uruchomienie (np. `uruchom.bat`) pokazuje **listę wersji układu**: ★ podstawowy `Data/station.json` i pliki z `Data/projekty` (np. własne stacje zapisane przez „Zapisz jako…”). Ostatni wybór jest zapamiętany.
 
 ## Rozkład jazdy
 
@@ -259,7 +141,7 @@ Podział jak w rzeczywistym LCS:
 4. **Obszary sterowania:** na początku wszystkimi posterunkami steruje serwer. W oknie „Stanowiska / sieć” przy posterunku jest **„Przejmij”** (gdy posterunek ma inne stanowisko, ono musi się zgodzić) i **„Oddaj”**. Polecenia dla obiektów cudzego posterunku są odrzucane z podaniem, kto nim steruje.
 5. **Szlak wewnętrzny między posterunkami różnych dyżurnych** (np. ŁW–ŁF) działa jak w rzeczywistości: jeden daje **Wbl** (żądanie), drugi **Pzk** (pozwolenie).
 6. **Telefon** – w tym samym oknie wiadomości do wybranego stanowiska albo do wszystkich, z zapisem w rejestratorze (kategoria „Telefon”).
-7. Czas i tempo, panel instruktora i edytor układu działają na serwerze. Po rozłączeniu stanowiska jego posterunki wracają do serwera.
+7. Czas i tempo oraz panel instruktora działają na serwerze. Po rozłączeniu stanowiska jego posterunki wracają do serwera.
 
 Planowane dalsze kroki: teren za sterownikami obiektowymi, stanowisko instruktora przez sieć.
 
@@ -267,17 +149,21 @@ Planowane dalsze kroki: teren za sterownikami obiektowymi, stanowisko instruktor
 
 ```
 symulator/
-├── README.md, PLAN.md, uruchom.bat
+├── README.md, ROZWOJ.md, PLAN_EDYTOR_UT.md, uruchom.bat, uruchom_edytor_ut.bat
+├── projekty_ut/               ← projekty układu torowego (*.ut.json)
 ├── Zrodla/                    ← Ie-20, Ie-104, materiały PKP PLK
 ├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py)
 ├── zrzuty/                    ← zrzuty ekranu
-└── app/LcsWidzew/             ← aplikacja C# / WPF (.NET 8)
-    ├── Data/station.json      ← układ obszaru LCS (edytowany w edytorze)
+├── app/Lcs.slnx               ← rozwiązanie: symulator, model UT, edytor UT
+├── app/Lcs.Model/             ← model układu torowego (UtProject, UtDocument, PUWG 1992) – bez okien
+├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe)
+└── app/LcsWidzew/             ← symulator C# / WPF (.NET 8)
+    ├── Data/station.json      ← układ obszaru LCS
     ├── Data/kopie/            ← automatyczne kopie zapasowe układu
     ├── Data/rozklad*.json     ← rozkład jazdy
-    ├── Model/                 ← model stacji (Station.cs) i dokument edytora (StationDoc.cs)
+    ├── Model/                 ← model stacji wczytywany przez symulator (Station.cs)
     ├── Sim/                   ← zależności, polecenia, blokady, pociągi, rozkład, testy
-    ├── UI/                    ← pulpit (PanelView.cs), edytor (EditorWindow.cs), okna
+    ├── UI/                    ← pulpit (PanelView.cs), plan stacji, okna
     └── MainWindow.xaml(.cs)   ← okno pulpitu
 ```
 
@@ -288,16 +174,18 @@ Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
 | Polecenie | Co robi |
 |---|---|
 | `LcsWidzew.exe --selftest wynik.txt [scenariusz]` | tablica przebiegów i scenariusz z automatycznym dyżurnym |
-| `LcsWidzew.exe --edtest wynik.txt` | operacje edytora: stacje, szlaki, odstępy, PK, złącza |
-| `LcsWidzew.exe --editshot zrzut.png fuzz 300 7` | losowe operacje w edytorze – plan schematyczny (szuka błędów) |
-| `LcsWidzew.exe --editshot zrzut.png dfuzz 300 7` | losowe operacje w trybie zobrazowania (obraz nie może zmienić układu) |
-| `LcsWidzew.exe --editshot zrzut.png deco wynik.json` | napisy, perony, przejazdy – rozdzielenie kopii pulpitu i planu |
-| `LcsWidzew.exe --editshot zrzut.png validate` | wynik „Sprawdź” do pliku `zrzut.png.txt` |
 | `LcsWidzew.exe --screenshot zrzut.png 2 "#page=1" "E S1 Pociąg"` | zrzut pulpitu po poleceniach (`#page=N`, `#overview`, `@t`) |
 
 Opcja `--station plik.json` wczytuje inny układ, np. kopię z `Data/kopie/`.
 
+Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
+
+| Polecenie | Co robi |
+|---|---|
+| `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna (PUWG 1992, panel, cofanie, widok, zapis i odczyt); ostatnia linia `błędów: 0` |
+| `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
+
 
 ## Stacja testowa
 
-`Data/projekty/stacja_testowa.json` („Testowo”, wybór przy uruchomieniu): tor zasadniczy ze szlakami 1Z (SBL dwukierunkowa, 3 odstępy) i 1W (PBL dwukierunkowa), tory 2 i 3, bocznica 4 (kozioł, wykolejnica Wk1, tarcza Tm1), 5 rozjazdów, semafory A, B, D1–D3, F1–F3, perony, przejazd; plan schematyczny (lekko skośny, skala rzeczywista) i osobne zobrazowanie pulpitu. Odtworzenie: `LcsWidzew.exe --editshot p.png testowo out.json`.
+`Data/projekty/stacja_testowa.json` („Testowo”, wybór przy uruchomieniu): tor zasadniczy ze szlakami 1Z (SBL dwukierunkowa, 3 odstępy) i 1W (PBL dwukierunkowa), tory 2 i 3, bocznica 4 (kozioł, wykolejnica Wk1, tarcza Tm1), 5 rozjazdów, semafory A, B, D1–D3, F1–F3, perony, przejazd; plan schematyczny (lekko skośny, skala rzeczywista) i osobne zobrazowanie pulpitu.

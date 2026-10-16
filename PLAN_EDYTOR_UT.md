@@ -4,12 +4,14 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
+**Stan (2026-10-16):** etap 0 i etap 1 zrobione (szczegóły w `ROZWOJ.md`, etap 1). Następny: etap 2 – podkłady.
+
 ---
 
 ## 1. Założenia
 
 1. **UT to rzeczywista geometria w układzie XYZ, w metrach.** Tory, łuki, rozjazdy i urządzenia leżą tam, gdzie w terenie. Długość toru wynika z geometrii, nie trzeba jej wpisywać.
-   - X, Y: współrzędne płaskie (propozycja: PUWG 1992, EPSG:2180, w tym układzie jest ortofotomapa Geoportalu, więc podkład pasuje bez dopasowywania).
+   - X, Y: współrzędne płaskie PUWG 1992 (EPSG:2180). W tym układzie jest ortofotomapa Geoportalu, więc podkład pasuje bez dopasowywania. Konwencja geodezyjna: **X – na północ, Y – na wschód** (na ekranie północ u góry). W kodzie `XY.X` to zawsze północ.
    - Z: wysokość główki szyny (niweleta), z ręki albo z NMT.
 2. **Projektuje człowiek.** Edytor daje narzędzia (rysowanie, przyciąganie, wpisywanie wymiarów, kontrolę), ale niczego nie generuje sam. Nie budujemy gotowych stacji.
 3. **Skala i symbole.** Na ekranie zoom jest dowolny. Symbole (semafory, kozły, numery zwrotnic) mają wymiary wg Ig-10 przy wybranej **skali rysunku** (1:500 / 1:1000 / 1:2000) i nie zależą od geometrii. Zmiana skali rysunku zmienia wielkość symboli, a geometrii nie rusza.
@@ -39,8 +41,8 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 
 | Etap | Zakres | Gotowe, gdy |
 |---|---|---|
-| 0 | Usunięcie starych edytorów UT i zobrazowania z `LcsWidzew` (okna, narzędzia, testy edytora). Pulpit, komputer zależności i selftest zostają. | build OK, selftest 25 z 26 / 4 z 4 na `station_test.json` |
-| 1 | Szkielet: rozwiązanie z `Lcs.Model` i `Lcs.EdytorUT`. Płótno w metrach: przesuwanie, zoom, siatka, linijki, współrzędne kursora (X, Y, Z, km), zapis / odczyt, cofnij / ponów. | pusty projekt zapisuje się i wczytuje; zrzut okna |
+| 0 ✔ | Usunięcie starych edytorów UT i zobrazowania z `LcsWidzew` (okna, narzędzia, testy edytora). Pulpit, komputer zależności i selftest zostają. | build OK, selftest 25 z 26 / 4 z 4 na `station_test.json` |
+| 1 ✔ | Szkielet: rozwiązanie z `Lcs.Model` i `Lcs.EdytorUT`. Płótno w metrach: przesuwanie, zoom, siatka, linijki, współrzędne kursora (X, Y, Z, km), zapis / odczyt, cofnij / ponów. | pusty projekt zapisuje się i wczytuje; zrzut okna |
 | 2 | Podkłady: obraz z kalibracją (2 i więcej punktów, plik `.pgw` / `.jgw`), ortofotomapa Geoportalu wprost w EPSG:2180 (kafelki z mapki), OSM / Esri jako zapasowe. Kilka podkładów, krycie, kolejność. | ortofotomapa stacji leży w dobrym miejscu i skali; zmierzona odległość = rzeczywista |
 | 3 | Tory: prosta, łuk, krzywa przejściowa. Przyciąganie (koniec, styczność, punkt na torze, podkład), wymiary z klawiatury (długość, promień, azymut), tor równoległy w zadanym międzytorzu, edycja uchwytami. | test „jak użytkownik”: tor po ortofotomapie z łukiem, długości zgodne z geometrią |
 | 4 | Rozjazdy z katalogu wstawiane na tor (odgałęzienie z prawdziwą geometrią), łącznik między torami, rozjazdy krzyżowe, skrzyżowania. Numery wpisuje projektant. | mijanka z łącznikami zbudowana klikami na skośnych torach |
@@ -73,5 +75,6 @@ Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, 
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).
+8a. X / Y: przyjąłem konwencję geodezyjną (X – północ, Y – wschód). Jeśli wolisz odwrotnie (X – wschód, jak w matematyce), trzeba to zmienić teraz, zanim powstaną projekty.
 8. Wymiary a / b rozjazdów katalogowe (np. z Id-4 albo kart katalogowych) – jeśli masz, wpiszemy do tabeli typów.
 9. Istniejące `Data/station.json` (Widzew, Fabryczna): zostaje tylko dla symulatora, a w nowym edytorze rysujesz od nowa – czy coś trzeba z niego przenieść (np. numery torów i zwrotnic)?

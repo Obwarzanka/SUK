@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Lcs.Model</RootNamespace>
+    <AssemblyTitle>Model układu torowego LCS</AssemblyTitle>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

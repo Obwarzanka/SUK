@@ -103,8 +103,6 @@
                 <Button Content="Ocena" Click="Score_Click"/>
                 <Button x:Name="BtnNet" Content="Stanowiska / sieć" Click="Net_Click" Background="#3a2a5a" ToolTip="Gra wieloosobowa (Radmin VPN), obszary sterowania posterunków, telefon między stanowiskami"/>
                 <Button Content="Pomoc (F1)" Click="Help_Click"/>
-                <Button Content="Edytor układu torowego" Click="Editor_Click" Background="#1f3d5a" ToolTip="Układ torowy – plan schematyczny Ig-10: tory, rozjazdy, sygnalizatory, odcinki, szlaki (na tym liczy komputer zależności)"/>
-                <Button Content="Edytor zobrazowania" Click="EditorZ_Click" Background="#5a3a10" ToolTip="Zobrazowanie – obrazy pulpitu (Ie-104): położenie elementów na obrazach, napisy, perony"/>
             </StackPanel>
         </Grid>
 

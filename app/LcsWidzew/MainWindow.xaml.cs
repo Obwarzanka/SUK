@@ -81,25 +81,7 @@ public partial class MainWindow : Window
         }
     }
 
-    EditorWindow editor;
-    void Editor_Click(object sender, RoutedEventArgs e) => OpenEditor(EditorKind.Uklad);
-    void EditorZ_Click(object sender, RoutedEventArgs e) => OpenEditor(EditorKind.Zobrazowanie);
-
-    /// <summary>Edytor układu torowego i edytor zobrazowania – osobne okna; przejście do drugiego przekazuje niezapisaną pracę (ten sam dokument).</summary>
-    void OpenEditor(EditorKind kind)
-    {
-        if (!ses.IsHost) { MessageBox.Show(this, "Edytor jest dostępny na serwerze (stanowisko przyłączone korzysta z układu serwera).", "Edytor"); return; }
-        if (editor != null && editor.Kind == kind) { editor.Activate(); return; }
-        paused = true;
-        var (doc, path, dirty) = editor?.HandOver() ?? (null, App.StationPath, false);
-        if (editor != null) { var old = editor; editor = null; old.Close(); }
-        var ed = new EditorWindow(path, ReloadStation, kind, doc) { Saved = p => ReloadStation(p, true) };
-        if (dirty) ed.MarkDirty();
-        ed.Closed += (a, b) => { if (editor == ed) editor = null; };
-        editor = ed; ed.Show();
-    }
-
-    /// <summary>Wczytanie zmienionego układu (z edytora) i ponowny start symulacji.</summary>
+    /// <summary>Wczytanie układu z pliku i ponowny start symulacji.</summary>
     public void ReloadStation(string path) => ReloadStation(path, false);
 
     public void ReloadStation(string path, bool quiet)
@@ -114,10 +96,10 @@ public partial class MainWindow : Window
             Start(scenario, ses.Last?.User ?? sim?.User);
             int pi = quiet ? station.Pages.FindIndex(p => p.Id == keep) : -1;
             ShowPage(pi >= 0 ? pi : station.Pages.Count - 1);
-            sim.Log("Zdarzenie", "Wczytano układ z edytora: " + Path.GetFileName(path), "System", "");
+            sim.Log("Zdarzenie", "Wczytano układ: " + Path.GetFileName(path), "System", "");
             if (!quiet) Activate();
         }
-        catch (Exception ex) { MessageBox.Show(this, "Nie można wczytać układu: " + ex.Message, "Edytor układu"); }
+        catch (Exception ex) { MessageBox.Show(this, "Nie można wczytać układu: " + ex.Message, "Układ"); }
     }
 
     /// <summary>Obraz poglądowy całego obszaru LCS – wszystkie obrazy obok siebie, klik przenosi do obrazu szczegółowego.</summary>
@@ -325,7 +307,6 @@ public partial class MainWindow : Window
         {
             var rs = RemoteSession.Connect(host, port, name, Dispatcher);
             server?.Dispose(); server = null;
-            if (editor != null) editor.Close();
             Bind(rs);
             BuildTabs(); ShowPage(station.Pages.Count - 1);
             return null;

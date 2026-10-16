@@ -10,6 +10,26 @@ using LcsWidzew.Sim;
 namespace LcsWidzew.UI;
 
 /// <summary>
+/// Warstwy planu schematycznego (Ig-10 § 4 ust. 4 – schemat opracowany z wykorzystaniem warstw) w oknie „Plan stacji”.
+/// </summary>
+public class PlanLayers
+{
+    public bool Signals = true, Numbers = true, Detection, Platforms = true, Crossings = true, Ends = true, Texts = true, Radius;
+    public static readonly PlanLayers Current = new();
+    public static readonly (string Name, Func<PlanLayers, bool> Get, Action<PlanLayers, bool> Set)[] All =
+    {
+        ("sygnalizatory", l => l.Signals, (l, v) => l.Signals = v),
+        ("numery torów i zwrotnic", l => l.Numbers, (l, v) => l.Numbers = v),
+        ("liczniki osi / złącza izolowane", l => l.Detection, (l, v) => l.Detection = v),
+        ("perony", l => l.Platforms, (l, v) => l.Platforms = v),
+        ("przejazdy", l => l.Crossings, (l, v) => l.Crossings = v),
+        ("kozły, wykolejnice", l => l.Ends, (l, v) => l.Ends = v),
+        ("napisy, szlaki, posterunki", l => l.Texts, (l, v) => l.Texts = v),
+        ("łuki (R, h), nasypy / przekopy, pochylenia ‰", l => l.Radius, (l, v) => l.Radius = v),
+    };
+}
+
+/// <summary>
 /// „Plan stacji” na żywo: plan schematyczny węzła (układ torowy) ze stanem terenu – pociągi z numerem i rodzajem,
 /// semafory jako głowice z rzeczywistymi światłami, zwrotnice w aktualnym położeniu. Śledzenie składu i wybór posterunku.
 /// Podgląd dla instruktora i do nauki – stanowisko dyżurnego widzi tylko pulpit.

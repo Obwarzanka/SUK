@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Lcs.EdytorUT</RootNamespace>
+    <AssemblyName>EdytorUT</AssemblyName>
+    <AssemblyTitle>Edytor układu torowego LCS</AssemblyTitle>
+    <Product>Edytor układu torowego LCS</Product>
+    <Version>0.1.0</Version>
+    <StartupObject>Lcs.EdytorUT.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Model\Lcs.Model.csproj" />
+  </ItemGroup>
+
+</Project>
