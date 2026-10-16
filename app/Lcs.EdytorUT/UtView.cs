@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Północ (X) do góry, wschód (Y) w prawo.
@@ -52,6 +52,15 @@ public class UtView : FrameworkElement
     public event Action<string, XY> BgDragged;
     /// <summary>Zaznaczony podkład (obwódka, Przesuń, kalibracja).</summary>
     public string SelectedBg;
+    /// <summary>Kafelki: malowanie LPM (start = true przy wciśnięciu), PPM / środkowy – przesuwanie widoku.</summary>
+    public event Action<XY, bool> Paint;
+    public event Action PaintEnd;
+    /// <summary>Rysowanie podkładów projektu (okno mapki – bez).</summary>
+    public bool ShowBackgrounds = true;
+    /// <summary>Dodatkowa nakładka (np. siatka kafelków w oknie mapki) – nad podkładami, pod linijkami.</summary>
+    public Action<DrawingContext> Overlay;
+    /// <summary>Kursor nad płótnem (świat) – dla nakładek.</summary>
+    public XY? Hover => hover;
     /// <summary>Kalibracja: wskazany piksel obrazu czekający na miejsce docelowe.</summary>
     public (double Col, double Row)? CalPending;
 
@@ -76,8 +85,8 @@ public class UtView : FrameworkElement
         Cache.Loaded += InvalidateVisual;
         MouseWheel += (s, e) => { ZoomAt(e.GetPosition(this), e.Delta > 0 ? 1 / 1.2 : 1.2); e.Handled = true; };
         MouseDown += (s, e) => { Focus(); if (Press(e.GetPosition(this), e.ChangedButton)) { CaptureMouse(); e.Handled = true; } };
-        MouseMove += (s, e) => Drag(e.GetPosition(this), e.LeftButton == MouseButtonState.Pressed || e.MiddleButton == MouseButtonState.Pressed);
-        MouseUp += (s, e) => { if (Release(e.GetPosition(this), e.ChangedButton)) e.Handled = true; if (IsMouseCaptured && Mouse.LeftButton == MouseButtonState.Released && Mouse.MiddleButton == MouseButtonState.Released) ReleaseMouseCapture(); };
+        MouseMove += (s, e) => Drag(e.GetPosition(this), e.LeftButton == MouseButtonState.Pressed || e.MiddleButton == MouseButtonState.Pressed || (panFrom != null && e.RightButton == MouseButtonState.Pressed));
+        MouseUp += (s, e) => { if (Release(e.GetPosition(this), e.ChangedButton)) e.Handled = true; if (IsMouseCaptured && Mouse.LeftButton == MouseButtonState.Released && Mouse.MiddleButton == MouseButtonState.Released && Mouse.RightButton == MouseButtonState.Released) ReleaseMouseCapture(); };
         MouseLeave += (s, e) => { hover = null; CursorMoved?.Invoke(null); InvalidateVisual(); };
         SizeChanged += (s, e) => { InvalidateVisual(); Live.Schedule(); };
     }
@@ -113,15 +122,18 @@ public class UtView : FrameworkElement
     XY? areaFrom; Point? bgDragFrom;
     XY? hover;
     Vector bgOffsetPx;
+    bool painting;
 
     /// <summary>Wciśnięcie przycisku; true – płótno przejmuje mysz.</summary>
     public bool Press(Point p, MouseButton b)
     {
+        if (b == MouseButton.Right && tool == UtTool.Kafelki) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
         if (b == MouseButton.Right) return false;
         if (b == MouseButton.Middle || (b == MouseButton.Left && Keyboard.IsKeyDown(Key.Space))) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
         if (b != MouseButton.Left) return false;
         downAt = p; downBtn = b; dragging = false;
-        if (tool == UtTool.Obszar) areaFrom = ToWorld(p);
+        if (tool == UtTool.Kafelki) { painting = true; Paint?.Invoke(ToWorld(p), true); InvalidateVisual(); }
+        else if (tool == UtTool.Obszar) areaFrom = ToWorld(p);
         else if (tool == UtTool.Przesun && SelectedBg != null) bgDragFrom = p;
         else if (tool == UtTool.Wskaz) { panFrom = p; Cursor = Cursors.SizeAll; }
         return true;
@@ -135,6 +147,7 @@ public class UtView : FrameworkElement
             if (buttonDown) { PanBy(p - f); panFrom = p; }
             else EndPan();
         }
+        else if (painting && buttonDown) { Paint?.Invoke(hover.Value, false); InvalidateVisual(); }
         else if (downAt is Point d && buttonDown)
         {
             if ((p - d).Length > ClickTol) dragging = true;
@@ -147,6 +160,7 @@ public class UtView : FrameworkElement
 
     public bool Release(Point p, MouseButton b)
     {
+        if (b == MouseButton.Right && panFrom != null) { EndPan(); return true; }
         if (b == MouseButton.Right)
         {
             if (tool == UtTool.Miarka && MeasurePts.Count > 0) { MeasurePts.Clear(); MeasureChanged?.Invoke(); InvalidateVisual(); return true; }
@@ -155,6 +169,7 @@ public class UtView : FrameworkElement
             return false;
         }
         if (panFrom != null) { EndPan(); downAt = null; return true; }
+        if (painting) { painting = false; downAt = null; PaintEnd?.Invoke(); InvalidateVisual(); return true; }
         if (downAt == null) return false;
         var w = ToWorld(p); downAt = null;
         if (areaFrom is XY a)
@@ -180,12 +195,13 @@ public class UtView : FrameworkElement
 
     /// <summary>Test: klik w punkcie ekranu.</summary>
     public void SimClick(Point p, MouseButton b = MouseButton.Left) { Press(p, b); Release(p, b); }
-    /// <summary>Test: przeciągnięcie myszą z punktu do punktu (kilka kroków).</summary>
-    public void SimDrag(Point a, Point b)
+    /// <summary>Test: przeciągnięcie myszą z punktu do punktu (kroki co ok. 10 px).</summary>
+    public void SimDrag(Point a, Point b, MouseButton btn = MouseButton.Left)
     {
-        Press(a, MouseButton.Left);
-        for (int i = 1; i <= 5; i++) Drag(a + (b - a) * (i / 5.0), true);
-        Release(b, MouseButton.Left);
+        Press(a, btn);
+        int n = Math.Max(5, (int)((b - a).Length / 10));
+        for (int i = 1; i <= n; i++) Drag(a + (b - a) * (i / (double)n), true);
+        Release(b, btn);
     }
 
     // ------------------------------------------------------------------ siatka
@@ -219,10 +235,11 @@ public class UtView : FrameworkElement
         // podgląd na żywo
         if (Live.ortoImg is var (ob, og)) DrawImage(dc, ob, og, ob.PixelWidth, ob.PixelHeight, 1);
         foreach (var (tb, tg) in Live.VisibleTiles(tl, br)) DrawImage(dc, tb, tg, 256, 256, 1);
+        foreach (var (tb, tg) in Live.VisibleTiles(tl, br, Live.Overlay)) DrawImage(dc, tb, tg, 256, 256, 1);
 
         // podkłady projektu
         int drawn = 0;
-        if (Doc != null)
+        if (Doc != null && ShowBackgrounds)
             foreach (var bg in Doc.P.Backgrounds)
             {
                 if (!bg.Visible) continue;
@@ -245,6 +262,7 @@ public class UtView : FrameworkElement
         DrawnTiles = drawn;
 
         DrawSelection(dc);
+        Overlay?.Invoke(dc);
         DrawCalibration(dc, dpi);
         DrawMeasure(dc, dpi);
         DrawArea(dc, dpi);
@@ -298,7 +316,7 @@ public class UtView : FrameworkElement
         var bg = Doc?.P.Backgrounds.FirstOrDefault(b => b.Id == SelectedBg);
         if (bg == null || bg.Tiles.Count == 0) return;
         if (bgDragFrom != null) dc.PushTransform(new TranslateTransform(bgOffsetPx.X, bgOffsetPx.Y));
-        if (bg.Grid is UtGrid g) dc.DrawGeometry(null, SelPen, Quad(Affine.NorthUp(g.X0, g.Y0, g.Mpp), g.Cols * g.TileSize, g.Rows * g.TileSize));
+        if (bg.Grid is UtGrid g && !g.IsGlobal) dc.DrawGeometry(null, SelPen, Quad(Affine.NorthUp(g.X0, g.Y0, g.Mpp), g.Cols * g.TileSize, g.Rows * g.TileSize));
         else foreach (var t in bg.Tiles) dc.DrawGeometry(null, SelPen, Quad(t.Geo, t.W, t.H));
         if (bgDragFrom != null) dc.Pop();
     }
@@ -447,7 +465,8 @@ public class UtView : FrameworkElement
     {
         var parts = new List<string>();
         if (Live.Source != LivePreview.None) parts.Add(Live.Attribution);
-        if (Doc != null) parts.AddRange(Doc.P.Backgrounds.Where(b => b.Visible && b.Source.Length > 0).Select(b => b.Source));
+        if (Live.Overlay != null) parts.Add(LivePreview.OrmAttribution);
+        if (Doc != null && ShowBackgrounds) parts.AddRange(Doc.P.Backgrounds.Where(b => b.Visible && b.Source.Length > 0).Select(b => b.Source));
         var s = string.Join(" · ", parts.Distinct());
         if (Live.Status.Length > 0) s = Live.Status + (s.Length > 0 ? "   ·   " + s : "");
         if (s.Length == 0) return;
@@ -458,7 +477,7 @@ public class UtView : FrameworkElement
 
     void DrawHint(DrawingContext dc, double w, double dpi)
     {
-        if (Doc == null || Doc.P.Backgrounds.Count > 0 || mpp < 40) return;
+        if (Doc == null || !ShowBackgrounds || Doc.P.Backgrounds.Count > 0 || mpp < 40) return;
         var t = Text("Pusty projekt. W polu „Punkt” wpisz współrzędne obszaru: z Google Maps (np. 51.7631, 19.5438) albo X Y w PUWG 1992.", 12.5, Hint, dpi, UiFont);
         dc.DrawText(t, new Point(Math.Max(RulerLeft + 10, (w - t.Width) / 2), RulerTop + 12));
     }

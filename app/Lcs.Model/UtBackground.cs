@@ -19,8 +19,10 @@ public class UtBackground
     /// <summary>Źródło i prawa (np. „Ortofotomapa © GUGiK, geoportal.gov.pl”).</summary>
     public string Source { get; set; } = "";
     public List<UtTile> Tiles { get; set; } = new();
-    /// <summary>Ortofotomapa: siatka kafelków (do dopobrania brakujących).</summary>
+    /// <summary>Ortofotomapa: siatka kafelków (stała siatka <see cref="UtGrid.Global"/> – kolejne pobrania tej rozdzielczości dokładają się do jednej mozaiki).</summary>
     public UtGrid Grid { get; set; }
+    /// <summary>Ortofotomapa w stałej siatce: kafelki zamówione (pobrane i nie) – brakujące można dopobrać.</summary>
+    public List<UtCell> Wanted { get; set; }
     /// <summary>Grafika: pary punktów kalibracji (piksel obrazu → miejsce w PUWG 1992).</summary>
     public List<UtCalPoint> Calibration { get; set; }
     /// <summary>Grafika: sposób kalibracji – <c>podobienstwo</c> (przesunięcie, obrót, jedna skala; od 2 punktów) albo <c>afiniczne</c> (od 3 punktów, dwie skale i skos).</summary>
@@ -42,9 +44,31 @@ public class UtTile
     public int Col { get; set; }
 }
 
-/// <summary>Siatka kafelków ortofotomapy: lewy górny róg (X – północ, Y – zachód krawędź), rozdzielczość, wymiar kafelka.</summary>
+/// <summary>Kafelek siatki (wiersz, kolumna).</summary>
+public readonly record struct UtCell(int Row, int Col);
+
+/// <summary>
+/// Siatka kafelków ortofotomapy: lewy górny róg (X – północ, Y – zachodnia krawędź), rozdzielczość, wymiar kafelka.
+/// Stała siatka (<see cref="Global"/>): początek w (0, 0) PUWG 1992 – ta sama dla wszystkich projektów i pobrań danej rozdzielczości,
+/// wiersze liczone na południe od X = 0 (dla Polski ujemne), kolumny na wschód od Y = 0. Rows / Cols = 0.
+/// Siatka lokalna (pierwsze pobrania, 2026-10-16): początek w rogu obszaru, Rows × Cols.
+/// </summary>
 public class UtGrid
 {
+    public static UtGrid Global(double mpp, int tile = 2048) => new() { X0 = 0, Y0 = 0, Mpp = mpp, TileSize = tile };
+    public bool IsGlobal => X0 == 0 && Y0 == 0 && Rows == 0 && Cols == 0;
+    /// <summary>Bok kafelka [m].</summary>
+    public double Side => TileSize * Mpp;
+    /// <summary>Kafelek, w którym leży punkt.</summary>
+    public UtCell CellAt(XY p) => new((int)Math.Floor((X0 - p.X) / Side), (int)Math.Floor((p.Y - Y0) / Side));
+    /// <summary>Kafelki pokrywające prostokąt (dwa dowolne narożniki).</summary>
+    public IEnumerable<UtCell> CellsIn(XY a, XY b)
+    {
+        var c1 = CellAt(new XY(Math.Max(a.X, b.X), Math.Min(a.Y, b.Y)));
+        var c2 = CellAt(new XY(Math.Min(a.X, b.X), Math.Max(a.Y, b.Y)));
+        for (int r = c1.Row; r <= c2.Row; r++) for (int c = c1.Col; c <= c2.Col; c++) yield return new UtCell(r, c);
+    }
+
     public double X0 { get; set; }
     public double Y0 { get; set; }
     public double Mpp { get; set; }

@@ -20,6 +20,7 @@ public static class Pobieranie
     public const string OrtoStd = "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution";
     public const string EsriTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{0}/{2}/{1}";
     public const string OsmTiles = "https://tile.openstreetmap.org/{0}/{1}/{2}.png";
+    public const string OrmTiles = "https://tiles.openrailwaymap.org/standard/{0}/{1}/{2}.png";
     public const string OrtoAttribution = "Ortofotomapa © GUGiK, geoportal.gov.pl";
     public const int WmsMax = 4096, TileSize = 2048, MaxTiles = 600;
 
@@ -90,15 +91,7 @@ public static class Pobieranie
         throw last ?? new InvalidOperationException("Nie udało się pobrać ortofotomapy");
     }
 
-    /// <summary>Siatka kafelków pokrywająca prostokąt (dwa dowolne narożniki), wyrównana do wielokrotności rozdzielczości.</summary>
-    public static UtGrid PlanGrid(XY a, XY b, double mpp, int tile = TileSize)
-    {
-        double top = Math.Ceiling(Math.Max(a.X, b.X) / mpp) * mpp, left = Math.Floor(Math.Min(a.Y, b.Y) / mpp) * mpp;
-        double hM = top - Math.Min(a.X, b.X), wM = Math.Max(a.Y, b.Y) - left, s = tile * mpp;
-        return new UtGrid { X0 = top, Y0 = left, Mpp = mpp, TileSize = tile, Rows = Math.Max(1, (int)Math.Ceiling(hM / s - 1e-9)), Cols = Math.Max(1, (int)Math.Ceiling(wM / s - 1e-9)) };
-    }
-
-    public record GridResult(List<UtTile> Ok, List<string> Failed);
+    public record GridResult(List<UtTile> Ok, List<string> Failed, bool Cancelled = false);
 
     /// <summary>
     /// Kafelki siatki do katalogu (pliki r{wiersz}_c{kolumna}.jpg; już pobrane – pomijane). Po 2 naraz.
@@ -108,7 +101,9 @@ public static class Pobieranie
     {
         Directory.CreateDirectory(dir);
         var ok = new System.Collections.Concurrent.ConcurrentBag<UtTile>(); var failed = new System.Collections.Concurrent.ConcurrentBag<string>();
-        int done = 0;
+        int done = 0; bool cancelled = false;
+        try
+        {
         await Parallel.ForEachAsync(cells, new ParallelOptions { MaxDegreeOfParallelism = 2, CancellationToken = ct }, async (cell, token) =>
         {
             var (r, c) = cell; var file = Path.Combine(dir, $"r{r}_c{c}.jpg");
@@ -126,7 +121,9 @@ public static class Pobieranie
             catch (Exception ex) { failed.Add($"r{r}_c{c}: {Reason(ex)}"); }
             progress?.Report($"Ortofotomapa: {Interlocked.Increment(ref done)}/{cells.Count} kafelków" + (failed.IsEmpty ? "" : $", nieudane {failed.Count}"));
         });
-        return new GridResult(ok.OrderBy(t => t.Row).ThenBy(t => t.Col).ToList(), failed.OrderBy(f => f).ToList());
+        }
+        catch (OperationCanceledException) { cancelled = true; }   // pobrane do tej pory zostają w wyniku
+        return new GridResult(ok.OrderBy(t => t.Row).ThenBy(t => t.Col).ToList(), failed.OrderBy(f => f).ToList(), cancelled);
     }
 
     public static string Reason(Exception ex) => ex switch
@@ -137,7 +134,7 @@ public static class Pobieranie
     };
 
     // ------------------------------------------------------------------ kafelki Web Mercator (podgląd zapasowy)
-    public static string TileUrl(string src, int z, int x, int y) => string.Format(CultureInfo.InvariantCulture, src == "osm" ? OsmTiles : EsriTiles, z, x, y);
+    public static string TileUrl(string src, int z, int x, int y) => string.Format(CultureInfo.InvariantCulture, src == "osm" ? OsmTiles : src == "orm" ? OrmTiles : EsriTiles, z, x, y);
 
     /// <summary>Narożnik kafelka (x, y – piksel kafelka × 256) → szerokość, długość geograficzna.</summary>
     public static (double Lat, double Lon) TileCorner(double x, double y, int z)

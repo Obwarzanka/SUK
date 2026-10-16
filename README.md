@@ -95,7 +95,7 @@ Stan (etapy 1–2):
 - **Plik:** Nowy, Otwórz, Zapisz, Zapisz jako (`*.ut.json`, domyślnie w katalogu `projekty_ut`). Poprzednia wersja zostaje jako `.bak`, zapamiętywany jest też ostatni widok. Cofnij / Ponów: Ctrl+Z, Ctrl+Y.
 
 - **Podgląd na żywo** (panel „Podkłady”): ortofotomapa Geoportalu dla bieżącego widoku albo zapasowo zdjęcia Esri / mapa OSM. Nie zapisuje się w projekcie.
-- **Ortofotomapa do projektu:** wybierz rozdzielczość (5 cm widać podkłady, 10 cm szyny), potem „Zaznacz obszar…” i przeciągnij prostokąt, albo „Cały widok”. Kafelki trafiają do `podklady/` obok projektu. Nieudane można „Dopobrać”.
+- **Ortofotomapa do projektu – „🗺 Mapka kafelków…”:** mapa z liniami kolejowymi i siatką kafelków. Wybierz rozdzielczość (5 cm widać podkłady, 10 cm szyny) i zaznacz kafelki lewym przyciskiem, przeciągając wzdłuż linii (zaczęcie na zaznaczonym odznacza). Prawy przycisk przesuwa mapę. Potem „Pobierz zaznaczone”, a pobrane zrobią się zielone. Na płótnie można też „Zaznacz obszar…” (prostokąt) albo „Cały widok”. Wszystkie pobrania jednej rozdzielczości składają się w jedną warstwę w stałej siatce, w `podklady/orto_Ncm/` obok projektu, bez dubli. Nieudane można „Dopobrać”.
 - **Grafika z pliku** (skan planu, mapa): z plikiem world (`.pgw` / `.jgw` / `.tfw`) ląduje od razu na miejscu. Bez niego użyj „Kalibruj punktami”: klik na grafice, potem klik w miejscu, gdzie ten punkt naprawdę jest na ortofotomapie. Wystarczą 2 punkty, lepiej 3–4 daleko od siebie, panel pokaże odchyłki. Do tego „Przesuń”, obrót i rozmiar piksela z klawiatury.
 - **Warstwy:** widoczność, krycie, kolejność, usuwanie.
 - **Miarka (M):** długość łamanej **w terenie**, czyli z poprawką skali PUWG 1992 (na południku 19° układ skraca o 70 cm/km). Backspace cofa punkt, PPM czyści.

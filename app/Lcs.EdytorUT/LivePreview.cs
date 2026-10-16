@@ -19,6 +19,10 @@ public class LivePreview
     public string Source { get => source; set { source = value; ortoImg = null; Changed?.Invoke(); Schedule(); } }
     public event Action Changed;
     public string Status { get; private set; } = "";
+    public const string Orm = "orm", OrmAttribution = "Linie kolejowe © OpenRailwayMap, OpenStreetMap";
+    /// <summary>Nakładka nad podglądem: <see cref="Orm"/> (linie kolejowe, przezroczyste kafelki) albo null.</summary>
+    public string Overlay { get => overlay; set { overlay = value; Changed?.Invoke(); } }
+    string overlay;
     public string Attribution => source switch { Orto => Pobieranie.OrtoAttribution, Esri => "Zdjęcia: Esri World Imagery", Osm => "Mapa © współtwórcy OpenStreetMap", _ => "" };
 
     // ortofotomapa: ostatni obraz widoku
@@ -76,10 +80,12 @@ public class LivePreview
     public static int ZoomFor(double mpp, double lat) => Math.Clamp((int)Math.Round(Math.Log2(156543.034 * Math.Cos(lat * Math.PI / 180) / mpp)), 1, 19);
 
     /// <summary>Widoczne kafelki (te, które są w pamięci); brakujące są zamawiane.</summary>
-    public List<(BitmapSource Bmp, Affine Geo)> VisibleTiles(XY tl, XY br)
+    public List<(BitmapSource Bmp, Affine Geo)> VisibleTiles(XY tl, XY br) => VisibleTiles(tl, br, source);
+
+    public List<(BitmapSource Bmp, Affine Geo)> VisibleTiles(XY tl, XY br, string source)
     {
         var res = new List<(BitmapSource, Affine)>();
-        if (source != Esri && source != Osm) return res;
+        if (source != Esri && source != Osm && source != Orm) return res;
         var (_, mpp, _, _) = viewNow();
         var (lat1, lon1) = Geo.ToWgs84(tl); var (lat2, lon2) = Geo.ToWgs84(br);
         var (lat3, lon3) = Geo.ToWgs84(new XY(tl.X, br.Y)); var (lat4, lon4) = Geo.ToWgs84(new XY(br.X, tl.Y));

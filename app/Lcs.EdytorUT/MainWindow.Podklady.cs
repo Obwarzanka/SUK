@@ -18,6 +18,8 @@ public partial class MainWindow
 {
     public readonly ComboBox LiveBox = new() { Margin = new Thickness(0, 2, 0, 8) };
     public readonly ComboBox ResBox = new() { Width = 90, Margin = new Thickness(0, 0, 6, 0) };
+    public readonly Button MapBtn = new() { Content = "🗺 Mapka kafelków…", Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 2, 0, 6), HorizontalAlignment = HorizontalAlignment.Left, FontWeight = FontWeights.SemiBold };
+    public TileMapWindow MapWin { get; private set; }
     public readonly Button AreaBtn = new() { Content = "Zaznacz obszar…", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 4, 0) };
     public readonly Button ViewAreaBtn = new() { Content = "Cały widok", Padding = new Thickness(6, 2, 6, 2) };
     public readonly Button ImageBtn = new() { Content = "Grafika z pliku…", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 6, 0, 8), HorizontalAlignment = HorizontalAlignment.Left };
@@ -58,13 +60,16 @@ public partial class MainWindow
         sp.Children.Add(LiveBox);
 
         sp.Children.Add(Label("Pobierz ortofotomapę do projektu (Geoportal)"));
+        MapBtn.Click += (s, e) => OpenTileMap();
+        MapBtn.ToolTip = "Mapa z liniami kolejowymi i siatką kafelków – zaznacz kafelki wzdłuż linii i pobierz";
+        sp.Children.Add(MapBtn);
         foreach (var r in Resolutions) ResBox.Items.Add(r < 0.1 ? $"{r * 100:0} cm/px" : $"{r * 100:0} cm/px");
         ResBox.SelectedIndex = 1;
         ResBox.ToolTip = "Rozdzielczość pobieranych zdjęć: 5 cm – widać podkłady i złącza (pełna rozdzielczość Geoportalu w miastach), 10 cm – szyny, 25 cm – tory";
         AreaBtn.Click += (s, e) => SetTool(UtTool.Obszar);
         AreaBtn.ToolTip = "Przeciągnij prostokąt na płótnie – kafelki 2048 px zostaną pobrane do katalogu podklady obok projektu";
         ViewAreaBtn.Click += (s, e) => { var w = View.ActualWidth; var h = View.ActualHeight; _ = StartDownload(View.ToWorld(new Point(UtView.RulerLeft, UtView.RulerTop)), View.ToWorld(new Point(w, h))); };
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4), ToolTip = "Albo wprost na płótnie: prostokąt albo cały widok" };
         row.Children.Add(ResBox); row.Children.Add(AreaBtn); row.Children.Add(ViewAreaBtn);
         sp.Children.Add(row);
         ImageBtn.Click += (s, e) => { var f = PickImage(); if (f != null) ImportImage(f); };
@@ -75,6 +80,13 @@ public partial class MainWindow
         BgList.SelectionChanged += (s, e) => { if (bgRefreshing) return; selBg = (BgList.SelectedItem as ListBoxItem)?.Tag as string; if (View.Tool is UtTool.Kalibracja or UtTool.Przesun) SetTool(UtTool.Wskaz); View.SelectedBg = selBg; RefreshBgDetails(); View.InvalidateVisual(); };
         sp.Children.Add(BgList);
         sp.Children.Add(BgDetails);
+    }
+
+    public TileMapWindow OpenTileMap()
+    {
+        if (MapWin == null) { MapWin = new TileMapWindow(this) { ShowActivated = !Test.Running }; MapWin.Closed += (s, e) => MapWin = null; MapWin.Show(); }
+        else MapWin.Activate();
+        return MapWin;
     }
 
     UtBackground SelBg => Doc.P.Backgrounds.FirstOrDefault(b => b.Id == selBg);
@@ -131,8 +143,9 @@ public partial class MainWindow
         var info = new List<string>();
         if (b.Kind == UtBackground.Orto && b.Grid is UtGrid g)
         {
-            int all = g.Rows * g.Cols, miss = all - b.Tiles.Count;
-            info.Add($"Ortofotomapa {g.Mpp * 100:0.#} cm/px, {g.Cols} × {g.Rows} kafelków ({UtView.Len(g.Cols * g.TileSize * g.Mpp)} × {UtView.Len(g.Rows * g.TileSize * g.Mpp)})");
+            int miss = Missing(b).Count;
+            info.Add(g.IsGlobal ? $"Ortofotomapa {g.Mpp * 100:0.#} cm/px: {b.Tiles.Count} kafelków {UtView.Len(g.Side)} × {UtView.Len(g.Side)} (ok. {b.Tiles.Count * g.Side * g.Side / 1e6:0.##} km²)"
+                : $"Ortofotomapa {g.Mpp * 100:0.#} cm/px, {g.Cols} × {g.Rows} kafelków ({UtView.Len(g.Cols * g.TileSize * g.Mpp)} × {UtView.Len(g.Rows * g.TileSize * g.Mpp)})");
             if (miss > 0)
             {
                 info.Add($"Brakuje {miss} kafelków");
@@ -243,30 +256,63 @@ public partial class MainWindow
 
     public Task StartDownload(XY a, XY b, double? res = null)
     {
-        if (!Downloading.IsCompleted) { Message("Trwa pobieranie – poczekaj albo przerwij"); return Downloading; }
-        return Downloading = DownloadArea(a, b, res ?? SelectedRes);
+        double mpp = res ?? SelectedRes;
+        var cells = UtGrid.Global(mpp).CellsIn(a, b).Take(Pobieranie.MaxTiles + 1).ToList();
+        return DownloadCells(mpp, cells);
     }
 
-    async Task DownloadArea(XY a, XY b, double mpp)
+    /// <summary>Mozaika ortofotomapy danej rozdzielczości w stałej siatce (null – jeszcze nie ma).</summary>
+    public UtBackground Mosaic(double mpp) => Doc.P.Backgrounds.FirstOrDefault(b => b.Kind == UtBackground.Orto && b.Grid is UtGrid g && g.IsGlobal && Math.Abs(g.Mpp - mpp) < 1e-9);
+
+    /// <summary>Zmiana kafelków w projekcie (dla okna mapki).</summary>
+    public event Action TilesChanged;
+    /// <summary>Komunikat w pasku stanu (dla okna mapki).</summary>
+    public event Action<string> MessageShown;
+
+    /// <summary>
+    /// Pobranie kafelków stałej siatki do mozaiki danej rozdzielczości (jedna warstwa „Ortofotomapa N cm”, pliki w podklady/orto_Ncm).
+    /// Kafelki już pobrane są pomijane; zamówione, ale nieudane zostają w <see cref="UtBackground.Wanted"/> do dopobrania.
+    /// </summary>
+    public Task DownloadCells(double mpp, IReadOnlyCollection<UtCell> cells)
     {
-        if (!Geo.InPoland((a + b) * 0.5)) { Message("Ortofotomapa Geoportalu jest tylko dla Polski"); return; }
-        var g = Pobieranie.PlanGrid(a, b, mpp);
-        int n = g.Rows * g.Cols;
-        string size = $"{UtView.Len(g.Cols * g.TileSize * mpp)} × {UtView.Len(g.Rows * g.TileSize * mpp)}";
-        if (n > Pobieranie.MaxTiles) { Message($"Za duży obszar: {n} kafelków (najwyżej {Pobieranie.MaxTiles}) – zmniejsz obszar albo rozdzielczość"); return; }
-        if (!NoPrompt && MessageBox.Show(this, $"Ortofotomapa {mpp * 100:0} cm/px, obszar {size}:\n{n} kafelków po {g.TileSize} px, ok. {n * 0.7:0} MB.\n\nPobrać do katalogu podklady obok projektu?", "Pobieranie ortofotomapy", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
-        var dir = Path.Combine(BaseDir(), "podklady", $"orto_{DateTime.Now:yyyyMMdd_HHmmss}_{mpp * 100:0}cm");
-        var cells = Enumerable.Range(0, g.Rows).SelectMany(r => Enumerable.Range(0, g.Cols).Select(c => (r, c))).ToList();
-        var res = await RunDownload(g, cells, dir);
+        if (!Downloading.IsCompleted) { Message("Trwa pobieranie – poczekaj albo przerwij"); return Downloading; }
+        return Downloading = DownloadCellsTask(mpp, cells.Distinct().ToList());
+    }
+
+    async Task DownloadCellsTask(double mpp, List<UtCell> cells)
+    {
+        var g = UtGrid.Global(mpp);
+        if (cells.Count == 0) { Message("Nie zaznaczono kafelków"); return; }
+        var (mx0, my0, mx1, my1) = g.TileBox(cells[0].Row, cells[0].Col);
+        if (!Geo.InPoland(new XY((mx0 + mx1) / 2, (my0 + my1) / 2))) { Message("Ortofotomapa Geoportalu jest tylko dla Polski"); return; }
+        var bg = Mosaic(mpp);
+        var have = bg?.Tiles.Select(t => new UtCell(t.Row, t.Col)).ToHashSet() ?? new();
+        var todo = cells.Where(c => !have.Contains(c)).ToList();
+        if (todo.Count == 0) { Message("Te kafelki są już w projekcie"); return; }
+        if (todo.Count > Pobieranie.MaxTiles) { Message($"Za dużo kafelków: {todo.Count} (najwyżej {Pobieranie.MaxTiles} naraz) – zmniejsz obszar albo rozdzielczość"); return; }
+        string side = UtView.Len(g.Side);
+        if (!NoPrompt && MessageBox.Show(this, $"Ortofotomapa {mpp * 100:0} cm/px: {todo.Count} kafelków {side} × {side} ({g.TileSize} px), ok. {todo.Count * 0.7:0} MB.\n\nPobrać do katalogu podklady obok projektu?", "Pobieranie ortofotomapy", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+        var dir = bg?.Tiles.Count > 0 ? Path.GetDirectoryName(Doc.Resolve(bg.Tiles[0].File)) : Path.Combine(BaseDir(), "podklady", $"orto_{mpp * 100:0}cm");
+        var res = await RunDownload(g, todo.Select(c => (c.Row, c.Col)).ToList(), dir);
         if (res == null) return;
-        if (res.Ok.Count > 0)
-        {
-            foreach (var t in res.Ok) t.File = Rel(t.File);
-            var bg = new UtBackground { Kind = UtBackground.Orto, Name = $"Ortofotomapa {mpp * 100:0} cm ({DateTime.Now:yyyy-MM-dd})", Source = Pobieranie.OrtoAttribution, Grid = g, Tiles = res.Ok };
-            Doc.Change("Pobranie ortofotomapy", p => p.Backgrounds.Add(bg));
-            SelectBg(bg.Id);
-        }
-        Message($"Ortofotomapa: pobrano {res.Ok.Count} z {n} kafelków ({size})" + Failed(res));
+        foreach (var t in res.Ok) { t.File = Rel(t.File); View.Cache.Forget(Doc.Resolve(t.File)); }
+        string id = bg?.Id;
+        var nb = id == null ? new UtBackground { Kind = UtBackground.Orto, Name = $"Ortofotomapa {mpp * 100:0} cm", Source = Pobieranie.OrtoAttribution, Grid = g, Wanted = new() } : null;
+        if (res.Ok.Count > 0 || id != null)
+            Doc.Change(id == null ? "Pobranie ortofotomapy" : "Dołożenie kafelków ortofotomapy", p =>
+            {
+                var x = id == null ? nb : p.Backgrounds.First(q => q.Id == id);
+                if (id == null) p.Backgrounds.Add(x);
+                x.Wanted ??= new();
+                var w = x.Wanted.ToHashSet();
+                // zamówione: pobrane i nieudane (przerwane – tylko pobrane)
+                foreach (var c in res.Cancelled ? res.Ok.Select(t => new UtCell(t.Row, t.Col)) : cells) if (w.Add(c)) x.Wanted.Add(c);
+                x.Tiles.AddRange(res.Ok);
+                x.Tiles.Sort((u, v) => u.Row != v.Row ? u.Row.CompareTo(v.Row) : u.Col.CompareTo(v.Col));
+            });
+        if (id == null && res.Ok.Count > 0) SelectBg(nb.Id);
+        TilesChanged?.Invoke();
+        Message((res.Cancelled ? "Pobieranie przerwane – " : "Ortofotomapa: ") + $"pobrano {res.Ok.Count} z {todo.Count} kafelków {side} × {side}" + Failed(res));
     }
 
     static string Failed(Pobieranie.GridResult r) => r.Failed.Count == 0 ? "" : $"; nieudane {r.Failed.Count} ({string.Join("; ", r.Failed.Take(2))}{(r.Failed.Count > 2 ? "…" : "")}) – „Dopobierz brakujące” w panelu";
@@ -279,24 +325,37 @@ public partial class MainWindow
             var prog = new Progress<string>(Message);
             return await Pobieranie.DownloadGrid(g, cells, dir, prog, dl.Token);
         }
-        catch (OperationCanceledException) { Message("Pobieranie przerwane (pobrane kafelki zostają w katalogu – „Dopobierz brakujące” po ponownym pobraniu)"); return null; }
         catch (Exception ex) { Message("Błąd pobierania: " + Pobieranie.Reason(ex)); return null; }
         finally { CancelBtn.Visibility = Visibility.Collapsed; dl = null; }
     }
 
-    public Task Refill(string id) => Downloading.IsCompleted ? Downloading = RefillTask(id) : Downloading;
+    /// <summary>Brakujące kafelki warstwy: stała siatka – zamówione, a niepobrane; siatka lokalna (dawne pobrania) – cały prostokąt.</summary>
+    public static List<UtCell> Missing(UtBackground b)
+    {
+        if (b?.Grid is not UtGrid g) return new();
+        var have = b.Tiles.Select(t => new UtCell(t.Row, t.Col)).ToHashSet();
+        var all = g.IsGlobal ? (IEnumerable<UtCell>)(b.Wanted ?? new()) : Enumerable.Range(0, g.Rows).SelectMany(r => Enumerable.Range(0, g.Cols).Select(c => new UtCell(r, c)));
+        return all.Where(c => !have.Contains(c)).ToList();
+    }
 
-    async Task RefillTask(string id)
+    public Task Refill(string id)
+    {
+        var b = Doc.P.Backgrounds.FirstOrDefault(x => x.Id == id);
+        if (b?.Grid is UtGrid g && g.IsGlobal) return DownloadCells(g.Mpp, Missing(b));
+        return Downloading.IsCompleted ? Downloading = RefillLocal(id) : Downloading;
+    }
+
+    async Task RefillLocal(string id)
     {
         var b = Doc.P.Backgrounds.FirstOrDefault(x => x.Id == id); if (b?.Grid is not UtGrid g) return;
-        var have = b.Tiles.Select(t => (t.Row, t.Col)).ToHashSet();
-        var cells = Enumerable.Range(0, g.Rows).SelectMany(r => Enumerable.Range(0, g.Cols).Select(c => (r, c))).Where(x => !have.Contains(x)).ToList();
+        var cells = Missing(b).Select(c => (c.Row, c.Col)).ToList();
         if (cells.Count == 0) return;
         var dir = b.Tiles.Count > 0 ? Path.GetDirectoryName(Doc.Resolve(b.Tiles[0].File)) : Path.Combine(BaseDir(), "podklady", $"orto_{DateTime.Now:yyyyMMdd_HHmmss}");
         var res = await RunDownload(g, cells, dir);
         if (res == null || res.Ok.Count == 0) { if (res != null) Message("Nie udało się dopobrać kafelków" + Failed(res)); return; }
         foreach (var t in res.Ok) { t.File = Rel(t.File); View.Cache.Forget(Doc.Resolve(t.File)); }
         Doc.Change("Dopobranie kafelków", p => { var x = p.Backgrounds.First(q => q.Id == id); x.Tiles.AddRange(res.Ok); x.Tiles.Sort((u, v) => u.Row != v.Row ? u.Row.CompareTo(v.Row) : u.Col.CompareTo(v.Col)); });
+        TilesChanged?.Invoke();
         Message($"Dopobrano {res.Ok.Count} z {cells.Count} kafelków" + Failed(res));
     }
 

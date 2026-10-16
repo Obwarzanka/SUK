@@ -294,7 +294,7 @@ public partial class MainWindow : Window
         stView.Text = $"1 px = {UtView.Len(View.Mpp)}   ·   ekran ok. 1:{Geo.M(UtView.Nice(screen), 0)}";
     }
 
-    public void Message(string m) => stMsg.Text = m;
+    public void Message(string m) { stMsg.Text = m; MessageShown?.Invoke(m); }
 
     void OnKey(object s, KeyEventArgs e)
     {

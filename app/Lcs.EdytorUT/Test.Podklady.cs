@@ -78,6 +78,9 @@ public static partial class Test
         using var f = File.Create(file); enc.Save(f);
     }
 
+    /// <summary>Zrzut okna mapki (obok zrzutu głównego: nazwa_mapka.png).</summary>
+    static string shotMap;
+
     static async Task RunBg(MainWindow w)
     {
         var inv = CultureInfo.InvariantCulture;
@@ -133,14 +136,21 @@ public static partial class Test
         if (orto != null)
         {
             var g = orto.Grid;
-            Ok(g.Mpp == 0.1 && g.TileSize == 2048 && orto.Tiles.Count == g.Rows * g.Cols, $"siatka {g.Cols} × {g.Rows} kafelków 2048 px po 10 cm, pobrane wszystkie ({orto.Tiles.Count})");
-            Ok(g.Y0 <= Math.Min(wa.Y, wb.Y) && g.X0 >= Math.Max(wa.X, wb.X) && g.Y0 + g.Cols * 204.8 >= Math.Max(wa.Y, wb.Y) && g.X0 - g.Rows * 204.8 <= Math.Min(wa.X, wb.X), "siatka pokrywa zaznaczony prostokąt");
+            var want = UtGrid.Global(0.1).CellsIn(wa, wb).ToList();
+            Ok(g.IsGlobal && g.Mpp == 0.1 && g.TileSize == 2048 && orto.Tiles.Count == want.Count && orto.Wanted.Count == want.Count, $"stała siatka: {want.Count} kafelków 2048 px po 10 cm (204,8 m), pobrane wszystkie ({orto.Tiles.Count})");
+            double ty0 = orto.Tiles.Min(t => t.Geo.C), ty1 = orto.Tiles.Max(t => t.Geo.C) + 204.8, tx1 = orto.Tiles.Max(t => t.Geo.F), tx0 = orto.Tiles.Min(t => t.Geo.F) - 204.8;
+            Ok(ty0 <= Math.Min(wa.Y, wb.Y) && ty1 >= Math.Max(wa.Y, wb.Y) && tx1 >= Math.Max(wa.X, wb.X) && tx0 <= Math.Min(wa.X, wb.X), "kafelki pokrywają zaznaczony prostokąt");
+            Ok(orto.Name == "Ortofotomapa 10 cm" && orto.Tiles.All(t => t.File.StartsWith("podklady/orto_10cm/")), "jedna warstwa „Ortofotomapa 10 cm”, pliki w podklady/orto_10cm");
             Ok(orto.Tiles.All(t => File.Exists(d.Resolve(t.File)) && !Path.IsPathRooted(t.File) && t.File.StartsWith("podklady/")), "pliki kafelków obok projektu, ścieżki względne (podklady/…)");
             Ok(orto.Tiles.All(t => { var bi = BitmapDecoder.Create(new Uri(d.Resolve(t.File)), BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).Frames[0]; return bi.PixelWidth == 2048 && bi.PixelHeight == 2048; }), "kafelki mają 2048 × 2048 px");
-            var t00 = orto.Tiles.First(t => t.Row == 0 && t.Col == 0);
-            var t01 = orto.Tiles.FirstOrDefault(t => t.Row == 0 && t.Col == 1);
-            Ok(t01 == null || XY.Dist(t00.Geo.World(2048, 0), t01.Geo.World(0, 0)) < 1e-6, "sąsiednie kafelki stykają się bez szczeliny i zakładki");
-            Ok(XY.Dist(t00.Geo.World(0, 0), new XY(g.X0, g.Y0)) < 1e-9 && Math.Abs(g.X0 / 0.1 - Math.Round(g.X0 / 0.1)) < 1e-6, "narożnik siatki w okrągłych współrzędnych (wielokrotność 10 cm)");
+            var t00 = orto.Tiles[0];
+            var t01 = orto.Tiles.FirstOrDefault(t => t.Row == t00.Row && t.Col == t00.Col + 1);
+            var t10 = orto.Tiles.FirstOrDefault(t => t.Row == t00.Row + 1 && t.Col == t00.Col);
+            Ok(t01 != null && XY.Dist(t00.Geo.World(2048, 0), t01.Geo.World(0, 0)) < 1e-6 && (t10 == null || XY.Dist(t00.Geo.World(0, 2048), t10.Geo.World(0, 0)) < 1e-6), "sąsiednie kafelki stykają się bez szczeliny i zakładki");
+            Ok(orto.Tiles.All(t => Math.Abs(t.Geo.C / 204.8 - Math.Round(t.Geo.C / 204.8)) < 1e-9 && Math.Abs(t.Geo.F / 204.8 - Math.Round(t.Geo.F / 204.8)) < 1e-9), "narożniki kafelków na wielokrotnościach 204,8 m (ta sama siatka w każdym projekcie)");
+            int before2 = orto.Tiles.Count;
+            await w.StartDownload(wa, wb);
+            Ok(d.P.Backgrounds.Count == 1 && d.P.Backgrounds[0].Tiles.Count == before2, "ten sam obszar drugi raz – nic się nie dubluje");
             Ok(w.BgList.Items.Count == 1 && (w.BgList.SelectedItem as ListBoxItem)?.Tag as string == orto.Id, "warstwa na liście, zaznaczona");
             await Settle(w);
             Ok(w.View.DrawnTiles == orto.Tiles.Count, $"kafelki narysowane na płótnie ({w.View.DrawnTiles})");
@@ -279,6 +289,60 @@ public static partial class Test
         var et = w.View.Live.VisibleTiles(tl, br).FirstOrDefault();
         Ok(et.Bmp != null && Math.Abs(et.Geo.Mpp - w.View.Mpp) / w.View.Mpp < 0.75, "kafelek Esri w skali widoku (afinicznie do PUWG 1992)");
         w.LiveBox.SelectedIndex = 0;
+
+        // --- mapka kafelków
+        var mw = w.OpenTileMap();
+        Ok(mw.IsVisible && w.OpenTileMap() == mw, "przycisk „Mapka kafelków…” – jedno okno");
+        await w.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+        mw.ResBox.SelectedIndex = 1;   // 10 cm
+        mw.GoToBox.Text = "51.7631, 19.5438"; Enter(mw.GoToBox);
+        mw.Map.SetView(mw.Map.Center, 3);
+        Ok(mw.Map.Live.Source == LivePreview.Osm && mw.Map.Live.Overlay == LivePreview.Orm, "mapka: OSM z liniami kolejowymi");
+        var mtl = mw.Map.ToWorld(new Point(0, 0)); var mbr = mw.Map.ToWorld(new Point(mw.Map.ActualWidth, mw.Map.ActualHeight));
+        mw.Map.Live.VisibleTiles(mtl, mbr); mw.Map.Live.VisibleTiles(mtl, mbr, LivePreview.Orm);
+        Ok(await WaitFor(() => mw.Map.Live.TilePending == 0 && mw.Map.Live.VisibleTiles(mtl, mbr).Count > 0 && mw.Map.Live.VisibleTiles(mtl, mbr, LivePreview.Orm).Count > 0, 40000),
+            $"mapka: kafelki OSM ({mw.Map.Live.VisibleTiles(mtl, mbr).Count}) i OpenRailwayMap ({mw.Map.Live.VisibleTiles(mtl, mbr, LivePreview.Orm).Count})");
+        var gm10 = UtGrid.Global(0.1);
+        var have0 = d.P.Backgrounds.First(b => b.Kind == UtBackground.Orto).Tiles.Select(t => new UtCell(t.Row, t.Col)).ToHashSet();
+        // malowanie: od pobranego kafelka na wschód przez 3 kolejne (pobrane się nie zaznaczają)
+        var startCell = have0.OrderBy(c => c.Row).ThenBy(c => c.Col).First();
+        var (sx0, sy0, sx1, sy1) = gm10.TileBox(startCell.Row, startCell.Col);
+        var pA = mw.Map.ToScreen(new XY((sx0 + sx1) / 2, (sy0 + sy1) / 2));
+        int maxCol = have0.Where(c => c.Row == startCell.Row).Max(c => c.Col);
+        var endW = new XY((sx0 + sx1) / 2, (maxCol + 3 + 0.5) * gm10.Side);
+        var pB = mw.Map.ToScreen(endW);
+        mw.Map.SimDrag(pA, pB);
+        var expect = Enumerable.Range(maxCol + 1, 3).Select(c => new UtCell(startCell.Row, c)).ToHashSet();
+        Ok(mw.Selected.SetEquals(expect), $"malowanie wzdłuż wiersza: zaznaczone 3 nowe kafelki, pobrane pominięte ({mw.Selected.Count})");
+        var pE = mw.Map.ToScreen(new XY((sx0 + sx1) / 2, (maxCol + 3 + 0.5) * gm10.Side));
+        mw.Map.SimClick(pE);
+        Ok(mw.Selected.Count == 2 && !mw.Selected.Contains(new UtCell(startCell.Row, maxCol + 3)), "klik na zaznaczonym – odznacza");
+        var c0 = mw.Map.Center;
+        mw.Map.SimDrag(new Point(400, 300), new Point(500, 300), MouseButton.Right);
+        Ok(mw.Selected.Count == 2 && Math.Abs(mw.Map.Center.Y - (c0.Y - 100 * mw.Map.Mpp)) < 1e-6, "PPM – przesuwa mapę, zaznaczenie bez zmian");
+        // szybki ruch myszy – bez dziur (przeciągnięcie w 2 krokach przez 6 kafelków)
+        var fr = startCell.Row + 3;
+        var fA = mw.Map.ToScreen(new XY(-(fr + 0.5) * gm10.Side, (startCell.Col + 0.5) * gm10.Side));
+        var fb = mw.Map.ToScreen(new XY(-(fr + 0.5) * gm10.Side, (startCell.Col + 5.5) * gm10.Side));
+        mw.Map.Press(fA, MouseButton.Left); mw.Map.Drag(fb, true); mw.Map.Release(fb, MouseButton.Left);
+        Ok(Enumerable.Range(startCell.Col, 6).All(c => mw.Selected.Contains(new UtCell(fr, c))), "szybkie przeciągnięcie – wszystkie kafelki po drodze zaznaczone");
+        mw.ResBox.SelectedIndex = 0;
+        Ok(mw.Selected.Count == 0, "inna rozdzielczość – osobne zaznaczenie");
+        mw.ResBox.SelectedIndex = 1;
+        Ok(mw.Selected.Count == 8, "powrót do 10 cm – zaznaczenie zostało");
+        // zostaw 2 kafelki obok pobranych i pobierz
+        mw.Selected.RemoveWhere(c => c.Row == fr);
+        int tiles0 = d.P.Backgrounds.First(b => b.Kind == UtBackground.Orto).Tiles.Count;
+        await mw.Download();
+        var mos = w.Mosaic(0.1);
+        Ok(d.P.Backgrounds.Count(b => b.Kind == UtBackground.Orto) == 1 && mos.Tiles.Count == tiles0 + 2 && new[] { new UtCell(startCell.Row, maxCol + 1), new UtCell(startCell.Row, maxCol + 2) }.All(c => mos.Tiles.Any(t => t.Row == c.Row && t.Col == c.Col)), $"„Pobierz zaznaczone” – 2 kafelki dołożone do tej samej mozaiki ({mos.Tiles.Count})");
+        Ok(mw.Selected.Count == 0 && mos.Tiles.All(t => File.Exists(d.Resolve(t.File))), "po pobraniu zaznaczenie puste (kafelki zielone), pliki są");
+        w.DoUndo(); Ok(w.Mosaic(0.1).Tiles.Count == tiles0, "Ctrl+Z – dołożone kafelki zdjęte"); w.DoRedo();
+        mw.Map.SetView(new XY(-(startCell.Row + 0.5) * gm10.Side, (maxCol + 1) * gm10.Side), 0.9);
+        await Settle(w);
+        if (shotMap != null) { await Task.Delay(1500); await WaitFor(() => mw.Map.Live.TilePending == 0, 20000); mw.Map.InvalidateVisual(); await w.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle); Save(mw, shotMap); }
+        mw.Close();
+        Ok(w.MapWin == null, "zamknięcie mapki");
 
         // --- do zrzutu: ortofotomapa, grafika półprzezroczysta, miarka
         w.SelectBg(gC.Id);

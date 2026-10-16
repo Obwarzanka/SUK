@@ -44,6 +44,7 @@ public static partial class Test
     public static void Start(MainWindow w, string output, string shot)
     {
         Running = true; outPath = output;
+        if (shot != null) shotMap = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + "_mapka.png");
         OffScreen(w);
         w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
         {
