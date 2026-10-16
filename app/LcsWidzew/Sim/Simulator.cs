@@ -49,6 +49,7 @@ public partial class Simulator
     {
         L = st;
         Rej = new Rejestrator(L, () => T, () => Clock(), () => User);
+        Instruktor = new Instruktor(this);
         Page = L.Pages[^1].Id;
         foreach (var s in L.Sections.Keys) Secs[s] = new SecState { Id = s };
         foreach (var s in L.Switches.Keys) Sws[s] = new SwState { Num = s };
@@ -302,6 +303,8 @@ public partial class Simulator
 
     // ------------------------------------------------------------------ pętla
     public Trains Trains;
+    /// <summary>Instruktor: usterki i scenariusze usterek (Sim/Instruktor.cs).</summary>
+    public readonly Instruktor Instruktor;
 
     public void Tick(double dt)
     {

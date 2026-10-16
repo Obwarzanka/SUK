@@ -181,7 +181,7 @@ public partial class MainWindow : Window
         {
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (sim != null) while (sim.T < until) { sim.Tick(0.1); server?.Push(); } else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
-            if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':'); sim.Trains.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
+            if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':'); sim.Instruktor.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
             if (c.StartsWith("#page=")) { ShowPage(int.Parse(c[6..])); continue; }
             if (c.StartsWith("#serve=")) { var er = Serve(int.Parse(c[7..]), true); File.AppendAllText(ShotPath + ".txt", $"serwer: {er ?? "OK"}{(char)10}"); continue; }
             if (c.StartsWith("#hold=")) { ShotHold = double.Parse(c[6..], System.Globalization.CultureInfo.InvariantCulture); continue; }

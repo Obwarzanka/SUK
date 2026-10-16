@@ -184,11 +184,11 @@ public class InstructorWindow : DarkWindow
     {
         var sp = new StackPanel { Margin = new Thickness(12) };
         sp.Children.Add(T("Usterki", 14, Brushes.White, true));
-        var ft = new ComboBox { ItemsSource = Trains.Faults.Select(f => f.Name).ToList(), SelectedIndex = 0 };
+        var ft = new ComboBox { ItemsSource = Instruktor.Faults.Select(f => f.Name).ToList(), SelectedIndex = 0 };
         var tg = new ComboBox();
         void Fill()
         {
-            var t = Trains.Faults[ft.SelectedIndex].Target;
+            var t = Instruktor.Faults[ft.SelectedIndex].Target;
             tg.ItemsSource = t switch
             {
                 "sec" => sim.L.Sections.Keys.OrderBy(x => x).ToList(),
@@ -202,9 +202,9 @@ public class InstructorWindow : DarkWindow
         ft.SelectionChanged += (a, b) => Fill(); Fill();
         sp.Children.Add(ft); sp.Children.Add(tg);
         var bp = new StackPanel { Orientation = Orientation.Horizontal };
-        string Target() => Trains.Faults[ft.SelectedIndex].Target == "" ? null : (string)tg.SelectedItem;
-        bp.Children.Add(Btn("Wprowadź", (a, b) => sim.Trains.ApplyFault(Trains.Faults[ft.SelectedIndex].Key, Target(), false)));
-        bp.Children.Add(Btn("Usuń", (a, b) => sim.Trains.ApplyFault(Trains.Faults[ft.SelectedIndex].Key, Target(), true)));
+        string Target() => Instruktor.Faults[ft.SelectedIndex].Target == "" ? null : (string)tg.SelectedItem;
+        bp.Children.Add(Btn("Wprowadź", (a, b) => sim.Instruktor.ApplyFault(Instruktor.Faults[ft.SelectedIndex].Key, Target(), false)));
+        bp.Children.Add(Btn("Usuń", (a, b) => sim.Instruktor.ApplyFault(Instruktor.Faults[ft.SelectedIndex].Key, Target(), true)));
         sp.Children.Add(bp);
 
         sp.Children.Add(T("Pociąg dodatkowy", 14, Brushes.White, true));
