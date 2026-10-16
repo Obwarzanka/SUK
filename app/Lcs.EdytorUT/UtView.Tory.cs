@@ -102,7 +102,7 @@ public partial class UtView
     public IReadOnlyList<XY> Draft => dv.Skip(Math.Max(0, baseCount - 1)).Select(v => v.P).ToList();
 
     /// <summary>W toku rysowania (Tor) albo wskazywania (Równoległy) – Del nie usuwa zaznaczenia.</summary>
-    public bool Busy => dv.Count > 0 || parSrc != null || devFrom != null;
+    public bool Busy => dv.Count > 0 || parSrc != null || devFrom != null || arcFrom != null;
 
     double KAt(XY p) => Geo.InPoland(p) ? Geo.ScaleFactor(p) : 1;
     static List<UtVertex> Clone(IEnumerable<UtVertex> v) => v.Select(x => x.Clone()).ToList();
@@ -605,6 +605,7 @@ public partial class UtView
         foreach (var (i, m) in ArcHandles(src))
         {
             var ms = ToScreen(m);
+            if (v[i].R <= 0 && tool != UtTool.Wskaz) continue;     // uchwyt załamania działa tylko we Wskaż
             dc.DrawEllipse(i == SelectedVertex ? HandleSel : HandleFill, v[i].R > 0 ? ArcHandlePen : CornerHandlePen, ms, 5.5, 5.5);
             Label(dc, v[i].R <= 0 ? "R 0 – przeciągnij" : v[i].L > 0 ? $"R {v[i].R:0.##} · L {v[i].L:0.##}" : $"R {v[i].R:0.##}", ms + new Vector(9, -20), Ink, dpi);
         }

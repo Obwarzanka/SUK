@@ -285,6 +285,35 @@ public static partial class Test
         w.NewRBox.Text = "300"; w.View.Mode = UtView.TorMode.Prosta; w.SetTool(UtTool.Wskaz);
         foreach (var id in new[] { tZ.Id, tR.Id }) d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == id));
 
+        // Łuk od–do: łuk R 400 odrysowany z grubsza kliknięciami (Alt, R 0), potem zaznaczenie początku i końca łuku
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta; w.NewRBox.Text = "0";
+        var lA0 = Go(c, 200, 1700); var tsA = Go(lA0, 90, 150);
+        // punkt łuku o kącie φ od początku (łuk w prawo od kierunku 90°): środek po prawej, punkt = środek − prawa(90°+φ)·R
+        XY Arc(double deg) { var cen = tsA + Element.Right(Math.PI / 2) * (400 * k); return cen - Element.Right(Math.PI / 2 + deg * Math.PI / 180) * (400 * k); }
+        var stA = Arc(30); var leA = Go(stA, 120, 150);
+        w.View.SetView(Go(lA0, 100, 250), 1);
+        w.View.SimClick(S(lA0)); w.View.SimClick(S(tsA));
+        UtView.TestMods = ModifierKeys.Alt;
+        foreach (var dg in new[] { 7.5, 15, 22.5, 30 }) w.View.SimClick(S(Arc(dg)));
+        w.View.SimClick(S(leA));
+        UtView.TestMods = ModifierKeys.None;
+        w.View.SimClick(S(lA0), MouseButton.Right);
+        var tL = d0.P.Tracks.Last();
+        Ok(tL.Vertices.Count == 7 && tL.Vertices.All(v => v.R == 0), "łuk odrysowany z grubsza: 7 wierzchołków bez łuków");
+        w.SetTool(UtTool.LukOdDo); Ok(w.View.Tool == UtTool.LukOdDo, "narzędzie Łuk od–do");
+        w.View.SetView(tsA, 0.3); w.View.SimClick(S(Go(tsA, 90, -0.5)));
+        if (shotRails != null) { w.View.FitPoints(new[] { lA0, leA }); w.View.Drag(S(Go(stA, 120, 0.5)), false); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_luk_od_do.png")); }
+        w.View.SetView(stA, 0.3); w.View.SimClick(S(Go(stA, 120, 0.5)));
+        var tL2 = d0.P.Tracks.First(x => x.Id == tL.Id); var gL2 = w.View.Geometry(tL2);
+        Ok(tL2.Vertices.Count == 3 && Math.Abs(tL2.Vertices[1].R - 400) < 3 && gL2.Ok && gL2.Elements.Count(e => e.Kind == ElKind.Luk) == 1 && d0.UndoName == "Łuk od–do",
+            $"Łuk od–do: początek i koniec zaznaczone – jeden wierzchołek, R {tL2.Vertices[1].R:0.0} m (prawdziwy 400 m), wierzchołki pośrednie usunięte");
+        w.DoUndo(); Ok(d0.P.Tracks.First(x => x.Id == tL.Id).Vertices.Count == 7, "Ctrl+Z – wrócił obrys");
+        w.SetTool(UtTool.LukOdDo); w.View.SetView(tsA, 0.3); w.View.SimClick(S(Go(tsA, 90, -20))); w.View.SimClick(S(Go(tsA, 90, -5)));
+        Ok(d0.P.Tracks.First(x => x.Id == tL.Id).Vertices.Count == 7 && w.LastMessage.Contains("tej samej prostej"), "początek i koniec na tej samej prostej – odmowa z komunikatem");
+        KeyPress(w, Key.Escape);
+        w.NewRBox.Text = "300"; w.SetTool(UtTool.Wskaz);
+        d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == tL.Id));
+
         // narzędzie Równoległy: tor wzorcowy, oś nowego toru na podkładzie (początek), koniec
         var src0 = d0.P.Tracks[0]; var rs = w.View.Geometry(src0);
         w.SetTool(UtTool.Rownolegly); w.View.SetView(rs.At(200).P, 0.5);

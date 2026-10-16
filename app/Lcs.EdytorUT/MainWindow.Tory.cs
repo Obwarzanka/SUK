@@ -58,6 +58,12 @@ public partial class MainWindow
             var t0 = Doc.P.Tracks.First(x => x.Id == id);
             Message($"Tor {t0.Number} przesunięty o {UtView.Len3(v.Length / Trasa.KFor(t0))}" + (Doc.P.Turnouts.Any(r => r.Track == id) ? " – rozjazdy na nim przesunęły się razem" : ""));
         };
+        View.ArcBetweenDone += (id, vs, r, note) =>
+        {
+            ChTrack(id, "Łuk od–do", t => t.Vertices = vs);
+            View.Select(id);
+            Message($"Łuk od–do: R {F(r)} m" + (note != null ? " – " + note : ""));
+        };
         View.SelectionChanged += RefreshTrackPanel;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()

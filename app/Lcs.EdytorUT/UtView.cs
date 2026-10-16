@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
@@ -55,7 +55,7 @@ public partial class UtView : FrameworkElement
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; arcFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -218,7 +218,7 @@ public partial class UtView : FrameworkElement
         {
             if ((p - d).Length > ClickTol) dragging = true;
             if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
-            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
         if (tool != UtTool.Wskaz || vDrag != null || rzDrag != null || tDrag != null || devDrag != null) InvalidateVisual();
@@ -236,6 +236,7 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.Wskaz && HitDevice(p) is string md) { SelectDevice(md); DeviceMenu?.Invoke(md); return true; }
             if (tool == UtTool.Wskaz && HitTurnout(p) is string mt) { SelectTurnout(mt); TurnoutMenu?.Invoke(mt); return true; }
             if (tool == UtTool.Rownolegly) { if (parD != null) parD = null; else parSrc = null; InvalidateVisual(); return true; }
+            if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
             return false;
         }
         if (panFrom != null) { EndPan(); downAt = null; return true; }
@@ -266,6 +267,7 @@ public partial class UtView : FrameworkElement
         else if (tool == UtTool.Kalibracja) { CalClick?.Invoke(w); InvalidateVisual(); }
         else if (tool == UtTool.Tor) DraftClick(p);
         else if (tool == UtTool.Rownolegly) ParClick(p);
+        else if (tool == UtTool.LukOdDo) ArcClick(p);
         else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
         else if (tool == UtTool.Wskaz) SelectAt(p);
         return true;
@@ -354,6 +356,7 @@ public partial class UtView : FrameworkElement
         DrawTurnouts(dc, dpi);
         DrawDevices(dc, dpi);
         DrawParallel(dc, dpi);
+        DrawArcBetween(dc, dpi);
         Overlay?.Invoke(dc);
         DrawCalibration(dc, dpi);
         DrawMeasure(dc, dpi);

@@ -229,4 +229,47 @@ public static class Budowa
         Simplify(res, 1);
         return res;
     }
+    /// <summary>Najbliższy punkt na boku wieloboku: indeks boku (od wierzchołka a do a+1), punkt, odległość [m w układzie].</summary>
+    public static (int Seg, XY P, double Dist) NearestSegment(IReadOnlyList<UtVertex> v, XY w)
+    {
+        int bs = -1; XY bp = default; double bd = double.MaxValue;
+        for (int a = 0; a + 1 < v.Count; a++)
+        {
+            var p = v[a].P; var d = v[a + 1].P - p; double l2 = d.X * d.X + d.Y * d.Y; if (l2 < 1e-12) continue;
+            double t = Math.Clamp(((w.X - p.X) * d.X + (w.Y - p.Y) * d.Y) / l2, 0, 1);
+            var q = p + d * t; double dist = XY.Dist(q, w);
+            if (dist < bd) { bd = dist; bs = a; bp = q; }
+        }
+        return (bs, bp, bd);
+    }
+
+    /// <summary>
+    /// Łuk od–do: początek łuku <paramref name="p1"/> i koniec <paramref name="p2"/> zaznaczone na prostych toru (na bokach wieloboku).
+    /// Wierzchołek łuku – przecięcie tych prostych; wierzchołki między nimi znikają; R tak, żeby łuk zaczynał się i kończył w zaznaczonych
+    /// miejscach (styczna T = R·tg(α/2); przy różnych odległościach – średnia). Wynik: nowe wierzchołki, R [m w terenie], uwaga albo błąd.
+    /// </summary>
+    public static (List<UtVertex> V, double R, string Note, string Error) ArcBetween(IReadOnlyList<UtVertex> v, XY p1, XY p2, double k, int keepBefore = 0)
+    {
+        var (s1, q1, _) = NearestSegment(v, p1); var (s2, q2, _) = NearestSegment(v, p2);
+        if (s1 < 0 || s2 < 0) return (null, 0, null, "brak toru");
+        // kolejność wzdłuż toru
+        double Pos(int sg, XY q) => sg + XY.Dist(v[sg].P, q) / Math.Max(1e-9, XY.Dist(v[sg].P, v[sg + 1].P));
+        if (Pos(s1, q1) > Pos(s2, q2)) { (s1, s2) = (s2, s1); (q1, q2) = (q2, q1); }
+        if (s1 == s2) return (null, 0, null, "początek i koniec leżą na tej samej prostej – zaznacz koniec za załamaniem toru");
+        if (s1 + 1 <= keepBefore - 1) return (null, 0, null, "tu wierzchołki ustawia rozjazd – łuku nie można zmienić");
+        var d1 = v[s1 + 1].P - v[s1].P; d1 = d1 * (1 / d1.Length); var d2 = v[s2 + 1].P - v[s2].P; d2 = d2 * (1 / d2.Length);
+        double cr = d1.X * d2.Y - d1.Y * d2.X;
+        if (Math.Abs(cr) < 1e-6) return (null, 0, null, "proste są równoległe – łuk ich nie połączy (użyj łuków odwrotnych: Tor, klik na końcu toru)");
+        var w = q2 - q1; double t = (w.X * d2.Y - w.Y * d2.X) / cr, u = (w.X * d1.Y - w.Y * d1.X) / cr;
+        if (t <= 1e-3 || u >= -1e-3) return (null, 0, null, "zaznaczone punkty nie leżą przed i za załamaniem toru");
+        var x = q1 + d1 * t; double T1 = t, T2 = -u;
+        double alpha = Math.Abs(Math.Atan2(cr, d1.X * d2.X + d1.Y * d2.Y));
+        double T = (T1 + T2) / 2, r = Math.Round(T / Math.Tan(alpha / 2) / k, 1);
+        if (r < 1) return (null, 0, null, "za mały promień");
+        var res = v.Take(s1 + 1).Select(q => q.Clone()).ToList();
+        res.Add(new UtVertex { X = x.X, Y = x.Y, R = r });
+        res.AddRange(v.Skip(s2 + 1).Select(q => q.Clone()));
+        string note = Math.Abs(T1 - T2) / k > 0.5 ? $"początek i koniec niesymetrycznie (styczne {T1 / k:0.0} i {T2 / k:0.0} m) – wzięto średnią" : null;
+        return (res, r, note, null);
+    }
 }
