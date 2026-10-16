@@ -84,7 +84,9 @@ Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całeg
 
 Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje najmniejszą przechyłkę, przy której niedobór nie przekracza dopuszczalnego.
 
-Program podaje przechyłkę równoważącą h_r = 11,8·V²/R, niedobór h_n, przyspieszenie niezrównoważone a_n i długość krzywej przejściowej L. L to największa z trzech wartości: z rampy przechyłkowej (1:n, n = k·V), z przyrostu przyspieszenia ψ i ze zmiany przechyłki f. Program pokazuje, który warunek decyduje, oraz największą prędkość dla danego R i h. Wartości dopuszczalne (h_max, niedobór, ψ, f, k) są w polach do zmiany. Domyślne są przykładowe, więc wpisz obowiązujące z przepisów. Test: `Przechylka.exe --test wynik.txt [zrzut.png]`.
+Prześwit toru jest w polu i wynosi domyślnie 1435 mm. Przechyłka działa na rozstawie osi główek szyn s = prześwit + szerokość główki (1435 + 65 = 1500 mm), z którego bierze się znany współczynnik 11,8. Bez h program proponuje przechyłkę równoważącą (co 5 mm, najwyżej h_max) i podaje najmniejszą dopuszczalną.
+
+Program podaje przechyłkę równoważącą h_r = s·V²/(9,81·3,6²·R) (≈ 11,8·V²/R), niedobór h_n, przyspieszenie niezrównoważone a_n i długość krzywej przejściowej L. L to największa z trzech wartości: z rampy przechyłkowej (1:n, n = k·V), z przyrostu przyspieszenia ψ i ze zmiany przechyłki f. Program pokazuje, który warunek decyduje, oraz największą prędkość dla danego R i h. Wartości dopuszczalne (h_max, niedobór, ψ, f, k) są w polach do zmiany. Domyślne są przykładowe, więc wpisz obowiązujące z przepisów. Test: `Przechylka.exe --test wynik.txt [zrzut.png]`.
 
 ## Edytor układu torowego (UT)
 

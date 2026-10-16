@@ -217,6 +217,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 
 **ZROBIONE 2026-10-17 – kalkulator przechyłki** (prośba właściciela: „prosty kalkulator jako nowy program do przechyłki”): osobny program `app/Lcs.Przechylka` (`Przechylka.exe`, `uruchom_przechylka.bat`), WPF. Dane: V, R, h (puste – propozycja: najmniejsza przechyłka co 5 mm przy niedoborze ≤ dopuszczalnego). Wynik na żywo: h_r = 11,8·V²/R, h_n, a_n = 9,81·h_n/1500, L = max(rampa n·h/1000 przy n = k·V; V·|a_n|/(3,6·ψ); V·h/(3,6·f)) zaokrąglone w górę, warunek decydujący, V największa dla R i h; uwagi (promień za mały, przekroczona przechyłka / niedobór, nadmiar). **Wartości dopuszczalne domyślne są przykładowe** (h_max 150, niedobór 110, ψ 0,5, f 35, k 10) – nie ma ich w `Zrodla`; do potwierdzenia przez właściciela z przepisów. Test `--test`: V 100 / R 600 / h 120 → L 120 m (rampa), propozycja h 90 mm, uwagi – 0 błędów. Zrzut: `zrzuty/Przechylka.png`. Później: wpięcie do edytora UT (pole L przy łuku z kalkulatora).
 
+**Poprawki kalkulatora (2026-10-17):** propozycja h = przechyłka równoważąca h_r (co 5 mm, ≤ h_max) zamiast najmniejszej (przy V 80 / R 1000 wychodziło 0 mm), najmniejsza dopuszczalna podawana obok; prześwit toru 1435 mm i szerokość główki 65 mm w polach, wzory liczą z rozstawu osi główek s = 1435 + 65 = 1500 mm (dawniej ukryta stała 1500 i opis „rozstaw osi szyn 1500 mm” – właściciel: „rozstaw szyn 1435!”).
+
 **Następny krok:** etap 5, część 2 – odcinki kontroli niezajętości (nazwy, granice z liczników osi / złączy, „Sprawdź”), wskaźniki W4 / W5, perony, przejazdy, kilometraż
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
