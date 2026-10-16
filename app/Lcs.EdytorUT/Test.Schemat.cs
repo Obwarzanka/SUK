@@ -56,6 +56,14 @@ public static partial class Test
         Ok(Math.Abs(sa.Y - sb.Y) < 0.01 && sb.X > sa.X, $"tor 1 na ekranie poziomo, od lewej do prawej (różnica wysokości {Math.Abs(sa.Y - sb.Y):0.0000} px)");
         double gap = Math.Abs(S(r2.At(700).P).Y - S(r1.At(700).P).Y), want = 5 * k * 4 / w.View.Mpp;
         Ok(Math.Abs(gap - want) < 0.01 && S(r2.At(700).P).Y < S(r1.At(700).P).Y, $"międzytorze 5 m na ekranie ×4: {gap:0.0} px (wzór {want:0.0} px), tor 2 (lewy) nad torem 1");
+        Ok(w.gridBox.IsEnabled && w.gridBox.IsChecked == false && !w.View.ShowGridSchemat, "Schemat: „Siatka” dostępna, domyślnie wyłączona");
+        w.gridBox.IsChecked = true; w.gridBox.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        var gs = w.View.GridStepsSchemat();
+        Ok(w.View.ShowGridSchemat && w.View.ShowGrid && gs.MinU / w.View.Mpp >= 14 - 1e-9 && gs.MinV * w.View.Stretch / w.View.Mpp >= 14 - 1e-9 && gs.MinV < gs.MinU,
+            $"Schemat: siatka włączona – wzdłuż co {gs.MinU:0.##} m, w poprzek co {gs.MinV:0.##} m (×4 gęściej), Teren nadal z siatką");
+        if (shotRails != null) { await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_siatka_schemat.png")); }
+        w.gridBox.IsChecked = false; w.gridBox.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Ok(!w.View.ShowGridSchemat, "Schemat: siatka wyłączona z powrotem");
         var probe = Go(o, lineAz + 30, 37.5);
         Ok(XY.Dist(w.View.ToWorld(S(probe)), probe) < 1e-6, "Schemat: ekran ↔ świat tam i z powrotem");
         var sp = new Point(300, 200); var before = w.View.ToWorld(sp);

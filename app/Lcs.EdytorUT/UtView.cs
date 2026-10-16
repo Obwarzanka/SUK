@@ -43,6 +43,8 @@ public partial class UtView : FrameworkElement
     /// <summary>Metry na piksel ekranu.</summary>
     public double Mpp => mpp;
     public bool ShowGrid = true;
+    /// <summary>Siatka w widoku Schemat (wzdłuż i w poprzek osi) – domyślnie wyłączona (czysty schemat jak w ISDR).</summary>
+    public bool ShowGridSchemat;
     /// <summary>
     /// Test: prawdziwa klawiatura nie wpływa na płótno (Spacja – przesuwanie, Ctrl – bez przyciągania, Shift – przedłużenie);
     /// wcześniej pisanie przy komputerze w trakcie testu zamieniało przeciągnięcie w przesuwanie widoku. Klawisze testu – <see cref="TestMods"/>.
@@ -315,6 +317,7 @@ public partial class UtView : FrameworkElement
         var (minor, major) = GridSteps();
         var tl = ToWorld(new Point(0, 0)); var br = ToWorld(new Point(w, h));
         if (ShowGrid && !Schemat) DrawGrid(dc, w, h, minor, major, tl, br);
+        if (ShowGridSchemat && Schemat) DrawGridSchemat(dc, w, h);
 
         // podgląd na żywo (prostokąt PUWG obejmujący obrócony ekran); w schemacie przygaszony
         if (BgOn)
@@ -514,6 +517,35 @@ public partial class UtView : FrameworkElement
                 double sy = Crisp(ToScreen(new XY(x, 0)).Y); dc.DrawLine(pen, new Point(0, sy), new Point(w, sy));
             }
         }
+    }
+
+    /// <summary>
+    /// Siatka schematu: linie w poprzek osi co okrągłe metry wzdłuż osi i linie wzdłuż osi co okrągłe metry w poprzek (z rozciągnięciem),
+    /// odstęp co najmniej 14 px; co któraś grubsza.
+    /// </summary>
+    void DrawGridSchemat(DrawingContext dc, double w, double h)
+    {
+        double uc = center.X * cosA + center.Y * sinA, vc = -center.X * sinA + center.Y * cosA;
+        double minU = Nice(14 * mpp), majU = Nice(minU * 4.5);
+        double minV = Nice(14 * mpp / stretch), majV = Nice(minV * 4.5);
+        double u0 = uc - Cx * mpp, u1 = uc + (w - Cx) * mpp, v0 = vc - Cy * mpp / stretch, v1 = vc + (h - Cy) * mpp / stretch;
+        for (double u = Math.Ceiling(u0 / minU) * minU; u <= u1; u += minU)
+        {
+            double x = Crisp(Cx + (u - uc) / mpp);
+            dc.DrawLine(IsMul(u, majU) ? MajorPen : MinorPen, new Point(x, 0), new Point(x, h));
+        }
+        for (double v = Math.Ceiling(v0 / minV) * minV; v <= v1; v += minV)
+        {
+            double y = Crisp(Cy + (v - vc) * stretch / mpp);
+            dc.DrawLine(IsMul(v, majV) ? MajorPen : MinorPen, new Point(0, y), new Point(w, y));
+        }
+    }
+
+    /// <summary>Kroki siatki schematu [m]: wzdłuż (drobny, główny) i w poprzek (drobny, główny).</summary>
+    public (double MinU, double MajU, double MinV, double MajV) GridStepsSchemat()
+    {
+        double minU = Nice(14 * mpp), minV = Nice(14 * mpp / stretch);
+        return (minU, Nice(minU * 4.5), minV, Nice(minV * 4.5));
     }
 
     static bool IsMul(double v, double step) { double r = Math.Abs(v / step - Math.Round(v / step)); return r < 1e-6; }

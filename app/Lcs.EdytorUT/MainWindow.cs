@@ -26,7 +26,7 @@ public partial class MainWindow : Window
     public readonly TextBox NotesBox = new() { Margin = new Thickness(0, 2, 0, 8), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     public readonly ComboBox ScaleBox = new() { Margin = new Thickness(0, 2, 0, 8) };
     public readonly Button UndoBtn = new() { Content = "↶ Cofnij" }, RedoBtn = new() { Content = "↷ Ponów" };
-    readonly CheckBox gridBox = new() { Content = "Siatka", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+    public readonly CheckBox gridBox = new() { Content = "Siatka", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
     public readonly ToggleButton SchematBtn = new() { Content = "Schemat", Padding = new Thickness(6, 2, 6, 2), ToolTip = "Widok schematu: oś stacji poziomo, w poprzek rozciągnięte, białe tło – jak plan schematyczny (S)" };
     public readonly ToggleButton TerenBtn = new() { Content = "Teren", Padding = new Thickness(6, 2, 6, 2), ToolTip = "Widok terenu: północ u góry, 1:1, ortofotomapa – do odrysowania (S)" };
     public readonly ComboBox StretchBox = new() { Width = 52, ToolTip = "Rozciągnięcie w poprzek osi w widoku Schemat" };
@@ -52,7 +52,7 @@ public partial class MainWindow : Window
 
         View.CursorMoved += ShowCursor;
         View.ViewChanged += ShowView;
-        gridBox.Click += (s, e) => { View.ShowGrid = gridBox.IsChecked == true; View.InvalidateVisual(); };
+        gridBox.Click += (s, e) => { if (View.Schemat) View.ShowGridSchemat = gridBox.IsChecked == true; else View.ShowGrid = gridBox.IsChecked == true; View.InvalidateVisual(); };
         PreviewKeyDown += OnKey;
         InitBg();
         InitTory();
@@ -225,7 +225,7 @@ public partial class MainWindow : Window
             SchematBtn.IsChecked = v.Schemat; TerenBtn.IsChecked = !v.Schemat;
             StretchBox.SelectedIndex = Math.Max(0, Array.IndexOf(Stretches, v.Stretch)); StretchBox.IsEnabled = v.Schemat;
             BgBox.IsChecked = v.ShowBg; BgBox.IsEnabled = v.Schemat;
-            gridBox.IsEnabled = !v.Schemat;
+            gridBox.IsChecked = v.Schemat ? View.ShowGridSchemat : View.ShowGrid;      // osobno dla Schematu (domyślnie bez siatki) i Terenu
         }
         finally { refreshing = false; }
         ShowView();

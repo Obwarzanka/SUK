@@ -219,6 +219,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 
 **Poprawki kalkulatora (2026-10-17):** propozycja h = przechyłka równoważąca h_r (co 5 mm, ≤ h_max) zamiast najmniejszej (przy V 80 / R 1000 wychodziło 0 mm), najmniejsza dopuszczalna podawana obok; prześwit toru 1435 mm i szerokość główki 65 mm w polach, wzory liczą z rozstawu osi główek s = 1435 + 65 = 1500 mm (dawniej ukryta stała 1500 i opis „rozstaw osi szyn 1500 mm” – właściciel: „rozstaw szyn 1435!”).
 
+**ZROBIONE 2026-10-17 – siatka w widoku Schemat** (właściciel: „czemu siatka nie działa?” – w Schemacie pole „Siatka” było wyłączone, bo siatka PUWG po obrocie i rozciągnięciu jest nieczytelna): `UtView.DrawGridSchemat` – linie w poprzek osi co okrągłe metry wzdłuż i wzdłuż osi co okrągłe metry w poprzek (z rozciągnięciem), odstęp ≥ 14 px, co któraś grubsza; osobny przełącznik dla Schematu (domyślnie wyłączona – czysty schemat) i Terenu. Zrzut: `zrzuty/EdytorUT_siatka_schemat.png`.
+
 **Następny krok:** etap 5, część 2 – odcinki kontroli niezajętości (nazwy, granice z liczników osi / złączy, „Sprawdź”), wskaźniki W4 / W5, perony, przejazdy, kilometraż
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
