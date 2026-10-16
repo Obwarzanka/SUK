@@ -44,6 +44,7 @@ public static partial class Test
     static void Enter(TextBox t)
     {
         var src = PresentationSource.FromVisual(t);
+        if (src == null) { Application.Current.MainWindow?.UpdateLayout(); src = PresentationSource.FromVisual(t); }   // pole w świeżo zbudowanym panelu (np. w GroupBox)
         t.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, System.Windows.Input.Key.Enter) { RoutedEvent = Keyboard.KeyDownEvent });
     }
     static T Find<T>(DependencyObject root, Func<T, bool> pred) where T : DependencyObject

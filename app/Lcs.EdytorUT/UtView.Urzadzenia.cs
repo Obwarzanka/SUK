@@ -191,21 +191,35 @@ public partial class UtView
                     x = 4; yy = Y - 0.8;
                 }
                 else if (mast == UtDevice.MastProsty) { L(0, Y, 5, Y); x = 5; }
-                if (dv.W24 && mast != UtDevice.MastKarzel) L(1.7, Y + 0.9, 2.3, Y - 0.9);   // W24 – kreska ukośna na maszcie
-                foreach (var (on, c) in new[] { (dv.StripeZ, 'Z'), (dv.StripeP, 'P') })
+                else if (mast == UtDevice.MastBramka)
+                {
+                    // bramka sygnałowa: belka w poprzek toru ze słupkami na końcach, sygnalizator zawieszony na belce (do sprawdzenia przez właściciela)
+                    L(0, -3, 0, Y + 1.4);
+                    dc.DrawRectangle(ink, null, new Rect(P(-0.4, -3.4), P(0.4, -2.6)));
+                    dc.DrawRectangle(ink, null, new Rect(P(-0.4, Y + 1.0), P(0.4, Y + 1.8)));
+                    L(0, Y, 2.8, Y); x = 2.8;
+                }
+                if (dv.W24 && dv.Kind == UtDevice.Semafor && mast != UtDevice.MastKarzel) L(1.7, Y + 0.9, 2.3, Y - 0.9);   // W24 – kreska ukośna na maszcie
+                // pasy świetlne pod komorami (BSK ss5): od masztu pomarańczowy, potem zielony; tylko semafor
+                foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
                 {
                     if (!on) continue;
                     dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1, yy + 1)));
                     if (c == 'Z') L(x, yy, x + 1, yy); else L(x + 0.1, yy + 0.9, x + 0.9, yy - 0.9);
                     x += 1;
                 }
-                if (!string.IsNullOrEmpty(dv.W21))
+                if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
                 {
+                    // W21 (BSK ss6): skrzynka na maszcie pod komorami, cyfra „pionowo” – górą w stronę komór, jak na stojącym semaforze
                     dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1.6, yy + 1)));
-                    if (labels)
+                    if (labels && k >= 2)
                     {
-                        var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(7, 1.6 * k), ink, dpi);
-                        var cc = P(x + 0.8, yy); dc.DrawText(ft, new Point(cc.X - ft.Width / 2, cc.Y - ft.Height / 2));
+                        var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), 1.5 * k, ink, dpi);
+                        var cc = P(x + 0.8, yy); var up = P(1, 0) - P(0, 0); up.Normalize();
+                        double ang = Math.Atan2(up.Y, up.X) * 180 / Math.PI + 90;      // obrót: góra cyfry (0, −1) → kierunek komór
+                        dc.PushTransform(new RotateTransform(ang, cc.X, cc.Y));
+                        dc.DrawText(ft, new Point(cc.X - ft.Width / 2, cc.Y - ft.Height / 2));
+                        dc.Pop();
                     }
                     x += 1.6;
                 }

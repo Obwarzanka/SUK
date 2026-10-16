@@ -39,7 +39,7 @@ public class UtDevice
     /// <summary>Maszt: <c>prosty</c>, <c>wysiegnik</c> (z wysięgnikiem), <c>karzel</c> (karzełkowy, bez masztu); puste – prosty (tarcza manewrowa z <see cref="Dwarf"/> – karzełkowy).</summary>
     public string Mast { get; set; }
     public string MastOrDefault => !string.IsNullOrEmpty(Mast) ? Mast : Dwarf ? MastKarzel : MastProsty;
-    /// <summary>Pasy świetlne pod komorami: zielony, pomarańczowy (BSK ss5).</summary>
+    /// <summary>Pasy świetlne pod komorami (BSK ss5; od masztu pomarańczowy, potem zielony) – tylko semafor.</summary>
     public bool StripeZ { get; set; }
     public bool StripeP { get; set; }
     /// <summary>Wskaźnik W24 na maszcie (BSK ss4, ss5).</summary>
@@ -47,8 +47,9 @@ public class UtDevice
     /// <summary>Wskaźnik W21 z cyfrą (np. „5”, BSK ss6); puste – brak.</summary>
     public string W21 { get; set; }
 
-    public const string MastProsty = "prosty", MastWysiegnik = "wysiegnik", MastKarzel = "karzel";
-    public static readonly (string Key, string Name)[] Masts = { (MastProsty, "prosty"), (MastWysiegnik, "z wysięgnikiem"), (MastKarzel, "karzełkowy (bez masztu)") };
+    public const string MastProsty = "prosty", MastWysiegnik = "wysiegnik", MastBramka = "bramka", MastKarzel = "karzel";
+    /// <summary>Mocowanie sygnalizatora: na maszcie (słup), na wysięgniku, na bramce sygnałowej nad torem, karzełkowy (na podłożu).</summary>
+    public static readonly (string Key, string Name)[] Masts = { (MastProsty, "na maszcie (słup)"), (MastWysiegnik, "na wysięgniku"), (MastBramka, "na bramce"), (MastKarzel, "karzełkowy") };
     /// <summary>Kolory komór: litera i nazwa.</summary>
     public static readonly (char Key, string Name)[] Colors = { ('C', "czerwona"), ('Z', "zielona"), ('P', "pomarańczowa"), ('B', "biała"), ('N', "niebieska") };
 
@@ -66,17 +67,18 @@ public class UtDevice
     public static string FormatLights(IEnumerable<(char C, bool Pulse)> l) => string.Concat(l.Select(x => x.C + (x.Pulse ? "*" : "")));
     public static bool ValidLights(string s) => !string.IsNullOrEmpty(s) && s.All(c => "CZPBN*".Contains(c)) && ParseLights(s).Count is >= 1 and <= 7;
 
-    /// <summary>Układy gotowe (BSK ss3–ss9): nazwa, komory, świeci zasadniczo, maszt, pasy, W24.</summary>
-    public static readonly (string Name, string Lights, char Lit, string Mast, bool W24)[] Presets =
+    /// <summary>Układy gotowe (BSK ss3–ss9): nazwa, komory, świeci zasadniczo, maszt, W24, pasy świetlne (pomarańczowy i zielony).</summary>
+    public static readonly (string Name, string Lights, char Lit, string Mast, bool W24, bool Stripes)[] Presets =
     {
-        ("semafor 2-komorowy (C Z)", "CZ", 'C', MastProsty, false),
-        ("semafor 3-komorowy bez manewrowej (P C Z)", "P*CZ", 'C', MastProsty, false),
-        ("semafor 4-komorowy z manewrową (B P C Z)", "B*PCZ*", 'C', MastProsty, false),
-        ("semafor 4-komorowy na wysięgniku, W24", "B*PCZ*", 'C', MastWysiegnik, true),
-        ("semafor 5-komorowy (B P C P Z)", "B*PCP*Z*", 'C', MastProsty, false),
-        ("tarcza ostrzegawcza (P Z)", "P*Z", 'P', MastProsty, false),
-        ("tarcza manewrowa karzełkowa (B N)", "B*N", 'N', MastKarzel, false),
-        ("tarcza manewrowa wysoka (B N)", "B*N", 'N', MastProsty, false),
+        ("semafor 2-komorowy (C Z)", "CZ", 'C', MastProsty, false, false),
+        ("semafor 3-komorowy bez manewrowej (P C Z)", "P*CZ", 'C', MastProsty, false, false),
+        ("semafor 4-komorowy z manewrową (B P C Z)", "B*PCZ*", 'C', MastProsty, false, false),
+        ("semafor 4-komorowy na wysięgniku, W24", "B*PCZ*", 'C', MastWysiegnik, true, false),
+        ("semafor 5-komorowy (B P C P Z)", "B*PCP*Z*", 'C', MastProsty, false, false),
+        ("semafor 5-komorowy z pasami i W24 (BSK ss5)", "B*PCP*Z*", 'C', MastProsty, true, true),
+        ("tarcza ostrzegawcza (P Z)", "P*Z", 'P', MastProsty, false, false),
+        ("tarcza manewrowa karzełkowa (B N)", "B*N", 'N', MastKarzel, false, false),
+        ("tarcza manewrowa wysoka (B N)", "B*N", 'N', MastProsty, false, false),
     };
     /// <summary>Tarcza manewrowa karzełkowa (bez masztu).</summary>
     public bool Dwarf { get; set; }

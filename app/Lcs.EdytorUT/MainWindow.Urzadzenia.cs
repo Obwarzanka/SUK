@@ -125,8 +125,11 @@ public partial class MainWindow
     /// Konfiguracja sygnalizatora świetlnego (BSK ISDR „Oznaczenia urządzeń srk”): układ gotowy, komory od masztu (kolor, pulsowanie,
     /// kolejność), komora świecąca w stanie zasadniczym, maszt, pasy świetlne, W24, W21, zapis komór tekstem.
     /// </summary>
-    void BuildSignalConfig(StackPanel P, UtDevice d)
+    void BuildSignalConfig(StackPanel P0, UtDevice d)
     {
+        // wszystko w jednym polu „Konfiguracja semafora / tarczy”
+        var P = new StackPanel { Margin = new Thickness(4) };
+        P0.Children.Add(new GroupBox { Header = d.Kind == UtDevice.Semafor ? "Konfiguracja semafora" : "Konfiguracja tarczy", Content = P, Margin = new Thickness(0, 4, 0, 8), Padding = new Thickness(2) });
         var lamps = UtDevice.ParseLights(d.LightsOrDefault);
         void SetLamps(List<(char C, bool Pulse)> l, string what = "Komory sygnalizatora") =>
             ChDevice(d.Id, what, x => { x.Lights = UtDevice.FormatLights(l); x.Heads = l.Count; if (!string.IsNullOrEmpty(x.Lit) && l.All(q => q.C != x.Lit[0])) x.Lit = null; });
@@ -140,13 +143,13 @@ public partial class MainWindow
         {
             if (pre.SelectedIndex <= 0) return;
             var x = UtDevice.Presets[pre.SelectedIndex - 1];
-            ChDevice(d.Id, "Układ sygnalizatora", q => { q.Lights = x.Lights; q.Heads = UtDevice.ParseLights(x.Lights).Count; q.Lit = x.Lit.ToString(); q.Mast = x.Mast; q.W24 = x.W24; q.StripeZ = q.StripeP = false; q.W21 = null; });
+            ChDevice(d.Id, "Układ sygnalizatora", q => { q.Lights = x.Lights; q.Heads = UtDevice.ParseLights(x.Lights).Count; q.Lit = x.Lit.ToString(); q.Mast = x.Mast; q.W24 = x.W24; q.StripeZ = q.StripeP = x.Stripes; q.W21 = null; });
         };
         P.Children.Add(pre);
 
         P.Children.Add(Label("Komory od masztu (kolor, pulsuje)"));
         var grid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
-        foreach (var w in new[] { 22.0, 112, 70, 26, 26, 26 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        foreach (var w in new[] { 18.0, 100, 64, 24, 24, 24 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         for (int i = 0; i < lamps.Count; i++)
         {
             int ii = i; grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -186,28 +189,43 @@ public partial class MainWindow
         lit.SelectionChanged += (s, e) => { if (lit.SelectedIndex >= 0) ChDevice(d.Id, "Komora świecąca", x => x.Lit = litKeys[lit.SelectedIndex] == ' ' ? "-" : litKeys[lit.SelectedIndex].ToString()); };
         P.Children.Add(lit);
 
-        P.Children.Add(Label("Maszt"));
-        var mast = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
-        foreach (var m in UtDevice.Masts) mast.Items.Add(m.Name);
-        mast.SelectedIndex = Math.Max(0, Array.FindIndex(UtDevice.Masts, m => m.Key == d.MastOrDefault));
-        mast.SelectionChanged += (s, e) => { if (mast.SelectedIndex >= 0) ChDevice(d.Id, "Maszt sygnalizatora", x => { x.Mast = UtDevice.Masts[mast.SelectedIndex].Key; x.Dwarf = x.Mast == UtDevice.MastKarzel; }); };
-        P.Children.Add(mast);
+        P.Children.Add(Label("Mocowanie"));
+        var mounts = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+        foreach (var m in UtDevice.Masts)
+        {
+            var rb = new RadioButton { Content = m.Name, GroupName = "mast" + d.Id, IsChecked = m.Key == d.MastOrDefault, Margin = new Thickness(0, 0, 10, 2) };
+            var key = m.Key;
+            rb.Click += (s, e) => ChDevice(d.Id, "Mocowanie sygnalizatora", x => { x.Mast = key; x.Dwarf = key == UtDevice.MastKarzel; });
+            mounts.Children.Add(rb);
+        }
+        P.Children.Add(mounts);
 
-        var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+        if (d.Kind != UtDevice.Semafor) return;          // pasy, W24, W21 – tylko na semaforach
+        P.Children.Add(Label("Wskaźniki i pasy świetlne"));
+        var row = new WrapPanel { Margin = new Thickness(0, 2, 0, 4) };
         CheckBox Flag(string t, bool v, Action<UtDevice, bool> set)
         {
             var c = new CheckBox { Content = t, IsChecked = v, Margin = new Thickness(0, 0, 10, 2) };
             c.Click += (s, e) => ChDevice(d.Id, t, x => set(x, c.IsChecked == true));
             row.Children.Add(c); return c;
         }
-        Flag("pas zielony", d.StripeZ, (x, v) => x.StripeZ = v);
         Flag("pas pomarańczowy", d.StripeP, (x, v) => x.StripeP = v);
+        Flag("pas zielony", d.StripeZ, (x, v) => x.StripeZ = v);
         Flag("W24", d.W24, (x, v) => x.W24 = v);
         P.Children.Add(row);
         var w21 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        w21.Children.Add(new TextBlock { Text = "W21 (cyfra): ", VerticalAlignment = VerticalAlignment.Center });
-        var w21b = new TextBox { Text = d.W21 ?? "", Width = 40, ToolTip = "Cyfra wskaźnika W21 (np. 5), puste – brak; Enter" };
-        w21b.KeyDown += (s, e) => { if (e.Key == Key.Enter) { var v = w21b.Text.Trim(); ChDevice(d.Id, "Wskaźnik W21", x => x.W21 = v.Length > 0 ? v : null); } };
+        var w21c = new CheckBox { Content = "W21, cyfra: ", IsChecked = !string.IsNullOrEmpty(d.W21), VerticalAlignment = VerticalAlignment.Center };
+        w21c.Click += (s, e) => ChDevice(d.Id, "Wskaźnik W21", x => x.W21 = w21c.IsChecked == true ? (string.IsNullOrEmpty(x.W21) ? "6" : x.W21) : null);
+        w21.Children.Add(w21c);
+        var w21b = new TextBox { Text = d.W21 ?? "", Width = 40, ToolTip = "Cyfra wskaźnika W21 – prędkość w dziesiątkach km/h (np. 6 = 60 km/h), puste – brak; Enter" };
+        w21b.KeyDown += (s, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            var v = w21b.Text.Trim();
+            // W21 pokazuje cyfrę = prędkość / 10 km/h (np. 4, 6, 10)
+            if (v.Length > 0 && !(int.TryParse(v, out var n) && n is >= 1 and <= 16)) { Message("W21: liczba 1–16 (prędkość w dziesiątkach km/h), puste – brak wskaźnika"); w21b.Text = d.W21 ?? ""; return; }
+            ChDevice(d.Id, "Wskaźnik W21", x => x.W21 = v.Length > 0 ? v : null);
+        };
         w21.Children.Add(w21b);
         P.Children.Add(w21);
     }

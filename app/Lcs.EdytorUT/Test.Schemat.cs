@@ -204,7 +204,7 @@ public static partial class Test
         Ok(d.P.Devices.First(x => x.Id == dA.Id).Name == "A1" && Find<TextBlock>(w.TrackPanel, x => x.Text == "Semafor świetlny A1") != null, "panel urządzenia: nazwa A → A1");
         UtDevice DA() => d.P.Devices.First(x => x.Id == dA.Id);
         Ok(DA().LightsOrDefault == "PCZ" && DA().LitOrDefault == 'C', "semafor domyślnie 3 komory P C Z, świeci czerwona");
-        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets[2].Name;
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets.First(x => x.Name.StartsWith("semafor 4-komorowy z manewrową")).Name;
         Ok(DA().Lights == "B*PCZ*" && DA().Heads == 4 && DA().MastOrDefault == UtDevice.MastProsty, "układ gotowy: semafor 4-komorowy z manewrową (B* P C Z*)");
         var colorBoxes = new List<ComboBox>(); void CollectCb(DependencyObject x) { if (x is ComboBox cb && cb.Items.Contains("niebieska") && cb.Items.Count == 5) colorBoxes.Add(cb); foreach (var ch in LogicalTreeHelper.GetChildren(x).OfType<DependencyObject>()) CollectCb(ch); }
         CollectCb(w.TrackPanel);
@@ -215,12 +215,29 @@ public static partial class Test
         Ok(DA().Lights == "P*PCZ*B" && DA().Heads == 5, "+ komora – piąta (biała)");
         var lt = Find<TextBox>(w.TrackPanel, x => x.Text == "P*PCZ*B"); lt.Text = "bpcp*z*"; Enter(lt);
         Ok(DA().Lights == "BPCP*Z*", "komory tekstem: BPCP*Z* (5 komór, dwie pulsujące)");
-        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("z wysięgnikiem")).SelectedItem = "z wysięgnikiem";
+        Ok(Find<GroupBox>(w.TrackPanel, g => g.Header as string == "Konfiguracja semafora") != null, "panel: pole „Konfiguracja semafora”");
+        var rbW = Find<RadioButton>(w.TrackPanel, r => r.Content as string == "na wysięgniku"); rbW.IsChecked = true; rbW.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         var w24 = Find<CheckBox>(w.TrackPanel, c => c.Content as string == "W24"); w24.IsChecked = true; w24.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         var w21 = Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Cyfra wskaźnika W21") == true); w21.Text = "5"; Enter(w21);
         Ok(DA().MastOrDefault == UtDevice.MastWysiegnik && DA().W24 && DA().W21 == "5", "maszt z wysięgnikiem, W24, W21 „5”");
+        // z powrotem zwykły semafor (zrzuty): układ gotowy 5-komorowy – prosty maszt, bez W24 i W21
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets.First(x => x.Name == "semafor 5-komorowy (B P C P Z)").Name;
+        Ok(DA().Lights == "B*PCP*Z*" && DA().MastOrDefault == UtDevice.MastProsty && !DA().W24 && DA().W21 == null, "układ gotowy 5-komorowy kasuje wysięgnik, W24 i W21");
         w.View.SelectDevice(dTm.Id);
-        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets[6].Name;
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets.First(x => x.Name.StartsWith("tarcza manewrowa karzełkowa")).Name;
+        Ok(Find<CheckBox>(w.TrackPanel, c => c.Content as string == "W24") == null, "tarcza manewrowa: bez opcji pasów, W24, W21 (tylko semafor)");
+        // semafor B jak BSK ss5: 5 komór, pasy pomarańczowy i zielony, W24, W21 „6”
+        w.View.SelectDevice(dB.Id);
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(wybierz…)")).SelectedItem = UtDevice.Presets.First(x => x.Name.Contains("z pasami")).Name;
+        var w21B = Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Cyfra wskaźnika W21") == true); w21B.Text = "x"; Enter(w21B);
+        Ok(d.P.Devices.First(x => x.Id == dB.Id).W21 == null && w.LastMessage.Contains("W21"), "W21: zła wartość odrzucona");
+        w21B = Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Cyfra wskaźnika W21") == true); w21B.Text = "6"; Enter(w21B);
+        var dBx = d.P.Devices.First(x => x.Id == dB.Id);
+        Ok(dBx.StripeP && dBx.StripeZ && dBx.W24 && dBx.W21 == "6" && dBx.LightsOrDefault == "B*PCP*Z*", "semafor B jak BSK ss5: 5 komór, pasy pomarańczowy i zielony, W24, W21 „6”");
+        var rbB = Find<RadioButton>(w.TrackPanel, r => r.Content as string == "na bramce"); rbB.IsChecked = true; rbB.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Ok(d.P.Devices.First(x => x.Id == dB.Id).MastOrDefault == UtDevice.MastBramka, "mocowanie: na bramce");
+        if (shotRails != null) { var pb2 = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dB.Id)).Value.P; Look(Go(pb2, lineAz, -14), 0.12); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka.png")); }
+        w.DoUndo(); Ok(d.P.Devices.First(x => x.Id == dB.Id).MastOrDefault == UtDevice.MastProsty, "Ctrl+Z – znowu na maszcie");
         Ok(d.P.Devices.First(x => x.Id == dTm.Id).MastOrDefault == UtDevice.MastKarzel && d.P.Devices.First(x => x.Id == dTm.Id).LitOrDefault == 'N', "Tm1: tarcza manewrowa karzełkowa (B N, świeci niebieska)");
         w.View.SelectDevice(dB.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "A1");
         Ok(d.P.Devices.First(x => x.Id == dB.Id).Name == "B" && w.LastMessage.Contains("zajęta"), "zajęta nazwa – odmowa");
@@ -242,7 +259,7 @@ public static partial class Test
             w.View.Select(null);
             w.View.FitPoints(new[] { r1.At(100).P, r1.At(560).P, r2.At(100).P, r2.At(560).P });
             await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_urzadzenia.png"));
-            w.View.SelectDevice(dA.Id); var pa1 = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dA.Id)).Value.P; Look(Go(pa1, lineAz, 12), 0.12);
+            w.View.SelectDevice(dB.Id); var pa1 = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dB.Id)).Value.P; Look(Go(pa1, lineAz, -14), 0.12);
             await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_semafor.png")); w.View.Select(null);
         }
 
