@@ -19,6 +19,8 @@ public class UtProject
     public string Notes { get; set; } = "";
     /// <summary>Podkłady od dołu do góry (ortofotomapy, grafiki).</summary>
     public List<UtBackground> Backgrounds { get; set; } = new();
+    /// <summary>Tory (osie torów – wieloboki styczne z łukami).</summary>
+    public List<UtTrack> Tracks { get; set; } = new();
     /// <summary>Ostatni widok edytora (nie podlega cofaniu).</summary>
     public UtViewState View { get; set; } = new();
 

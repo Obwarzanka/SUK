@@ -50,6 +50,7 @@ public partial class MainWindow : Window
         gridBox.Click += (s, e) => { View.ShowGrid = gridBox.IsChecked == true; View.InvalidateVisual(); };
         PreviewKeyDown += OnKey;
         InitBg();
+        InitTory();
         Closing += OnClosing;
 
         UtDocument doc = null;
@@ -82,6 +83,10 @@ public partial class MainWindow : Window
         tb.Items.Add(GoToBox); tb.Items.Add(GoToBtn);
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Wskaz, "✋ Wskaż", "Przesuwanie widoku (V, Esc)"));
+        tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
+        tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
+        tb.Items.Add(new TextBlock { Text = " L", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewLBox);
+        tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Miarka, "📏 Miarka", "Pomiar długości w terenie: klik – kolejne punkty, Backspace – cofnij punkt, PPM – wyczyść (M)"));
         tb.Items.Add(new Separator());
         tb.Items.Add(gridBox);
@@ -105,6 +110,7 @@ public partial class MainWindow : Window
         foreach (var (t, b) in toolBtns) b.IsChecked = View.Tool == t;
         Message(View.Tool switch
         {
+            UtTool.Tor => "Tor: klikaj wierzchołki wieloboku stycznych (po osi toru na zdjęciu); długość z klawiatury + Enter; Shift – na przedłużeniu; Ctrl – bez przyciągania; start na końcu toru – przedłużenie; Enter / PPM / dwuklik – koniec; Backspace – cofnij; Esc – rezygnacja",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
@@ -122,6 +128,7 @@ public partial class MainWindow : Window
     UIElement BuildPanel()
     {
         var sp = new StackPanel { Margin = new Thickness(10) };
+        sp.Children.Add(TrackPanel);
         sp.Children.Add(Header("Obszar"));
         sp.Children.Add(Label("Nazwa"));
         NameBox.LostFocus += (s, e) => CommitName();
@@ -169,7 +176,7 @@ public partial class MainWindow : Window
     void SetDoc(UtDocument d)
     {
         if (Doc != null) Doc.Changed -= Refresh;
-        Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null;
+        Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null; View.Select(null);
         d.Changed += Refresh;
         var v = d.P.View;
         View.SetView(new XY(v.X, v.Y), v.Mpp);
@@ -192,6 +199,7 @@ public partial class MainWindow : Window
         UndoBtn.IsEnabled = Doc.UndoName != null; UndoBtn.ToolTip = Doc.UndoName != null ? $"Cofnij: {Doc.UndoName} (Ctrl+Z)" : "Nic do cofnięcia";
         RedoBtn.IsEnabled = Doc.RedoName != null; RedoBtn.ToolTip = Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
         RefreshBg();
+        RefreshTrackPanel();
         View.InvalidateVisual();
     }
 
@@ -295,11 +303,13 @@ public partial class MainWindow : Window
     }
 
     public void Message(string m) { stMsg.Text = m; MessageShown?.Invoke(m); }
+    public string LastMessage => stMsg.Text;
 
     void OnKey(object s, KeyEventArgs e)
     {
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control), shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         bool inText = Keyboard.FocusedElement is TextBox;
+        if (!inText && !ctrl && View.TorKey(e.Key)) { e.Handled = true; return; }
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
@@ -312,6 +322,8 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
         else if (!inText && !ctrl && e.Key == Key.M) { SetTool(UtTool.Miarka); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.T) { SetTool(UtTool.Tor); e.Handled = true; }
+        else if (!inText && e.Key == Key.Delete && View.Tool == UtTool.Wskaz && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }
         else if (!inText && e.Key == Key.Back && View.Tool == UtTool.Miarka && View.MeasurePts.Count > 0) { View.MeasurePts.RemoveAt(View.MeasurePts.Count - 1); ShowMeasure(); View.InvalidateVisual(); e.Handled = true; }
     }

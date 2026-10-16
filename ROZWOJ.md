@@ -4,7 +4,7 @@ Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–2).
+Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–3).
 
 ---
 
@@ -137,7 +137,18 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 
 **POPRAWIONE 2026-10-16: puste białe kafelki ortofotomapy** (zgłoszenie właściciela ze zrzutem: część pobranych kafelków biała). Przyczyna: Geoportal czasem zwraca „200 OK” z pustym białym obrazem (zawsze 115 315 B) zamiast zdjęcia – w próbie 6 zapytań o ten sam kafelek 1 pusty (u właściciela 9 z 44). Teraz: `Pobieranie.IsBlank` (miniatura 64 px, rozpiętość jasności < 6) – pusty obraz to nieudana próba (nowe połączenie, do 6 prób); plik pusty z wcześniejszego pobrania jest pobierany od nowa. Przycisk warstwy „Napraw puste kafelki” (sprawdza pliki, usuwa puste, dopobiera). `ImageCache` czyta pliki do pamięci (plik nie zostaje otwarty). Zaznaczona mozaika – ramka tylko po obwodzie. Test: 115 sprawdzeń, 0 błędów (m.in. podmieniony biały kafelek wykryty i pobrany od nowa).
 
-**Następny krok:** etap 3 – tory (prosta, łuk, parabola 3°; długości w terenie z `GroundDistance`).
+**ZROBIONE 2026-10-16 – etap 3 (tory):**
+- **Model** (`Lcs.Model/UtTrack.cs`): tor = oś toru jak trasa kolejowa – wielobok styczny (`UtVertex`: X, Y w PUWG 1992, R, L w terenie) z łukiem kołowym R i krzywymi przejściowymi (parabola 3. stopnia y = x³ / (6RL), L wzdłuż stycznej) w każdym wierzchołku wewnętrznym; numer, kategoria (gz / gd / boczny), elektryfikacja, Vmax. Kierunek toru = od pierwszego wierzchołka (kilometraż toru). Rozjazdy i urządzenia (etapy 4–5) przypina się po kilometrażu – tor nie jest cięty.
+- **Geometria** (`Trasa.Compute`): τ = atan(L / 2R), koniec przejściowej E = (L, L² / 6R) leży na okręgu R ze styczną τ, środek okręgu (p, q) = (L − R·sin τ, L² / 6R + R·cos τ) na dwusiecznej → styczna T = p + q·tg(α/2), łuk kołowy α − 2τ; bez przejściowej T = R·tg(α/2). Elementy `Element` (prosta / przejściowa / łuk) z `At(s)` – punkt i azymut; `TrasaResult.At(km)`, `Nearest`, `Sample`. R i L w terenie mnożone przez skalę odwzorowania (długości w terenie = w układzie / K). Uwagi: łuk się nie mieści (brakuje x m prostej), przejściowe za długie dla kąta, załamanie bez łuku.
+- **Tor równoległy** (`Trasa.Offset`): proste przesunięte, wierzchołki na przecięciu przesuniętych stycznych, R ∓ d (łuki współśrodkowe; na przejściowych odchyłka międzytorza ≤ 2 cm).
+- **Płótno** (`UtView.Tory.cs`): oś wg Ig-10 (główny 0,5 mm, boczny 0,35 mm w skali rysunku, 1,5–4 px; zelektryfikowany – niebieski), przy ≤ 18 cm/px obie szyny w rozstawie 1435 mm (do dokładnego ułożenia na zdjęciu), numer toru; zaznaczony – wielobok stycznych, uchwyty wierzchołków, kreski granic elementów, etykiety R / L; błędy – czerwone kółko w wierzchołku.
+- **Narzędzie Tor (T)**: klik – kolejne wierzchołki (podgląd z łukami na bieżąco), długość z klawiatury + Enter (w stronę kursora), Shift – na przedłużeniu ostatniego odcinka, przyciąganie do końca / wierzchołka / osi toru (Ctrl – bez), start na końcu toru – przedłużenie tego toru (dawny koniec dostaje łuk), klik na końcu innego toru – koniec rysowania, Enter / PPM / dwuklik – koniec, Backspace – cofnij, Esc – rezygnacja. R i L nowych wierzchołków – pola na pasku.
+- **Edycja (Wskaż)**: klik – zaznaczenie toru / wierzchołka, przeciąganie wierzchołka (z przyciąganiem), dwuklik na boku wieloboku – nowy wierzchołek, Del – wierzchołek albo tor; przeciąganie pustego miejsca – przesuwanie widoku (od kilku px).
+- **Panel toru**: numer, kategoria, elektryfikacja, Vmax, długość w terenie i w układzie, lista elementów (długości, kąty), uwagi, R i L każdego wierzchołka, X / Y zaznaczonego wierzchołka, tor równoległy (międzytorze, lewa / prawa), odwróć kierunek, pokaż, usuń. Po cofnięciu zaznaczenie zostaje (ponowienie przywraca panel).
+- Test `--test` (część „etap 3”): 158 sprawdzeń razem, **0 błędów** – m.in. ciągłość położenia i kierunku na stykach (≤ 1e-6 m), punkty łuku w odległości R, T = R·tg(α/2), łuk α − 2τ, krzywizna przejściowej 0 → 0,985/R, prosta 1000 m = odległość geodezyjna, tor równoległy 4,7500 m; budowa klikami na ortofotomapie: 3 wierzchołki, długość 150 m z klawiatury (150,0000 m), PPM, numer i kategoria z panelu, R 800 w W2, przeciąganie wierzchołka, dwuklik + Del, przedłużenie od końca, tor równoległy z panelu, przyciąganie do osi, Esc, Del toru, zapis i odczyt. Zrzuty: `zrzuty/EdytorUT_etap3_tory.png`, `EdytorUT_etap3_szyny.png`.
+- Nie sprawdzono prawdziwą myszą. Symulator (`LcsWidzew`) bez zmian.
+
+**Następny krok:** etap 4 – rozjazdy z katalogu
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.

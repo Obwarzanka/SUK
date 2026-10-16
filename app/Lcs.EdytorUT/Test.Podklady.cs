@@ -140,6 +140,7 @@ public static partial class Test
         Ok(!w.Downloading.IsCompleted || d.P.Backgrounds.Count > 0, "przeciągnięcie – pobieranie ruszyło");
         await w.Downloading;
         var orto = d.P.Backgrounds.FirstOrDefault(b => b.Kind == UtBackground.Orto);
+        log.AppendLine("      (pasek stanu: " + w.LastMessage + ")");
         Ok(orto != null, "ortofotomapa dodana do projektu");
         if (orto != null)
         {

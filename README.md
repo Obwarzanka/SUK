@@ -86,7 +86,7 @@ Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.
 
 Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
-Stan (etapy 1–2):
+Stan (etapy 1–3):
 - **Układ współrzędnych PUWG 1992** (EPSG:2180): X na północ, Y na wschód, Z to wysokość, wszystko w metrach. Północ jest u góry.
 - **Płótno:** kółko myszy przybliża wokół kursora (od 2 mm do 2 km na piksel), przeciąganie lewym albo środkowym przyciskiem przesuwa widok. Do tego siatka o kroku 1 / 2 / 5 · 10ᵏ m, linijki ze współrzędnymi, podziałka i strzałka północy.
 - **Punkt:** w polu wpisz współrzędne z Google Maps (np. `51.7631, 19.5438`) albo `X Y` w PUWG 1992, potem Enter albo „Idź do”.
@@ -100,7 +100,11 @@ Stan (etapy 1–2):
 - **Warstwy:** widoczność, krycie, kolejność, usuwanie.
 - **Miarka (M):** długość łamanej **w terenie**, czyli z poprawką skali PUWG 1992 (na południku 19° układ skraca o 70 cm/km). Backspace cofa punkt, PPM czyści.
 
-Następne etapy: tory z łukami i krzywymi przejściowymi, rozjazdy z katalogu, urządzenia, wysokości z NMT.
+- **Tor (T):** klikaj po osi toru na zdjęciu wierzchołki wieloboku stycznych. W każdym wierzchołku powstanie łuk o promieniu R z krzywymi przejściowymi L (parabola 3°), wartości dla nowych wierzchołków są w polach na pasku. Długość odcinka można wpisać z klawiatury i zatwierdzić Enterem. Shift prowadzi na przedłużeniu, Ctrl wyłącza przyciąganie. Kliknięcie na końcu toru przedłuża ten tor. Enter, PPM albo dwuklik kończy rysowanie.
+- **Edycja:** klik zaznacza tor i otwiera panel z numerem, kategorią, elektryfikacją, Vmax, długością w terenie, listą elementów oraz R i L każdego wierzchołka. Wierzchołki przeciąga się myszą. Dwuklik na boku dodaje wierzchołek, Del usuwa wierzchołek albo tor. W panelu jest też „Tor równoległy” (międzytorze, strona) i „Odwróć kierunek”. Błędy geometrii, np. łuk nie mieści się między wierzchołkami, widać jako czerwone kółko i opis w panelu.
+- Przy dużym przybliżeniu widać obie szyny w rozstawie 1435 mm, co ułatwia dokładne ułożenie toru na zdjęciu.
+
+Następne etapy: rozjazdy z katalogu, urządzenia, wysokości z NMT.
 
 ## Wersje układu
 
@@ -188,7 +192,7 @@ Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 
 | Polecenie | Co robi |
 |---|---|
-| `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna i mysz płótna (PUWG 1992, panel, cofanie, widok, zapis; podkłady, kalibracja, miarka – potrzebny internet); ostatnia linia `błędów: 0`; okno poza ekranem |
+| `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna i mysz płótna (PUWG 1992, panel, cofanie, widok, zapis; podkłady, kalibracja, miarka – potrzebny internet; geometria i budowa torów); ostatnia linia `błędów: 0`; okno poza ekranem; dodatkowo zrzuty `_mapka.png`, `_szyny.png` |
 | `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
 
 

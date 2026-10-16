@@ -43,6 +43,7 @@ public class UtDocument
         p.View ??= new UtViewState();
         if (!UtProject.DrawingScales.Contains(p.DrawingScale)) p.DrawingScale = 1000;
         p.Backgrounds ??= new();
+        p.Tracks ??= new();
         return new UtDocument(p, System.IO.Path.GetFullPath(path));
     }
 
