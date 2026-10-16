@@ -1,4 +1,4 @@
-# Podział klasy `Simulator` na moduły – plan do akceptacji właściciela
+# Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
 Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–3 (2026-10-16). Każdy krok kończy się kompletem testów (niżej).
 
