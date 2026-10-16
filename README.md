@@ -80,6 +80,12 @@ Szlak wewnętrzny można wskazać oznaczeniem z obrazu dowolnej stacji. Na przyk
 ### Plan stacji (podgląd terenu)
 Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całego węzła na żywo: pociągi (numer, rodzaj, prędkość, czoło na czerwono), semafory jako głowice ze światłami, zwrotnice w aktualnym położeniu (nieczynne odgałęzienie – szare). Na dole: **śledzenie składu** (widok jedzie za wybranym pociągiem), wybór **posterunku** i „Cały węzeł”. To podgląd dla instruktora i do nauki – dyżurny pracuje na pulpicie. Działa tam, gdzie pracuje komputer zależności (gra jednoosobowa, serwer).
 
+## Kalkulator przechyłki
+
+Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje najmniejszą przechyłkę, przy której niedobór nie przekracza dopuszczalnego.
+
+Program podaje przechyłkę równoważącą h_r = 11,8·V²/R, niedobór h_n, przyspieszenie niezrównoważone a_n i długość krzywej przejściowej L. L to największa z trzech wartości: z rampy przechyłkowej (1:n, n = k·V), z przyrostu przyspieszenia ψ i ze zmiany przechyłki f. Program pokazuje, który warunek decyduje, oraz największą prędkość dla danego R i h. Wartości dopuszczalne (h_max, niedobór, ψ, f, k) są w polach do zmiany. Domyślne są przykładowe, więc wpisz obowiązujące z przepisów. Test: `Przechylka.exe --test wynik.txt [zrzut.png]`.
+
 ## Edytor układu torowego (UT)
 
 Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe [plik.ut.json]`. Plan budowy i decyzje są w `PLAN_EDYTOR_UT.md`.

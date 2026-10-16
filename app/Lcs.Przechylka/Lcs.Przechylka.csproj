@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Lcs.Przechylka</RootNamespace>
+    <AssemblyName>Przechylka</AssemblyName>
+    <AssemblyTitle>Kalkulator przechyłki i krzywej przejściowej</AssemblyTitle>
+    <Product>Kalkulator przechyłki LCS</Product>
+    <Version>0.1.0</Version>
+    <StartupObject>Lcs.Przechylka.Program</StartupObject>
+  </PropertyGroup>
+
+</Project>
