@@ -83,7 +83,7 @@ Model danych `station.json`:
 - `sections` (rodzaj kontroli niezajętości `lo` licznik osi / `ot` obwód torowy), `detection` (domyślny);
 - `display` – zobrazowanie (patrz Etap 1): `nodes`, `edges` oraz własne `labels`, `platforms`, `crossings` pulpitu (te w korzeniu należą do planu schematycznego);
 - zwrotnice: `kind` (typ rozjazdu, np. „Rz 1:9 R190”), `radius`, `ratio`, `vbok` (puste – z typu, tabela `SwitchDef.Types`), `vprosto`, `manual`;
-- tory: `radius` (łuk [m]), `cant` (przechyłka [mm]) – na razie tylko dane, bez wpływu na prędkość;
+- tory: `radius` (łuk [m]), `cant` (przechyłka [mm]), `nasyp` (wysokość toru nad terenem [m], ujemna – przekop) – na razie tylko dane, bez wpływu na prędkość;
 - tory (Ig-10): `cat` – `gz` główny zasadniczy / `gd` główny dodatkowy / brak = boczny (grubość osi na planie), `elec: true` – zelektryfikowany (niebieski); wypełnia właściciel (panel toru albo panel grupy po zaznaczeniu toru);
 - sygnalizator: `mount` – konstrukcja na planie (maszt / `wysiegnik` / `nad` / `bramka` + `gantry` / `karzel`), bramki w `gantries`; `lamps` – liczba komór na planie Ig-10 (brak = domyślna: wjazdowy 5, wyjazdowy 4 / 3 bez Ms2, odstępowy 3, tarcze 1);
 - sygnalizator `pk`: `routes` P/M/PM.
@@ -207,6 +207,28 @@ Nie ma jeszcze (brak danych w układzie): kilometraż i oś stacji, ukresy W17, 
 - **Narzędzie „◠ Łuk” (O)** (`Model/StationDoc.Curves.cs`, `UI/EditorWindow.Curves.cs`): początek – punkt na łuku – koniec (okrąg przez 3 punkty w metrach), Ctrl+klik zamiast punktu na łuku – łuk styczny do toru kończącego się w początku; kolejne łuki od końca (ciąg), podgląd z promieniem i długością. Tor jako łamana po okręgu (cięciwa ≤ 4 m), `radius` [m] zapisany, długość po łuku. Odcinek dziedziczony jak w narzędziu Tor (`AddChainEdge` – wspólne z Tor).
 - **Łuk o zadanym promieniu w narożniku** (panel węzła z dwoma torami: „Łuk w narożniku – promień R [m]…”, `FilletNode`): styczne T = R·tg(δ/2), węzeł przechodzi na środek łuku, promień w obu torach; za duży promień / zmiana kierunku toru – odrzucone z komunikatem.
 - Testy: `--editshot p.png luki out.json` (punkt załamania: długość bez zmian / 404,5 m / powrót do 400 m; łuk przez 3 punkty R = 300 m, długość 314,2 m; łuk styczny R = 299 m; narożnik R = 100 m – suma długości zgodna; za duży promień odrzucony; przyciąganie wł. / wył.; zapis), `--editshot p.png jakosc "lat, lon" out.json` (2 kafelki 4096 px, 0,185 m/px). Zrzuty: `zrzuty/Ortofotomapa_HighResolution_018m.png`, `zrzuty/Plan_luki.png`.
+
+**ZROBIONE (2026-10-16, cd.): łączenie torów przeciągnięciem, łuk przez przeciągnięcie toru** (zgłoszenie właściciela: „jak w edytorze połączyć tory”, „dalej źle robić łuki”)
+- **Łączenie:** węzeł (np. koniec toru) przeciągnięty w „Wskaż” i upuszczony na inny węzeł łączy się z nim (`StationDoc.WeldNodes`); w trakcie przeciągania węzeł docelowy podświetlony na zielono. Warunki: razem najwyżej 3 tory (przy 3 – komunikat „wstaw zwrotnicę”), węzły nie połączone już torem, w przeciąganym węźle brak zwrotnicy / sygnalizatora / kozła / wykolejnicy / granicy szlaku; inaczej tylko przesunięcie i komunikat z przyczyną. Zobrazowanie: koniec toru w węźle docelowym (gdy jest na obrazie), inaczej tor zdjęty z obrazu. Jedno Ctrl+Z cofa przesunięcie z połączeniem. Wcześniej upuszczone węzły tylko leżały na sobie – tory nie były połączone.
+- **Łuk przez przeciągnięcie toru:** narzędzie Łuk – wciśnij na torze i przeciągnij (samo kliknięcie – początek nowego łuku), w „Wskaż” – Ctrl+przeciągnij tor: tor wygina się w łuk przez kursor (końce w miejscu), podgląd z R i długością, promień zapisany (`BendTrack`).
+- Test `luki`: połączenie przeciągnięciem (260,2 m), odrzucenie 4. toru w węźle, wygięcie toru 400 m o 40 m → R = 520 m.
+- **Do zebrania od właściciela:** lista dalszych niewygód edytora („wiele innych kretyńskich rzeczy”) – poprawiać po kolei.
+
+**ZROBIONE (2026-10-16, cd.): przyciąganie do torów, odgałęzienie przeciągnięciem, rysowanie łukami** (zgłoszenie właściciela: „nie ma przyciągania do istniejącego toru”, „budowanie łuków ciężkie”)
+- **Zasięg łapania** węzłów i torów – stałe ok. 10 px na ekranie (`R = 10 / skala`); wcześniej min. 6 j. ≈ 4,8 m przy 1:2000 – przy rozstawie 4,75 m łapało sąsiedni tor.
+- **Znacznik przyciągnięcia** w narzędziach rysujących (Tor, Łuk, Rozjazd, Semafor, Kozioł, Wykolejnica): zielony kwadrat – węzeł, pomarańczowy krzyżyk – punkt na torze (rzut), szare kółko – siatka / miejsce kliknięcia; podgląd toru prowadzi do tego punktu (`SnapTarget`). Podgląd cienką linią (było 3 j. – grube przy przybliżeniu).
+- **Odgałęzienie przeciągnięciem:** koniec toru upuszczony na środek innego toru (pomarańczowy krzyżyk w trakcie) – tor dzielony w tym miejscu i połączony (węzeł z 3 torami – komunikat „wstaw zwrotnicę”).
+- **Tor „łukiem” (przycisk „◠ łukiem”, klawisz C):** w narzędziu Tor każdy kolejny odcinek to łuk styczny do poprzedniego (pierwszy prosty albo styczny do toru, z którego się wychodzi) – klikanie wzdłuż toru na zdjęciu daje gładką linię; podgląd łuku z promieniem. C – powrót do prostych.
+- Test `luki` – 25 kontroli (m.in. przyciąganie do toru, zasięg < pół rozstawu przy przybliżeniu 6, odgałęzienie, łuki styczne R = 400 / 398 m).
+- Uwaga dla testów: tryby `--editshot` czytają prawdziwy stan klawiatury (Ctrl / Alt / Shift) – pisanie w trakcie testu może zmienić wynik (zdarzyło się raz).
+
+**ZROBIONE (2026-10-16, cd.): parametry pomocnicze przy budowie – międzytorze, tor równoległy, nasyp** (prośba właściciela: „międzytorze, wysokość toru na nasypie, rysowanie toru spiętego z torem obok”)
+- Pole **„Międzytorze [m]”** w pasku (domyślnie 4,75; 2–50).
+- Narzędzie **„⫴ Równoległy” (E)**: najechanie na tor – podgląd toru obok w międzytorzu (strona kursora), klik tworzy tor wzdłuż całego ciągu (przez węzły bez zwrotnic, do zwrotnic / końców), także po łukach – promień R ± międzytorze (`StationDoc.OffsetPolyline`, `FitRadius`). Końce łączą się z istniejącym węzłem tylko w tym samym miejscu (≤ 0,5 m) i nie z końcami toru bazowego. Tor równoległy jest kopią w chwili tworzenia (nie podąża za późniejszymi zmianami toru bazowego).
+- Przy rysowaniu toru – **odległość do toru obok** w podpowiedzi przy kursorze („do toru obok 4,73 m”, do 30 m).
+- **Wysokość toru na nasypie** – pole toru `nasyp` [m] (ujemna – przekop; dane pomocnicze, bez wpływu na jazdę): podpowiedź toru, warstwa planu „łuki (R, h), nasypy / przekopy”.
+- Punkty torów zapisywane z dokładnością 0,01 j. (ok. 1 cm przy 1:2000; było 0,1 j. ≈ 8 cm).
+- Test `luki` – 30 kontroli (tor równoległy 4,75 m do prostego i R = 305 m do łuku R = 300, odległość do toru obok, nasyp). Zrzut: `zrzuty/Plan_tor_rownolegly_luki.png`.
 
 **Do zrobienia w etapie 1:**
 - Ten sam tor na dwóch obrazach (granica stacji).

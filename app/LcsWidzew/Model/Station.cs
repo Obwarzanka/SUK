@@ -25,6 +25,8 @@ public class Edge
     public double Len;
     /// <summary>Łuk: promień [m] i przechyłka [mm] (0 – tor prosty / brak danych).</summary>
     public double Radius, Cant;
+    /// <summary>Wysokość toru nad terenem – nasyp [m] (ujemna – przekop); dane pomocnicze planu.</summary>
+    public double Embank;
     public bool Platform, Szlak;
     /// <summary>Kierunek jazdy A→B dla toru pionowego (1 – na wschód, -1 – na zachód); dla pozostałych wynika z położenia końców.</summary>
     public int Dir;
@@ -252,6 +254,7 @@ public class Station
                 VMax = e.TryGetProperty("vmax", out var evm) && evm.ValueKind == JsonValueKind.Number ? evm.GetDouble() : 0,
                 Radius = e.TryGetProperty("radius", out var erd) && erd.ValueKind == JsonValueKind.Number ? erd.GetDouble() : 0,
                 Cant = e.TryGetProperty("cant", out var ect) && ect.ValueKind == JsonValueKind.Number ? ect.GetDouble() : 0,
+                Embank = e.TryGetProperty("nasyp", out var ens) && ens.ValueKind == JsonValueKind.Number ? ens.GetDouble() : 0,
                 Dir = e.TryGetProperty("dir", out var edir) && edir.ValueKind == JsonValueKind.Number ? Math.Sign(edir.GetInt32()) : 0,
                 Cat = S(e, "cat", "b"),
                 Elec = e.TryGetProperty("elec", out var el) && (el.ValueKind == JsonValueKind.True || (el.ValueKind == JsonValueKind.String && el.GetString() == "true"))

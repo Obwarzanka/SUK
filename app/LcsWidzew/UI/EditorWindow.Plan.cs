@@ -26,7 +26,7 @@ public class PlanLayers
         ("przejazdy", l => l.Crossings, (l, v) => l.Crossings = v),
         ("kozły, wykolejnice", l => l.Ends, (l, v) => l.Ends = v),
         ("napisy, szlaki, posterunki", l => l.Texts, (l, v) => l.Texts = v),
-        ("łuki (R, h)", l => l.Radius, (l, v) => l.Radius = v),
+        ("łuki (R, h), nasypy / przekopy", l => l.Radius, (l, v) => l.Radius = v),
     };
 }
 

@@ -17,13 +17,14 @@ namespace LcsWidzew.UI;
 /// </summary>
 public partial class EditorWindow : DarkWindow, IPanelEditor
 {
-    enum Tool { Select, Track, Section, Switch, Signal, TrackEnd, Derailer, Label, Platform, Szlak, Measure, Link, Turnout, Crossing, Gantry, Arc }
+    enum Tool { Select, Track, Section, Switch, Signal, TrackEnd, Derailer, Label, Platform, Szlak, Measure, Link, Turnout, Crossing, Gantry, Arc, Parallel }
     Point? crossFrom;                 // narzędzie Przejazd
     string turnFrom;
     (string From, string End, string[] Ans)? szlakPend;   // szlak wewnętrzny czekający na wskazanie drugiej stacji                  // narzędzie Rozjazd – węzeł zwrotnicy na pierwszym torze
     string linkFrom;                  // narzędzie Łącznik obrazów
     static CheckBox Chk(string t, bool on, string tip) => new() { Content = t, IsChecked = on, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), ToolTip = tip };
     readonly CheckBox chkGrid = Chk("siatka", true, "Siatka w tle (oczko = krok przyciągania, co 5 – linia główna)");
+    readonly TextBox gapBox = new() { Text = "4.75", Width = 46, Background = Brushes.Black, Foreground = Brushes.White, CaretBrush = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 6, 0) };
     readonly CheckBox chkSnap = Chk("przyciąganie", true, "Przyciąganie do siatki przy rysowaniu i przesuwaniu. Alt – chwilowo odwrotnie. Przy rysowaniu po podkładzie wyłącz (domyślnie wyłączone, gdy plan ma podkład).");
     readonly CheckBox chkNodes = Chk("węzły", true, "Punkty węzłów");
     readonly CheckBox chkSecs = Chk("odcinki", false, "Nazwy odcinków izolowanych na torach");
@@ -122,9 +123,13 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(2, 3, 0, 3), Background = new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)), Foreground = Brushes.White };
         bandBtn.Click += (a, e) => SetBandMode(bandBtn.IsChecked == true);
         bar.Children.Add(bandBtn);
-        ToolBtn(Tool.Select, "↖ Wskaż / przesuń", "Zaznaczanie obiektów i przeciąganie węzłów, napisów i peronów. Przeciąganie pustego miejsca – przesuwanie obrazu, kółko – powiększenie. W każdym narzędziu: środkowy przycisk myszy albo Spacja + LPM – przesuwanie widoku. Del – usuń zaznaczony obiekt.", Key.V);
-        ToolBtn(Tool.Track, "━ Tor", "Rysowanie toru: klikaj kolejne punkty (węzeł, tor – podział, puste miejsce – nowy węzeł). Shift – poziomo. PPM / Esc – koniec ciągu. Przesuwanie widoku w trakcie: środkowy przycisk myszy albo Spacja + LPM, kółko – powiększenie.", Key.T);
-        ToolBtn(Tool.Arc, "◠ Łuk", "Łuk po okręgu: klik – początek (węzeł, tor albo puste miejsce), klik – punkt na łuku, klik – koniec. Ctrl+klik zamiast punktu na łuku – od razu koniec łuku stycznego do toru, który kończy się w początku. Kolejne kliknięcia ciągną dalsze łuki od końca. Promień [m] zapisuje się w torze, długość liczy się po łuku. PPM / Esc – koniec.", Key.O);
+        ToolBtn(Tool.Select, "↖ Wskaż / przesuń", "Zaznaczanie obiektów i przeciąganie węzłów, napisów i peronów. Koniec toru upuszczony na węzeł (podświetlony na zielono) łączy tory. Ctrl+przeciągnij tor – łuk. Przeciąganie pustego miejsca – przesuwanie obrazu, kółko – powiększenie. W każdym narzędziu: środkowy przycisk myszy albo Spacja + LPM – przesuwanie widoku. Del – usuń zaznaczony obiekt.", Key.V);
+        ToolBtn(Tool.Track, "━ Tor", "Rysowanie toru: klikaj kolejne punkty (węzeł, tor – podział, puste miejsce – nowy węzeł; znacznik pokazuje, gdzie trafi punkt: zielony – węzeł, pomarańczowy – tor). C / przycisk „łukiem” – kolejne odcinki jako łuki styczne (klikaj wzdłuż toru na zdjęciu). Shift – poziomo. PPM / Esc – koniec ciągu. Przesuwanie widoku w trakcie: środkowy przycisk myszy albo Spacja + LPM, kółko – powiększenie.", Key.T);
+        arcModeBtn = new ToggleButton { Content = "◠ łukiem", ToolTip = "Narzędzie Tor rysuje łukami: każdy kolejny odcinek to łuk styczny do poprzedniego – klikaj wzdłuż toru na zdjęciu.  [C]", Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 3, 2, 3), Background = new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)), Foreground = Brushes.White };
+        arcModeBtn.Click += (a, e) => SetArcMode(arcModeBtn.IsChecked == true);
+        bar.Children.Add(arcModeBtn); toolButtons.Add(arcModeBtn);
+        ToolBtn(Tool.Parallel, "⫴ Równoległy", "Tor równoległy: najedź na istniejący tor – podgląd toru obok w międzytorzu z pola „międzytorze” (po stronie kursora), klik tworzy. Idzie wzdłuż całego ciągu toru do zwrotnic / końców, także po łukach (promień R ± międzytorze). Końce w istniejących węzłach – połączone.", Key.E);
+        ToolBtn(Tool.Arc, "◠ Łuk", "Najprościej: przeciągnij istniejący tor – wygina się w łuk przez kursor (końce zostają; to samo Ctrl+przeciągnij w „Wskaż”). Nowy łuk: klik – początek (węzeł, tor albo puste miejsce), klik – punkt na łuku, klik – koniec. Ctrl+klik zamiast punktu na łuku – od razu koniec łuku stycznego do toru, który kończy się w początku. Kolejne kliknięcia ciągną dalsze łuki od końca. Promień [m] zapisuje się w torze, długość liczy się po łuku. PPM / Esc – koniec.", Key.O);
         ToolBtn(Tool.Section, "┅ Odcinek", "Odcinki izolowane: klik na torze przypisuje mu odcinek z pola obok; Ctrl+klik pobiera odcinek klikniętego toru. Tory odcinka są podświetlone.", Key.I);
         ToolBtn(Tool.Turnout, "⌐ Rozjazd", "Klik na torze (miejsce zwrotnicy), potem: klik na drugim torze – łącznik rozjazdowy z dwiema zwrotnicami (ukos – pion – ukos), albo klik w pustym miejscu – odgałęzienie z nowym torem do tego punktu. Kierunek ukosu: w stronę drugiego kliknięcia.", Key.R);
         ToolBtn(Tool.Switch, "⑂ Zwrotnica", "Klik na węźle z 3 torami – nowa zwrotnica (iglica po stronie pojedynczego toru).", Key.Z);
@@ -144,6 +149,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         bar.Children.Add(new Border { Width = 12 });
         bar.Children.Add(Lbl("Posterunek:")); bar.Children.Add(postBox);
         bar.Children.Add(Lbl("Siatka:")); gridBox.ItemsSource = new[] { "1", "4", "8", "16", "25", "Ig-10" }; gridBox.ToolTip = "Krok przyciągania. Ig-10 – 10 m wzdłuż × 4,75 m (rozstaw torów) w skali planu."; gridBox.SelectedIndex = 2; bar.Children.Add(gridBox); bar.Children.Add(chkSnap);
+        bar.Children.Add(Lbl("Międzytorze [m]:")); gapBox.ToolTip = "Odległość osi torów dla narzędzia „Tor równoległy” (typowo 4,75 m; szlak dwutorowy ≥ 4,0 m, stacja ≥ 4,5 m – sprawdź w Id-1)."; bar.Children.Add(gapBox);
         bar.Children.Add(Lbl("Obraz:")); bar.Children.Add(pageBox);
         pageBox.SelectionChanged += (a, e) =>
         {
@@ -636,7 +642,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
     /// <summary>Przyciąganie do siatki: przełącznik w pasku, Alt – chwilowo odwrotnie.</summary>
     bool SnapOn => (chkSnap.IsChecked == true) ^ Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
     Point Snap(Point p) { if (!SnapOn) return new Point(Math.Round(p.X, 2), Math.Round(p.Y, 2)); double g = Grid, gy = GridY; return new Point(Math.Round(p.X / g) * g, Math.Round(p.Y / gy) * gy); }
-    double R => Math.Max(6, 9 / panel.Scale);
+    double R => 10 / Math.Max(0.01, panel.Scale);
 
     void SetBandMode(bool on)
     {
@@ -647,7 +653,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
 
     void SetTool(Tool t)
     {
-        tool = t; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; szlakPend = null; arcMid = null;
+        tool = t; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; szlakPend = null; arcMid = null; arcBend = null;
         foreach (var (k, b) in toolBtns) { b.IsChecked = k == t; b.Background = k == t ? new SolidColorBrush(Color.FromRgb(0x0a, 0x4a, 0x66)) : new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26)); }
         status.Text = ((string)toolBtns[t].ToolTip).Split("  [")[0] + (t != Tool.Select ? "   ·  Esc / PPM / V – powrót do „Wskaż”" : "");
         panel.InvalidateVisual();
@@ -789,6 +795,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                     if (k == "te") { var nid = st.TrackEnds.First(t => t.Value.Id == id).Key; Select("te", nid); StartDrag(nid, w); return true; }
                     var n = PickNode(w);
                     if (n != null) { Select("node", n); StartDrag(n, w); return true; }
+                    if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && PickEdge(w) is { } cbe) { arcBend = cbe; arcBendStart = w; Select("edge", cbe); status.Text = "Przeciągnij – tor wygina się w łuk przez kursor (puść, żeby zatwierdzić)"; return true; }
                     if (PickBend(w) is { } bp) { Select("edge", bp.E); var q = st.Edges[bp.E].Pts[bp.I]; StartDragObj(w, q.X, q.Y); dragBend = bp; return true; }
                     if (k == "blk") { Select("block", id); return true; }
                     if (k == "link") { pageBox.SelectedIndex = st.Pages.FindIndex(p => p.Id == id); return true; }
@@ -811,16 +818,25 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                 case Tool.Track:
                 {
                     doc.Snapshot();
+                    var tg = arcMode && chainFrom != null && doc.Nodes.ContainsKey(chainFrom) ? doc.TangentAt(chainFrom) : null;
                     var nid = NodeAt(w, true, shift);
-                    if (chainFrom == null) { chainFrom = nid; chainSec = null; Rebuild(); status.Text = "Początek toru – wskaż kolejny punkt (PPM – koniec)"; return true; }
+                    if (chainFrom == null) { chainFrom = nid; chainSec = null; Rebuild(); status.Text = "Początek toru – wskaż kolejny punkt (PPM – koniec)" + (arcMode ? "; tryb ŁUKIEM: pierwszy odcinek prosty (albo styczny do toru, z którego wychodzisz), kolejne – łuki styczne" : ""); return true; }
                     if (nid == chainFrom) return true;
+                    var a0 = doc.Pos(chainFrom);
                     var eid = AddChainEdge(nid);
                     if (eid == null) { doc.Undo(); Rebuild(); return true; }
-                    Changed($"Dodano tor (odcinek {Station.Lbl(chainSec)}) – wskaż kolejny punkt, PPM kończy");
+                    double arcR = 0;
+                    if (tg != null)
+                    {
+                        var (ap, aR) = doc.ArcTangent(a0, tg.Value, doc.Pos(nid)); doc.SetEdgeShape(eid, ap, true); arcR = aR;
+                        if (aR > 0) doc.Edge(eid)["radius"] = Math.Round(aR);
+                    }
+                    Changed((arcR > 0 ? $"Łuk R = {arcR:0} m" : "Dodano tor") + $" (odcinek {Station.Lbl(chainSec)}) – wskaż kolejny punkt, PPM kończy. C – {(arcMode ? "proste" : "łukiem")}");
                     Select("edge", eid);
                     return true;
                 }
                 case Tool.Arc: ArcClick(w); return true;
+                case Tool.Parallel: ParallelClick(w); return true;
                 case Tool.Section:
                 {
                     var ed = PickEdge(w);
@@ -1190,6 +1206,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
     public void Move(Point w, MouseEventArgs e) { mouse = w; Safe(() => { if (dispMode && !DecoTool(tool)) DMove(w, e); else MoveCore(w, e); }); if (dispMode && (rectFrom != null || crossFrom != null)) panel.InvalidateVisual(); }
     void MoveCore(Point w, MouseEventArgs e)
     {
+        if (arcBend != null) { panel.InvalidateVisual(); return; }
         if (measureFrom != null && tool == Tool.Measure && (e == null || e.LeftButton == MouseButtonState.Pressed)) { measureLine = (measureFrom.Value, Snap(w)); return; }
         if (!dragging || (e != null && e.LeftButton != MouseButtonState.Pressed)) return;
         if (!dragSnap && (w - dragStart).Length * panel.Scale < 4) return;
@@ -1225,9 +1242,27 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             status.Text = "Miarka: " + measureText;
             return;
         }
+        if (arcBend != null) { ArcBendUp(w); return; }
         if (dragging)
         {
+            var dn = dragNode;
             dragging = false; bool g = groupDrag; groupDrag = false; dragNode = null;
+            if (dragSnap && !g && dn != null && DropTarget(dn) is null && DropEdge(dn) is { } dEdge)
+            {
+                try
+                {
+                    var (dx2, dy2) = doc.Pos(dn); var mid = doc.SplitEdge(dEdge, dx2, dy2, Post);
+                    var m2 = doc.WeldNodes(dn, mid); Changed("Odgałęzienie: koniec toru połączony z torem – " + m2); Select("node", mid);
+                }
+                catch (InvalidOperationException ex) { Changed("Przesunięto, ale nie połączono: " + ex.Message); }
+                return;
+            }
+            if (dragSnap && !g && dn != null && DropTarget(dn) is { } tgt)
+            {
+                try { var m = doc.WeldNodes(dn, tgt); Changed("Połączono tory: " + m); Select("node", tgt); }
+                catch (InvalidOperationException ex) { Changed("Przesunięto, ale nie połączono: " + ex.Message); }
+                return;
+            }
             if (dragSnap) { Changed(g ? $"Przesunięto grupę o ({groupApplied.X:0}, {groupApplied.Y:0})" : "Przesunięto"); if (g) { selKind = "multi"; ShowProps(); } }
             return;
         }
@@ -1276,7 +1311,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         if (bgCal > 0 || bgOp != null) { bgCal = 0; bgOp = null; bgPts.Clear(); status.Text = "Operacja na podkładzie przerwana"; panel.InvalidateVisual(); return; }
         if (dispMode && DecoTool(tool)) { rectFrom = null; crossFrom = null; SetTool(Tool.Select); panel.InvalidateVisual(); return; }
         if (dispMode) { Safe(() => DRight(w)); return; }
-        if (chainFrom != null || szlakFrom != null || rectFrom != null || linkFrom != null || turnFrom != null || crossFrom != null || szlakPend != null) { szlakPend = null; arcMid = null; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; linkFrom = null; turnFrom = null; crossFrom = null; status.Text = "Zakończono"; return; }
+        if (chainFrom != null || szlakFrom != null || rectFrom != null || linkFrom != null || turnFrom != null || crossFrom != null || szlakPend != null) { szlakPend = null; arcMid = null; arcBend = null; chainFrom = null; chainSec = null; szlakFrom = null; rectFrom = null; linkFrom = null; turnFrom = null; crossFrom = null; status.Text = "Zakończono"; return; }
         if (!dispMode && tool == Tool.Select && PickBend(w) is { } rb) { Safe(() => { doc.Snapshot(); doc.RemoveEdgePt(rb.E, rb.I); Changed("Usunięto punkt załamania toru"); }); return; }
         if (tool != Tool.Select) SetTool(Tool.Select);
     }
@@ -1293,7 +1328,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         string pos = $"x={g.X:0} y={g.Y:0} ({g.X / doc.Ux:0} m, {g.Y / doc.Uy:0.#} m w poprzek)";
         if (n != null) return $"{pos}   węzeł {n} ({st.Nodes[n].Edges.Count} tory){(st.Nodes[n].Switch != null ? ", zwrotnica " + st.Switches[st.Nodes[n].Switch].Label : "")}";
         var e = PickEdge(w);
-        if (e != null) { var ed = st.Edges[e]; return $"{pos}   tor {e}: odcinek {ed.Sec} – dł. odcinka {st.Sections[ed.Sec].Edges.Sum(x => st.Edges[x].Len):0} m (ten fragment {ed.Len:0} m){(ed.Track != "" ? ", tor nr " + ed.Track : "")}"; }
+        if (e != null) { var ed = st.Edges[e]; return $"{pos}   tor {e}: odcinek {ed.Sec} – dł. odcinka {st.Sections[ed.Sec].Edges.Sum(x => st.Edges[x].Len):0} m (ten fragment {ed.Len:0} m){(ed.Track != "" ? ", tor nr " + ed.Track : "")}{(ed.Radius > 0 ? $", R = {ed.Radius:0} m" : "")}{(ed.Embank > 0 ? $", nasyp {ed.Embank:0.#} m" : ed.Embank < 0 ? $", przekop {-ed.Embank:0.#} m" : "")}"; }
         return pos;
     }
 
@@ -1375,7 +1410,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             var a = doc.Pos(chainFrom); var m = Snap(mouse);
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) m.Y = a.Y; else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) m = Snap45(a, m);
             double dx = m.X - a.X, dy = m.Y - a.Y;
-            Tag(panel.PlanView ? $"{doc.PlanLen(a.X, a.Y, m.X, m.Y):0} m  (wzdłuż {Math.Abs(dx) / doc.Ux:0} m, w poprzek {Math.Abs(dy) / doc.Uy:0.##} m; 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0})"
+            Tag(panel.PlanView ? $"{doc.PlanLen(a.X, a.Y, m.X, m.Y):0} m  (wzdłuż {Math.Abs(dx) / doc.Ux:0} m, w poprzek {Math.Abs(dy) / doc.Uy:0.##} m; 1:{doc.ScaleAlong:0} / 1:{doc.ScaleAcross:0})" + (NearGap(m, chainFrom) is double gp ? $"  · do toru obok {gp:0.00} m" : "")
                 : $"{Math.Abs(dx) / g:0.#} × {Math.Abs(dy) / g:0.#} kr.  ({Math.Sqrt(dx * dx + dy * dy) / g:0.#} kr. = {Math.Sqrt(dx * dx + dy * dy):0} px)", new Point(m.X + 10 / scale, m.Y - 22 / scale), yb);
         }
         // przesuwanie: o ile kratek
@@ -1501,10 +1536,17 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
                 for (int i = 0; i < ed.Pts.Count - 1; i++) dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(0xa0, 0x00, 0xe6, 0x00)), 9), new Point(ed.Pts[i].X, ed.Pts[i].Y), new Point(ed.Pts[i + 1].X, ed.Pts[i + 1].Y));
         if (tool == Tool.Track && chainFrom != null && doc.Nodes.ContainsKey(chainFrom))
         {
-            var a = doc.Pos(chainFrom); var m = Snap(mouse);
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) m.Y = a.Y;
-            else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) m = Snap45(a, m);
-            dc.DrawLine(new Pen(az, 3) { DashStyle = DashStyles.Dash }, new Point(a.X, a.Y), m);
+            var a = doc.Pos(chainFrom); var (m, mk, _) = SnapTarget(mouse);
+            if (mk == "grid" && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) m.Y = a.Y;
+            else if (mk == "grid" && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) m = Snap45(a, m);
+            var ppen = new Pen(az, 2 / scale) { DashStyle = DashStyles.Dash };
+            if (arcMode && doc.TangentAt(chainFrom) is { } tg)
+            {
+                var (ap, aR) = doc.ArcTangent(a, tg, (m.X, m.Y));
+                for (int i = 0; i < ap.Count - 1; i++) dc.DrawLine(ppen, new Point(ap[i].X, ap[i].Y), new Point(ap[i + 1].X, ap[i + 1].Y));
+                if (aR > 0) dc.DrawText(new FormattedText($"R = {aR:0} m", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 12 / scale, az, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(m.X + 10 / scale, m.Y + 8 / scale));
+            }
+            else dc.DrawLine(ppen, new Point(a.X, a.Y), m);
         }
         foreach (var le in st.Edges.Values.Where(x => x.Link))
         {
@@ -1578,6 +1620,8 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             case Key.X: SetTool(Tool.Crossing); break;
             case Key.U: SetTool(Tool.Gantry); break;
             case Key.O: SetTool(Tool.Arc); break;
+            case Key.E: SetTool(Tool.Parallel); break;
+            case Key.C when !ctrl: SetArcMode(!arcMode); break;
             case Key.G: chkGrid.IsChecked = chkGrid.IsChecked != true; panel.InvalidateVisual(); break;
             case Key.F when ctrl: findBox.Focus(); findBox.SelectAll(); break;
             case Key.A when ctrl: SelectRect(panel.Page != null ? new Rect(panel.Page.X0, -1e5, panel.Page.X1 - panel.Page.X0, 2e5) : new Rect(-1e6, -1e6, 2e6, 2e6)); break;
@@ -1764,7 +1808,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
         string[] fields = selKind switch
         {
             "node" => new[] { "x", "y", "post" },
-            "edge" => Math.Abs(st.Nodes[st.Edges[selId].A].X - st.Nodes[st.Edges[selId].B].X) < 0.5 ? new[] { "line", "vmax", "radius", "cant", "dir" } : new[] { "line", "vmax", "radius", "cant" },
+            "edge" => Math.Abs(st.Nodes[st.Edges[selId].A].X - st.Nodes[st.Edges[selId].B].X) < 0.5 ? new[] { "line", "vmax", "radius", "cant", "nasyp", "dir" } : new[] { "line", "vmax", "radius", "cant", "nasyp" },
             "sig" => new[] { "label", "type", "dir", "szlak", "repeats", "track", "lamps" },
             "sw" => new[] { "label", "sec", "vbok", "vprosto", "radius", "ratio", "manual" },
             "te" => new[] { "disp", "id", "label", "marker" },
@@ -1793,7 +1837,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             if (selKind == "sig" && f == "dir") { ComboField(o, "dir", "Kierunek jazdy", new[] { ("1", "→ na wschód (w prawo)"), ("-1", "← na zachód (w lewo)") }); continue; }
             if (selKind == "sw" && f == "radius")
                 ComboField(o, "kind", "Typ rozjazdu (ustawia skos, promień i domyślną prędkość na bok)", new[] { ("", "– nie określono –") }.Concat(SwitchDef.Types.Select(t => (t.Kind, $"{t.Kind}  → na bok {t.V:0} km/h"))).ToArray());
-            Field(o, f, selKind == "edge" ? f switch { "line" => "Linia kolejowa (nr)", "vmax" => "Prędkość dopuszczalna na torze [km/h]", "dir" => "Kierunek jazdy toru pionowego (1 – na wschód, -1 – na zachód)", "radius" => "Promień łuku [m] (puste – tor prosty)", "cant" => "Przechyłka w łuku [mm]", _ => null }
+            Field(o, f, selKind == "edge" ? f switch { "line" => "Linia kolejowa (nr)", "vmax" => "Prędkość dopuszczalna na torze [km/h]", "dir" => "Kierunek jazdy toru pionowego (1 – na wschód, -1 – na zachód)", "radius" => "Promień łuku [m] (puste – tor prosty)", "cant" => "Przechyłka w łuku [mm]", "nasyp" => "Wysokość toru nad terenem – nasyp [m] (ujemna – przekop; dane pomocnicze)", _ => null }
                 : selKind == "sw" ? f switch { "label" => "Numer zwrotnicy", "sec" => "Odcinek zwrotnicowy", "vbok" => "Prędkość na bok [km/h] (puste – z typu rozjazdu)", "vprosto" => "Ograniczenie na wprost [km/h]", "radius" => "Promień toru zwrotnego [m]", "ratio" => "Skos (np. 1:9)", "manual" => "Zwrotnica ręczna (true/false)", _ => null }
                 : selKind == "gantry" ? f switch { "label" => "Oznaczenie bramki", "y0" => "Górny koniec belki (Y)", "y1" => "Dolny koniec belki (Y)", _ => null }
                 : selKind == "sig" && f == "lamps" ? $"Liczba komór – plan schematyczny Ig-10 (puste – domyślnie {st.Signals.GetValueOrDefault(selId)?.LampCount})" : null);
@@ -2183,14 +2227,14 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             string oldTxt = old == null ? "" : old is JsonValue ov && ov.TryGetValue<string>(out var os) ? os : old.ToJsonString();
             if (txt == oldTxt) return;
             doc.Snapshot();
-            bool numeric = key is "x" or "y" or "w" or "h" or "rot" or "sy" or "len" or "dir" or "defDir" or "vmax" or "vbok" or "vprosto" or "y0" or "y1" or "radius" or "cant" or "lamps";
-            if (key is "vmax" or "vbok" or "vprosto" or "radius" or "cant" && txt == "") { if (o[key] != null) { doc.Snapshot(); o.Remove(key); done = true; Changed($"{key}: domyślna"); } return; }
+            bool numeric = key is "x" or "y" or "w" or "h" or "rot" or "sy" or "nasyp" or "len" or "dir" or "defDir" or "vmax" or "vbok" or "vprosto" or "y0" or "y1" or "radius" or "cant" or "lamps";
+            if (key is "vmax" or "vbok" or "vprosto" or "radius" or "cant" or "nasyp" && txt == "") { if (o[key] != null) { doc.Snapshot(); o.Remove(key); done = true; Changed($"{key}: domyślna"); } return; }
             if (numeric && !double.TryParse(txt.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out _)) { status.Text = $"✗ {label ?? key}: wpisz liczbę"; tb.Text = oldTxt; return; }
             if (key is "dir" && txt is not ("1" or "-1")) { status.Text = "✗ dir: 1 (na wschód) albo -1 (na zachód)"; tb.Text = oldTxt; return; }
             if (key is "len" && double.Parse(txt.Replace(',', '.'), CultureInfo.InvariantCulture) < 1) { status.Text = "✗ długość musi być dodatnia"; tb.Text = oldTxt; return; }
             if (txt == "" && key is ("sec" or "label" or "text" or "name" or "id" or "disp")) { status.Text = $"✗ {label ?? key}: pole nie może być puste"; tb.Text = oldTxt; return; }
             if (txt == "" && key is not ("sec" or "label" or "text" or "name")) o.Remove(key);
-            else if (double.TryParse(txt.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && key is "x" or "y" or "w" or "h" or "rot" or "sy" or "len" or "dir" or "defDir" or "vmax" or "vbok" or "vprosto" or "y0" or "y1" or "radius" or "cant")
+            else if (double.TryParse(txt.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && key is "x" or "y" or "w" or "h" or "rot" or "sy" or "nasyp" or "len" or "dir" or "defDir" or "vmax" or "vbok" or "vprosto" or "y0" or "y1" or "radius" or "cant")
             {
                 if (key is "dir" or "defDir") o[key] = (int)d; else o[key] = d;
                 if (myKind == "node" && key is "x" or "y") { var p = doc.Pos(myId); o[key] = key == "x" ? p.X : p.Y; doc.MoveNode(myId, key == "x" ? d : p.X, key == "y" ? d : p.Y); }

@@ -166,4 +166,66 @@ public partial class StationDoc
         }
         return $"łuk R = {R:0} m, styczne {T:0.#} m, długość łuku {R * (Math.PI - theta):0.#} m";
     }
+
+    /// <summary>
+    /// Połączenie torów: węzeł „from” (upuszczony) zlewa się z węzłem „into” – tory z „from” kończą się w „into”.
+    /// Dozwolone, gdy razem będzie najwyżej 3 tory, węzły nie są już połączone torem, a w „from” nie ma zwrotnicy,
+    /// sygnalizatora, kozła, wykolejnicy ani granicy szlaku. Zwraca opis; błąd – wyjątek.
+    /// </summary>
+    public string WeldNodes(string from, string into)
+    {
+        if (from == into) throw new InvalidOperationException("To ten sam węzeł");
+        var ef = EdgesAt(from); var ei = EdgesAt(into);
+        if (ef.Any(e => Sv(e["a"]) == into || Sv(e["b"]) == into)) throw new InvalidOperationException("Węzły są już połączone torem – usuń ten tor albo scal węzeł (⊕ Scal tory)");
+        if (ef.Count + ei.Count > 3) throw new InvalidOperationException($"Razem byłoby {ef.Count + ei.Count} torów w węźle – najwyżej 3 (zwrotnica)");
+        bool Busy(string n) => Switches.Any(x => Sv(x.Value["node"]) == n) || Signals.Any(x => Sv(x.Value["node"]) == n) || Derailers.Any(x => Sv(x.Value["node"]) == n)
+            || TrackEnds.ContainsKey(n) || Boundaries.ContainsKey(n) || FarEnds.ContainsKey(n) || Ports.ContainsKey(n);
+        if (Busy(from)) throw new InvalidOperationException("W przeciąganym węźle jest zwrotnica, sygnalizator, kozioł, wykolejnica albo granica szlaku – przeciągnij drugi koniec");
+        var (ix, iy) = Pos(into);
+        foreach (var e in ef)
+        {
+            var p = Pts(e);
+            if (Sv(e["a"]) == from) { e["a"] = into; p[0] = (ix, iy); } else { e["b"] = into; p[^1] = (ix, iy); }
+            SetPts(e, p); AutoLen(e);
+            // zobrazowanie: koniec toru w węźle docelowym (gdy jest na obrazie), inaczej tor zdjęty z obrazu
+            if (DPts(Sv(e["id"])) is { } dp)
+            {
+                if (DPos(into) is { } q) { if (Sv(e["a"]) == into) dp[0] = q; else dp[^1] = q; SetDPts(Sv(e["id"]), dp); }
+                else DispEdges.Remove(Sv(e["id"]));
+            }
+        }
+        Bumpers.Remove(from);
+        Nodes.Remove(from); if (Disp != null) DispNodes.Remove(from);
+        int n = EdgesAt(into).Count;
+        return n == 3 ? "3 tory w węźle – wstaw zwrotnicę (Z) albo popraw połączenie" : $"tory połączone ({n} w węźle)";
+    }
+
+    /// <summary>
+    /// Łamana równoległa w odległości d [m] (strona: +1 / -1 względem normalnej (-ty, tx) w metrach) – tor obok w zadanym
+    /// międzytorzu. Wierzchołki przesunięte wzdłuż dwusiecznej (łuk – promień R ± d).
+    /// </summary>
+    public List<(double X, double Y)> OffsetPolyline(IList<(double X, double Y)> pts, double d, int side)
+    {
+        var m = pts.Select(ToM).ToList(); var res = new List<(double X, double Y)>();
+        (double X, double Y) N(int i) { double dx = m[i + 1].X - m[i].X, dy = m[i + 1].Y - m[i].Y, l = Math.Sqrt(dx * dx + dy * dy); return l < 1e-9 ? (0, 0) : (-dy / l, dx / l); }
+        for (int i = 0; i < m.Count; i++)
+        {
+            var na = i > 0 ? N(i - 1) : N(0); var nb = i < m.Count - 1 ? N(i) : N(m.Count - 2);
+            var bx = na.X + nb.X; var by = na.Y + nb.Y; double bl = Math.Sqrt(bx * bx + by * by);
+            if (bl < 1e-9) { bx = nb.X; by = nb.Y; bl = 1; }
+            bx /= bl; by /= bl;
+            double k = Math.Clamp(bx * nb.X + by * nb.Y, 0.2, 1);       // cos połowy kąta załamania
+            res.Add(FromM((m[i].X + side * bx * d / k, m[i].Y + side * by * d / k)));
+        }
+        return res;
+    }
+
+    /// <summary>Promień łuku [m], gdy punkty łamanej leżą na okręgu (odchyłka &lt; 0,3 m); null – nie łuk.</summary>
+    public double? FitRadius(IList<(double X, double Y)> pts)
+    {
+        if (pts.Count < 5) return null;
+        var m = pts.Select(ToM).ToList();
+        if (Circle(m[0], m[m.Count / 2], m[^1]) is not { } c || c.R > 50000) return null;
+        return m.All(p => Math.Abs(Math.Sqrt(Math.Pow(p.X - c.C.X, 2) + Math.Pow(p.Y - c.C.Y, 2)) - c.R) < 0.3) ? Math.Round(c.R) : null;
+    }
 }

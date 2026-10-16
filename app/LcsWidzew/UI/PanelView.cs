@@ -646,10 +646,11 @@ public class PanelView : FrameworkElement
             g.Track(e, e.Pts.Select(q => new Point(q.X, q.Y)).ToList());
         }
         // łuki: promień (i przechyłka) przy torze
-        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => x.Radius > 0 && !x.Link))
+        if (ly.Radius) foreach (var e in L.Edges.Values.Where(x => (x.Radius > 0 || x.Embank != 0) && !x.Link))
         {
             var m = e.Pts[e.Pts.Count / 2]; var m0 = e.Pts.Count == 2 ? ((e.Pts[0].X + e.Pts[1].X) / 2, (e.Pts[0].Y + e.Pts[1].Y) / 2) : m;
-            Text(dc, $"R={e.Radius:0}{(e.Cant > 0 ? $" h={e.Cant:0}" : "")}", m0.Item1, m0.Item2 + 8, 6.5, grey, true, dpi, Mono);
+            var txt = string.Join(" ", new[] { e.Radius > 0 ? $"R={e.Radius:0}" : null, e.Cant > 0 ? $"h={e.Cant:0}" : null, e.Embank > 0 ? $"nasyp {e.Embank:0.#} m" : e.Embank < 0 ? $"przekop {-e.Embank:0.#} m" : null }.Where(x => x != null));
+            Text(dc, txt, m0.Item1, m0.Item2 + 8, 6.5, grey, true, dpi, Mono);
         }
         // kontrola niezajętości: liczniki osi / złącza izolowane na granicach odcinków
         if (ly.Detection) foreach (var (p, v, det) in Ig10.SectionBoundaries(L)) { if (det == "ot") g.InsulatedJoint(p, v); else g.AxleCounter(p, v); }

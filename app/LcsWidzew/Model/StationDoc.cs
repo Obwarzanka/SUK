@@ -277,7 +277,7 @@ public partial class StationDoc
     static List<(double X, double Y)> Pts(JsonObject e) => ((JsonArray)e["pts"]).Select(p => (D(p[0]), D(p[1]))).ToList();
     static void SetPts(JsonObject e, List<(double X, double Y)> pts)
     {
-        var a = new JsonArray(); foreach (var p in pts) a.Add(Pt(Math.Round(p.X, 1), Math.Round(p.Y, 1))); e["pts"] = a;
+        var a = new JsonArray(); foreach (var p in pts) a.Add(Pt(Math.Round(p.X, 2), Math.Round(p.Y, 2))); e["pts"] = a;
     }
     static double GeoLen(List<(double X, double Y)> p) { double s = 0; for (int i = 0; i < p.Count - 1; i++) s += Math.Sqrt(Math.Pow(p[i + 1].X - p[i].X, 2) + Math.Pow(p[i + 1].Y - p[i].Y, 2)); return s; }
     static bool IsSzlak(JsonObject e) => e["szlak"] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
