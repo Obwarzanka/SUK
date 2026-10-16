@@ -52,6 +52,60 @@ public static class Geo
         return (phi * 180 / Math.PI, lon * 180 / Math.PI);
     }
 
+    /// <summary>
+    /// Skala odwzorowania w punkcie: odległość w układzie = k · odległość na elipsoidzie.
+    /// Na południku 19° k = 0,9993 (−70 cm/km), na krańcach Polski do ok. 1,0009.
+    /// </summary>
+    public static double ScaleFactor(XY p)
+    {
+        var (lat, _) = ToWgs84(p);
+        double phi = lat * Math.PI / 180, s = Math.Sin(phi), w = 1 - F * (2 - F) * s * s;
+        double r2 = A * A * (1 - F * (2 - F)) / (w * w);           // R² = M·N (średni promień krzywizny)
+        double y = (p.Y - FalseY) / K0, q = y * y / r2;
+        return K0 * (1 + q / 2 + q * q / 24);
+    }
+
+    /// <summary>
+    /// Długość odcinka w terenie [m] – odległość w układzie podzielona przez skalę odwzorowania (Simpson: końce i środek)
+    /// i sprowadzona na wysokość h [m n.p.m.] (bez wysokości – na elipsoidzie; 200 m n.p.m. to +3 cm/km).
+    /// </summary>
+    public static double GroundDistance(XY a, XY b, double h = 0)
+    {
+        double grid = XY.Dist(a, b);
+        if (grid == 0) return 0;
+        double k = (ScaleFactor(a) + 4 * ScaleFactor((a + b) * 0.5) + ScaleFactor(b)) / 6;
+        return grid / k * (1 + h / 6371000);
+    }
+
+    /// <summary>Odległość geodezyjna na elipsoidzie GRS80 (Vincenty) [m] – do sprawdzania <see cref="GroundDistance"/>.</summary>
+    public static double GeodesicDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        double b = A * (1 - F), L = (lon2 - lon1) * Math.PI / 180;
+        double U1 = Math.Atan((1 - F) * Math.Tan(lat1 * Math.PI / 180)), U2 = Math.Atan((1 - F) * Math.Tan(lat2 * Math.PI / 180));
+        double sU1 = Math.Sin(U1), cU1 = Math.Cos(U1), sU2 = Math.Sin(U2), cU2 = Math.Cos(U2);
+        double lam = L, sinS = 0, cosS = 0, sig = 0, cos2a = 0, cos2sm = 0;
+        for (int i = 0; i < 200; i++)
+        {
+            double sl = Math.Sin(lam), cl = Math.Cos(lam);
+            sinS = Math.Sqrt(Math.Pow(cU2 * sl, 2) + Math.Pow(cU1 * sU2 - sU1 * cU2 * cl, 2));
+            if (sinS == 0) return 0;
+            cosS = sU1 * sU2 + cU1 * cU2 * cl; sig = Math.Atan2(sinS, cosS);
+            double sa = cU1 * cU2 * sl / sinS; cos2a = 1 - sa * sa;
+            cos2sm = cos2a != 0 ? cosS - 2 * sU1 * sU2 / cos2a : 0;
+            double C = F / 16 * cos2a * (4 + F * (4 - 3 * cos2a));
+            double prev = lam;
+            lam = L + (1 - C) * F * sa * (sig + C * sinS * (cos2sm + C * cosS * (-1 + 2 * cos2sm * cos2sm)));
+            if (Math.Abs(lam - prev) < 1e-13) break;
+        }
+        double u2 = cos2a * (A * A - b * b) / (b * b);
+        double Ak = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), Bk = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+        double ds = Bk * sinS * (cos2sm + Bk / 4 * (cosS * (-1 + 2 * cos2sm * cos2sm) - Bk / 6 * cos2sm * (-3 + 4 * sinS * sinS) * (-3 + 4 * cos2sm * cos2sm)));
+        return b * Ak * (sig - ds);
+    }
+
+    /// <summary>Azymut odcinka w układzie (od północy osi X, w prawo) [°], 0–360.</summary>
+    public static double Azimuth(XY a, XY b) { var d = Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI; return d < 0 ? d + 360 : d; }
+
     /// <summary>Obszar, na którym PUWG 1992 ma sens (Polska z zapasem).</summary>
     public static bool InPoland(XY p) => p.Y > 140000 && p.Y < 900000 && p.X > 100000 && p.X < 800000;
 

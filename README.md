@@ -86,7 +86,7 @@ Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.
 
 Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
-Stan (etap 1):
+Stan (etapy 1–2):
 - **Układ współrzędnych PUWG 1992** (EPSG:2180): X na północ, Y na wschód, Z to wysokość, wszystko w metrach. Północ jest u góry.
 - **Płótno:** kółko myszy przybliża wokół kursora (od 2 mm do 2 km na piksel), przeciąganie lewym albo środkowym przyciskiem przesuwa widok. Do tego siatka o kroku 1 / 2 / 5 · 10ᵏ m, linijki ze współrzędnymi, podziałka i strzałka północy.
 - **Punkt:** w polu wpisz współrzędne z Google Maps (np. `51.7631, 19.5438`) albo `X Y` w PUWG 1992, potem Enter albo „Idź do”.
@@ -94,7 +94,13 @@ Stan (etap 1):
 - **Panel obszaru:** nazwa, skala rysunku 1:500 / 1:1000 / 1:2000 (wielkość symboli Ig-10, nie zmienia geometrii), uwagi.
 - **Plik:** Nowy, Otwórz, Zapisz, Zapisz jako (`*.ut.json`, domyślnie w katalogu `projekty_ut`). Poprzednia wersja zostaje jako `.bak`, zapamiętywany jest też ostatni widok. Cofnij / Ponów: Ctrl+Z, Ctrl+Y.
 
-Następne etapy: podkłady (ortofotomapa, grafiki), tory z łukami i krzywymi przejściowymi, rozjazdy z katalogu, urządzenia, wysokości z NMT.
+- **Podgląd na żywo** (panel „Podkłady”): ortofotomapa Geoportalu dla bieżącego widoku albo zapasowo zdjęcia Esri / mapa OSM. Nie zapisuje się w projekcie.
+- **Ortofotomapa do projektu:** wybierz rozdzielczość (5 cm widać podkłady, 10 cm szyny), potem „Zaznacz obszar…” i przeciągnij prostokąt, albo „Cały widok”. Kafelki trafiają do `podklady/` obok projektu. Nieudane można „Dopobrać”.
+- **Grafika z pliku** (skan planu, mapa): z plikiem world (`.pgw` / `.jgw` / `.tfw`) ląduje od razu na miejscu. Bez niego użyj „Kalibruj punktami”: klik na grafice, potem klik w miejscu, gdzie ten punkt naprawdę jest na ortofotomapie. Wystarczą 2 punkty, lepiej 3–4 daleko od siebie, panel pokaże odchyłki. Do tego „Przesuń”, obrót i rozmiar piksela z klawiatury.
+- **Warstwy:** widoczność, krycie, kolejność, usuwanie.
+- **Miarka (M):** długość łamanej **w terenie**, czyli z poprawką skali PUWG 1992 (na południku 19° układ skraca o 70 cm/km). Backspace cofa punkt, PPM czyści.
+
+Następne etapy: tory z łukami i krzywymi przejściowymi, rozjazdy z katalogu, urządzenia, wysokości z NMT.
 
 ## Wersje układu
 
@@ -182,7 +188,7 @@ Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 
 | Polecenie | Co robi |
 |---|---|
-| `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna (PUWG 1992, panel, cofanie, widok, zapis i odczyt); ostatnia linia `błędów: 0` |
+| `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna i mysz płótna (PUWG 1992, panel, cofanie, widok, zapis; podkłady, kalibracja, miarka – potrzebny internet); ostatnia linia `błędów: 0`; okno poza ekranem |
 | `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
 
 

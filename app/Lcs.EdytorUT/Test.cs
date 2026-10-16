@@ -15,7 +15,7 @@ namespace Lcs.EdytorUT;
 /// Test automatyczny edytora (--test wynik.txt [zrzut.png]): operacje przez kontrolki okna i mysz płótna, jak użytkownik.
 /// Wynik: lista sprawdzeń OK / BŁĄD i ostatnia linia „błędów: N”.
 /// </summary>
-public static class Test
+public static partial class Test
 {
     public static bool Running;
     static readonly StringBuilder log = new();
@@ -44,22 +44,38 @@ public static class Test
     public static void Start(MainWindow w, string output, string shot)
     {
         Running = true; outPath = output;
-        w.WindowState = WindowState.Normal; w.Width = 1500; w.Height = 900;
-        w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(() =>
+        OffScreen(w);
+        w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
         {
-            try { Run(w); if (shot != null) Save(w, shot); }
+            try
+            {
+                log.AppendLine("== etap 1: szkielet"); Run(w);
+                log.AppendLine("== etap 2: podkłady"); await RunBg(w);
+                if (shot != null) { await Settle(w); Save(w, shot); }
+            }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();
         }, DispatcherPriority.ApplicationIdle);
     }
 
-    public static void Shot(MainWindow w, string shot, string point, double mpp)
+    /// <summary>
+    /// Okno testu poza ekranem i bez aktywowania – mysz i klawiatura osoby pracującej przy komputerze nie zmieniają wyniku
+    /// (wcześniej obrót kółka nad oknem testu zmieniał przybliżenie zrzutu), a test nie zabiera okna.
+    /// </summary>
+    static void OffScreen(Window w)
     {
         w.WindowState = WindowState.Normal; w.Width = 1500; w.Height = 900;
-        w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(() =>
+        w.WindowStartupLocation = WindowStartupLocation.Manual; w.ShowActivated = false; w.ShowInTaskbar = false;
+        w.Left = SystemParameters.VirtualScreenLeft - 3200; w.Top = SystemParameters.VirtualScreenTop;
+    }
+
+    public static void Shot(MainWindow w, string shot, string point, double mpp)
+    {
+        OffScreen(w);
+        w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
         {
             if (point != null) { w.GoTo(point); if (mpp > 0) w.View.SetView(w.View.Center, mpp); }
-            Save(w, shot); Application.Current.Shutdown();
+            await Settle(w); Save(w, shot); Application.Current.Shutdown();
         }, DispatcherPriority.ApplicationIdle);
     }
 

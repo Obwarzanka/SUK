@@ -2,20 +2,29 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Lcs.Model;
 
 namespace Lcs.EdytorUT;
 
+/// <summary>Narzędzia płótna.</summary>
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun }
+
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Północ (X) do góry, wschód (Y) w prawo.
 /// Rysowanie w pikselach ekranu – przeliczenie świat → ekran w double (współrzędne rzędu 10⁵ m nie tracą dokładności w WPF).
-/// Mysz: kółko – przybliżenie wokół kursora, przeciąganie LPM / środkowym przyciskiem / Spacja + LPM – przesuwanie.
+/// Mysz: kółko – przybliżenie wokół kursora; przeciąganie LPM (we Wskaż i po przesunięciu o kilka px w innych narzędziach),
+/// środkowym przyciskiem albo Spacja + LPM – przesuwanie widoku.
+/// Kolejność warstw: siatka, podgląd na żywo, podkłady projektu (od dołu), nakładki narzędzi, linijki.
 /// </summary>
 public class UtView : FrameworkElement
 {
     public UtDocument Doc;
+    public readonly ImageCache Cache = new();
+    public readonly LivePreview Live;
     public const double MinMpp = 0.002, MaxMpp = 2000;
     public const double RulerTop = 22, RulerLeft = 70;
+    const double ClickTol = 4;
 
     XY center = new(470000, 500000);
     double mpp = 1000;
@@ -23,24 +32,54 @@ public class UtView : FrameworkElement
     /// <summary>Metry na piksel ekranu.</summary>
     public double Mpp => mpp;
     public bool ShowGrid = true;
-    /// <summary>Kursor nad płótnem (null – poza).</summary>
     public event Action<XY?> CursorMoved;
     public event Action ViewChanged;
 
+    // ---- narzędzia
+    UtTool tool;
+    public UtTool Tool { get => tool; set { tool = value; areaFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public event Action ToolChanged;
+    /// <summary>Miarka: punkty łamanej.</summary>
+    public readonly List<XY> MeasurePts = new();
+    public event Action MeasureChanged;
+    /// <summary>Obszar: zaznaczony prostokąt (dwa narożniki).</summary>
+    public event Action<XY, XY> AreaSelected;
+    /// <summary>Kalibracja: kliknięcie w punkcie świata.</summary>
+    public event Action<XY> CalClick;
+    /// <summary>Kalibracja: PPM – rezygnacja z bieżącego punktu.</summary>
+    public event Action CalCancel;
+    /// <summary>Przesuń: podkład przeciągnięty o wektor [m].</summary>
+    public event Action<string, XY> BgDragged;
+    /// <summary>Zaznaczony podkład (obwódka, Przesuń, kalibracja).</summary>
+    public string SelectedBg;
+    /// <summary>Kalibracja: wskazany piksel obrazu czekający na miejsce docelowe.</summary>
+    public (double Col, double Row)? CalPending;
+
     static readonly Typeface UiFont = new("Segoe UI"), MonoFont = new("Consolas");
     static readonly Brush Paper = Frozen(Color.FromRgb(0xfb, 0xfb, 0xf8)), RulerBg = Frozen(Color.FromRgb(0xee, 0xee, 0xea)),
-        Ink = Frozen(Color.FromRgb(0x30, 0x30, 0x30)), Hint = Frozen(Color.FromRgb(0x80, 0x80, 0x80));
+        Ink = Frozen(Color.FromRgb(0x30, 0x30, 0x30)), Hint = Frozen(Color.FromRgb(0x80, 0x80, 0x80)),
+        Red = Frozen(Color.FromRgb(0xd0, 0x18, 0x18)), Halo = Frozen(Color.FromArgb(0xd8, 0xff, 0xff, 0xff)),
+        Blue = Frozen(Color.FromRgb(0x10, 0x60, 0xd0)), AreaFill = Frozen(Color.FromArgb(0x30, 0x10, 0x60, 0xd0)), Magenta = Frozen(Color.FromRgb(0xc0, 0x10, 0xa0));
     static readonly Pen MinorPen = FrozenPen(Color.FromRgb(0xea, 0xea, 0xe6), 1), MajorPen = FrozenPen(Color.FromRgb(0xcc, 0xcc, 0xc6), 1),
         TickPen = FrozenPen(Color.FromRgb(0x70, 0x70, 0x70), 1), EdgePen = FrozenPen(Color.FromRgb(0xb0, 0xb0, 0xa8), 1),
-        BarPen = FrozenPen(Color.FromRgb(0x30, 0x30, 0x30), 2);
+        BarPen = FrozenPen(Color.FromRgb(0x30, 0x30, 0x30), 2), MeasurePen = FrozenPen(Color.FromRgb(0xd0, 0x18, 0x18), 2),
+        HaloPen = FrozenPen(Color.FromArgb(0xc0, 0xff, 0xff, 0xff), 4.5), AreaPen = FrozenPen(Color.FromRgb(0x10, 0x60, 0xd0), 1.5),
+        CalPen = FrozenPen(Color.FromRgb(0xc0, 0x10, 0xa0), 1.6);
+    static readonly Pen MissingPen = Dashed(Color.FromRgb(0xd0, 0x18, 0x18), 1.5), SelPen = Dashed(Color.FromRgb(0x10, 0x60, 0xd0), 1.5);
 
     public UtView()
     {
         ClipToBounds = true; Focusable = true;
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
+        Live = new LivePreview(() => (ToWorld(new Point(0, 0)), mpp, (int)ActualWidth, (int)ActualHeight));
+        Live.Changed += InvalidateVisual;
+        Cache.Loaded += InvalidateVisual;
         MouseWheel += (s, e) => { ZoomAt(e.GetPosition(this), e.Delta > 0 ? 1 / 1.2 : 1.2); e.Handled = true; };
-        MouseDown += OnDown; MouseMove += OnMove; MouseUp += OnUp;
-        MouseLeave += (s, e) => CursorMoved?.Invoke(null);
-        SizeChanged += (s, e) => InvalidateVisual();
+        MouseDown += (s, e) => { Focus(); if (Press(e.GetPosition(this), e.ChangedButton)) { CaptureMouse(); e.Handled = true; } };
+        MouseMove += (s, e) => Drag(e.GetPosition(this), e.LeftButton == MouseButtonState.Pressed || e.MiddleButton == MouseButtonState.Pressed);
+        MouseUp += (s, e) => { if (Release(e.GetPosition(this), e.ChangedButton)) e.Handled = true; if (IsMouseCaptured && Mouse.LeftButton == MouseButtonState.Released && Mouse.MiddleButton == MouseButtonState.Released) ReleaseMouseCapture(); };
+        MouseLeave += (s, e) => { hover = null; CursorMoved?.Invoke(null); InvalidateVisual(); };
+        SizeChanged += (s, e) => { InvalidateVisual(); Live.Schedule(); };
     }
 
     // ------------------------------------------------------------------ przeliczenia
@@ -49,49 +88,105 @@ public class UtView : FrameworkElement
     public Point ToScreen(XY p) => new(Cx + (p.Y - center.Y) / mpp, Cy - (p.X - center.X) / mpp);
     public XY ToWorld(Point s) => new(center.X - (s.Y - Cy) * mpp, center.Y + (s.X - Cx) * mpp);
 
-    public void SetView(XY c, double m)
-    {
-        center = c; mpp = Math.Clamp(m, MinMpp, MaxMpp);
-        InvalidateVisual(); ViewChanged?.Invoke();
-    }
+    void Moved() { InvalidateVisual(); ViewChanged?.Invoke(); Live.Schedule(); }
+    public void SetView(XY c, double m) { center = c; mpp = Math.Clamp(m, MinMpp, MaxMpp); Moved(); }
     /// <summary>Przybliżenie (k &lt; 1) albo oddalenie (k &gt; 1) z punktem pod kursorem w miejscu.</summary>
     public void ZoomAt(Point s, double k)
     {
         var w = ToWorld(s);
         mpp = Math.Clamp(mpp * k, MinMpp, MaxMpp);
-        // ten sam punkt świata zostaje pod kursorem
         center = new XY(w.X + (s.Y - Cy) * mpp, w.Y - (s.X - Cx) * mpp);
-        InvalidateVisual(); ViewChanged?.Invoke();
+        Moved();
     }
     /// <summary>Przesunięcie obrazu o wektor w pikselach (jak przeciągnięcie myszą).</summary>
-    public void PanBy(Vector d)
+    public void PanBy(Vector d) { center = new XY(center.X + d.Y * mpp, center.Y - d.X * mpp); Moved(); }
+    /// <summary>Prostokąt (dwa narożniki) w oknie z marginesem.</summary>
+    public void FitWorld(XY a, XY b)
     {
-        center = new XY(center.X + d.Y * mpp, center.Y - d.X * mpp);
-        InvalidateVisual(); ViewChanged?.Invoke();
+        double w = Math.Max(1, ActualWidth - RulerLeft - 40), h = Math.Max(1, ActualHeight - RulerTop - 40);
+        double m = Math.Max(Math.Abs(a.Y - b.Y) / w, Math.Abs(a.X - b.X) / h);
+        SetView((a + b) * 0.5, Math.Max(m, 0.01));
     }
 
-    // ------------------------------------------------------------------ mysz
-    Point? panFrom;
-    void OnDown(object s, MouseButtonEventArgs e)
+    // ------------------------------------------------------------------ mysz (wspólne dla myszy i testu)
+    Point? downAt, panFrom; MouseButton downBtn; bool dragging;
+    XY? areaFrom; Point? bgDragFrom;
+    XY? hover;
+    Vector bgOffsetPx;
+
+    /// <summary>Wciśnięcie przycisku; true – płótno przejmuje mysz.</summary>
+    public bool Press(Point p, MouseButton b)
     {
-        Focus();
-        if (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Left)
-        {
-            panFrom = e.GetPosition(this); CaptureMouse(); Cursor = Cursors.SizeAll; e.Handled = true;
-        }
+        if (b == MouseButton.Right) return false;
+        if (b == MouseButton.Middle || (b == MouseButton.Left && Keyboard.IsKeyDown(Key.Space))) { panFrom = p; Cursor = Cursors.SizeAll; return true; }
+        if (b != MouseButton.Left) return false;
+        downAt = p; downBtn = b; dragging = false;
+        if (tool == UtTool.Obszar) areaFrom = ToWorld(p);
+        else if (tool == UtTool.Przesun && SelectedBg != null) bgDragFrom = p;
+        else if (tool == UtTool.Wskaz) { panFrom = p; Cursor = Cursors.SizeAll; }
+        return true;
     }
-    void OnMove(object s, MouseEventArgs e)
+
+    public void Drag(Point p, bool buttonDown)
     {
-        var p = e.GetPosition(this);
+        hover = ToWorld(p);
         if (panFrom is Point f)
         {
-            if (e.LeftButton == MouseButtonState.Pressed || e.MiddleButton == MouseButtonState.Pressed) { PanBy(p - f); panFrom = p; }
+            if (buttonDown) { PanBy(p - f); panFrom = p; }
             else EndPan();
         }
-        CursorMoved?.Invoke(ToWorld(p));
+        else if (downAt is Point d && buttonDown)
+        {
+            if ((p - d).Length > ClickTol) dragging = true;
+            if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
+            else if (areaFrom == null && dragging && (tool == UtTool.Miarka || tool == UtTool.Kalibracja || tool == UtTool.Przesun)) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+        }
+        CursorMoved?.Invoke(hover);
+        if (tool != UtTool.Wskaz) InvalidateVisual();
     }
-    void OnUp(object s, MouseButtonEventArgs e) { if (panFrom != null) { EndPan(); e.Handled = true; } }
-    void EndPan() { panFrom = null; ReleaseMouseCapture(); Cursor = null; }
+
+    public bool Release(Point p, MouseButton b)
+    {
+        if (b == MouseButton.Right)
+        {
+            if (tool == UtTool.Miarka && MeasurePts.Count > 0) { MeasurePts.Clear(); MeasureChanged?.Invoke(); InvalidateVisual(); return true; }
+            if (tool == UtTool.Kalibracja) { CalCancel?.Invoke(); InvalidateVisual(); return true; }
+            if (tool == UtTool.Obszar) { areaFrom = null; InvalidateVisual(); return true; }
+            return false;
+        }
+        if (panFrom != null) { EndPan(); downAt = null; return true; }
+        if (downAt == null) return false;
+        var w = ToWorld(p); downAt = null;
+        if (areaFrom is XY a)
+        {
+            areaFrom = null; InvalidateVisual();
+            if (dragging) AreaSelected?.Invoke(a, w);
+            return true;
+        }
+        if (bgDragFrom is Point bf)
+        {
+            bgDragFrom = null; bgOffsetPx = default;
+            var v = p - bf;
+            if (v.Length > 0.5) BgDragged?.Invoke(SelectedBg, new XY(-v.Y * mpp, v.X * mpp));
+            InvalidateVisual(); return true;
+        }
+        if (dragging) return true;
+        if (tool == UtTool.Miarka) { MeasurePts.Add(w); MeasureChanged?.Invoke(); InvalidateVisual(); }
+        else if (tool == UtTool.Kalibracja) { CalClick?.Invoke(w); InvalidateVisual(); }
+        return true;
+    }
+
+    void EndPan() { panFrom = null; Cursor = tool == UtTool.Wskaz ? null : Cursors.Cross; }
+
+    /// <summary>Test: klik w punkcie ekranu.</summary>
+    public void SimClick(Point p, MouseButton b = MouseButton.Left) { Press(p, b); Release(p, b); }
+    /// <summary>Test: przeciągnięcie myszą z punktu do punktu (kilka kroków).</summary>
+    public void SimDrag(Point a, Point b)
+    {
+        Press(a, MouseButton.Left);
+        for (int i = 1; i <= 5; i++) Drag(a + (b - a) * (i / 5.0), true);
+        Release(b, MouseButton.Left);
+    }
 
     // ------------------------------------------------------------------ siatka
     /// <summary>Najmniejsza „okrągła” wartość 1 / 2 / 5 · 10ᵏ nie mniejsza niż v.</summary>
@@ -109,6 +204,9 @@ public class UtView : FrameworkElement
     }
 
     // ------------------------------------------------------------------ rysowanie
+    /// <summary>Liczba kafelków podkładów narysowanych w ostatniej klatce (do testu).</summary>
+    public int DrawnTiles { get; private set; }
+
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight, dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
@@ -116,28 +214,172 @@ public class UtView : FrameworkElement
         if (w < 10 || h < 10) return;
         var (minor, major) = GridSteps();
         var tl = ToWorld(new Point(0, 0)); var br = ToWorld(new Point(w, h));
-        if (ShowGrid)
-        {
-            foreach (var step in new[] { minor, major })
-            {
-                var pen = step == major ? MajorPen : MinorPen;
-                for (double y = Math.Ceiling(tl.Y / step) * step; y <= br.Y; y += step)
-                {
-                    if (step == minor && IsMul(y, major)) continue;
-                    double sx = Crisp(ToScreen(new XY(0, y)).X); dc.DrawLine(pen, new Point(sx, 0), new Point(sx, h));
-                }
-                for (double x = Math.Ceiling(br.X / step) * step; x <= tl.X; x += step)
-                {
-                    if (step == minor && IsMul(x, major)) continue;
-                    double sy = Crisp(ToScreen(new XY(x, 0)).Y); dc.DrawLine(pen, new Point(0, sy), new Point(w, sy));
-                }
-            }
-        }
+        if (ShowGrid) DrawGrid(dc, w, h, minor, major, tl, br);
 
+        // podgląd na żywo
+        if (Live.ortoImg is var (ob, og)) DrawImage(dc, ob, og, ob.PixelWidth, ob.PixelHeight, 1);
+        foreach (var (tb, tg) in Live.VisibleTiles(tl, br)) DrawImage(dc, tb, tg, 256, 256, 1);
+
+        // podkłady projektu
+        int drawn = 0;
+        if (Doc != null)
+            foreach (var bg in Doc.P.Backgrounds)
+            {
+                if (!bg.Visible) continue;
+                bool moving = bg.Id == SelectedBg && bgDragFrom != null;
+                if (moving) dc.PushTransform(new TranslateTransform(bgOffsetPx.X, bgOffsetPx.Y));
+                double op = bg.Opacity;
+                if (tool == UtTool.Kalibracja && bg.Id == SelectedBg && CalPending != null) op = Math.Min(op, 0.45);   // widać, co jest pod spodem
+                foreach (var t in bg.Tiles)
+                {
+                    if (!Visible(t.Geo, t.W, t.H, w, h)) continue;
+                    var file = Doc.Resolve(t.File);
+                    if (Cache.IsMissing(file)) { DrawMissing(dc, t, dpi); continue; }
+                    double k = t.Geo.Mpp / mpp;      // piksel obrazu na ekranie [px]
+                    int level = k >= 1 ? 0 : Math.Clamp((int)Math.Floor(Math.Log2(1 / k)), 0, 7);
+                    var bmp = Cache.Get(file, level, t.W);
+                    if (bmp != null) { DrawImage(dc, bmp, t.Geo, t.W, t.H, op); drawn++; }
+                }
+                if (moving) dc.Pop();
+            }
+        DrawnTiles = drawn;
+
+        DrawSelection(dc);
+        DrawCalibration(dc, dpi);
+        DrawMeasure(dc, dpi);
+        DrawArea(dc, dpi);
         DrawHint(dc, w, dpi);
         DrawScaleBar(dc, h, dpi);
         DrawNorth(dc, w, dpi);
+        DrawAttribution(dc, w, h, dpi);
         DrawRulers(dc, w, h, minor, major, tl, br, dpi);
+    }
+
+    /// <summary>Macierz piksel obrazu → piksel ekranu.</summary>
+    Matrix ScreenMatrix(Affine g) => new(g.A / mpp, -g.D / mpp, g.B / mpp, -g.E / mpp, Cx + (g.C - center.Y) / mpp, Cy - (g.F - center.X) / mpp);
+
+    bool Visible(Affine g, int W, int H, double w, double h)
+    {
+        var m = ScreenMatrix(g);
+        var pts = new[] { m.Transform(new Point(0, 0)), m.Transform(new Point(W, 0)), m.Transform(new Point(0, H)), m.Transform(new Point(W, H)) };
+        return pts.Max(p => p.X) >= 0 && pts.Min(p => p.X) <= w && pts.Max(p => p.Y) >= 0 && pts.Min(p => p.Y) <= h;
+    }
+
+    void DrawImage(DrawingContext dc, BitmapSource bmp, Affine g, int W, int H, double opacity)
+    {
+        dc.PushTransform(new MatrixTransform(ScreenMatrix(g)));
+        if (opacity < 1) dc.PushOpacity(opacity);
+        dc.DrawImage(bmp, new Rect(0, 0, W, H));
+        if (opacity < 1) dc.Pop();
+        dc.Pop();
+    }
+
+    StreamGeometry Quad(Affine g, int W, int H)
+    {
+        var m = ScreenMatrix(g); var sg = new StreamGeometry();
+        using (var c = sg.Open())
+        {
+            c.BeginFigure(m.Transform(new Point(0, 0)), false, true);
+            c.LineTo(m.Transform(new Point(W, 0)), true, false); c.LineTo(m.Transform(new Point(W, H)), true, false); c.LineTo(m.Transform(new Point(0, H)), true, false);
+        }
+        return sg;
+    }
+
+    void DrawMissing(DrawingContext dc, UtTile t, double dpi)
+    {
+        dc.DrawGeometry(null, MissingPen, Quad(t.Geo, t.W, t.H));
+        var c = ToScreen(t.Geo.World(t.W / 2.0, t.H / 2.0));
+        var tx = Text("brak pliku: " + System.IO.Path.GetFileName(t.File), 11, Red, dpi, UiFont);
+        dc.DrawText(tx, new Point(c.X - tx.Width / 2, c.Y - tx.Height / 2));
+    }
+
+    void DrawSelection(DrawingContext dc)
+    {
+        var bg = Doc?.P.Backgrounds.FirstOrDefault(b => b.Id == SelectedBg);
+        if (bg == null || bg.Tiles.Count == 0) return;
+        if (bgDragFrom != null) dc.PushTransform(new TranslateTransform(bgOffsetPx.X, bgOffsetPx.Y));
+        if (bg.Grid is UtGrid g) dc.DrawGeometry(null, SelPen, Quad(Affine.NorthUp(g.X0, g.Y0, g.Mpp), g.Cols * g.TileSize, g.Rows * g.TileSize));
+        else foreach (var t in bg.Tiles) dc.DrawGeometry(null, SelPen, Quad(t.Geo, t.W, t.H));
+        if (bgDragFrom != null) dc.Pop();
+    }
+
+    void DrawCalibration(DrawingContext dc, double dpi)
+    {
+        var bg = Doc?.P.Backgrounds.FirstOrDefault(b => b.Id == SelectedBg);
+        if (bg?.Calibration == null || bg.Tiles.Count == 0 || tool != UtTool.Kalibracja) return;
+        var g = bg.Tiles[0].Geo; int i = 0;
+        foreach (var cp in bg.Calibration)
+        {
+            i++;
+            var src = ToScreen(g.World(cp.Col, cp.Row)); var dst = ToScreen(cp.Target);
+            dc.DrawLine(CalPen, src, dst);
+            dc.DrawEllipse(null, CalPen, src, 5, 5);
+            Cross(dc, dst, 7, CalPen);
+            Label(dc, i.ToString(), dst + new Vector(8, -18), Magenta, dpi);
+        }
+        if (CalPending is var (pc, pr))
+        {
+            var s = ToScreen(g.World(pc, pr));
+            dc.DrawEllipse(null, CalPen, s, 6, 6);
+            if (hover is XY hv) dc.DrawLine(CalPen, s, ToScreen(hv));
+            Label(dc, $"{bg.Calibration.Count + 1}: wskaż miejsce docelowe", s + new Vector(9, 6), Magenta, dpi);
+        }
+    }
+
+    void DrawMeasure(DrawingContext dc, double dpi)
+    {
+        if (MeasurePts.Count == 0 && tool != UtTool.Miarka) return;
+        var pts = MeasurePts.Select(ToScreen).ToList();
+        bool rubber = tool == UtTool.Miarka && hover != null && MeasurePts.Count > 0;
+        if (rubber) pts.Add(ToScreen(hover.Value));
+        for (int i = 1; i < pts.Count; i++) { dc.DrawLine(HaloPen, pts[i - 1], pts[i]); dc.DrawLine(MeasurePen, pts[i - 1], pts[i]); }
+        foreach (var p in pts.Take(MeasurePts.Count)) dc.DrawRectangle(Red, null, new Rect(p.X - 3, p.Y - 3, 6, 6));
+        var all = rubber ? MeasurePts.Append(hover.Value).ToList() : MeasurePts;
+        for (int i = 1; i < all.Count; i++)
+        {
+            var m = new Point((pts[i - 1].X + pts[i].X) / 2, (pts[i - 1].Y + pts[i].Y) / 2);
+            if ((pts[i] - pts[i - 1]).Length < 40) continue;
+            Label(dc, Len3(Geo.GroundDistance(all[i - 1], all[i])), m + new Vector(6, -18), Red, dpi);
+        }
+        if (all.Count > 2) Label(dc, "Σ " + Len3(Length(all)), pts[^1] + new Vector(10, 4), Red, dpi);
+    }
+
+    /// <summary>Długość łamanej w terenie [m].</summary>
+    public static double Length(IReadOnlyList<XY> pts) { double s = 0; for (int i = 1; i < pts.Count; i++) s += Geo.GroundDistance(pts[i - 1], pts[i]); return s; }
+
+    void DrawArea(DrawingContext dc, double dpi)
+    {
+        if (areaFrom is not XY a || hover is not XY b) return;
+        var r = new Rect(ToScreen(a), ToScreen(b));
+        dc.DrawRectangle(AreaFill, AreaPen, r);
+        Label(dc, $"{Len(Geo.GroundDistance(a, new XY(a.X, b.Y)))} × {Len(Geo.GroundDistance(a, new XY(b.X, a.Y)))}", r.BottomRight + new Vector(6, 2), Blue, dpi);
+    }
+
+    static void Cross(DrawingContext dc, Point p, double r, Pen pen) { dc.DrawLine(pen, p + new Vector(-r, 0), p + new Vector(r, 0)); dc.DrawLine(pen, p + new Vector(0, -r), p + new Vector(0, r)); }
+
+    static void Label(DrawingContext dc, string s, Point at, Brush b, double dpi)
+    {
+        var t = Text(s, 12, b, dpi, UiFont);
+        dc.DrawRoundedRectangle(Halo, null, new Rect(at.X - 3, at.Y - 1, t.Width + 6, t.Height + 2), 3, 3);
+        dc.DrawText(t, at);
+    }
+
+    void DrawGrid(DrawingContext dc, double w, double h, double minor, double major, XY tl, XY br)
+    {
+        foreach (var step in new[] { minor, major })
+        {
+            var pen = step == major ? MajorPen : MinorPen;
+            for (double y = Math.Ceiling(tl.Y / step) * step; y <= br.Y; y += step)
+            {
+                if (step == minor && IsMul(y, major)) continue;
+                double sx = Crisp(ToScreen(new XY(0, y)).X); dc.DrawLine(pen, new Point(sx, 0), new Point(sx, h));
+            }
+            for (double x = Math.Ceiling(br.X / step) * step; x <= tl.X; x += step)
+            {
+                if (step == minor && IsMul(x, major)) continue;
+                double sy = Crisp(ToScreen(new XY(x, 0)).Y); dc.DrawLine(pen, new Point(0, sy), new Point(w, sy));
+            }
+        }
     }
 
     static bool IsMul(double v, double step) { double r = Math.Abs(v / step - Math.Round(v / step)); return r < 1e-6; }
@@ -170,7 +412,6 @@ public class UtView : FrameworkElement
             if (!big) continue;
             var t = Text(Geo.M(x, dec), 10.5, Ink, dpi, MonoFont);
             if (sy - t.Height / 2 < RulerTop || sy + t.Height / 2 > h - 2) continue;
-            // od dołu do góry – kolejne podpisy w odstępie co najmniej wysokości tekstu
             if (Math.Abs(sy - lastLabel) < t.Height + 4) continue;
             dc.DrawText(t, new Point(RulerLeft - 11 - t.Width, sy - t.Height / 2)); lastLabel = sy;
         }
@@ -185,6 +426,7 @@ public class UtView : FrameworkElement
     {
         double len = Nice(110 * mpp); double px = len / mpp;
         double x0 = RulerLeft + 16, y0 = h - 18;
+        dc.DrawRoundedRectangle(Halo, null, new Rect(x0 - 6, y0 - 12, px + 70, 22), 3, 3);
         dc.DrawLine(BarPen, new Point(x0, y0), new Point(x0 + px, y0));
         dc.DrawLine(BarPen, new Point(x0, y0 - 5), new Point(x0, y0 + 1)); dc.DrawLine(BarPen, new Point(x0 + px, y0 - 5), new Point(x0 + px, y0 + 1));
         var t = Text(Len(len), 11, Ink, dpi, UiFont);
@@ -194,26 +436,40 @@ public class UtView : FrameworkElement
     void DrawNorth(DrawingContext dc, double w, double dpi)
     {
         double x = w - 26, y = RulerTop + 14;
+        dc.DrawEllipse(Halo, null, new Point(x, y + 16), 14, 18);
         var g = new StreamGeometry();
         using (var c = g.Open()) { c.BeginFigure(new Point(x, y), true, true); c.LineTo(new Point(x + 6, y + 18), true, false); c.LineTo(new Point(x, y + 14), true, false); c.LineTo(new Point(x - 6, y + 18), true, false); }
         dc.DrawGeometry(Ink, null, g);
         var t = Text("N", 11, Ink, dpi, UiFont); dc.DrawText(t, new Point(x - t.Width / 2, y + 19));
     }
 
+    void DrawAttribution(DrawingContext dc, double w, double h, double dpi)
+    {
+        var parts = new List<string>();
+        if (Live.Source != LivePreview.None) parts.Add(Live.Attribution);
+        if (Doc != null) parts.AddRange(Doc.P.Backgrounds.Where(b => b.Visible && b.Source.Length > 0).Select(b => b.Source));
+        var s = string.Join(" · ", parts.Distinct());
+        if (Live.Status.Length > 0) s = Live.Status + (s.Length > 0 ? "   ·   " + s : "");
+        if (s.Length == 0) return;
+        var t = Text(s, 10.5, Ink, dpi, UiFont);
+        dc.DrawRectangle(Halo, null, new Rect(w - t.Width - 10, h - t.Height - 4, t.Width + 10, t.Height + 4));
+        dc.DrawText(t, new Point(w - t.Width - 5, h - t.Height - 2));
+    }
+
     void DrawHint(DrawingContext dc, double w, double dpi)
     {
-        if (Doc == null || !IsEmpty(Doc.P)) return;
-        var t = Text("Pusty projekt. W polu „Idź do” wpisz współrzędne obszaru: z Google Maps (np. 51.7631, 19.5438) albo X Y w PUWG 1992.", 12.5, Hint, dpi, UiFont);
+        if (Doc == null || Doc.P.Backgrounds.Count > 0 || mpp < 40) return;
+        var t = Text("Pusty projekt. W polu „Punkt” wpisz współrzędne obszaru: z Google Maps (np. 51.7631, 19.5438) albo X Y w PUWG 1992.", 12.5, Hint, dpi, UiFont);
         dc.DrawText(t, new Point(Math.Max(RulerLeft + 10, (w - t.Width) / 2), RulerTop + 12));
     }
 
-    /// <summary>Projekt bez elementów rysunku (na razie zawsze – tory i podkłady dochodzą w kolejnych etapach).</summary>
-    static bool IsEmpty(UtProject p) => true;
-
     public static string Len(double m) => m >= 1000 ? (m / 1000).ToString("0.###", Pl) + " km" : m >= 1 ? m.ToString("0.##", Pl) + " m" : (m * 100).ToString("0.#", Pl) + " cm";
+    /// <summary>Długość z dokładnością do 1 cm.</summary>
+    public static string Len3(double m) => m.ToString("#,0.00", Pl).Replace(' ', ' ') + " m";
 
     static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
     static FormattedText Text(string s, double size, Brush b, double dpi, Typeface f) => new(s, Pl, FlowDirection.LeftToRight, f, size, b, dpi);
     static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
-    static Pen FrozenPen(Color c, double t) { var p = new Pen(Frozen(c), t); p.Freeze(); return p; }
+    static Pen FrozenPen(Color c, double t) { var p = new Pen(Frozen(c), t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; p.Freeze(); return p; }
+    static Pen Dashed(Color c, double t) { var p = new Pen(Frozen(c), t) { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) }; p.Freeze(); return p; }
 }

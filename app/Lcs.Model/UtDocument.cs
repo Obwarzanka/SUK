@@ -42,13 +42,35 @@ public class UtDocument
         if (p.Crs != "EPSG:2180") throw new InvalidDataException($"Nieznany układ współrzędnych „{p.Crs}” – edytor obsługuje PUWG 1992 (EPSG:2180)");
         p.View ??= new UtViewState();
         if (!UtProject.DrawingScales.Contains(p.DrawingScale)) p.DrawingScale = 1000;
+        p.Backgrounds ??= new();
         return new UtDocument(p, System.IO.Path.GetFullPath(path));
+    }
+
+    /// <summary>Katalog projektu (pliki podkładów zapisywane są względem niego); null – projekt niezapisany.</summary>
+    public string Dir => Path != null ? System.IO.Path.GetDirectoryName(Path) : null;
+
+    /// <summary>Pełna ścieżka pliku podkładu.</summary>
+    public string Resolve(string file) => Resolve(file, Dir);
+    static string Resolve(string file, string dir) =>
+        string.IsNullOrEmpty(file) || System.IO.Path.IsPathRooted(file) || dir == null ? file : System.IO.Path.GetFullPath(System.IO.Path.Combine(dir, file));
+
+    /// <summary>Ścieżki plików podkładów po zmianie katalogu projektu: wewnątrz katalogu – względne, poza nim – bezwzględne.</summary>
+    void Rebase(string oldDir, string newDir)
+    {
+        foreach (var t in P.Backgrounds.SelectMany(b => b.Tiles))
+        {
+            var full = Resolve(t.File, oldDir);
+            if (string.IsNullOrEmpty(full) || !System.IO.Path.IsPathRooted(full)) continue;
+            var rel = System.IO.Path.GetRelativePath(newDir, full);
+            t.File = rel.StartsWith("..") || System.IO.Path.IsPathRooted(rel) ? full : rel.Replace('\\', '/');
+        }
     }
 
     /// <summary>Zapis przez plik tymczasowy; poprzednia wersja zostaje jako <c>.bak</c>.</summary>
     public void Save(string path = null)
     {
         path = System.IO.Path.GetFullPath(path ?? Path ?? throw new InvalidOperationException("Brak nazwy pliku"));
+        Rebase(Dir, System.IO.Path.GetDirectoryName(path));
         var tmp = path + ".tmp";
         File.WriteAllText(tmp, Serialize(P));
         if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
@@ -58,11 +80,18 @@ public class UtDocument
     }
 
     /// <summary>Zmiana projektu z możliwością cofnięcia. Zmiana, która nic nie zmienia, nie trafia na listę.</summary>
-    public bool Change(string what, Action<UtProject> act)
+    public bool Change(string what, Action<UtProject> act) => Change(what, act, null);
+
+    string mergeKey; DateTime mergeAt;
+    /// <param name="merge">Kolejne zmiany z tym samym kluczem w ciągu 2 s (np. przesuwanie suwaka) cofa się jednym Ctrl+Z.</param>
+    public bool Change(string what, Action<UtProject> act, string merge)
     {
         var before = Snapshot(P);
         act(P);
         if (Snapshot(P) == before) return false;
+        bool join = merge != null && merge == mergeKey && undo.Count > 0 && (DateTime.UtcNow - mergeAt).TotalSeconds < 2;
+        mergeKey = merge; mergeAt = DateTime.UtcNow;
+        if (join) { redo.Clear(); Dirty = true; Changed?.Invoke(); return true; }
         undo.Push((what, before));
         if (undo.Count > UndoLimit) Trim(undo);
         redo.Clear();
@@ -71,8 +100,8 @@ public class UtDocument
         return true;
     }
 
-    public bool Undo() => Swap(undo, redo);
-    public bool Redo() => Swap(redo, undo);
+    public bool Undo() { mergeKey = null; return Swap(undo, redo); }
+    public bool Redo() { mergeKey = null; return Swap(redo, undo); }
 
     bool Swap(Stack<(string What, string Json)> from, Stack<(string What, string Json)> to)
     {

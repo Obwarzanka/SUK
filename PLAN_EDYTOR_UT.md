@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-16):** etap 0 i etap 1 zrobione (szczegóły w `ROZWOJ.md`, etap 1). Następny: etap 2 – podkłady.
+**Stan (2026-10-16):** etapy 0, 1 i 2 zrobione (szczegóły w `ROZWOJ.md`, etap 1). Następny: etap 3 – tory (prosta, łuk, parabola 3°).
 
 ---
 
@@ -15,13 +15,14 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
    - Z: wysokość główki szyny (niweleta), z ręki albo z NMT.
 2. **Projektuje człowiek.** Edytor daje narzędzia (rysowanie, przyciąganie, wpisywanie wymiarów, kontrolę), ale niczego nie generuje sam. Nie budujemy gotowych stacji.
 3. **Skala i symbole.** Na ekranie zoom jest dowolny. Symbole (semafory, kozły, numery zwrotnic) mają wymiary wg Ig-10 przy wybranej **skali rysunku** (1:500 / 1:1000 / 1:2000) i nie zależą od geometrii. Zmiana skali rysunku zmienia wielkość symboli, a geometrii nie rusza.
-4. **Urządzenia są przypięte do toru:** tor + odległość od początku (albo km) + strona + kierunek działania. XYZ symbolu wynika z toru, więc po przesunięciu toru urządzenie jedzie razem z nim.
-5. **Osobne programy, wspólna biblioteka modelu:**
+4. **Długości w terenie, nie w układzie.** PUWG 1992 zniekształca odległości: na południku 19° skala 0,9993, czyli −70 cm/km, na krańcach Polski do +90 cm/km. Długość toru i każdy pomiar liczy się z poprawką skali odwzorowania (`Geo.GroundDistance`, zgodność z odległością geodezyjną < 2 mm na 3 km). Później dochodzi poprawka na wysokość: 200 m n.p.m. to +3 cm/km.
+5. **Urządzenia są przypięte do toru:** tor + odległość od początku (albo km) + strona + kierunek działania. XYZ symbolu wynika z toru, więc po przesunięciu toru urządzenie jedzie razem z nim.
+6. **Osobne programy, wspólna biblioteka modelu:**
    - `Lcs.Model` – model UT, zapis i odczyt pliku, kontrola poprawności (bez okien);
    - `Lcs.EdytorUT` – aplikacja WPF do projektowania UT;
    - później `Lcs.EdytorZobrazowania` – obrazy pulpitu wg Ie-104, korzysta z UT tylko do odczytu;
    - symulator (`LcsWidzew`) – na razie bez zmian, czyta dotychczasowe `station.json`.
-6. **Nowy plik UT** (np. `*.ut.json`), niezależny od `station.json`. Jak dane z UT trafiają do symulatora, ustalimy w etapie 9.
+7. **Nowy plik UT** (np. `*.ut.json`), niezależny od `station.json`. Jak dane z UT trafiają do symulatora, ustalimy w etapie 9.
 
 ## 2. Model danych UT (szkic)
 
@@ -43,7 +44,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 |---|---|---|
 | 0 ✔ | Usunięcie starych edytorów UT i zobrazowania z `LcsWidzew` (okna, narzędzia, testy edytora). Pulpit, komputer zależności i selftest zostają. | build OK, selftest 25 z 26 / 4 z 4 na `station_test.json` |
 | 1 ✔ | Szkielet: rozwiązanie z `Lcs.Model` i `Lcs.EdytorUT`. Płótno w metrach: przesuwanie, zoom, siatka, linijki, współrzędne kursora (X, Y, Z, km), zapis / odczyt, cofnij / ponów. | pusty projekt zapisuje się i wczytuje; zrzut okna |
-| 2 | Podkłady: obraz z kalibracją (2 i więcej punktów, plik `.pgw` / `.jgw`), ortofotomapa Geoportalu wprost w EPSG:2180 (kafelki z mapki), OSM / Esri jako zapasowe. Kilka podkładów, krycie, kolejność. | ortofotomapa stacji leży w dobrym miejscu i skali; zmierzona odległość = rzeczywista |
+| 2 ✔ | Podkłady: obraz z kalibracją (2 i więcej punktów, plik `.pgw` / `.jgw`), ortofotomapa Geoportalu wprost w EPSG:2180 (kafelki z mapki), OSM / Esri jako zapasowe. Kilka podkładów, krycie, kolejność. | ortofotomapa stacji leży w dobrym miejscu i skali; zmierzona odległość = rzeczywista |
 | 3 | Tory: prosta, łuk, krzywa przejściowa. Przyciąganie (koniec, styczność, punkt na torze, podkład), wymiary z klawiatury (długość, promień, azymut), tor równoległy w zadanym międzytorzu, edycja uchwytami. | test „jak użytkownik”: tor po ortofotomapie z łukiem, długości zgodne z geometrią |
 | 4 | Rozjazdy z katalogu wstawiane na tor (odgałęzienie z prawdziwą geometrią), łącznik między torami, rozjazdy krzyżowe, skrzyżowania. Numery wpisuje projektant. | mijanka z łącznikami zbudowana klikami na skośnych torach |
 | 5 | Urządzenia na torze, symbole Ig-10 w skali rysunku, obrót / strona / kierunek, odcinki kontroli niezajętości, perony, przejazdy, kilometraż. | mijanka z semaforami, kozłami i odcinkami; „Sprawdź” bez uwag |
@@ -61,7 +62,7 @@ Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, 
 
 ## 5. Decyzje właściciela (2026-10-16)
 
-1. Układ współrzędnych: **PUWG 1992** (EPSG:2180).
+1. Układ współrzędnych: **PUWG 1992** (EPSG:2180), konwencja geodezyjna **X – północ, Y – wschód** (potwierdzone przez właściciela).
 2. Stare edytory: **usunąć od razu** (etap 0).
 3. **Osobne programy** (`EdytorUT.exe`, później `EdytorZobrazowania.exe`, symulator) ze wspólną biblioteką.
 4. **Skala: oba widoki.** Dane w metrach (dokładność do 1 mm), niezależnie od pikseli podkładu (ortofotomapa ok. 5–25 cm/px). Widok główny w równej skali 1:1000 / 1:2000: zdjęcie bez zniekształceń, symbole Ig-10 w mm arkusza. Przełącznik „Ig-10 1:2000 / 1:500”: tory i podkład rozciągnięte w poprzek osi stacji ×4. Rysować można w obu widokach, a zapis zawsze idzie w metrach terenu.
@@ -75,6 +76,5 @@ Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, 
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).
-8a. X / Y: przyjąłem konwencję geodezyjną (X – północ, Y – wschód). Jeśli wolisz odwrotnie (X – wschód, jak w matematyce), trzeba to zmienić teraz, zanim powstaną projekty.
 8. Wymiary a / b rozjazdów katalogowe (np. z Id-4 albo kart katalogowych) – jeśli masz, wpiszemy do tabeli typów.
 9. Istniejące `Data/station.json` (Widzew, Fabryczna): zostaje tylko dla symulatora, a w nowym edytorze rysujesz od nowa – czy coś trzeba z niego przenieść (np. numery torów i zwrotnic)?

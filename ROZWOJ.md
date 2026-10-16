@@ -4,7 +4,7 @@ Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–1).
+Ostatnia aktualizacja: 2026-10-16 (nowy edytor UT, etapy 0–2).
 
 ---
 
@@ -117,7 +117,19 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 - Test `EdytorUT.exe --test wynik.txt [zrzut.png]` (`Test.cs`, przez kontrolki okna): 35 sprawdzeń, **0 błędów**. Zrzut: `zrzuty/EdytorUT_etap1.png`. Uruchamianie: `uruchom_edytor_ut.bat`.
 - Nie sprawdzono prawdziwą myszą (test woła metody płótna i zdarzenia kontrolek).
 
-**Następny krok:** etap 2 – podkłady (`PLAN_EDYTOR_UT.md` § 3).
+**ZROBIONE 2026-10-16 – etap 2 (podkłady):**
+- Model (`Lcs.Model`): `UtBackground` – ortofotomapa (siatka `UtGrid`, kafelki) albo grafika (punkty kalibracji, tryb podobieństwo / afiniczne). `UtTile` – plik i położenie `Affine` (piksel → PUWG 1992: Y = A·c + B·r + C, X = D·c + E·r + F; plik world – środek piksela przeliczany na narożnik). Dopasowanie metodą najmniejszych kwadratów: podobieństwo od 2 punktów (uwzględnia odbicie wierszy obrazu), afiniczne od 3. Ścieżki plików względem projektu (po „Zapisz jako” poza katalog – bezwzględne). `Change(…, merge)` łączy kolejne zmiany suwaka w jedno cofnięcie.
+- **Długości w terenie:** `Geo.ScaleFactor` (skala odwzorowania, 0,9993 na południku 19°) i `Geo.GroundDistance` (odległość w układzie / skala, Simpson). Sprawdzone z odległością geodezyjną Vincenty'ego (`Geo.GeodesicDistance`): < 2 mm na 2–3 km. Przykład z testu: Łódź, 2026,962 m w terenie wobec 2025,580 m w układzie.
+- **Ortofotomapa Geoportalu** (`Pobieranie.cs`): WMS 1.3.0 wprost w EPSG:2180 (BBOX: X, Y), pełna rozdzielczość (HighResolution; na stacji ok. 5 cm/px – widać podkłady), gdzie jej brak – StandardResolution. Ponawianie z nowym połączeniem bez ciasteczek (losowe 404 Geoportalu, jak w starym kodzie). Do projektu: „Zaznacz obszar…” (przeciągnięcie prostokąta) albo „Cały widok”, rozdzielczość 5 / 10 / 25 / 50 cm. Siatka kafelków 2048 px wyrównana do wielokrotności rozdzielczości, pliki `podklady/orto_…/r{w}_c{k}.jpg` obok projektu, po 2 naraz, nieudany kafelek nie przerywa, „Dopobierz brakujące”, „Przerwij”.
+- **Podgląd na żywo** (`LivePreview.cs`, nie zapisuje się): ortofotomapa bieżącego widoku jednym zapytaniem w rozdzielczości ekranu po 350 ms bezruchu (poprzedni obraz zostaje na swoim miejscu) albo zapasowo kafelki Esri / OSM (Web Mercator → PUWG 1992 afinicznie z narożników kafelka).
+- **Rysowanie** (`UtView.cs`, `ImageCache.cs`): podkłady pod nakładkami, nad siatką. Obrazy wczytywane w tle na poziomach 1/2ⁿ wg przybliżenia, limit pamięci 900 MB (najdawniej używane zwalniane). Brakujący plik – czerwona ramka „brak pliku”. Podpis źródła w prawym dolnym rogu.
+- **Grafika z pliku** (skan planu, mapa): kopia do `podklady/` projektu. Z plikiem world (.pgw / .jgw / .tfw / .wld) od razu na miejscu, bez niego – na środku widoku z kryciem 70 %. „Kalibruj punktami”: klik na grafice, klik w prawdziwym miejscu (np. na ortofotomapie); 1 punkt – przesunięcie, 2 – podobieństwo, 3+ – afiniczne (wybór); odchyłki w cm w panelu, PPM – rezygnacja z punktu, Ctrl+Z – cofnięcie punktu. Na czas wskazywania miejsca grafika półprzezroczysta. „Przesuń” (przeciąganie), obrót [°] i piksel [cm] z klawiatury (zmienia się tylko wpisane pole).
+- **Warstwy:** lista (u góry – na wierzchu), widoczność, krycie (suwak), ↑ ↓, „Pokaż”, „Usuń” (pliki zostają).
+- **Miarka (M):** łamana, długości odcinków i suma w terenie, w pasku: długość w układzie, skala odwzorowania, azymut; Backspace – cofnij punkt, PPM – wyczyść; przeciągnięcie przesuwa widok.
+- Test `EdytorUT.exe --test` (część „etap 2”, potrzebny internet): 96 sprawdzeń, **0 błędów** – m.in. pobranie 2 kafelków przez przeciągnięcie, styk kafelków, miarka = odległość geodezyjna, kalibracja klikami do 0,000 mm, Przesuń, obrót, warstwy, zapis w innym katalogu, Esri. Okna testu i zrzutu otwierają się poza ekranem, bez aktywowania. Wcześniej obrót kółka myszy nad oknem testu zmieniał przybliżenie zrzutu. Zrzuty: `zrzuty/EdytorUT_etap2_podklady.png`, `EdytorUT_etap2_ortofotomapa_4cm.png`.
+- Nie sprawdzono prawdziwą myszą. Symulator (`LcsWidzew`) bez zmian w tym etapie.
+
+**Następny krok:** etap 3 – tory (prosta, łuk, parabola 3°; długości w terenie z `GroundDistance`).
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.

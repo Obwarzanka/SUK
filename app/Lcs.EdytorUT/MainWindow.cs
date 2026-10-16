@@ -11,9 +11,9 @@ using Microsoft.Win32;
 namespace Lcs.EdytorUT;
 
 /// <summary>
-/// Okno edytora układu torowego: pasek poleceń, płótno w PUWG 1992, panel właściwości, pasek stanu.
+/// Okno edytora układu torowego: pasek poleceń i narzędzi, płótno w PUWG 1992, panel (obszar, podkłady), pasek stanu.
 /// </summary>
-public class MainWindow : Window
+public partial class MainWindow : Window
 {
     public UtDocument Doc { get; private set; }
     public readonly UtView View = new();
@@ -40,6 +40,8 @@ public class MainWindow : Window
         root.Children.Add(Dock(BuildToolbar(), System.Windows.Controls.Dock.Top));
         root.Children.Add(Dock(BuildStatus(), System.Windows.Controls.Dock.Bottom));
         root.Children.Add(Dock(BuildPanel(), System.Windows.Controls.Dock.Right));
+        View.ToolChanged += ToolShown;
+        View.MeasureChanged += ShowMeasure;
         root.Children.Add(View);
         Content = root;
 
@@ -47,6 +49,7 @@ public class MainWindow : Window
         View.ViewChanged += ShowView;
         gridBox.Click += (s, e) => { View.ShowGrid = gridBox.IsChecked == true; View.InvalidateVisual(); };
         PreviewKeyDown += OnKey;
+        InitBg();
         Closing += OnClosing;
 
         UtDocument doc = null;
@@ -78,8 +81,36 @@ public class MainWindow : Window
         GoToBtn.Click += (s, e) => GoTo(GoToBox.Text);
         tb.Items.Add(GoToBox); tb.Items.Add(GoToBtn);
         tb.Items.Add(new Separator());
+        tb.Items.Add(ToolBtn(UtTool.Wskaz, "✋ Wskaż", "Przesuwanie widoku (V, Esc)"));
+        tb.Items.Add(ToolBtn(UtTool.Miarka, "📏 Miarka", "Pomiar długości w terenie: klik – kolejne punkty, Backspace – cofnij punkt, PPM – wyczyść (M)"));
+        tb.Items.Add(new Separator());
         tb.Items.Add(gridBox);
         return tb;
+    }
+
+    readonly Dictionary<UtTool, ToggleButton> toolBtns = new();
+    ToggleButton ToolBtn(UtTool t, string text, string tip)
+    {
+        var b = new ToggleButton { Content = text, ToolTip = tip, Padding = new Thickness(6, 2, 6, 2), IsChecked = t == UtTool.Wskaz };
+        b.Click += (s, e) => SetTool(t);
+        toolBtns[t] = b; return b;
+    }
+    public void SetTool(UtTool t)
+    {
+        if (t != UtTool.Kalibracja) View.CalPending = null;
+        View.Tool = t;
+    }
+    void ToolShown()
+    {
+        foreach (var (t, b) in toolBtns) b.IsChecked = View.Tool == t;
+        Message(View.Tool switch
+        {
+            UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
+            UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
+            UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
+            UtTool.Przesun => "Przesuń grafikę: przeciągnij ją myszą; Esc – koniec",
+            _ => "",
+        });
     }
 
     static Button Btn(string text, RoutedEventHandler click, string tip)
@@ -111,9 +142,10 @@ public class MainWindow : Window
         sp.Children.Add(Label("Uwagi"));
         NotesBox.LostFocus += (s, e) => { if (!refreshing && NotesBox.Text != Doc.P.Notes) Doc.Change("Uwagi", p => p.Notes = NotesBox.Text); };
         sp.Children.Add(NotesBox);
+        BuildBgPanel(sp);
         return new Border
         {
-            Width = 290, Child = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            Width = 330, Child = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xc8, 0xc8, 0xc2)), BorderThickness = new Thickness(1, 0, 0, 0),
         };
     }
@@ -128,6 +160,7 @@ public class MainWindow : Window
         sb.Items.Add(new Separator());
         sb.Items.Add(new StatusBarItem { Content = stView });
         sb.Items.Add(new Separator());
+        sb.Items.Add(new StatusBarItem { Content = CancelBtn });
         sb.Items.Add(new StatusBarItem { Content = stMsg });
         return sb;
     }
@@ -136,7 +169,7 @@ public class MainWindow : Window
     void SetDoc(UtDocument d)
     {
         if (Doc != null) Doc.Changed -= Refresh;
-        Doc = d; View.Doc = d;
+        Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null;
         d.Changed += Refresh;
         var v = d.P.View;
         View.SetView(new XY(v.X, v.Y), v.Mpp);
@@ -158,6 +191,7 @@ public class MainWindow : Window
         Title = $"{(Doc.Dirty ? "* " : "")}{Doc.P.Name} – {(Doc.Path != null ? Path.GetFileName(Doc.Path) : "(nie zapisano)")} – Edytor układu torowego";
         UndoBtn.IsEnabled = Doc.UndoName != null; UndoBtn.ToolTip = Doc.UndoName != null ? $"Cofnij: {Doc.UndoName} (Ctrl+Z)" : "Nic do cofnięcia";
         RedoBtn.IsEnabled = Doc.RedoName != null; RedoBtn.ToolTip = Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
+        RefreshBg();
         View.InvalidateVisual();
     }
 
@@ -271,5 +305,14 @@ public class MainWindow : Window
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
         else if (!inText && ctrl && (e.Key == Key.Y || (e.Key == Key.Z && shift))) { DoRedo(); e.Handled = true; }
         else if (!inText && ctrl && e.Key == Key.Z) { DoUndo(); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.Escape)
+        {
+            if (View.Tool == UtTool.Kalibracja && View.CalPending != null) { View.CalPending = null; View.InvalidateVisual(); }
+            else SetTool(UtTool.Wskaz);
+            e.Handled = true;
+        }
+        else if (!inText && !ctrl && e.Key == Key.M) { SetTool(UtTool.Miarka); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }
+        else if (!inText && e.Key == Key.Back && View.Tool == UtTool.Miarka && View.MeasurePts.Count > 0) { View.MeasurePts.RemoveAt(View.MeasurePts.Count - 1); ShowMeasure(); View.InvalidateVisual(); e.Handled = true; }
     }
 }
