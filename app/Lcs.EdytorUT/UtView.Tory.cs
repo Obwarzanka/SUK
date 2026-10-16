@@ -101,6 +101,9 @@ public partial class UtView
     /// <summary>Punkty narysowanej części (od początku rysowania albo od przedłużanego końca).</summary>
     public IReadOnlyList<XY> Draft => dv.Skip(Math.Max(0, baseCount - 1)).Select(v => v.P).ToList();
 
+    /// <summary>W toku rysowania (Tor) albo wskazywania (Równoległy) – Del nie usuwa zaznaczenia.</summary>
+    public bool Busy => dv.Count > 0 || parSrc != null;
+
     double KAt(XY p) => Geo.InPoland(p) ? Geo.ScaleFactor(p) : 1;
     static List<UtVertex> Clone(IEnumerable<UtVertex> v) => v.Select(x => x.Clone()).ToList();
     double RNow => NewR > 0 ? NewR : 300;

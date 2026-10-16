@@ -184,6 +184,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 - **Narzędzie Równoległy (P)**, `UtView.Rownolegly.cs`: klik na torze wzorcowym, klik na podkładzie na osi nowego toru w miejscu początku (odstęp z kliknięcia co 1 cm, Shift – co 0,25 m), klik w miejscu końca albo Enter – do końca toru wzorcowego; tor przesunięty `Trasa.Offset` i przycięty `Budowa.Trim` (cięcie na prostej dokładnie, w łuku – na bliższym końcu łuku). Panelowy „Tor równoległy” (cały tor, wpisany odstęp) zostaje.
 - Test: 245 sprawdzeń, 0 błędów (łącznik 9/10 z dwóch rozjazdów – rozjazd 10 przesunięty o 10,23 m, bez uwag, Ctrl+Z; łącznik na torach 1,5°; Równoległy 5,03 m od km 150 do 380, Shift 4,5 m + Enter). Zrzut: `zrzuty/EdytorUT_tor_rownolegly.png`.
 
+**ZROBIONE 2026-10-16 – usuwanie:** Del działa w każdym narzędziu, gdy nic się nie rysuje (dawniej tylko we Wskaż – po narysowaniu toru Del nic nie robił). Usunięcie toru zabiera jego rozjazdy (i skrzyżowania), odgałęzienia do skosu i tory łączące łączników (z rozjazdami na drugim torze); przedłużone odgałęzienia (bocznice) zostają jako zwykłe tory – komunikat je wymienia. Test: Del w narzędziu Tor, Del w trakcie rysowania nic nie usuwa, Del toru 1 w stacji testowej (zostają rozjazdy 5, 6, 7 i bocznica 4), Ctrl+Z.
+
 **Następny krok:** etap 5 – urządzenia na torze (semafory, tarcze, kozły, wykolejnice, liczniki osi / złącza, perony, przejazdy, kilometraż) ze znakami z bazy symboli Ig-10
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**

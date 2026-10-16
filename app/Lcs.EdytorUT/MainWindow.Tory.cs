@@ -102,7 +102,22 @@ public partial class MainWindow
         if (i >= 0 && View.SkewTurnout(id, i) != null) { Message("Ten wierzchołek leży na skosie rozjazdu – można go tylko przesuwać wzdłuż skosu"); return true; }
         if (Doc.P.Turnouts.Any(r => r.Branch == id) && (i < 0 || t.Vertices.Count <= 3)) { Message("To odgałęzienie rozjazdu – usuń rozjazd (zaznacz go i Del)"); return true; }
         if (i >= 0 && t.Vertices.Count > 2) { ChTrack(id, "Usunięcie wierzchołka", x => x.Vertices.RemoveAt(i)); View.Select(id); Message($"Usunięty wierzchołek W{i + 1}"); }
-        else { Doc.Change("Usunięcie toru", p => p.Tracks.RemoveAll(x => x.Id == id)); View.Select(null); Message("Tor usunięty (Ctrl+Z przywraca)"); }
+        else
+        {
+            // z torem znikają jego rozjazdy (i skrzyżowania): odgałęzienia do skosu i tory łączące łączników – też; odgałęzienia
+            // przedłużone (bocznice) zostają jako zwykłe tory
+            var rz = Doc.P.Turnouts.Where(r => r.Track == id).ToList();
+            var gone = new HashSet<string> { id }; var kept = new List<string>();
+            foreach (var r in rz)
+            {
+                var br = Doc.P.Tracks.FirstOrDefault(x => x.Id == r.Branch); if (br == null) continue;
+                if (r.Partner != null || br.Vertices.Count <= 3) gone.Add(br.Id); else kept.Add(r.Number);
+            }
+            Doc.Change("Usunięcie toru", p => p.Tracks.RemoveAll(x => gone.Contains(x.Id)));
+            View.Select(null);
+            Message(rz.Count == 0 ? "Tor usunięty (Ctrl+Z przywraca)"
+                : $"Tor usunięty z rozjazdami {string.Join(", ", rz.Select(r => r.Number))}" + (kept.Count > 0 ? $"; odgałęzienia rozjazdów {string.Join(", ", kept)} zostały jako zwykłe tory" : "") + " (Ctrl+Z przywraca)");
+        }
         return true;
     }
 

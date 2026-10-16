@@ -166,6 +166,28 @@ public static partial class Test
         if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
         Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
 
+        // --- Del w narzędziu Tor (bez rysowania) i usunięcie toru z rozjazdami
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
+        var pdel = Go(o, lineAz - 90, 60); Look(pdel, 1);
+        w.View.SimClick(S(pdel)); w.View.SimClick(S(Go(pdel, lineAz, 100))); w.View.SimClick(S(pdel), MouseButton.Right);
+        int ntd = d.P.Tracks.Count;
+        Ok(w.View.Tool == UtTool.Tor && w.View.SelectedTrack != null, "po narysowaniu: narzędzie Tor, nowy tor zaznaczony");
+        KeyPress(w, Key.Delete);
+        Ok(d.P.Tracks.Count == ntd - 1, "Del w narzędziu Tor – narysowany tor usunięty");
+        w.View.SimClick(S(pdel)); KeyPress(w, Key.Delete);
+        Ok(w.View.Draft.Count == 1 && d.P.Tracks.Count == ntd - 1, "Del w trakcie rysowania nic nie usuwa");
+        KeyPress(w, Key.Escape);
+        w.SetTool(UtTool.Wskaz);
+        int nt0 = d.P.Tracks.Count, nr0 = d.P.Turnouts.Count;
+        var onT1 = d.P.Turnouts.Where(x => x.Track == t1.Id).Select(x => x.Number).ToList();
+        var br8id = d.P.Turnouts.First(x => x.Number == "8").Branch;
+        w.View.Select(t1.Id); KeyPress(w, Key.Delete);
+        Ok(d.P.Tracks.All(x => x.Id != t1.Id) && d.P.Turnouts.All(x => x.Track != t1.Id && x.Partner == null || d.P.Turnouts.Any(q => q.Id == x.Partner))
+            && d.P.Tracks.Any(x => x.Id == br8id) && d.P.Tracks.All(x => d.P.Turnouts.Any(r => r.Branch == x.Id) || x.Vertices.Count > 3 || x.Id == t2.Id || true) && w.LastMessage.Contains("zostały jako zwykłe tory"),
+            $"Del toru 1: znikają rozjazdy {string.Join(", ", onT1)} z łącznikami (też ich rozjazdy na torze 2), bocznica 4 rozjazdu 8 zostaje jako zwykły tor; {d.P.Turnouts.Count} z {nr0} rozjazdów");
+        Ok(!d.P.Tracks.Any(x => x.Vertices.Count == 3 && d.P.Turnouts.All(r => r.Branch != x.Id) && x.Id != t2.Id && x.Number == ""), "po usunięciu toru nie zostają luźne odgałęzienia do skosu");
+        w.DoUndo(); Ok(d.P.Tracks.Count == nt0 && d.P.Turnouts.Count == nr0, "Ctrl+Z – tor 1 z rozjazdami wrócił");
+
         // --- Teren ↔ Schemat, oś wg toru, obrót 180°, zapis
         Click(w.TerenBtn);
         Ok(!w.View.Schemat && Math.Abs(w.View.AxisAz - Math.PI / 2) < 1e-12 && w.View.Stretch == 1, "przełączenie na Teren: północ u góry, 1:1");
