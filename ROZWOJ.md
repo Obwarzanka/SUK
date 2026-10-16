@@ -68,6 +68,7 @@ Moduły wydzielone z `Simulator` (etap 7, kroki 1–3; `Simulator` tworzy je w k
 - `Sim/Otoczenie.cs` – posterunki sąsiednie spoza LCS: wyprawianie pociągu na szlak (`Wyprawienie`), żądanie Pzk, odpowiedź na Wbl, blok początkowy / końcowy sąsiada.
 - Cykl `Simulator.Tick`: zasilanie, zwrotnice, blokady (z komunikatami do `Otoczenie`), `Rozklad.Tick` i `Instruktor.Tick` (tylko gdy są pociągi), `Trains.Tick`, sygnały, przebiegi, alarmy.
 - `Trains.Load(key)` ładuje scenariusz: `Rozklad.Load` + `Instruktor.Load`.
+- `Sim/Urzadzenia/` – urządzenia przytorowe (krok 4): `KartaOdcinka` (obwód torowy / licznik osi: osie w terenie, zajętość bez pojazdu, błąd zliczenia, zerowanie, pierwszy przejazd). Ruch zgłasza osie (`Urzadzenia.Osie`), karta melduje KZ status (`Publikuj` → `SecState.TrainOcc/Fault`), ZeroLO to rozkaz `Urzadzenia.Zeruj`, usterki odcinków idą do karty. KZ zna „pociąg na szlaku” z odcinków i meldunku sąsiada (`TrainOnBlock`, `Otoczenie.SzlakZajetyUSasiada`), nie z listy pociągów.
 
 Pozostałe elementy:
 - **Sieć:** `Net/LcsNet.cs` – `LcsServer` przy komputerze zależności i `RemoteSession` na stanowisku. JSON w liniach przez TCP, port 47120.
@@ -326,9 +327,9 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
 - moduły: pulpit / system nadrzędny, rejestrator, komputer zależności (bez pociągów), urządzenia przytorowe (karty: zwrotnica, sygnalizator, odcinek OT/LO, wykolejnica, później przejazd; zasilanie), ruch pociągów (widzi tylko urządzenia: sygnał wyświetlany, iglice), rozkład, otoczenie, sieć, instruktor;
 - kroki: 0 pomiar odniesienia; 1 Rejestrator; 2 Instruktor; 3 Rozkład + Otoczenie; 4 karta odcinka; 5 karta zwrotnicy i wykolejnicy; 6 karta sygnalizatora; 6a okno „Komputerownia / karty”; 7 zasilanie; 8 ruch bez przecieków (manewry wg tarcz, prędkość z sygnału); 9 system nadrzędny (parser, dwuetapowość, stanowiska, PIP); 10 cienka fasada;
 - warunek każdego kroku: build, selftest 25 z 26 / 4 z 4, `--edtest` (Widzew 979 przebiegów), `fuzz 300 7` i `dfuzz 300 7` po 0 błędów, `--editshot p.png testowo out.json` i `mijanka out.json 5` bez błędów; w krokach przenosin dodatkowo identyczny dziennik selftestu (`--selftest out.txt` zapisuje pełny dziennik do `out.txt.zdarzenia`) i identyczne wyniki scenariuszy `--selftest out.txt usterki|zima|manewry|ic_05`.
-- **ZROBIONE 2026-10-16: kroki 0–3** (czyste przenosiny, zachowanie bez zmian – sprawdzone porównaniem dzienników).
+- **ZROBIONE 2026-10-16: kroki 0–4** (przenosiny i karta odcinka; zachowanie bez zmian – dziennik selftestu i scenariusze usterki/zima/manewry/ic_05/ic_15/ic_18 identyczne).
 - Pytania do właściciela przed krokami 5, 6, 8: rozprucie a brak kontroli (kto rozstrzyga, usterka „sygnalizacja rozprucia” bez pojazdu), przepalenie włókna czerwonego / zezwalającego, sygnalizator bez łączności (ciemny czy czerwony), manewry wg tarcz zamiast utwierdzeń, opóźnienie jednego cyklu rozkaz → meldunek.
-- Pozostałe przecieki (do kroków 4–9): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`, `TrainOcc`; KZ pyta `Trains.OnBlock`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`); pulpit bierze numery pociągów z listy pociągów.
+- Pozostałe przecieki (do kroków 4–9): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`); pulpit bierze numery pociągów z listy pociągów.
 
 ### Etap 8 – Dydaktyka i sieć
 - Rozkazy pisemne, telefoniczne zapowiadanie (Ir-1), dziennik ruchu, nagrywanie i odtwarzanie ćwiczeń, ocena.

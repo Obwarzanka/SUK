@@ -58,6 +58,7 @@ public partial class Simulator
         foreach (var s in L.Signals.Keys) Sigs[s] = new SigState { Name = s };
         foreach (var s in L.Derailers.Keys) Ders[s] = new DerState { Name = s };
         foreach (var b in L.Blocks.Values) Blocks[b.Id] = new BlockState { Id = b.Id, Dir = b.DefDir };
+        Urzadzenia = new Urzadzenia(this);
         if (routes) BuildRouteTable();
     }
 
@@ -311,6 +312,8 @@ public partial class Simulator
     public readonly Rozklad Rozklad;
     /// <summary>Posterunki sąsiednie spoza LCS (Sim/Otoczenie.cs).</summary>
     public readonly Otoczenie Otoczenie;
+    /// <summary>Urządzenia przytorowe i karty sterowników (Sim/Urzadzenia/).</summary>
+    public readonly Urzadzenia Urzadzenia;
 
     public void Tick(double dt)
     {

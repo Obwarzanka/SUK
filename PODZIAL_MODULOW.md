@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–3 (2026-10-16). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 

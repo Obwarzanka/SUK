@@ -5,10 +5,10 @@ public enum Aspect { Stop, Train, Shunt, Sz }
 public class SecState
 {
     public string Id;
-    public bool TrainOcc, Closed, NoData, SawTrain;
-    /// <summary>Licznik osi: błąd zliczenia przy najbliższym przejeździe (usterka instruktora), PrevOcc – zajętość w poprzednim kroku.</summary>
-    public bool Miscount, PrevOcc;
+    /// <summary>Status z karty odcinka (KartaOdcinka.Publikuj): zajętość przez pojazd i stan urządzenia kontroli niezajętości.</summary>
+    public bool TrainOcc;
     public string Fault;          // null | "occ" (zajętość bez pojazdu) | "reset" (wymagane zerowanie) | "await" (oczekiwanie na 1. przejazd)
+    public bool Closed, NoData;
     public string Lock, LockType; // przebieg utwierdzający; "train" | "shunt" | "overlap"
     public double? TimeRel;
 }

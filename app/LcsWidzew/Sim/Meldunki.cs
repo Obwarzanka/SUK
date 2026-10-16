@@ -114,7 +114,7 @@ public partial class Simulator : IPulpitSource
             I.Blocks[k] = new BlockInd
             {
                 Dir = b.Dir, AzkDir = b.AzkDir, Req = b.Req == null ? null : new ReqInd { EndIdx = b.Req.EndIdx }, ReleaseUntil = b.ReleaseUntil, AzkUntil = b.AzkUntil,
-                AwaitEnd = b.AwaitEnd, StopEnd = (bool[])b.StopEnd.Clone(), NbrStop = b.NbrStop, TrainOn = Trains != null && Trains.OnBlock(k),
+                AwaitEnd = b.AwaitEnd, StopEnd = (bool[])b.StopEnd.Clone(), NbrStop = b.NbrStop, TrainOn = Trains != null && TrainOnBlock(k),
                 Pwl = (bool[])b.Pwl.Clone(), KoReady = new[] { KoReady(L.Blocks[k], 0), KoReady(L.Blocks[k], 1) }, KTor = KTor(L.Blocks[k])
             };
         foreach (var (k, r) in Routes) I.Routes[k] = new RouteInd { Start = r.Start, End = r.End, EndKind = r.EndKind, EndNode = r.EndNode, Type = r.Type, State = r.State, TimeRel = r.TimeRelUntil != null };

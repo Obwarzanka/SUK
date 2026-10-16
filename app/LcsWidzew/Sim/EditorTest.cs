@@ -143,7 +143,7 @@ public static class EditorTest
                 Run(2);
                 string Sg(int j) => km.Sigs[$"1W/{j}+"].Sig;
                 Out($"SBL 4-stawna, szlak wolny: 1W/1+ {Sg(1)}, 1W/2+ {Sg(2)}, 1W/3+ {Sg(3)} (A – Stój)");
-                km.Secs[ks.Blocks["1W"].SecsWE[2]].Fault = "occ"; Run(1);
+                { var ko = km.Urzadzenia.Odcinki[ks.Blocks["1W"].SecsWE[2]]; ko.Stan = "occ"; ko.Publikuj(); } Run(1);
                 Out($"SBL 4-stawna, odstęp 3 zajęty: 1W/1+ {Sg(1)}, 1W/2+ {Sg(2)}, 1W/3+ {Sg(3)}; kTor {km.KTor(ks.Blocks["1W"])}");
             }
             // PK – punkt końcowy przebiegu; złącza SZLAK WEWNĘTRZNY łączące dwie stacje
@@ -209,7 +209,7 @@ public static class EditorTest
                 qs.Instruktor.ApplyFault("secOcc", "LW:JT1", false); Out($"OT zajętość: {qs.Secs["LW:JT1"].Fault}"); qs.Instruktor.ApplyFault("secOcc", "LW:JT1", true); Out($"OT po usunięciu: {qs.Secs["LW:JT1"].Fault ?? "wolny"}");
                 qs.Instruktor.ApplyFault("secOcc", "LW:JT1", false); Out("ZeroLO na obwodzie torowym: " + qs.Exec("JT1 ZeroLO").Msg); qs.Instruktor.ApplyFault("secOcc", "LW:JT1", true);
                 qs.Instruktor.ApplyFault("secOcc", "LW:JT2", false); qs.Instruktor.ApplyFault("secOcc", "LW:JT2", true); Out($"LO po usunięciu: {qs.Secs["LW:JT2"].Fault}");
-                var sJ3 = qs.Secs["LW:JT3"]; qs.Instruktor.ApplyFault("loMiscount", "LW:JT3", false); sJ3.PrevOcc = true; qs.Tick(0.1);
+                var sJ3 = qs.Secs["LW:JT3"]; qs.Instruktor.ApplyFault("loMiscount", "LW:JT3", false); qs.Urzadzenia.Odcinki["LW:JT3"].PrevOcc = true; qs.Tick(0.1);
                 Out($"LO błąd zliczenia po przejeździe: {sJ3.Fault}, alarm: {qs.Alarms.LastOrDefault()?.Zdarzenie}");
             }
             Out($"Widzew po edycji 2A: odstępy {rs.Blocks["2A"].SecsWE.Count}, przebiegi {rsim.RouteTable.Values.Sum(l => l.Count)}");

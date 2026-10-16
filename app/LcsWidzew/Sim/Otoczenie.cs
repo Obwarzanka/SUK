@@ -30,6 +30,16 @@ public class Otoczenie
         return true;
     }
 
+    /// <summary>
+    /// Pociąg wyprawiony przez sąsiada jest na części szlaku poza obszarem LCS (przed granicą) – sąsiad melduje szlak zajęty
+    /// (blokada liniowa). Odstępy w obszarze LCS komputer zależności zna z kart odcinków.
+    /// </summary>
+    public bool SzlakZajetyUSasiada(string id)
+    {
+        var b = S.L.Blocks[id];
+        return b.Far != null && S.Trains != null && S.Trains.List.Any(t => t.Segs[0].E == null && t.Segs[0].To == b.Far && t.Head - t.Len < t.Segs[0].Len);
+    }
+
     bool EmergingAtFar(string id)
     {
         var b = S.L.Blocks[id];

@@ -54,18 +54,9 @@ public class Instruktor
     {
         switch (type)
         {
-            case "secOcc" when S.L.Sections.TryGetValue(target, out var sdo) && !sdo.AxleCounter:
-                // obwód torowy: zajętość bez pojazdu (zwarcie toków, uszkodzenie); po ustąpieniu przyczyny odcinek wolny bez zerowania
-                if (!clear) { S.Secs[target].Fault = "occ"; S.Alarm($"Odcinek {target} (obwód torowy): zajętość bez pojazdu", "Odcinek", target, "occ" + target, () => S.Secs[target].Fault != null); }
-                else { S.Secs[target].Fault = null; S.Log("Zdarzenie", $"Odcinek {target} (obwód torowy): zajętość ustąpiła – odcinek wolny", "Odcinek", target); }
-                break;
-            case "loMiscount":
-                if (S.L.Sections.TryGetValue(target, out var sdm) && !sdm.AxleCounter) { S.Log("Instruktor", $"Odcinek {target} kontrolowany obwodem torowym – błąd zliczenia osi nie dotyczy", "Odcinek", target); return; }
-                S.Secs[target].Miscount = !clear;
-                break;
             case "secOcc":
-                if (!clear) { S.Secs[target].Fault = "occ"; S.Alarm($"Odcinek {target}: zajętość bez pojazdu", "Odcinek", target, "occ" + target, () => S.Secs[target].Fault != null); }
-                else { S.Secs[target].Fault = "reset"; S.Alarm($"Odcinek {target}: wymagane potwierdzenie zerowania (ZeroLO)", "Odcinek", target, "rst" + target, () => S.Secs[target].Fault == "reset"); }
+            case "loMiscount":
+                if (!S.Urzadzenia.Odcinki[target].Usterka(type, clear)) return;
                 break;
             case "swNoCtrl": S.Sws[target].NoCtrl = !clear; if (!clear) S.Alarm($"Zwrotnica {target}: niespodziewany brak kontroli położenia", "Zwrotnica", target, stillActive: () => S.Sws[target].NoCtrl); break;
             case "swFrozen": S.Sws[target].Frozen = !clear; break;

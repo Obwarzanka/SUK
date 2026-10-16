@@ -73,11 +73,14 @@ public partial class Simulator
         foreach (var sc in b.SecsWE) if (SecOcc(sc)) why.Add($"odstęp {sc} zajęty");
         foreach (var en in b.Ends) if (Sigs.TryGetValue(en.EntrySig, out var esg) && esg.Aspect != Aspect.Stop) why.Add($"semafor {en.EntrySig} nie wskazuje „Stój”");
         if (Routes.Values.Any(r => r.End == b.Id)) why.Add("nastawiony przebieg na szlak " + b.Id);
-        if (Trains != null && Trains.OnBlock(b.Id)) why.Add("pociąg na szlaku " + b.Id);
+        if (Trains != null && TrainOnBlock(b.Id)) why.Add("pociąg na szlaku " + b.Id);
         return why;
     }
 
     /// <summary>Lampka TOR – szlak wolny, kierunek ustawiony, wszystkie sygnały odstępowe „wolna droga”.</summary>
+    /// <summary>Pociąg na szlaku: odstęp w obszarze LCS zajęty przez pojazd (karty odcinków) albo meldunek sąsiada o pociągu przed granicą.</summary>
+    public bool TrainOnBlock(string id) => L.Blocks[id].SecsWE.Any(sc => Secs[sc].TrainOcc) || Otoczenie.SzlakZajetyUSasiada(id);
+
     public bool TorLamp(BlockDef b)
     {
         var bs = Blocks[b.Id];

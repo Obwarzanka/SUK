@@ -165,7 +165,7 @@ public partial class Trains
     {
         if (eid == null) return true;
         var sc = S.Secs[S.L.Edges[eid].Sec];
-        return sc.LockType is "shunt" || sc.TrainOcc;
+        return sc.LockType is "shunt" || S.Urzadzenia.Pojazd(sc.Id);
     }
 
     bool Extend(Train t)
@@ -393,9 +393,10 @@ public partial class Trains
         if (t.To != null && t.To != sz) { S.Stats.WrongDir++; S.Remark($"Pociąg {t.Num} wyprawiony na szlak {sz} zamiast {t.To}"); }
     }
 
+    /// <summary>Osie pojazdów na odcinkach – zgłoszenie do urządzeń przytorowych (karty odcinków liczą zajętość dla KZ).</summary>
     void Occupancy()
     {
-        foreach (var s in S.Secs.Values) s.TrainOcc = false;
+        var occ = new HashSet<string>();
         foreach (var t in List)
         {
             double pos = 0, tail = t.Head - t.Len;
@@ -404,35 +405,14 @@ public partial class Trains
             {
                 double a = pos, b = pos + s.Len; pos = b;
                 if (s.E == null) continue;
-                if (Math.Min(b, t.Head) - Math.Max(a, tail) > 0) { var sc = S.L.Edges[s.E].Sec; S.Secs[sc].TrainOcc = true; if (t.Head >= a) headSec = sc; }
+                if (Math.Min(b, t.Head) - Math.Max(a, tail) > 0) { var sc = S.L.Edges[s.E].Sec; occ.Add(sc); if (t.Head >= a) headSec = sc; }
             }
             // wyświetlacz numeru pociągu (Ie-104 § 8 pkt 26): tory stacyjne i odstępy szlakowe
             if (headSec != null && (headSec.Contains(":JT") || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
         }
-        foreach (var (k, s) in S.Secs)
-        {
-            // licznik osi z błędem zliczenia: po przejeździe liczba osi się nie zgadza – odcinek zostaje zajęty, wymagane ZeroLO
-            if (s.Miscount && s.PrevOcc && !s.TrainOcc && s.Fault == null)
-            {
-                s.Miscount = false; s.Fault = "reset";
-                S.Alarm($"Odcinek {k}: licznik osi – niezgodność liczby osi po przejeździe, odcinek zajęty (sprawdź niezajętość, ZeroLO)", "Odcinek", k, "lo" + k, () => s.Fault == "reset");
-            }
-            s.PrevOcc = s.TrainOcc;
-        }
-        foreach (var (k, s) in S.Secs)
-            if (s.Fault == "await")
-            {
-                if (s.TrainOcc) s.SawTrain = true;
-                else if (s.SawTrain) { s.Fault = null; s.SawTrain = false; S.Log("Zdarzenie", "Pierwszy przejazd zakończony – kontrola niezajętości przywrócona", "Odcinek", k); }
-            }
+        S.Urzadzenia.Osie(occ);
     }
 
-    // ------------------------------------------------------------------ zajętość szlaku (do usunięcia w kroku 4: KZ ma brać zajętość z odcinków)
-    public bool OnBlock(string id)
-    {
-        var b = S.L.Blocks[id];
-        return List.Any(t => t.Segs.Any(s => s.E != null && b.SecsWE.Contains(S.L.Edges[s.E].Sec)) || (b.Far != null && t.Segs[0].E == null && t.Segs[0].To == b.Far && t.Head - t.Len < t.Segs[0].Len));
-    }
     /// <summary>Nowy scenariusz: rozkład jazdy (Rozklad) i usterki (Instruktor).</summary>
     public void Load(string key)
     {

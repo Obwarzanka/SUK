@@ -462,7 +462,7 @@ public partial class Simulator
             case "ZEROLO":
             {
                 var sc = Resolve(a0, "sec", "sw"); if (L.Switches.ContainsKey(sc)) sc = L.Switches[sc].Sec;
-                Secs[sc].Fault = "await"; return new(true, "odcinek oczekuje na pierwszy przejazd");
+                Urzadzenia.Zeruj(sc); return new(true, "odcinek oczekuje na pierwszy przejazd");
             }
         }
         return new(false, $"Polecenie „{code}” nieobsługiwane");
