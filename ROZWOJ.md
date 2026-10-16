@@ -59,7 +59,15 @@ Trzy warstwy, jak w rzeczywistości (KOMPUTERY.pdf, Tabela 23):
    - `UI/PanelView.cs` (rysowanie), `MainWindow.xaml(.cs)` (okno pulpitu), `UI/Dialogs.cs`, `UI/NetWindow.cs`, `UI/KzWindow.cs` (podgląd komputera zależności).
    - Korzysta **wyłącznie** z sesji `ILcsSession` (`Sim/Session.cs`) i meldunków `Indication` (`Sim/Meldunki.cs`). Nie sięga do wnętrza symulatora.
 2. **Komputer zależności (EBILock):** `Sim/Simulator.cs`, `Interlocking.cs` (przebiegi), `Blocks.cs` (blokady liniowe), `Commands.cs` (polecenia Ie-104), `Desk.cs` (stanowiska, obszary sterowania).
-3. **Teren:** `Sim/Trains.cs` (pociągi, usterki), `RealTimetable.cs` (rozkład GTFS).
+3. **Teren:** `Sim/Trains.cs` (ruch pociągów).
+
+Moduły wydzielone z `Simulator` (etap 7, kroki 1–3; `Simulator` tworzy je w konstruktorze i jest dla UI fasadą):
+- `Sim/Rejestrator.cs` – dziennik zdarzeń i alarmy (wspólna usługa); `Simulator.Log/Alarm/Remark/Events/Alarms` przekazują do `sim.Rej`.
+- `Sim/Instruktor.cs` – lista usterek (`Instruktor.Faults`), `sim.Instruktor.ApplyFault`, usterki scenariusza.
+- `Sim/Rozklad.cs` + `RealTimetable.cs` – kolejka pociągów (`sim.Rozklad.Queue`), scenariusze (`Rozklad.Scenarios`), rozkład GTFS, `Enqueue`.
+- `Sim/Otoczenie.cs` – posterunki sąsiednie spoza LCS: wyprawianie pociągu na szlak (`Wyprawienie`), żądanie Pzk, odpowiedź na Wbl, blok początkowy / końcowy sąsiada.
+- Cykl `Simulator.Tick`: zasilanie, zwrotnice, blokady (z komunikatami do `Otoczenie`), `Rozklad.Tick` i `Instruktor.Tick` (tylko gdy są pociągi), `Trains.Tick`, sygnały, przebiegi, alarmy.
+- `Trains.Load(key)` ładuje scenariusz: `Rozklad.Load` + `Instruktor.Load`.
 
 Pozostałe elementy:
 - **Sieć:** `Net/LcsNet.cs` – `LcsServer` przy komputerze zależności i `RemoteSession` na stanowisku. JSON w liniach przez TCP, port 47120.
@@ -313,6 +321,14 @@ Nadanie i usunięcie numeru, przesunięcie między torami (tryb awaryjny), notat
 
 ### Etap 7 – Teren za sterownikami obiektowymi
 Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą tylko teren. Komparator 2z2 i przejście w stan bezpieczny przy niezgodności (usterka instruktora).
+
+**Podział `Simulator` na moduły – plan zaakceptowany przez właściciela 2026-10-16.** Pełny opis interfejsów (komunikaty: polecenie systemowe, meldunek, rozkazy KZ → karta, statusy karta → KZ, Ruch ↔ teren, KZ ↔ otoczenie, usterka) – w `PODZIAL_MODULOW.md`; skrót:
+- moduły: pulpit / system nadrzędny, rejestrator, komputer zależności (bez pociągów), urządzenia przytorowe (karty: zwrotnica, sygnalizator, odcinek OT/LO, wykolejnica, później przejazd; zasilanie), ruch pociągów (widzi tylko urządzenia: sygnał wyświetlany, iglice), rozkład, otoczenie, sieć, instruktor;
+- kroki: 0 pomiar odniesienia; 1 Rejestrator; 2 Instruktor; 3 Rozkład + Otoczenie; 4 karta odcinka; 5 karta zwrotnicy i wykolejnicy; 6 karta sygnalizatora; 6a okno „Komputerownia / karty”; 7 zasilanie; 8 ruch bez przecieków (manewry wg tarcz, prędkość z sygnału); 9 system nadrzędny (parser, dwuetapowość, stanowiska, PIP); 10 cienka fasada;
+- warunek każdego kroku: build, selftest 25 z 26 / 4 z 4, `--edtest` (Widzew 979 przebiegów), `fuzz 300 7` i `dfuzz 300 7` po 0 błędów, `--editshot p.png testowo out.json` i `mijanka out.json 5` bez błędów; w krokach przenosin dodatkowo identyczny dziennik selftestu (`--selftest out.txt` zapisuje pełny dziennik do `out.txt.zdarzenia`) i identyczne wyniki scenariuszy `--selftest out.txt usterki|zima|manewry|ic_05`.
+- **ZROBIONE 2026-10-16: kroki 0–3** (czyste przenosiny, zachowanie bez zmian – sprawdzone porównaniem dzienników).
+- Pytania do właściciela przed krokami 5, 6, 8: rozprucie a brak kontroli (kto rozstrzyga, usterka „sygnalizacja rozprucia” bez pojazdu), przepalenie włókna czerwonego / zezwalającego, sygnalizator bez łączności (ciemny czy czerwony), manewry wg tarcz zamiast utwierdzeń, opóźnienie jednego cyklu rozkaz → meldunek.
+- Pozostałe przecieki (do kroków 4–9): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`, `TrainOcc`; KZ pyta `Trains.OnBlock`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`); pulpit bierze numery pociągów z listy pociągów.
 
 ### Etap 8 – Dydaktyka i sieć
 - Rozkazy pisemne, telefoniczne zapowiadanie (Ir-1), dziennik ruchu, nagrywanie i odtwarzanie ćwiczeń, ocena.
