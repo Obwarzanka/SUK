@@ -80,8 +80,9 @@ public partial class MainWindow
         return true;
     }
 
-    void OnTurnoutPlace(string track, double s, int dir, int side, string target)
+    void OnTurnoutPlace(UtView.RzPlace pl)
     {
+        var (track, s, dir, side, target) = (pl.Track, pl.S, pl.Dir, pl.Side, pl.Target);
         var type = View.RzType;
         if (target != null)
         {
@@ -97,13 +98,16 @@ public partial class MainWindow
         }
         else
         {
-            var (t, br) = Rozjazdy.NewSingle(Doc.P, track, s, dir, side, type, "");
+            double rz = View.NewR > 0 ? View.NewR : 300;
+            var (t, br) = Rozjazdy.NewSingle(Doc.P, track, s, dir, side, type, "", pl.Offset, pl.EndAlong, rz);
             var nums = AskNumbers("Rozjazd – numer", new[] { "Numer rozjazdu" });
             if (nums == null || !NumbersOk(nums)) return;
             t.Number = nums[0];
             Doc.Change("Rozjazd", p => { p.Tracks.Add(br); p.Turnouts.Add(t); });
             View.SelectTurnout(t.Id);
-            Message($"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – odgałęzienie do KR; przedłuż je narzędziem Tor od końca" + Notes(t));
+            Message(pl.Offset > 0
+                ? $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – tor odgałęźny równoległy w odstępie {F(pl.Offset)} m (łuk R {F(rz)}); przedłuż go narzędziem Tor od końca" + Notes(t)
+                : $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – odgałęzienie do KR; przedłuż je narzędziem Tor od końca" + Notes(t));
         }
     }
 
@@ -121,7 +125,7 @@ public partial class MainWindow
                 var ra = View.Geometry(tr[i]); var rb = View.Geometry(tr[j]);
                 if (Rozjazdy.Intersect(ra, rb, w) is var (sa, sb, ang))
                 {
-                    double d = XY.Dist(ra.At(sa).P, w) / View.Mpp;
+                    double d = (View.ToScreen(ra.At(sa).P) - View.ToScreen(w)).Length;
                     if (d < 20 && (best == null || d < best.Value.D)) best = (tr[i].Id, tr[j].Id, sa, sb, ang, d);
                 }
             }

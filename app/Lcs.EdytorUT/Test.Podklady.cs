@@ -91,6 +91,7 @@ public static partial class Test
 
     static async Task RunBg(MainWindow w)
     {
+        w.BgExpander.IsExpanded = true; w.UpdateLayout();   // panel „Podkłady” zwinięty – rozwinięcie jak użytkownik
         var inv = CultureInfo.InvariantCulture;
         // --- geometria (model)
         var wf = Affine.FromWorldFile(new[] { "0.1", "0", "0", "-0.1", "537500.05", "433199.95" });

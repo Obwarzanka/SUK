@@ -20,21 +20,24 @@ def hatch(x0, x1, y0f, y1f, step=1.0):
     return res
 
 tick = line((0, -T), (0, T))
-nr_rz = text(-4.0, 2.4)
-wedge = lambda x: H * x / L
+nr_rz = text(-2.5, 2.4)
+G, X0 = 0.5, 2.0         # odstęp klina od strony otwartej; odgałęzienie y = x / 4 na podglądzie odchodzi o G przy x = 2
+branch = lambda x: x / 4
 
 S = []
 def sym(id, name, ig, anchor, prims): S.append({'id': id, 'name': name, 'ig10': ig, 'anchor': anchor, 'prims': prims})
 
-ANCH_RZ = 'początek rozjazdu (PR), x w stronę KR, y w stronę odgałęzienia'
+# Klin w kącie między torem a odgałęzieniem (Ig-10 zał. 8 s. 18, plan przykładowy zał. 7, Semaforek), po stronie kierunku
+# zamkniętego. Na planie edytor liczy go z geometrii rozjazdu (UtView.DrawWedge); tu – podgląd na odgałęzieniu 1:4.
+ANCH_RZ = 'początek rozjazdu (PR) – kreska; klin w kącie między torem a odgałęzieniem (na planie liczony z geometrii rozjazdu, długość do 12 mm), po stronie kierunku zamkniętego, odstęp 0,5 mm od strony otwartej; x w stronę KR, y w stronę odgałęzienia'
 sym('rz_uzal_wprost', 'Rozjazd zwyczajny ze zwrotnicą uzależnioną – zasadniczo na tor główny', 'zał. 8, s. 18', ANCH_RZ,
-    [tick, poly((0, 0), (L, 0), (L, H)), nr_rz])
+    [tick, poly((X0, G), (L, branch(L)), (L, G), w=0), nr_rz])
 sym('rz_uzal_zwrot', 'Rozjazd zwyczajny ze zwrotnicą uzależnioną – zasadniczo na tor odgałęźny', 'zał. 8, s. 18', ANCH_RZ,
-    [tick, poly((0, 0), (L, 0.7), (L, H)), nr_rz])
+    [tick, poly((X0, 0), (L, branch(L) - G), (L, 0), w=0), nr_rz])
 sym('rz_nieuzal', 'Rozjazd zwyczajny ze zwrotnicą nieuzależnioną', 'zał. 8, s. 19', ANCH_RZ,
-    [tick, poly((0, 0), (L, 0), (L, H), fill='paper')] + hatch(2.0, L, lambda x: 0, wedge) + [nr_rz])
+    [tick, poly((X0, G), (L, branch(L)), (L, G), fill='paper')] + hatch(X0, L - 1, lambda x: G, branch) + [nr_rz])
 sym('rz_nieczynny', 'Rozjazd zwyczajny nieoddany do użytku', 'zał. 8, s. 19', ANCH_RZ,
-    [tick, poly((0, 0), (L, 0), (L, H), fill='paper'), nr_rz])
+    [tick, poly((X0, G), (L, branch(L)), (L, G), fill='paper'), nr_rz])
 
 ANCH_RK = 'punkt matematyczny (przecięcie osi), x wzdłuż toru A, y w stronę toru B na końcu +x'
 kwedge = lambda x: HK * (x - A0) / (A - A0)

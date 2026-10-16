@@ -101,6 +101,13 @@ public class UtTurnout
     public bool BranchAtEnd { get; set; }
     /// <summary>Łącznik: drugi rozjazd.</summary>
     public string Partner { get; set; }
+    /// <summary>
+    /// Odgałęzienie pojedynczego rozjazdu: odległość trzeciego wierzchołka od ŚR wzdłuż skosu [m w terenie]. Wierzchołek leży zawsze
+    /// na prostej skosu, więc kąt odgałęzienia jest kątem typu (1:N) – także po przesunięciu rozjazdu. 0 – do ustalenia (Sync).
+    /// </summary>
+    public double BranchLen { get; set; }
+    /// <summary>Rozjazd pojedynczy (nie łącznik): ma wierzchołek na skosie.</summary>
+    public bool Single => Partner == null && !BranchAtEnd;
 }
 
 /// <summary>
@@ -159,6 +166,12 @@ public static class Rozjazdy
             double a = acc / r.K, b = (acc + e.Len) / r.K; acc += e.Len;
             if (e.Kind != ElKind.Prosta && b > Math.Min(s1, s2) + 1e-6 && a < Math.Max(s1, s2) - 1e-6) { res.Add("rozjazd leży na łuku toru zasadniczego (rozjazdy łukowe – w kolejnym etapie)"); break; }
         }
+        if (t.Single && Tr(p, t.Branch) is UtTrack br && br.Vertices.Count > 3)
+        {
+            var rb = Trasa.Compute(br);
+            if (rb.Tangent.TryGetValue(2, out var tv) && t.BranchLen - tv / rb.K < typ.B - 0.01)
+                res.Add($"łuk za rozjazdem zaczyna się {typ.B - (t.BranchLen - tv / rb.K):0.##} m przed końcem rozjazdu (KR) – wydłuż skos albo zmniejsz R");
+        }
         foreach (var o in p.Turnouts.Where(o => o.Id != t.Id && o.Track == t.Track && Katalog.Find(o.Type) is RozjazdTyp ot))
         {
             var ot = Katalog.Find(o.Type);
@@ -185,6 +198,13 @@ public static class Rozjazdy
             while (v.Count < 3) v.Add(new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y });
             if (!t.BranchAtEnd) { Set(v[0], g.PR, 0); Set(v[1], g.SR, g.Typ.R); }
             else { Set(v[^1], g.PR, 0); Set(v[^2], g.SR, g.Typ.R); }
+            if (t.Single)
+            {
+                // trzeci wierzchołek na prostej skosu: długość z modelu albo (stare pliki) rzut dotychczasowego punktu, nie mniej niż b
+                if (t.BranchLen <= 0) t.BranchLen = Math.Max(g.Typ.B, Math.Round(((v[2].P - g.SR).X * Math.Cos(g.AzDiv) + (v[2].P - g.SR).Y * Math.Sin(g.AzDiv)) / g.K, 3));
+                var q = g.SR + Element.Dir(g.AzDiv) * (t.BranchLen * g.K);
+                v[2].X = q.X; v[2].Y = q.Y;
+            }
         }
         p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
         foreach (var c in p.Crossings)
@@ -261,14 +281,52 @@ public static class Rozjazdy
     public static bool NumberUsed(UtProject p, string n, string exceptId = null) =>
         n.Length > 0 && (p.Turnouts.Any(t => t.Number == n && t.Id != exceptId) || p.Crossings.Any(c => c.Number == n && c.Id != exceptId));
 
-    /// <summary>Rozjazd zwyczajny z nowym odgałęzieniem (PR – ŚR – KR na zwrot); przed dodaniem do projektu.</summary>
-    public static (UtTurnout T, UtTrack Branch) NewSingle(UtProject p, string track, double s, int dir, int side, string type, string number)
+    /// <summary>
+    /// Rozjazd zwyczajny z nowym odgałęzieniem; przed dodaniem do projektu. <paramref name="offset"/> = 0 – samo odgałęzienie PR – ŚR – KR;
+    /// &gt; 0 – tor odgałęźny równoległy do zasadniczego w odstępie <paramref name="offset"/> [m]: skos rozjazdu, łuk zwrotny
+    /// <paramref name="rz"/> i prosta do <paramref name="endAlong"/> [m od PR wzdłuż toru] (co najmniej 20 m za łukiem).
+    /// </summary>
+    public static (UtTurnout T, UtTrack Branch) NewSingle(UtProject p, string track, double s, int dir, int side, string type, string number, double offset = 0, double endAlong = 0, double rz = 300)
     {
         var t = new UtTurnout { Number = number, Type = type, Track = track, S = s, Dir = dir, Side = side };
         var g = Geometry(p, t);
-        var br = new UtTrack { Vertices = new() { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.Typ.R }, new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y } } };
+        var br = new UtTrack { Vertices = new() { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.Typ.R } } };
+        if (offset <= 0) { t.BranchLen = g.Typ.B; br.Vertices.Add(new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y }); }
+        else
+        {
+            offset = Math.Max(offset, MinOffset(g.Typ, rz));
+            double a = g.Typ.Alpha, len = offset / Math.Sin(a);
+            var v = g.SR + Element.Dir(g.AzDiv) * (len * g.K);
+            double tv = rz * Math.Tan(a / 2), alongV = g.Typ.A + len * Math.Cos(a);
+            var e = v + Element.Dir(g.Az) * (Math.Max(endAlong - alongV, tv + 20) * g.K);
+            t.BranchLen = len;
+            br.Vertices.Add(new UtVertex { X = v.X, Y = v.Y, R = rz });
+            br.Vertices.Add(new UtVertex { X = e.X, Y = e.Y });
+        }
         t.Branch = br.Id;
         return (t, br);
+    }
+
+    /// <summary>Najmniejszy odstęp toru odgałęźnego [m]: prosta skosu mieści b (do KR) i styczną łuku zwrotnego R.</summary>
+    public static double MinOffset(RozjazdTyp typ, double rz) => (typ.B + rz * Math.Tan(typ.Alpha / 2)) * Math.Sin(typ.Alpha);
+
+    /// <summary>Odstęp toru odgałęźnego z odległości puszczenia myszy od toru [m]: poniżej 2 m – samo odgałęzienie (0), dalej co 0,25 m.</summary>
+    public static double OffsetFor(double across, RozjazdTyp typ, double rz)
+    {
+        if (across < 2) return 0;
+        double o = Math.Round(across * 4) / 4;
+        return Math.Max(o, Math.Ceiling(MinOffset(typ, rz) * 4) / 4);
+    }
+
+    /// <summary>Rozjazd pojedynczy, którego odgałęzieniem jest tor (wierzchołek 2 leży na skosie), albo null.</summary>
+    public static UtTurnout SkewOwner(UtProject p, string track) => p.Turnouts.FirstOrDefault(t => t.Branch == track && t.Single);
+
+    /// <summary>Rzut punktu na prostą skosu rozjazdu: punkt i odległość od ŚR [m w terenie] (nie mniej niż b).</summary>
+    public static (XY P, double Len)? OnSkew(UtProject p, UtTurnout t, XY w)
+    {
+        var g = Geometry(p, t); if (g == null) return null;
+        var d = w - g.SR; double len = Math.Max(g.Typ.B, (d.X * Math.Cos(g.AzDiv) + d.Y * Math.Sin(g.AzDiv)) / g.K);
+        return (g.SR + Element.Dir(g.AzDiv) * (len * g.K), len);
     }
 
     /// <summary>

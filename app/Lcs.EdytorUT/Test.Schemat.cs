@@ -1,0 +1,164 @@
+using System.Globalization;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using Lcs.Model;
+
+namespace Lcs.EdytorUT;
+
+/// <summary>
+/// Test poprawki widoku (PLAN_EDYTOR_UT.md § 5b): tory odrysowane w widoku Teren na skośnej linii, widok Schemat (oś poziomo,
+/// w poprzek ×4), w schemacie łączniki i rozjazdy z torem odgałęźnym równoległym, skos odgałęzienia po przesunięciu rozjazdu
+/// i wierzchołka. Na koniec stacja w oknie – zrzut główny.
+/// </summary>
+public static partial class Test
+{
+    static async Task RunSchemat(MainWindow w)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        string M(double v) => v.ToString("0.000", inv);
+        const double lineAz = 63;
+        var dir = Path.Combine(Path.GetTempPath(), "edytor_ut_test", "schemat"); if (Directory.Exists(dir)) Directory.Delete(dir, true); Directory.CreateDirectory(dir);
+        w.SetSchemat(false);
+        w.NewDoc(); w.SaveDoc(false, Path.Combine(dir, "stacja.ut.json"));
+        var d = w.Doc;
+        var o = Geo.ToPuwg92(51.7631, 19.5438); double k = Geo.ScaleFactor(o);
+        XY Go(XY from, double azDeg, double len) => from + Element.Dir(azDeg * Math.PI / 180) * (len * k);
+        Point S(XY p) => w.View.ToScreen(p);
+        void Look(XY p, double mpp) => w.View.SetView(p, mpp);
+        double Ang(double a) => Math.IEEERemainder(a, 2 * Math.PI);
+
+        // --- tory 1 i 2 odrysowane w widoku Teren (jak z ortofotomapy), tor 2 równoległy 5 m z panelu
+        Ok(!w.View.Schemat && Math.Abs(w.View.AxisAz - Math.PI / 2) < 1e-12 && w.View.Stretch == 1 && w.TerenBtn.IsChecked == true, "widok Teren: północ u góry, 1:1");
+        w.SetTool(UtTool.Tor); w.NewRBox.Text = "0"; w.NewLBox.Text = "0";
+        var a = Go(o, lineAz + 180, 700); var b = Go(o, lineAz, 700);
+        Look(o, 2);
+        w.View.SimClick(S(a)); w.View.SimClick(S(b)); w.View.SimClick(S(b), MouseButton.Right);
+        var t1 = d.P.Tracks.Single(); w.View.Select(t1.Id);
+        Type(Find<TextBox>(w.TrackPanel, _ => true), "1");
+        var cat = Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 3); cat.SelectedIndex = 2;
+        var dist = Find<TextBox>(w.TrackPanel, x => x.Text == "4,75"); Type(dist, "5");
+        Click(BtnIn(w.TrackPanel, "← po lewej"));
+        var t2 = d.P.Tracks.First(x => x.Id != t1.Id); w.View.Select(t2.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "2");
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 3).SelectedIndex = 1;
+        var r1 = w.View.Geometry(t1); var r2 = w.View.Geometry(t2);
+        Ok(Math.Abs(r2.Nearest(r1.At(700).P).Dist / k - 5) < 0.001, "tor 2 równoległy 5 m po lewej toru 1");
+
+        // --- widok Schemat: oś wg najdłuższego toru, w poprzek ×4
+        w.SetTool(UtTool.Wskaz); w.View.Select(null);
+        Click(w.SchematBtn);
+        double ax = UtProject.EastFacing(lineAz * Math.PI / 180);
+        Ok(w.View.Schemat && Math.Abs(w.View.AxisAz - ax) < 1e-6 && w.View.Stretch == 4 && w.SchematBtn.IsChecked == true, $"Schemat: oś wzdłuż toru 1 ({w.View.AxisAz * 180 / Math.PI:0.###}°), w poprzek ×4");
+        Look(r1.At(700).P, 0.5);
+        var sa = S(r1.At(0).P); var sb = S(r1.At(1400).P);
+        Ok(Math.Abs(sa.Y - sb.Y) < 0.01 && sb.X > sa.X, $"tor 1 na ekranie poziomo, od lewej do prawej (różnica wysokości {Math.Abs(sa.Y - sb.Y):0.0000} px)");
+        double gap = Math.Abs(S(r2.At(700).P).Y - S(r1.At(700).P).Y), want = 5 * k * 4 / w.View.Mpp;
+        Ok(Math.Abs(gap - want) < 0.01 && S(r2.At(700).P).Y < S(r1.At(700).P).Y, $"międzytorze 5 m na ekranie ×4: {gap:0.0} px (wzór {want:0.0} px), tor 2 (lewy) nad torem 1");
+        var probe = Go(o, lineAz + 30, 37.5);
+        Ok(XY.Dist(w.View.ToWorld(S(probe)), probe) < 1e-6, "Schemat: ekran ↔ świat tam i z powrotem");
+        var sp = new Point(300, 200); var before = w.View.ToWorld(sp);
+        w.View.ZoomAt(sp, 1 / 1.2); w.View.ZoomAt(sp, 1.3);
+        Ok(XY.Dist(before, w.View.ToWorld(sp)) < 1e-6, "Schemat: kółko myszy – punkt pod kursorem zostaje");
+        var c0 = w.View.ToWorld(new Point(500, 300)); w.View.PanBy(new Vector(40, -25));
+        Ok(XY.Dist(w.View.ToWorld(new Point(540, 275)), c0) < 1e-6, "Schemat: przeciąganie – punkt jedzie za myszą");
+        Look(r1.At(700).P, 2); double kFar = w.View.PxPerMm; Look(r1.At(700).P, 0.02); double kNear = w.View.PxPerMm;
+        Ok(kFar >= 2.2 && kNear <= 3.6, $"znaki Ig-10: {kFar:0.0} px/mm oddalone, {kNear:0.0} px/mm przybliżone (nie puchną)");
+
+        // --- w schemacie: łącznik 1/2 (tor 1 → tor 2) i 3/4
+        w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rz 60E1-190-1:9"; w.NewRBox.Text = "300";
+        var p1 = r1.At(380).P; Look(Go(p1, lineAz, 40), 0.5);
+        w.View.SimDrag(S(p1), S(r2.At(r2.Nearest(Go(p1, lineAz, 60)).S).P));
+        var p3 = r1.At(1020).P; Look(Go(p3, lineAz, -40), 0.5);
+        w.View.SimDrag(S(p3), S(r2.At(r2.Nearest(Go(p3, lineAz, -60)).S).P));
+        Ok(d.P.Turnouts.Count == 4 && d.P.Turnouts.Select(x => x.Number).OrderBy(x => x).SequenceEqual(new[] { "1", "2", "3", "4" }) && d.P.Tracks.Count == 4, "Schemat: łączniki 1/2 i 3/4 przeciągnięciem z toru 1 na tor 2");
+
+        // --- rozjazd 5 na torze 2 na zewnątrz, puszczenie obok toru (5,1 m) → tor odgałęźny równoległy w odstępie 5 m
+        var p5 = r2.At(300).P; double az2 = r2.At(300).Az; Look(Go(p5, lineAz, 200), 1);
+        var rel = Go(p5, lineAz, 780) - Element.Right(az2) * (5.1 * k);
+        w.View.SimDrag(S(p5), S(rel));
+        var z5 = d.P.Turnouts.FirstOrDefault(x => x.Number == "5");
+        var br5 = z5 != null ? d.P.Tracks.First(x => x.Id == z5.Branch) : null;
+        var typ = Katalog.Find("Rz 60E1-190-1:9");
+        Ok(z5 != null && z5.Single && z5.Side == -1 && br5.Vertices.Count == 4 && Math.Abs(z5.BranchLen - 5 / Math.Sin(typ.Alpha)) < 1e-6, $"rozjazd 5: tor odgałęźny z 4 wierzchołkami, skos {M(z5?.BranchLen ?? 0)} m (5 m / sin α)");
+        var rb5 = w.View.Geometry(br5); var g5 = Rozjazdy.Geometry(d.P, z5);
+        Ok(rb5.Ok && Continuity(rb5).Pos < 1e-6 && Continuity(rb5).Az < 1e-9 && Rozjazdy.Check(d.P, z5).Count == 0, "tor odgałęźny ciągły i styczny, bez uwag (łuk zwrotny za KR)");
+        var last = rb5.Elements[^1];
+        Ok(Math.Abs(Math.IEEERemainder(last.Az0 - az2, Math.PI)) < 1e-9 && Math.Abs(r2.Nearest(br5.Vertices[^1].P).Dist / k - 5) < 0.001, "koniec toru odgałęźnego równoległy do toru 2 w odstępie 5,000 m");
+        double Skew(UtTurnout z) { var g = Rozjazdy.Geometry(d.P, z); var br = d.P.Tracks.First(x => x.Id == z.Branch); return Ang(Trasa.Az(g.SR, br.Vertices[2].P) - g.Az); }
+        Ok(Math.Abs(Skew(z5) - z5.Side * typ.Alpha) < 1e-9, $"skos odgałęzienia = kąt rozjazdu 1:9 ({typ.Alpha * 180 / Math.PI:0.###}°)");
+        w.View.Select(br5.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "3");
+
+        // --- przesunięcie rozjazdu 5 o 15 m: odgałęzienie jedzie razem, skos się nie zmienia
+        w.SetTool(UtTool.Wskaz); w.View.SelectTurnout(z5.Id); Look(g5.PR, 0.25);
+        double bl = z5.BranchLen; var endBefore = br5.Vertices[^1].P;
+        w.View.SimDrag(S(g5.PR), S(g5.PR) + (S(Go(g5.PR, lineAz, 15)) - S(g5.PR)));
+        z5 = d.P.Turnouts.First(x => x.Number == "5"); br5 = d.P.Tracks.First(x => x.Id == z5.Branch);
+        Ok(Math.Abs(z5.S - 315) < 0.3 && Math.Abs(Skew(z5) - z5.Side * typ.Alpha) < 1e-9 && z5.BranchLen == bl && XY.Dist(br5.Vertices[^1].P, endBefore) < 1e-9,
+            $"rozjazd 5 przesunięty (km {M(z5.S)}): skos dalej 1:9, długość skosu ta sama, koniec toru na miejscu");
+        w.DoUndo();
+        // --- wierzchołek na skosie: przeciągnięcie w bok – zostaje na skosie, zmienia się długość skosu
+        z5 = d.P.Turnouts.First(x => x.Number == "5"); br5 = d.P.Tracks.First(x => x.Id == z5.Branch);
+        w.View.Select(br5.Id); var v2 = br5.Vertices[2].P; Look(v2, 0.25);
+        w.View.SimDrag(S(v2), S(v2) + new Vector(-120, 35));
+        var z5b = d.P.Turnouts.First(x => x.Number == "5");
+        Ok(z5b.BranchLen < bl - 1 && z5b.BranchLen >= typ.B && Math.Abs(Skew(z5b) - z5b.Side * typ.Alpha) < 1e-9 && d.UndoName == "Długość skosu za rozjazdem",
+            $"wierzchołek na skosie przeciągnięty w bok: zostaje na prostej skosu (skos {M(z5b.BranchLen)} m)");
+        w.DoUndo();
+        w.View.Select(br5.Id, 2); KeyPress(w, Key.Delete);
+        Ok(d.P.Tracks.First(x => x.Id == br5.Id).Vertices.Count == 4 && w.LastMessage.Contains("skosie"), "Del wierzchołka na skosie – odmowa z komunikatem");
+        // stary plik: wierzchołek odgałęzienia poza skosem i bez długości skosu → przy odczycie na skos
+        var old = UtDocument.Deserialize(UtDocument.Serialize(d.P));
+        var oz = old.Turnouts.First(x => x.Number == "5"); oz.BranchLen = 0;
+        var ob = old.Tracks.First(x => x.Id == oz.Branch); ob.Vertices[2].X += 3; ob.Vertices[2].Y -= 2;
+        var of = Path.Combine(dir, "stary.ut.json"); File.WriteAllText(of, UtDocument.Serialize(old));
+        var ol = UtDocument.Load(of); var oz2 = ol.P.Turnouts.First(x => x.Number == "5");
+        var og = Rozjazdy.Geometry(ol.P, oz2); var obr = ol.P.Tracks.First(x => x.Id == oz2.Branch);
+        Ok(oz2.BranchLen > typ.B && Math.Abs(Ang(Trasa.Az(og.SR, obr.Vertices[2].P) - og.Az) - oz2.Side * typ.Alpha) < 1e-9, "stary plik: wierzchołek odgałęzienia rzutowany na skos rozjazdu");
+
+        // --- rozjazd 6 na końcu toru 3: łącznik toru 2 z torem 3 (oba równoległe)
+        w.SetTool(UtTool.Rozjazd);
+        r2 = w.View.Geometry(t2); var r3 = w.View.Geometry(d.P.Tracks.First(x => x.Id == br5.Id));
+        var p6 = r2.At(1100).P; Look(Go(p6, lineAz, -40), 0.5);
+        w.View.SimDrag(S(p6), S(r3.At(r3.Nearest(Go(p6, lineAz, -60)).S).P));
+        Ok(d.P.Turnouts.Count(x => x.Number is "6" or "7") == 2, "łącznik 6/7 z toru 2 na tor odgałęźny 3");
+
+        // --- rozjazd 8 na torze 1 w prawo: bocznica 4 równoległa w odstępie 6 m
+        r1 = w.View.Geometry(t1);
+        var p8 = r1.At(200).P; double az1 = r1.At(200).Az; Look(Go(p8, lineAz, 150), 1);
+        w.View.SimDrag(S(p8), S(Go(p8, lineAz, 560) + Element.Right(az1) * (6.1 * k)));
+        var z8 = d.P.Turnouts.FirstOrDefault(x => x.Number == "8");
+        var br8 = z8 != null ? d.P.Tracks.First(x => x.Id == z8.Branch) : null;
+        Ok(z8 != null && z8.Side == 1 && Math.Abs(r1.Nearest(br8.Vertices[^1].P).Dist / k - 6) < 0.001, "rozjazd 8: bocznica równoległa 6 m po prawej toru 1");
+        if (br8 != null) { w.SetTool(UtTool.Wskaz); w.View.Select(br8.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "4"); }
+        w.SetTool(UtTool.Wskaz);
+        w.View.SelectTurnout(d.P.Turnouts.First(x => x.Number == "2").Id);
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 2 && (c.Items[0] as string)?.StartsWith("+") == true).SelectedIndex = 1;
+
+        // --- Teren ↔ Schemat, oś wg toru, obrót 180°, zapis
+        Click(w.TerenBtn);
+        Ok(!w.View.Schemat && Math.Abs(w.View.AxisAz - Math.PI / 2) < 1e-12 && w.View.Stretch == 1, "przełączenie na Teren: północ u góry, 1:1");
+        Click(w.SchematBtn);
+        Click(Find<Button>(Toolbar(w), x => x.Content as string == "↻ 180°"));
+        Ok(Math.Abs(Ang(w.View.AxisAz - ax - Math.PI)) < 1e-6 && d.P.AxisAz != null, "↻ 180°: schemat obrócony, oś zapisana w projekcie");
+        w.DoUndo();
+        Ok(d.P.AxisAz == null && Math.Abs(Ang(w.View.AxisAz - ax)) < 1e-6, "Ctrl+Z – oś wraca do automatycznej");
+        Ok(w.SaveDoc(false), "zapis stacji");
+        var re = UtDocument.Load(d.Path);
+        Ok(UtDocument.Serialize(re.P) == UtDocument.Serialize(d.P) && re.P.View.Schemat && re.P.View.Stretch == 4, "odczyt: identyczny, widok Schemat zapamiętany");
+
+        // zrzut zbliżenia: łącznik 1/2 i rozjazd 5
+        w.View.Select(null);
+        if (shotRails != null)
+        {
+            w.View.FitPoints(new[] { r1.At(260).P, r1.At(520).P, r2.At(260).P, r2.At(520).P });
+            await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_schemat_blisko.png"));
+        }
+        // zrzut: cała stacja w schemacie
+        w.View.Select(null);
+        w.View.FitPoints(d.P.Tracks.SelectMany(t => w.View.Geometry(t).Sample(5).Select(q => q.P)).ToList());
+        await Task.CompletedTask;
+    }
+
+    static ToolBar Toolbar(MainWindow w) => Find<ToolBar>((DependencyObject)w.Content, _ => true);
+}

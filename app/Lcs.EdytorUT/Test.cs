@@ -52,10 +52,12 @@ public static partial class Test
         {
             try
             {
+                w.SetSchemat(false);       // etapy 1–4 sprawdzają widok terenu (północ u góry)
                 log.AppendLine("== etap 1: szkielet"); Run(w);
                 log.AppendLine("== etap 2: podkłady"); await RunBg(w);
                 log.AppendLine("== etap 3: tory"); await RunTory(w);
                 log.AppendLine("== etap 4: rozjazdy"); await RunRozjazdy(w);
+                log.AppendLine("== widok schematu (poprawka po etapie 4)"); await RunSchemat(w);
                 if (shot != null) { await Settle(w); Save(w, shot); }
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
@@ -93,7 +95,7 @@ public static partial class Test
         using var f = File.Create(path); enc.Save(f);
     }
 
-    static void Click(Button b) => b.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+    static void Click(ButtonBase b) => b.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
     static void Type(TextBox t, string text) { t.Focus(); t.Text = text; t.RaiseEvent(new RoutedEventArgs(UIElement.LostFocusEvent)); }
 
     static void Run(MainWindow w)

@@ -83,7 +83,7 @@ public static partial class Test
         var ps = r2.At(600).P; Look(Go(ps, lineAz, 20));
         double pAz = r2.At(600).Az;
         // strona przeciwna do toru 1: tor 2 jest po lewej toru 1 → na lewo od toru 2
-        var outward = ps + Element.Dir(pAz) * (25 * k) - Element.Right(pAz) * (6 * k);
+        var outward = ps + Element.Dir(pAz) * (25 * k) - Element.Right(pAz) * (1.5 * k);   // blisko toru – samo odgałęzienie do KR
         w.View.SimDrag(S(ps), S(outward));
         var z5 = d.P.Turnouts.FirstOrDefault(x => x.Number == "5");
         Ok(z5 != null && z5.Track == t2.Id && z5.Side == -1 && z5.Partner == null && Rozjazdy.Check(d.P, z5).Count == 0, $"{tag}rozjazd 5 na torze 2, lewy (na zewnątrz), bez uwag");
@@ -159,6 +159,7 @@ public static partial class Test
                 double e1 = sl.Max(s => Math.Min(r1.Nearest(s[0], 0.05).Dist, rt3.Nearest(s[0], 0.05).Dist) + Math.Min(r1.Nearest(s[^1], 0.05).Dist, rt3.Nearest(s[^1], 0.05).Dist));
                 Ok(e1 < 0.002, $"łuki przejazdów zaczynają i kończą się na osiach torów (odchyłka {e1 * 1000:0.0} mm)");
             }
+            if (shotRails != null) { w.SetTool(UtTool.Wskaz); w.View.Select(null); Look(x0, 0.12); Save(w, shotRails.Replace("_szyny.png", "_krzyzowy.png")); w.SetSchemat(true); Look(x0, 0.3); Save(w, shotRails.Replace("_szyny.png", "_krzyzowy_schemat.png")); w.SetSchemat(false); w.SetTool(UtTool.Rozjazd); }
             var x2 = Rozjazdy.Intersect(r2, w.View.Geometry(t3), x0) is var (s2a, _, _) ? r2.At(s2a).P : default;
             w.RzTypeBox.SelectedItem = "St 60E1-1:9";
             w.View.SimClick(S(x2));

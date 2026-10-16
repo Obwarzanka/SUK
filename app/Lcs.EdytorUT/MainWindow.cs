@@ -20,13 +20,18 @@ public partial class MainWindow : Window
     /// <summary>Bez okien dialogowych (testy).</summary>
     public bool NoPrompt;
 
-    public readonly TextBox GoToBox = new() { Width = 230, Margin = new Thickness(4, 0, 2, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Współrzędne z Google Maps (szerokość, długość – np. 51.7631, 19.5438) albo X Y w PUWG 1992 (najpierw X – północ). Enter – idź." };
+    public readonly TextBox GoToBox = new() { Width = 170, Margin = new Thickness(4, 0, 2, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Współrzędne z Google Maps (szerokość, długość – np. 51.7631, 19.5438) albo X Y w PUWG 1992 (najpierw X – północ). Enter – idź." };
     public readonly Button GoToBtn = new() { Content = "Idź do" };
     public readonly TextBox NameBox = new() { Margin = new Thickness(0, 2, 0, 8) };
     public readonly TextBox NotesBox = new() { Margin = new Thickness(0, 2, 0, 8), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     public readonly ComboBox ScaleBox = new() { Margin = new Thickness(0, 2, 0, 8) };
     public readonly Button UndoBtn = new() { Content = "↶ Cofnij" }, RedoBtn = new() { Content = "↷ Ponów" };
     readonly CheckBox gridBox = new() { Content = "Siatka", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+    public readonly ToggleButton SchematBtn = new() { Content = "Schemat", Padding = new Thickness(6, 2, 6, 2), ToolTip = "Widok schematu: oś stacji poziomo, w poprzek rozciągnięte, białe tło – jak plan schematyczny (S)" };
+    public readonly ToggleButton TerenBtn = new() { Content = "Teren", Padding = new Thickness(6, 2, 6, 2), ToolTip = "Widok terenu: północ u góry, 1:1, ortofotomapa – do odrysowania (S)" };
+    public readonly ComboBox StretchBox = new() { Width = 52, ToolTip = "Rozciągnięcie w poprzek osi w widoku Schemat" };
+    public readonly CheckBox BgBox = new() { Content = "Podkład", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), ToolTip = "Podkład (ortofotomapa, grafiki) także w widoku Schemat" };
+    static readonly double[] Stretches = { 1, 2, 4, 6 };
     readonly TextBlock stCursor = new() { FontFamily = new FontFamily("Consolas"), MinWidth = 520 }, stView = new() { MinWidth = 230 }, stMsg = new();
     bool refreshing;
 
@@ -83,6 +88,22 @@ public partial class MainWindow : Window
         GoToBtn.Click += (s, e) => GoTo(GoToBox.Text);
         tb.Items.Add(GoToBox); tb.Items.Add(GoToBtn);
         tb.Items.Add(new Separator());
+        SchematBtn.Click += (s, e) => SetSchemat(true); TerenBtn.Click += (s, e) => SetSchemat(false);
+        tb.Items.Add(SchematBtn); tb.Items.Add(TerenBtn);
+        foreach (var k in Stretches) StretchBox.Items.Add($"×{k:0}");
+        StretchBox.SelectionChanged += (s, e) => { if (!refreshing && StretchBox.SelectedIndex >= 0) { Doc.P.View.Stretch = Stretches[StretchBox.SelectedIndex]; ApplyMode(false); } };
+        tb.Items.Add(StretchBox);
+        tb.Items.Add(Btn("Oś wg toru", (s, e) => AxisFromTrack(), "Oś schematu (poziomo) wzdłuż zaznaczonego toru; bez zaznaczenia – wzdłuż najdłuższego toru"));
+        tb.Items.Add(Btn("↻ 180°", (s, e) => Doc.Change("Oś schematu", p => p.AxisAz = (View.AxisAz * 180 / Math.PI + 180) % 360), "Obróć schemat o 180°"));
+        BgBox.Click += (s, e) => { Doc.P.View.ShowBg = BgBox.IsChecked == true; ApplyMode(false); };
+        tb.Items.Add(BgBox);
+        tb.Items.Add(gridBox);
+        // drugi rząd: narzędzia rysowania
+        var bg = new SolidColorBrush(Color.FromRgb(0xe6, 0xe6, 0xe2));
+        var tray = new ToolBarTray { Background = bg, IsLocked = true };
+        tray.ToolBars.Add(tb);
+        tb = new ToolBar { Background = bg, Band = 1 };
+        tray.ToolBars.Add(tb);
         tb.Items.Add(ToolBtn(UtTool.Wskaz, "✋ Wskaż", "Przesuwanie widoku (V, Esc)"));
         tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
         tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
@@ -93,9 +114,7 @@ public partial class MainWindow : Window
         tb.Items.Add(Btn("Symbole Ig-10…", (s, e) => OpenSymbols(), "Katalog znaków Ig-10 (zał. 8) z pliku Dane/symbole_ig10.json – podgląd, ponowne wczytanie po poprawkach"));
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Miarka, "📏 Miarka", "Pomiar długości w terenie: klik – kolejne punkty, Backspace – cofnij punkt, PPM – wyczyść (M)"));
-        tb.Items.Add(new Separator());
-        tb.Items.Add(gridBox);
-        return tb;
+        return tray;
     }
 
     readonly Dictionary<UtTool, ToggleButton> toolBtns = new();
@@ -108,6 +127,8 @@ public partial class MainWindow : Window
     public void SetTool(UtTool t)
     {
         if (t != UtTool.Kalibracja) View.CalPending = null;
+        // narzędzia podkładów działają na zdjęciu północą do góry – przełączenie na Teren
+        if (t is UtTool.Obszar or UtTool.Kalibracja or UtTool.Przesun && View.Schemat) SetSchemat(false);
         View.Tool = t;
     }
     void ToolShown()
@@ -135,9 +156,10 @@ public partial class MainWindow : Window
 
     UIElement BuildPanel()
     {
-        var sp = new StackPanel { Margin = new Thickness(10) };
-        sp.Children.Add(TrackPanel);
-        sp.Children.Add(Header("Obszar"));
+        var root = new StackPanel { Margin = new Thickness(10) };
+        root.Children.Add(TrackPanel);
+        var sp = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        root.Children.Add(new Expander { Header = Header("Obszar"), Content = sp, IsExpanded = false, Margin = new Thickness(0, 0, 0, 6) });
         sp.Children.Add(Label("Nazwa"));
         NameBox.LostFocus += (s, e) => CommitName();
         NameBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) { CommitName(); e.Handled = true; } };
@@ -157,12 +179,52 @@ public partial class MainWindow : Window
         sp.Children.Add(Label("Uwagi"));
         NotesBox.LostFocus += (s, e) => { if (!refreshing && NotesBox.Text != Doc.P.Notes) Doc.Change("Uwagi", p => p.Notes = NotesBox.Text); };
         sp.Children.Add(NotesBox);
-        BuildBgPanel(sp);
+        var bgp = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        BuildBgPanel(bgp);
+        bgp.Children.RemoveAt(0); bgp.Children.RemoveAt(0);    // separator i nagłówek – nagłówkiem jest rozwijany pasek
+        BgExpander = new Expander { Header = Header("Podkłady"), Content = bgp, IsExpanded = false };
+        root.Children.Add(BgExpander);
         return new Border
         {
-            Width = 330, Child = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            Width = 330, Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xc8, 0xc8, 0xc2)), BorderThickness = new Thickness(1, 0, 0, 0),
         };
+    }
+
+    public Expander BgExpander { get; private set; }
+
+    // ------------------------------------------------------------------ widok Schemat / Teren
+    /// <summary>Przełączenie widoku; przy wejściu w Schemat oś liczona na nowo (wpisana albo wg najdłuższego toru).</summary>
+    public void SetSchemat(bool on) { Doc.P.View.Schemat = on; ApplyMode(true); }
+
+    double appliedAxis = double.NaN; double? appliedExplicit;
+    /// <summary>Widok wg ustawień projektu. Oś automatyczna liczy się tylko przy przełączeniu (rysowanie toru nie obraca widoku).</summary>
+    void ApplyMode(bool recomputeAxis)
+    {
+        var v = Doc.P.View;
+        if (recomputeAxis || double.IsNaN(appliedAxis) || Doc.P.AxisAz != appliedExplicit) { appliedAxis = Doc.P.SchematAz(); appliedExplicit = Doc.P.AxisAz; }
+        View.SchematBg = v.ShowBg;
+        View.SetMode(v.Schemat, appliedAxis, v.Stretch);
+        refreshing = true;
+        try
+        {
+            SchematBtn.IsChecked = v.Schemat; TerenBtn.IsChecked = !v.Schemat;
+            StretchBox.SelectedIndex = Math.Max(0, Array.IndexOf(Stretches, v.Stretch)); StretchBox.IsEnabled = v.Schemat;
+            BgBox.IsChecked = v.ShowBg; BgBox.IsEnabled = v.Schemat;
+            gridBox.IsEnabled = !v.Schemat;
+        }
+        finally { refreshing = false; }
+        ShowView();
+    }
+
+    /// <summary>Oś schematu wzdłuż zaznaczonego toru (cięciwa, zwrócona na wschód) albo najdłuższego.</summary>
+    public void AxisFromTrack()
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == View.SelectedTrack);
+        double? az = t != null && t.Vertices.Count >= 2 ? UtProject.EastFacing(Trasa.Az(t.Vertices[0].P, t.Vertices[^1].P)) * 180 / Math.PI : null;
+        Doc.Change("Oś schematu", p => p.AxisAz = az);
+        if (!View.Schemat) SetSchemat(true); else ApplyMode(true);
+        Message(t != null ? $"Oś schematu wzdłuż toru {t.Number} (azymut {az:0.###}°)" : "Oś schematu wzdłuż najdłuższego toru");
     }
 
     static TextBlock Header(string t) => new() { Text = t, FontWeight = FontWeights.SemiBold, FontSize = 15, Margin = new Thickness(0, 0, 0, 8) };
@@ -187,6 +249,8 @@ public partial class MainWindow : Window
         Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null; View.Select(null);
         d.Changed += Refresh;
         var v = d.P.View;
+        appliedAxis = double.NaN;
+        ApplyMode(true);
         View.SetView(new XY(v.X, v.Y), v.Mpp);
         Refresh();
     }
@@ -208,6 +272,7 @@ public partial class MainWindow : Window
         RedoBtn.IsEnabled = Doc.RedoName != null; RedoBtn.ToolTip = Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
         RefreshBg();
         RefreshTrackPanel();
+        if (Doc.P.AxisAz != appliedExplicit) ApplyMode(false);
         View.InvalidateVisual();
     }
 
@@ -238,7 +303,8 @@ public partial class MainWindow : Window
         if (!ConfirmDiscard()) return;
         var d = new UtDocument();
         // nowy projekt w miejscu bieżącego widoku – zwykle obok poprzedniego obszaru
-        d.P.View = new UtViewState { X = View.Center.X, Y = View.Center.Y, Mpp = View.Mpp };
+        var ov = Doc.P.View;
+        d.P.View = new UtViewState { X = View.Center.X, Y = View.Center.Y, Mpp = View.Mpp, Schemat = ov.Schemat, Stretch = ov.Stretch, ShowBg = ov.ShowBg };
         SetDoc(d); Message("Nowy projekt");
     }
 
@@ -307,7 +373,9 @@ public partial class MainWindow : Window
     {
         // 96 px na cal – skala obrazu na typowym monitorze
         double screen = View.Mpp / (0.0254 / 96);
-        stView.Text = $"1 px = {UtView.Len(View.Mpp)}   ·   ekran ok. 1:{Geo.M(UtView.Nice(screen), 0)}";
+        stView.Text = View.Schemat && View.Stretch > 1
+            ? $"schemat: wzdłuż ok. 1:{Geo.M(UtView.Nice(screen), 0)}, w poprzek ok. 1:{Geo.M(UtView.Nice(screen / View.Stretch), 0)}"
+            : $"1 px = {UtView.Len(View.Mpp)}   ·   ekran ok. 1:{Geo.M(UtView.Nice(screen), 0)}";
     }
 
     public void Message(string m) { stMsg.Text = m; MessageShown?.Invoke(m); }
@@ -334,6 +402,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.R) { SetTool(UtTool.Rozjazd); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && View.Tool == UtTool.Wskaz && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.S) { SetSchemat(!View.Schemat); e.Handled = true; }
         else if (!inText && e.Key == Key.Back && View.Tool == UtTool.Miarka && View.MeasurePts.Count > 0) { View.MeasurePts.RemoveAt(View.MeasurePts.Count - 1); ShowMeasure(); View.InvalidateVisual(); e.Handled = true; }
     }
 }

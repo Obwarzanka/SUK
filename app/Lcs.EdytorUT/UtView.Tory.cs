@@ -7,7 +7,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>
-/// Tory na płótnie: rysowanie osi (szerokość wg Ig-10 przy skali rysunku, przy dużym przybliżeniu – obie szyny w rozstawie 1435 mm),
+/// Tory na płótnie: rysowanie osi (jedna linia jak w ISDR: tory główne 2 px, boczne 1,2 px, numer toru nad osią),
 /// narzędzie Tor (wielobok styczny klikami, długość z klawiatury, przedłużenie kierunku, przyciąganie), zaznaczanie,
 /// przeciąganie wierzchołków, wstawianie wierzchołka dwuklikiem.
 /// </summary>
@@ -76,7 +76,8 @@ public partial class UtView
             if (t.Id == skipTrack) continue;
             var r = Geometry(t); if (r.Elements.Count == 0) continue;
             var (sKm, dist) = r.Nearest(w);
-            if (dist / mpp < bd) { bd = dist / mpp; best = new(r.At(sKm).P, SnapKind.Tor, t.Id, -1); }
+            var q = r.At(sKm).P; double sd = (ToScreen(q) - s).Length;
+            if (sd < bd) { bd = sd; best = new(q, SnapKind.Tor, t.Id, -1); }
         }
         return best ?? new(w, SnapKind.Brak, null, -1);
     }
@@ -219,7 +220,7 @@ public partial class UtView
             {
                 // dwuklik na osi toru (na łuku) – wierzchołek na boku, którego łuk dotyczy
                 var r = Geometry(t); var (sKm, dist) = r.Nearest(w);
-                if (dist / mpp > HitPx) return false;
+                if ((ToScreen(r.At(sKm).P) - p).Length > HitPx) return false;
                 double acc = 0; Element el = r.Elements[0];
                 foreach (var e in r.Elements) { if (acc + e.Len >= sKm * r.K) { el = e; break; } acc += e.Len; }
                 bi = Math.Clamp(el.Vertex, 1, t.Vertices.Count - 1);
@@ -243,7 +244,7 @@ public partial class UtView
         foreach (var t in Doc.P.Tracks)
         {
             var r = Geometry(t); if (r.Elements.Count == 0) continue;
-            double d = r.Nearest(w).Dist / mpp;
+            double d = (ToScreen(r.At(r.Nearest(w).S).P) - s).Length;
             if (d < bd) { bd = d; best = t.Id; }
         }
         return best;
@@ -278,6 +279,8 @@ public partial class UtView
         if (downAt is Point d && (s - d).Length > ClickTol) vDragMoved = true;
         if (!vDragMoved) return;
         vDragTo = Snap(s, vDrag.Value.Track, vDrag.Value.Index).P;
+        // wierzchołek odgałęzienia za rozjazdem – tylko wzdłuż skosu rozjazdu
+        if (SkewTurnout(vDrag.Value.Track, vDrag.Value.Index) is UtTurnout ot && Rozjazdy.OnSkew(Doc.P, ot, vDragTo) is var (q, _)) vDragTo = q;
         InvalidateVisual();
     }
 
@@ -296,13 +299,12 @@ public partial class UtView
         TickPenT = FrozenPen(Color.FromRgb(0x20, 0x20, 0x20), 1.2), ErrPen = FrozenPen(Color.FromRgb(0xd0, 0x18, 0x18), 2.2),
         DraftPoly = Dashed(Color.FromRgb(0xe0, 0x30, 0x10), 1.2), SnapPen = FrozenPen(Color.FromRgb(0x10, 0xa0, 0x30), 2);
 
-    /// <summary>Szerokość osi [px]: Ig-10 – tory główne 0,5 mm, boczne 0,35 mm w skali rysunku; 1,5–4 px.</summary>
-    double AxisPx(UtTrack t) => Math.Clamp((t.Cat is UtTrack.MainZ or UtTrack.MainD ? 0.5 : 0.35) / 1000 * (Doc?.P.DrawingScale ?? 1000) / mpp, t.Cat == UtTrack.MainZ ? 2 : 1.5, 4);
+    /// <summary>Szerokość osi [px], stała przy każdym przybliżeniu: główny zasadniczy 2, główny dodatkowy 1,6, boczny 1,2.</summary>
+    static double AxisPx(UtTrack t) => t.Cat == UtTrack.MainZ ? 2 : t.Cat == UtTrack.MainD ? 1.6 : 1.2;
 
     void DrawTracks(DrawingContext dc, double dpi)
     {
         if (Doc == null) return;
-        bool rails = Gauge / mpp >= 8;
         foreach (var t in Doc.P.Tracks)
         {
             var src = t;
@@ -313,41 +315,63 @@ public partial class UtView
             }
             var (_, res, pts) = Cached(src);
             bool sel = t.Id == SelectedTrack;
-            DrawAxis(dc, src, res, pts, sel, rails, dpi);
+            DrawAxis(dc, src, res, pts, sel, dpi);
         }
         if (Track(SelectedTrack) is UtTrack st) DrawTrackEdit(dc, st, dpi);
         if (tool == UtTool.Tor) DrawDraft(dc, dpi);
     }
 
-    void DrawAxis(DrawingContext dc, UtTrack t, TrasaResult res, List<(XY P, double Az)> pts, bool sel, bool rails, double dpi)
+    void DrawAxis(DrawingContext dc, UtTrack t, TrasaResult res, List<(XY P, double Az)> pts, bool sel, double dpi)
     {
         if (pts.Count < 2) return;
         // poza ekranem – pomiń
         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
         foreach (var (p, _) in pts) { var s = ToScreen(p); minX = Math.Min(minX, s.X); maxX = Math.Max(maxX, s.X); minY = Math.Min(minY, s.Y); maxY = Math.Max(maxY, s.Y); }
         if (maxX < -20 || minX > ActualWidth + 20 || maxY < -20 || minY > ActualHeight + 20) return;
-        var ink = t.Elec ? TrackElec : TrackInk;
+        var ink = TrackInk;
         double wpx = AxisPx(t);
         if (sel) dc.DrawGeometry(null, new Pen(SelGlow, wpx + 7) { LineJoin = PenLineJoin.Round }, Line(pts, 0));
-        if (rails)
-        {
-            double off = (Gauge + RailHead) / 2 * res.K, rw = Math.Max(1, RailHead * res.K / mpp);
-            var rp = new Pen(ink, rw) { LineJoin = PenLineJoin.Round };
-            dc.DrawGeometry(null, rp, Line(pts, off)); dc.DrawGeometry(null, rp, Line(pts, -off));
-            dc.DrawGeometry(null, new Pen(ink, 1) { DashStyle = new DashStyle(new double[] { 8, 4, 2, 4 }, 0) }, Line(pts, 0));
-        }
-        else dc.DrawGeometry(null, new Pen(ink, wpx) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, Line(pts, 0));
+        dc.DrawGeometry(null, new Pen(ink, wpx) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, Line(pts, 0));
         // błędy geometrii – czerwone kółko w wierzchołku
         foreach (var (v, _, err) in res.Notes) if (err && v < t.Vertices.Count) dc.DrawEllipse(null, ErrPen, ToScreen(t.Vertices[v].P), 9, 9);
-        // numer toru
+        // numer toru: kropka i numer nad osią (jak w ISDR), w środku widocznej części toru
         if (t.Number.Length > 0 && res.Elements.Count > 0)
         {
-            var (mp, az) = res.At(res.Length / 2);
-            var s = ToScreen(mp + Element.Right(az) * (14 * mpp));
-            var ft = new FormattedText(t.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(UiFont.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 13, ink, dpi);
-            dc.DrawRoundedRectangle(Halo, null, new Rect(s.X - ft.Width / 2 - 3, s.Y - ft.Height / 2, ft.Width + 6, ft.Height), 3, 3);
-            dc.DrawText(ft, new Point(s.X - ft.Width / 2, s.Y - ft.Height / 2));
+            // z dala od rozjazdów (do 80 px), przy równych – najbliżej środka widocznej części
+            double len = res.Length, bestS = -1, lo = double.MaxValue, hi = double.MinValue;
+            var cand = new List<(double S, Point P)>();
+            for (int i = 0; i <= 60; i++)
+            {
+                double sk = len * i / 60; var q = ToScreen(res.At(sk).P);
+                if (q.X > 30 && q.X < ActualWidth - 30 && q.Y > 20 && q.Y < ActualHeight - 20) { lo = Math.Min(lo, sk); hi = Math.Max(hi, sk); cand.Add((sk, q)); }
+            }
+            var marks = TurnoutMarks();
+            double bestScore = double.MinValue;
+            foreach (var (sk, q) in cand)
+            {
+                double free = 80; foreach (var m in marks) free = Math.Min(free, (m - q).Length);
+                double score = free - Math.Abs(sk - (lo + hi) / 2) / Math.Max(1e-9, hi - lo) * 10;
+                if (score > bestScore) { bestScore = score; bestS = sk; }
+            }
+            if (bestS >= 0)
+            {
+                var (mp, az) = res.At(bestS);
+                var ps = ToScreen(mp); var d = ScreenDir(az); var n = new Vector(d.Y, -d.X); if (n.Y > 0) n = -n;   // normalna w górę ekranu
+                var ft = new FormattedText(t.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFont, 12, ink, dpi);
+                var c = ps + n * 10;
+                dc.DrawEllipse(ink, null, new Point(c.X - ft.Width / 2 - 5, c.Y), 2.2, 2.2);
+                dc.DrawText(ft, new Point(c.X - ft.Width / 2 + 1, c.Y - ft.Height / 2));
+            }
         }
+    }
+
+    /// <summary>Punkty rozjazdów i skrzyżowań na ekranie (PR, ŚR, KR) – numery torów stają z dala od nich.</summary>
+    List<Point> TurnoutMarks()
+    {
+        var res = new List<Point>();
+        foreach (var t in Doc.P.Turnouts) if (Rozjazdy.Geometry(Doc.P, t) is TurnoutGeo g) { res.Add(ToScreen(g.PR)); res.Add(ToScreen(g.SR)); res.Add(ToScreen(g.KRMain)); }
+        foreach (var c in Doc.P.Crossings) if (Rozjazdy.CrossGeo(Doc.P, c) is var (p, _, _, _)) res.Add(ToScreen(p));
+        return res;
     }
 
     /// <summary>Łamana osi przesunięta o d [m w układzie] w prawo (− w lewo) – na ekranie.</summary>
@@ -381,8 +405,8 @@ public partial class UtView
         foreach (var e in res.Elements.Where(e => e.Kind != ElKind.Prosta))
             foreach (var (p, az) in new[] { e.At(0), e.At(e.Len) })
             {
-                var n = Element.Right(az) * (6 * mpp);
-                dc.DrawLine(TickPenT, ToScreen(p - n), ToScreen(p + n));
+                var sp = ToScreen(p); var d = ScreenDir(az); var n = new Vector(-d.Y, d.X) * 6;
+                dc.DrawLine(TickPenT, sp - n, sp + n);
             }
         for (int i = 0; i < v.Count; i++)
         {

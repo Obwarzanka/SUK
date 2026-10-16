@@ -22,7 +22,16 @@ public partial class MainWindow
     void InitTory()
     {
         View.TrackDrawn += OnTrackDrawn;
-        View.VertexMoved += (id, i, p) => ChTrack(id, "Przesunięcie wierzchołka", t => { t.Vertices[i].X = p.X; t.Vertices[i].Y = p.Y; });
+        View.VertexMoved += (id, i, p) =>
+        {
+            // wierzchołek na skosie rozjazdu: zmienia się długość prostej skosu (rozjazd ustawia wierzchołek w Sync)
+            if (View.SkewTurnout(id, i) is UtTurnout rz && Rozjazdy.OnSkew(Doc.P, rz, p) is var (_, len))
+            {
+                Doc.Change("Długość skosu za rozjazdem", d => { var x = d.Turnouts.First(q => q.Id == rz.Id); x.BranchLen = Math.Round(len, 3); });
+                Message($"Skos za rozjazdem {rz.Number}: {F(len)} m od środka rozjazdu (kąt 1:{F(Katalog.Find(rz.Type)?.N ?? 0)} zachowany)");
+            }
+            else ChTrack(id, "Przesunięcie wierzchołka", t => { t.Vertices[i].X = p.X; t.Vertices[i].Y = p.Y; });
+        };
         View.VertexInserted += (id, i, p) =>
         {
             ChTrack(id, "Nowy wierzchołek", t => t.Vertices.Insert(i, new UtVertex { X = p.X, Y = p.Y, R = View.NewR, L = View.NewL }));
@@ -74,6 +83,7 @@ public partial class MainWindow
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
         if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }
+        if (i >= 0 && View.SkewTurnout(id, i) != null) { Message("Ten wierzchołek leży na skosie rozjazdu – można go tylko przesuwać wzdłuż skosu"); return true; }
         if (Doc.P.Turnouts.Any(r => r.Branch == id) && (i < 0 || t.Vertices.Count <= 3)) { Message("To odgałęzienie rozjazdu – usuń rozjazd (zaznacz go i Del)"); return true; }
         if (i >= 0 && t.Vertices.Count > 2) { ChTrack(id, "Usunięcie wierzchołka", x => x.Vertices.RemoveAt(i)); View.Select(id); Message($"Usunięty wierzchołek W{i + 1}"); }
         else { Doc.Change("Usunięcie toru", p => p.Tracks.RemoveAll(x => x.Id == id)); View.Select(null); Message("Tor usunięty (Ctrl+Z przywraca)"); }
@@ -215,7 +225,6 @@ public partial class MainWindow
 
     void FitTrack(UtTrack t)
     {
-        var pts = t.Vertices.Select(v => v.P).ToList(); if (pts.Count == 0) return;
-        View.FitWorld(new XY(pts.Min(p => p.X), pts.Min(p => p.Y)), new XY(pts.Max(p => p.X), pts.Max(p => p.Y)));
+        View.FitPoints(View.Geometry(t).Sample(1).Select(q => q.P).ToList());
     }
 }

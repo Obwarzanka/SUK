@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Następny: etap 5 – urządzenia ze znakami z bazy.
+**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobiona poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy). Następny: etap 5 – urządzenia ze znakami z bazy.
 
 ---
 
@@ -72,6 +72,20 @@ Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, 
    - Prędkość na zwrot: v = 3,6·√(0,65·R) [km/h]. Wychodzi R190 ≈ 40, R300 ≈ 50, R500 ≈ 65, R760 ≈ 80, R1200 ≈ 100. Według tego źródła dopuszczalne: 190 / 300 → 40, 500 → 60, 760 → 80, 1200 → 100. Sygnały pozwalają tylko na 40 / 60 / 100, więc dla R760 semafor poda 60. W edytorze pokazuję wartość ze wzoru, a w polu `vbok` – dopuszczalną z tabeli (do potwierdzenia przez właściciela).
    - Skos 1:9 to skos zasadniczy. Skos większy niż 1:9 wolno stosować tylko w torach bocznych. Rpj / Rpd / Rk – tylko wyjątkowo, w torach bocznych. Rł – tylko gdy rozjazd musi leżeć w łuku. „Sprawdź” będzie o tym przypominać (uwaga, nie błąd).
 7. **Wysokości (Z): z NMT GUGiK, jak w poprzedniej wersji.** Stary kod (`GeoPodklad.Nmt` w `UI/EditorWindow.Podklad.cs`, usługa `GetHByPointList`; `Model/Profil.cs` – próbkowanie toru, uproszczenie do odcinków o stałym pochyleniu ‰) przenoszę do `Lcs.Model`. W PUWG 1992 nie trzeba już przeliczać współrzędnych. Uwaga ze starej wersji: NMT to teren, nie główka szyny, a na wiaduktach pokazuje dolinę, więc wysokość trzeba móc poprawić ręcznie.
+
+## 5b. Poprawka po etapie 4 – widok schematu (decyzja właściciela, 2026-10-16)
+
+Właściciel ocenił widok jako nierealny i zbyt szczegółowy. Wzór: UT w stylu ISDR (białe tło, cienkie czarne linie, układ obrócony do poziomu, rozciągnięty w poprzek, przy zwrotnicach numery, małe znaki). Model w metrach PUWG zostaje, a zmienia się tylko widok i rozjazdy:
+
+1. **Dwa widoki** (przełącznik na pasku):
+   - **Schemat** (domyślny) – oś stacji poziomo, rozciągnięcie w poprzek ×4 (jak plan schematyczny 1:2000 / 1:500), białe tło, bez siatki i linijek, podkład ukryty (pole „Podkład” – pokazuje go także w schemacie, rozciągniętego).
+   - **Teren** – północ u góry, 1:1, ortofotomapa na żywo – do odrysowania z podkładu.
+   Oba widoki to tylko przeliczenie świat ↔ ekran (obrót o azymut osi + rozciągnięcie w poprzek). Geometria i zapis się nie zmieniają; rysować można w obu.
+2. **Oś schematu:** domyślnie kierunek najdłuższego toru (cięciwa), tak żeby wschód był po prawej; przycisk „Oś wg toru” bierze kierunek zaznaczonego toru, „↻ 180°” odwraca. Zapis w projekcie (`axisAz`), z cofaniem.
+3. **Wygląd:** bez szyn przy przybliżeniu, linie 1,2 px (tory boczne) / 2 px (główne), czarne. Znaki Ig-10 w stałym przedziale wielkości (2,2–3,6 px/mm arkusza), więc nie puchną przy przybliżaniu. Napisy mają stałą wielkość. Numer toru jest małą czcionką nad osią, bez ramki.
+4. **Odgałęzienie trzyma skos rozjazdu:** wierzchołki PR i ŚR ustawia rozjazd, a trzeci wierzchołek leży zawsze na prostej skosu za ŚR (`branchLen` – odległość od ŚR, w terenie). Przesunięcie rozjazdu przenosi całe odgałęzienie, a ten wierzchołek można przeciągać tylko wzdłuż skosu. Wcześniej po przesunięciu rozjazdu albo wierzchołka kąt przestawał być 1:N.
+5. **Odgałęzienie do toru równoległego:** przy wstawianiu rozjazdu puszczenie myszy obok toru (nie na torze) buduje od razu tor odgałęźny: skos rozjazdu, łuk zwrotny R (pole R na pasku) i prosta równoległa w odstępie zaokrąglonym do 0,5 m (od 4,5 m). Krótkie przeciągnięcie daje samo odgałęzienie do KR, jak dotąd. Puszczenie na torze sąsiednim tworzy łącznik, bez zmian.
+6. **Panel:** sekcje „Obszar” i „Podkłady” są zwinięte, a na wierzchu jest panel zaznaczonego obiektu.
 
 ## 6. Pytania do właściciela
 

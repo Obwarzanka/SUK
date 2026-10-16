@@ -11,7 +11,8 @@ namespace Lcs.EdytorUT;
 public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd }
 
 /// <summary>
-/// Płótno edytora UT w metrach PUWG 1992. Północ (X) do góry, wschód (Y) w prawo.
+/// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
+/// (azymut <see cref="AxisAz"/>) poziomo w prawo, w poprzek rozciągnięte <see cref="Stretch"/> razy – jak plan schematyczny (ISDR, Ig-10 1:2000 / 1:500).
 /// Rysowanie w pikselach ekranu – przeliczenie świat → ekran w double (współrzędne rzędu 10⁵ m nie tracą dokładności w WPF).
 /// Mysz: kółko – przybliżenie wokół kursora; przeciąganie LPM (we Wskaż i po przesunięciu o kilka px w innych narzędziach),
 /// środkowym przyciskiem albo Spacja + LPM – przesuwanie widoku.
@@ -29,6 +30,16 @@ public partial class UtView : FrameworkElement
     XY center = new(470000, 500000);
     double mpp = 1000;
     public XY Center => center;
+    double az = Math.PI / 2, stretch = 1, cosA = 0, sinA = 1;
+    /// <summary>Azymut kierunku biegnącego na ekranie w prawo [rad] (Teren – π/2, wschód).</summary>
+    public double AxisAz => az;
+    /// <summary>Rozciągnięcie w poprzek osi (Teren – 1).</summary>
+    public double Stretch => stretch;
+    /// <summary>Widok Schemat (obrót do poziomu, rozciągnięcie, białe tło bez siatki i linijek).</summary>
+    public bool Schemat { get; private set; }
+    /// <summary>Widok Schemat: podkłady widoczne (domyślnie ukryte).</summary>
+    public bool SchematBg;
+    bool BgOn => !Schemat || SchematBg;
     /// <summary>Metry na piksel ekranu.</summary>
     public double Mpp => mpp;
     public bool ShowGrid = true;
@@ -87,7 +98,7 @@ public partial class UtView : FrameworkElement
     {
         ClipToBounds = true; Focusable = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
-        Live = new LivePreview(() => (ToWorld(new Point(0, 0)), mpp, (int)ActualWidth, (int)ActualHeight));
+        Live = new LivePreview(LiveView);
         Live.Changed += InvalidateVisual;
         Cache.Loaded += InvalidateVisual;
         MouseWheel += (s, e) => { ZoomAt(e.GetPosition(this), e.Delta > 0 ? 1 / 1.2 : 1.2); e.Handled = true; };
@@ -101,27 +112,66 @@ public partial class UtView : FrameworkElement
     // ------------------------------------------------------------------ przeliczenia
     double Cx => ActualWidth / 2;
     double Cy => ActualHeight / 2;
-    public Point ToScreen(XY p) => new(Cx + (p.Y - center.Y) / mpp, Cy - (p.X - center.X) / mpp);
-    public XY ToWorld(Point s) => new(center.X - (s.Y - Cy) * mpp, center.Y + (s.X - Cx) * mpp);
+    // świat → ekran: u – wzdłuż osi (w prawo), v – w prawo od osi (na ekranie w dół), v rozciągnięte
+    public Point ToScreen(XY p)
+    {
+        double dx = p.X - center.X, dy = p.Y - center.Y;
+        return new(Cx + (dx * cosA + dy * sinA) / mpp, Cy + (-dx * sinA + dy * cosA) * stretch / mpp);
+    }
+    public XY ToWorld(Point s) => WorldAt(s, center, mpp);
+    XY WorldAt(Point s, XY c, double m)
+    {
+        double u = (s.X - Cx) * m, v = (s.Y - Cy) * m / stretch;
+        return new(c.X + cosA * u - sinA * v, c.Y + sinA * u + cosA * v);
+    }
+    /// <summary>Wektor na ekranie [px] odpowiadający wektorowi w świecie [m w układzie].</summary>
+    public Vector ScreenVec(XY d) => new((d.X * cosA + d.Y * sinA) / mpp, (-d.X * sinA + d.Y * cosA) * stretch / mpp);
+    /// <summary>Jednostkowy kierunek na ekranie dla azymutu w świecie.</summary>
+    public Vector ScreenDir(double azimuth) { var v = ScreenVec(Element.Dir(azimuth)); v.Normalize(); return v; }
 
     void Moved() { InvalidateVisual(); ViewChanged?.Invoke(); Live.Schedule(); }
     public void SetView(XY c, double m) { center = c; mpp = Math.Clamp(m, MinMpp, MaxMpp); Moved(); }
+    /// <summary>Teren (schemat = false) albo Schemat z osią <paramref name="axis"/> [rad] i rozciągnięciem; punkt na środku zostaje.</summary>
+    public void SetMode(bool schemat, double axis, double str)
+    {
+        Schemat = schemat;
+        az = schemat ? axis : Math.PI / 2; stretch = schemat ? Math.Max(1, str) : 1;
+        cosA = Math.Cos(az); sinA = Math.Sin(az);
+        Moved();
+    }
     /// <summary>Przybliżenie (k &lt; 1) albo oddalenie (k &gt; 1) z punktem pod kursorem w miejscu.</summary>
     public void ZoomAt(Point s, double k)
     {
         var w = ToWorld(s);
         mpp = Math.Clamp(mpp * k, MinMpp, MaxMpp);
-        center = new XY(w.X + (s.Y - Cy) * mpp, w.Y - (s.X - Cx) * mpp);
+        var o = WorldAt(s, new XY(0, 0), mpp);
+        center = w - o;
         Moved();
     }
     /// <summary>Przesunięcie obrazu o wektor w pikselach (jak przeciągnięcie myszą).</summary>
-    public void PanBy(Vector d) { center = new XY(center.X + d.Y * mpp, center.Y - d.X * mpp); Moved(); }
+    public void PanBy(Vector d) { center = center - (ToWorld(new Point(Cx + d.X, Cy + d.Y)) - center); Moved(); }
     /// <summary>Prostokąt (dwa narożniki) w oknie z marginesem.</summary>
-    public void FitWorld(XY a, XY b)
+    public void FitWorld(XY a, XY b) => FitPoints(new[] { a, b, new XY(a.X, b.Y), new XY(b.X, a.Y) });
+    /// <summary>Punkty w oknie z marginesem (w bieżącym obrocie i rozciągnięciu).</summary>
+    public void FitPoints(IReadOnlyList<XY> pts)
     {
-        double w = Math.Max(1, ActualWidth - RulerLeft - 40), h = Math.Max(1, ActualHeight - RulerTop - 40);
-        double m = Math.Max(Math.Abs(a.Y - b.Y) / w, Math.Abs(a.X - b.X) / h);
-        SetView((a + b) * 0.5, Math.Max(m, 0.01));
+        if (pts.Count == 0) return;
+        double minU = double.MaxValue, maxU = double.MinValue, minV = double.MaxValue, maxV = double.MinValue;
+        foreach (var p in pts) { double u = p.X * cosA + p.Y * sinA, v = -p.X * sinA + p.Y * cosA; minU = Math.Min(minU, u); maxU = Math.Max(maxU, u); minV = Math.Min(minV, v); maxV = Math.Max(maxV, v); }
+        double w = Math.Max(1, ActualWidth - (Schemat ? 0 : RulerLeft) - 40), h = Math.Max(1, ActualHeight - (Schemat ? 0 : RulerTop) - 40);
+        double m = Math.Max((maxU - minU) / w, (maxV - minV) * stretch / h);
+        double cu = (minU + maxU) / 2, cv = (minV + maxV) / 2;
+        SetView(new XY(cosA * cu - sinA * cv, sinA * cu + cosA * cv), Math.Max(m, 0.01));
+    }
+
+    /// <summary>Podgląd na żywo: prostokąt PUWG obejmujący ekran (przy obrocie – większy), rozdzielczość w poprzek.</summary>
+    (XY TopLeft, double Mpp, int W, int H) LiveView()
+    {
+        double w = ActualWidth, h = ActualHeight;
+        if (Schemat && !SchematBg) return (ToWorld(new Point(0, 0)), mpp, 0, 0);
+        var c = new[] { ToWorld(new Point(0, 0)), ToWorld(new Point(w, 0)), ToWorld(new Point(0, h)), ToWorld(new Point(w, h)) };
+        double maxX = c.Max(p => p.X), minX = c.Min(p => p.X), minY = c.Min(p => p.Y), maxY = c.Max(p => p.Y), m = mpp / stretch;
+        return (new XY(maxX, minY), m, (int)((maxY - minY) / m), (int)((maxX - minX) / m));
     }
 
     // ------------------------------------------------------------------ mysz (wspólne dla myszy i testu)
@@ -198,7 +248,7 @@ public partial class UtView : FrameworkElement
         {
             bgDragFrom = null; bgOffsetPx = default;
             var v = p - bf;
-            if (v.Length > 0.5) BgDragged?.Invoke(SelectedBg, new XY(-v.Y * mpp, v.X * mpp));
+            if (v.Length > 0.5) BgDragged?.Invoke(SelectedBg, ToWorld(p) - ToWorld(bf));
             InvalidateVisual(); return true;
         }
         if (dragging) return true;
@@ -247,20 +297,26 @@ public partial class UtView : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight, dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        dc.DrawRectangle(Paper, null, new Rect(0, 0, w, h));
+        dc.DrawRectangle(Schemat ? Brushes.White : Paper, null, new Rect(0, 0, w, h));
         if (w < 10 || h < 10) return;
         var (minor, major) = GridSteps();
         var tl = ToWorld(new Point(0, 0)); var br = ToWorld(new Point(w, h));
-        if (ShowGrid) DrawGrid(dc, w, h, minor, major, tl, br);
+        if (ShowGrid && !Schemat) DrawGrid(dc, w, h, minor, major, tl, br);
 
-        // podgląd na żywo
-        if (Live.ortoImg is var (ob, og)) DrawImage(dc, ob, og, ob.PixelWidth, ob.PixelHeight, 1);
-        foreach (var (tb, tg) in Live.VisibleTiles(tl, br)) DrawImage(dc, tb, tg, 256, 256, 1);
-        foreach (var (tb, tg) in Live.VisibleTiles(tl, br, Live.Overlay)) DrawImage(dc, tb, tg, 256, 256, 1);
+        // podgląd na żywo (prostokąt PUWG obejmujący obrócony ekran); w schemacie przygaszony
+        if (BgOn)
+        {
+            var lv = LiveView(); var ltl = lv.TopLeft; var lbr = new XY(ltl.X - lv.H * lv.Mpp, ltl.Y + lv.W * lv.Mpp);
+            if (Schemat) dc.PushOpacity(0.55);
+            if (Live.ortoImg is var (ob, og)) DrawImage(dc, ob, og, ob.PixelWidth, ob.PixelHeight, 1);
+            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr)) DrawImage(dc, tb, tg, 256, 256, 1);
+            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr, Live.Overlay)) DrawImage(dc, tb, tg, 256, 256, 1);
+            if (Schemat) dc.Pop();
+        }
 
         // podkłady projektu
         int drawn = 0;
-        if (Doc != null && ShowBackgrounds)
+        if (Doc != null && ShowBackgrounds && BgOn)
             foreach (var bg in Doc.P.Backgrounds)
             {
                 if (!bg.Visible) continue;
@@ -292,12 +348,19 @@ public partial class UtView : FrameworkElement
         DrawHint(dc, w, dpi);
         DrawScaleBar(dc, h, dpi);
         DrawNorth(dc, w, dpi);
-        DrawAttribution(dc, w, h, dpi);
-        DrawRulers(dc, w, h, minor, major, tl, br, dpi);
+        if (BgOn) DrawAttribution(dc, w, h, dpi);
+        if (!Schemat) DrawRulers(dc, w, h, minor, major, tl, br, dpi);
     }
 
     /// <summary>Macierz piksel obrazu → piksel ekranu.</summary>
-    Matrix ScreenMatrix(Affine g) => new(g.A / mpp, -g.D / mpp, g.B / mpp, -g.E / mpp, Cx + (g.C - center.Y) / mpp, Cy - (g.F - center.X) / mpp);
+    Matrix ScreenMatrix(Affine g)
+    {
+        // piksel (c, r) → świat: X = D·c + E·r + F, Y = A·c + B·r + C; potem świat → ekran (obrót, rozciągnięcie)
+        double k = stretch / mpp, fx = g.F - center.X, cy = g.C - center.Y;
+        return new((cosA * g.D + sinA * g.A) / mpp, (-sinA * g.D + cosA * g.A) * k,
+                   (cosA * g.E + sinA * g.B) / mpp, (-sinA * g.E + cosA * g.B) * k,
+                   Cx + (cosA * fx + sinA * cy) / mpp, Cy + (-sinA * fx + cosA * cy) * k);
+    }
 
     bool Visible(Affine g, int W, int H, double w, double h)
     {
@@ -480,11 +543,11 @@ public partial class UtView : FrameworkElement
     void DrawScaleBar(DrawingContext dc, double h, double dpi)
     {
         double len = Nice(110 * mpp); double px = len / mpp;
-        double x0 = RulerLeft + 16, y0 = h - 18;
-        dc.DrawRoundedRectangle(Halo, null, new Rect(x0 - 6, y0 - 12, px + 70, 22), 3, 3);
+        double x0 = (Schemat ? 0 : RulerLeft) + 16, y0 = h - 18;
+        var t = Text(Len(len) + (Schemat && stretch > 1 ? $"   (w poprzek ×{stretch:0.#})" : ""), 11, Ink, dpi, UiFont);
+        dc.DrawRoundedRectangle(Halo, null, new Rect(x0 - 6, y0 - 12, px + t.Width + 20, 22), 3, 3);
         dc.DrawLine(BarPen, new Point(x0, y0), new Point(x0 + px, y0));
         dc.DrawLine(BarPen, new Point(x0, y0 - 5), new Point(x0, y0 + 1)); dc.DrawLine(BarPen, new Point(x0 + px, y0 - 5), new Point(x0 + px, y0 + 1));
-        var t = Text(Len(len), 11, Ink, dpi, UiFont);
         dc.DrawText(t, new Point(x0 + px + 6, y0 - t.Height / 2 - 2));
     }
 
@@ -492,9 +555,13 @@ public partial class UtView : FrameworkElement
     {
         double x = w - 26, y = RulerTop + 14;
         dc.DrawEllipse(Halo, null, new Point(x, y + 16), 14, 18);
+        // strzałka w kierunku północy na ekranie (w schemacie obrócona)
+        var nv = ScreenVec(new XY(1, 0)); double rot = Math.Atan2(nv.X, -nv.Y) * 180 / Math.PI;
+        dc.PushTransform(new RotateTransform(rot, x, y + 11));
         var g = new StreamGeometry();
         using (var c = g.Open()) { c.BeginFigure(new Point(x, y), true, true); c.LineTo(new Point(x + 6, y + 18), true, false); c.LineTo(new Point(x, y + 14), true, false); c.LineTo(new Point(x - 6, y + 18), true, false); }
         dc.DrawGeometry(Ink, null, g);
+        dc.Pop();
         var t = Text("N", 11, Ink, dpi, UiFont); dc.DrawText(t, new Point(x - t.Width / 2, y + 19));
     }
 
