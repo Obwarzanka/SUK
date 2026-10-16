@@ -109,20 +109,15 @@ public partial class Simulator
                     if (bs.AwaitEnd == e && Sigs.TryGetValue(b.Ends[e].EntrySig ?? "", out var es) && es.Aspect == Aspect.Train) bs.EntryOk[e] = true;
                 }
                 // pociąg od posterunku sąsiedniego spoza LCS – jego blok początkowy przychodzi samoczynnie
-                if (bs.AwaitEnd == null && occ && bs.Dir != 0 && !b.Internal && EndIdxForDir(b, -bs.Dir) >= 0)
-                {
-                    int recv = EndIdxForDir(b, -bs.Dir);
-                    bs.AwaitEnd = recv; bs.FreeSince = 0; bs.EndAlarmed = false; bs.EntryOk[recv] = false; bs.DKo[recv] = false;
-                    Log("Zdarzenie", $"{b.Nbr}: blok początkowy – szlak {id} zablokowany do czasu bloku końcowego", "Blokada liniowa", id);
-                }
+                Otoczenie.BlokPoczatkowy(id, b, bs, occ);
                 if (bs.AwaitEnd is int ae)
                 {
                     if (occ) bs.FreeSince = 0;
                     else
                     {
                         if (bs.FreeSince == 0) { bs.FreeSince = T; if (ae >= 0) Log("Zdarzenie", $"Szlak {id} wolny – pociąg przybył; daj blok końcowy ({id} Ko)", "Blokada liniowa", id); }
-                        if (ae < 0 && T - bs.FreeSince > Cfg.NbrDelay) { bs.AwaitEnd = null; Log("Zdarzenie", $"{b.Nbr}: blok końcowy – szlak {id} wolny", "Blokada liniowa", id); }
-                        else if (ae >= 0 && !bs.EndAlarmed && T - bs.FreeSince > Cfg.ReqAlarmAfter)
+                        if (ae < 0) Otoczenie.BlokKoncowy(id, b, bs);
+                        else if (!bs.EndAlarmed && T - bs.FreeSince > Cfg.ReqAlarmAfter)
                         { bs.EndAlarmed = true; var b2 = bs; Alarm($"Blokada {id}: pociąg przybył, brak bloku końcowego – szlak zablokowany ({id} Ko)", "Blokada liniowa", id, "bk" + id, () => b2.AwaitEnd != null); }
                     }
                 }
@@ -130,17 +125,7 @@ public partial class Simulator
             var rq = bs.Req;
             if (rq == null) continue;
             // odpowiedź posterunku spoza obszaru LCS na nasze żądanie (Wbl)
-            if (!b.Internal && rq.EndIdx == 0 && T - rq.At > Cfg.NbrDelay)
-            {
-                if (bs.NbrSilent)
-                {
-                    if (T - rq.At > 60 && !rq.Alarmed) { rq.Alarmed = true; Alarm($"Blokada {id}: brak odpowiedzi posterunku {b.Nbr} na żądanie kierunku – zmiana kierunku w trybie normalnym niemożliwa (§20 ust. 5)", "Blokada liniowa", id, "nbrsilent" + id, () => bs.Req != null); }
-                }
-                else if (Trains != null && Trains.NbrPending(id, 60))
-                { bs.Req = null; Log("Ruch", $"{b.Nbr}: odmowa pozwolenia na szlak {id} – pociąg w drodze do {PostName(b.Ends[0].Post)}", "Blokada liniowa", id); }
-                else if (BlockConds(b).Count == 0)
-                { bs.Dir = b.Ends[0].Outward; bs.Req = null; Log("Zdarzenie", $"{b.Nbr}: dano pozwolenie – kierunek WYJAZD na szlak {id}", "Blokada liniowa", id); }
-            }
+            if (!b.Internal && rq.EndIdx == 0) Otoczenie.OdpowiedzNaWbl(id, b, bs, rq);
             // żądanie skierowane do dyżurnego LCS – alarm dopiero po dłuższym braku reakcji (Ie-104 § 7 ust. 3)
             bool toUs = rq.EndIdx == -1 || b.Internal;
             if (toUs && !rq.Alarmed && T - rq.At > Cfg.ReqAlarmAfter)

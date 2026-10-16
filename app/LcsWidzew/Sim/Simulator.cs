@@ -50,6 +50,8 @@ public partial class Simulator
         L = st;
         Rej = new Rejestrator(L, () => T, () => Clock(), () => User);
         Instruktor = new Instruktor(this);
+        Rozklad = new Rozklad(this);
+        Otoczenie = new Otoczenie(this);
         Page = L.Pages[^1].Id;
         foreach (var s in L.Sections.Keys) Secs[s] = new SecState { Id = s };
         foreach (var s in L.Switches.Keys) Sws[s] = new SwState { Num = s };
@@ -305,12 +307,17 @@ public partial class Simulator
     public Trains Trains;
     /// <summary>Instruktor: usterki i scenariusze usterek (Sim/Instruktor.cs).</summary>
     public readonly Instruktor Instruktor;
+    /// <summary>Rozkład jazdy (Sim/Rozklad.cs).</summary>
+    public readonly Rozklad Rozklad;
+    /// <summary>Posterunki sąsiednie spoza LCS (Sim/Otoczenie.cs).</summary>
+    public readonly Otoczenie Otoczenie;
 
     public void Tick(double dt)
     {
         T += dt;
         if (Pending != null && T > Pending.Until) { Log("Odrzucone", "Upłynął czas potwierdzenia polecenia " + Pending.Line, "Polecenie"); Pending = null; PendingExpired?.Invoke(); }
         UpdatePower(); UpdateSwitches(); UpdateBlocks();
+        if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
         UpdateSignals(); UpdateRoutes();
         Rej.UpdateAlarms();

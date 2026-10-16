@@ -56,7 +56,6 @@ public partial class Trains
 {
     readonly Simulator S;
     public List<Train> List = new();
-    public List<TimetableEntry> Queue = new();
     int seq = 1;
     const double Acc = 0.5, Brake = 0.8, VStation = 60, VSz = 20, VShunt = 25;
 
@@ -103,7 +102,8 @@ public partial class Trains
         return t;
     }
 
-    void SpawnFromSzlak(TimetableEntry q)
+    /// <summary>Pociąg wyprawiony przez posterunek sąsiedni (Otoczenie) – pojawia się na szlaku przed granicą obszaru.</summary>
+    public void SpawnFromSzlak(TimetableEntry q)
     {
         var b = S.L.Blocks[q.From]; int inward = -b.Ends[0].Outward;
         var t = NewTrain(q); t.V = t.VMax * 0.8;
@@ -113,7 +113,7 @@ public partial class Trains
     }
 
     /// <summary>Pociąg / lokomotywa stojąca na torze – czoło przy końcu toru w kierunku jazdy.</summary>
-    bool SpawnOnTrack(TimetableEntry q)
+    public bool SpawnOnTrack(TimetableEntry q)
     {
         var sec = q.StartSec;
         if (!S.L.Sections.ContainsKey(sec) || S.SecOcc(sec)) return false;
@@ -427,97 +427,30 @@ public partial class Trains
             }
     }
 
-    // ------------------------------------------------------------------ posterunki sąsiednie
+    // ------------------------------------------------------------------ zajętość szlaku (do usunięcia w kroku 4: KZ ma brać zajętość z odcinków)
     public bool OnBlock(string id)
     {
         var b = S.L.Blocks[id];
         return List.Any(t => t.Segs.Any(s => s.E != null && b.SecsWE.Contains(S.L.Edges[s.E].Sec)) || (b.Far != null && t.Segs[0].E == null && t.Segs[0].To == b.Far && t.Head - t.Len < t.Segs[0].Len));
     }
-    bool EmergingAtFar(string id)
-    {
-        var b = S.L.Blocks[id];
-        return List.Any(t => t.Segs[0].E == null && t.Segs[0].To == b.Far && t.Head - t.Len < t.Segs[0].Len + 50);
-    }
-    /// <summary>Czy posterunek sąsiedni ma w najbliższym czasie pociąg do wyprawienia na ten szlak.</summary>
-    public bool NbrPending(string id, double within) => Queue.Any(q => q.From == id && !q.Done && q.T <= S.T + within && q.StartSec == null);
-
-    void Neighbours()
-    {
-        foreach (var q in Queue)
-        {
-            if (q.Done || q.T > S.T) continue;
-            if (q.StartSec != null) { if (SpawnOnTrack(q)) q.Done = true; continue; }
-            var b = S.L.Blocks[q.From]; var bs = S.Blocks[q.From]; int inward = -b.Ends[0].Outward;
-            bool ok = (b.NoBlock ? !b.SecsWE.Any(S.SecOcc) : bs.Dir == inward) && bs.AwaitEnd == null && !bs.Busy && !S.SecOcc(FarSec(b)) && !EmergingAtFar(q.From) && !bs.StopEnd[0];
-            if (b.Permission && bs.Dir != inward && bs.Req == null && !bs.Busy)
-            {
-                bs.Req = new BlockReq { EndIdx = -1, At = S.T, ForTrain = q.Num };
-                S.Log("Ruch", $"{b.Nbr}: żądanie pozwolenia na szlak {q.From} dla pociągu {q.Num} (Pzk {q.From})", "Blokada liniowa", q.From);
-            }
-            if (ok) { q.Done = true; SpawnFromSzlak(q); }
-        }
-    }
-    string FarSec(BlockDef b) => S.L.Nodes[b.Far].X < S.L.Nodes[b.Ends[0].Boundary].X ? b.SecsWE[0] : b.SecsWE[^1];
-
-    // ------------------------------------------------------------------ scenariusze
-    public static readonly (string Key, string Name, string Desc)[] Scenarios =
-    {
-        ("podstawowy", "Ruch podstawowy", "ok. 25 min: odjazdy z Łodzi Fabrycznej, przejazdy przez tunel, Niciarnianą i Widzew; ŁKA, PR, IC i towarowe; zmiana czoła, odstawienie, lokomotywy manewrowe."),
-        ("usterki", "Przeszkody w działaniu urządzeń (Ie-20 rozdz. 5)", "Jak podstawowy + semafor S1 nie otwiera się, zakłócenie licznika osi, brak kontroli zwrotnicy, zanik zasilania, brak odpowiedzi Andrzejowa."),
-        ("zima", "Zima – mróz i opady (Ie-20 §4 ust. 5)", "Zwrotnice 11 i 53 (Widzew) zamarzają; profilaktyczne przestawianie i §24 ust. 6."),
-        ("manewry", "Manewry", "Lokomotywy manewrowe na torze 200, torach sekcji (17k) i torze 204a (Widzew) – ćwiczenie przebiegów manewrowych, także złożonych."),
-        ("ic_05", "Rozkład rzeczywisty 05:00–08:00", "Wszyscy przewoźnicy wg rozkładu GTFS (dane PKP PLK, tory i perony) – ŁKA, Polregio, PKP IC; dla IC próżne z/do Olechowa i zjazdy luzem (ptrc.gay/pkpic); jednostki zaczynające bieg w ŁW wyjeżdżają z bazy ŁKA."),
-        ("ic_08", "Rozkład rzeczywisty 08:00–11:00", "Jak wyżej, przedpołudnie."),
-        ("ic_15", "Rozkład rzeczywisty 15:00–18:00", "Jak wyżej, popołudniowy szczyt."),
-        ("ic_18", "Rozkład rzeczywisty 18:00–21:00", "Jak wyżej, wieczór.")
-    };
-
-    List<TimetableEntry> BaseTimetable() => new()
-    {
-        new() { T = 1, Num = "19111", Cat = "ŁKA", StartSec = "LF:JT2", Track = "Fa 2", To = "1A", Stop = true, Dep = 90 },
-        new() { T = 1, Num = "81102", Cat = "IC", StartSec = "LF:JT1", Track = "Fa 1", To = "1A", Stop = true, Dep = 420 },
-        new() { T = 30, Num = "18100", Cat = "IC", From = "2A", To = null, Stop = true, Track = "ŁW 2 / ŁF 2", Dep = 220, Term = new() { Reverse = true, NewNum = "18101", To = "1A", NewDep = 900, AtPost = "LF" } },
-        new() { T = 80, Num = "64410", Cat = "TOW", From = "2C", To = "1O", Stop = false, Track = "5" },
-        new() { T = 150, Num = "19511", Cat = "ŁKA", From = "1M", To = "1M", Stop = true, Track = "4", Dep = 420, Term = new() { Reverse = true, NewNum = "15912", To = "1M" } },
-        new() { T = 200, Num = "91017", Cat = "ŁKA", StartSec = "LF:JT6", Track = "ŁF 6 → ŁW 8", To = null, Stop = true, Dep = 260, Term = new() { Odstaw = true, AtPost = "LW" } },
-        new() { T = 300, Num = "46021", Cat = "TOW", From = "2O", To = "1C", Stop = false, Track = "3" },
-        new() { T = 470, Num = "19213", Cat = "PR", From = "2C", To = "1A", Stop = true, Track = "5", Dep = 650 },
-        new() { T = 560, Num = "19210", Cat = "PR", From = "2A", To = null, Stop = true, Track = "ŁW 2 / ŁF", Dep = 760, Term = new() { Reverse = true, NewNum = "19211", To = "1A", NewDep = 1200, AtPost = "LF" } }
-    };
-
-    List<TimetableEntry> Locos() => new()
-    {
-        new() { T = 1, Num = "SM42", Cat = "MAN", StartSec = "LW:it10k", StartDir = 1, Loco = true },
-        new() { T = 1, Num = "SM31", Cat = "MAN", StartSec = "LW:it17k", StartDir = 1, Loco = true },
-        new() { T = 1, Num = "SM48", Cat = "MAN", StartSec = "LW:it35k", StartDir = -1, Loco = true },
-    };
-
+    /// <summary>Nowy scenariusz: rozkład jazdy (Rozklad) i usterki (Instruktor).</summary>
     public void Load(string key)
     {
         List.Clear(); seq = 1;
-        Queue = key == "manewry" ? Locos() : key.StartsWith("ic_") ? RealTimetable(int.Parse(key[3..]), 3) : BaseTimetable();
-        if (key == "podstawowy" || key.StartsWith("ic_")) Queue.AddRange(Locos().Take(1));
+        S.Rozklad.Load(key);
         S.Instruktor.Load(key);
-        Queue = Queue.Where(q => q.StartSec != null ? S.L.Sections.ContainsKey(q.StartSec) : S.L.Blocks.ContainsKey(q.From) && !S.L.Blocks[q.From].Internal).ToList();
     }
 
-    public void Enqueue(string from, string cat, string num, string to, bool stop)
-    {
-        Queue.Add(new TimetableEntry { T = S.T, Num = string.IsNullOrWhiteSpace(num) ? (90000 + seq++).ToString() : num, Cat = cat, From = from, To = string.IsNullOrEmpty(to) ? null : to, Stop = stop });
-        S.Log("Instruktor", $"Dodano pociąg do kolejki ze szlaku {from}", "Instruktor", from);
-    }
     public bool AddLoco(string sec, int dir, string num)
     {
         var q = new TimetableEntry { T = S.T, Num = string.IsNullOrWhiteSpace(num) ? "SM" + (40 + seq++) : num, Cat = "MAN", StartSec = sec, StartDir = dir, Loco = true };
         if (!SpawnOnTrack(q)) return false;
-        q.Done = true; Queue.Add(q);
+        q.Done = true; S.Rozklad.Queue.Add(q);
         return true;
     }
 
     public void Tick(double dt)
     {
-        Neighbours();
-        S.Instruktor.Tick();
         foreach (var t in List.ToList()) Move(t, dt);
         List.RemoveAll(t => t.Gone);
         Occupancy();

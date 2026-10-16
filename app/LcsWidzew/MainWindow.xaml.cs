@@ -259,7 +259,7 @@ public partial class MainWindow : Window
         desk.Page = s.Page; desk.User = user; s.User = user;
         Bind(new LocalSession(s, desk));
         server?.Attach(s);
-        s.Log("Zdarzenie", "Start symulacji – scenariusz: " + Trains.Scenarios.First(x => x.Key == sc).Name + (user != null ? ", zalogowany: " + user.Name : ""), "System", "");
+        s.Log("Zdarzenie", "Start symulacji – scenariusz: " + Rozklad.Scenarios.First(x => x.Key == sc).Name + (user != null ? ", zalogowany: " + user.Name : ""), "System", "");
     }
 
     void Bind(ILcsSession x)

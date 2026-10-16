@@ -289,7 +289,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             foreach (var b in stt.Blocks.Values) log.AppendLine($"Szlak {b.Id}: {b.TypeShort}, końce {string.Join(" / ", b.Ends.Select(e => $"{Station.Lbl(e.EntrySig)} ({e.Post})"))}, wewn. {b.Internal}");
             log.AppendLine("Obrazy: " + string.Join("; ", stt.Pages.Select(p => $"{p.Name} x {p.X0}–{p.X1}, posterunki {string.Join(",", p.Posts)}")));
             var sm = new Simulator(stt); var tr = new Trains(sm); sm.User = new User { Name = "T", Role = "d" };
-            tr.Queue.Add(new TimetableEntry { T = 5, Num = "12345", Cat = "IC", From = "1Z", To = "1E", Stop = false });
+            sm.Rozklad.Queue.Add(new TimetableEntry { T = 5, Num = "12345", Cat = "IC", From = "1Z", To = "1E", Stop = false });
             string Ex(string pg, string c) { sm.Page = pg; var r = sm.Exec(c); return $"{sm.Clock()} [{pg}] {c}: {(r.Ok ? "OK" : "ODRZ")} {r.Msg}"; }
             log.AppendLine(Ex("TS", "A F1 Pociąg")); log.AppendLine(Ex("TS", "1S Wbl")); log.AppendLine(Ex("TS", "F1 1S Pociąg"));
             log.AppendLine(Ex("TN", "C G1 Pociąg")); log.AppendLine(Ex("TN", "G1 1E Pociąg"));
@@ -336,7 +336,7 @@ public partial class EditorWindow : DarkWindow, IPanelEditor
             var sm = new Simulator(stt); var tr = new Trains(sm);
             foreach (var (k, l) in sm.RouteTable) if (l.Count > 0) log.AppendLine($"  {Station.Lbl(k),-3} {string.Join(", ", l.Select(r => r.Id))}");
             sm.User = new User { Name = "T", Role = "dyżurny ruchu" }; sm.Page = stt.Pages[0].Id;
-            tr.Queue.Add(new TimetableEntry { T = 5, Num = "12345", Cat = "IC", From = "1Z", To = "1E", Stop = false });
+            sm.Rozklad.Queue.Add(new TimetableEntry { T = 5, Num = "12345", Cat = "IC", From = "1Z", To = "1E", Stop = false });
             string Ex(string c) { var r = sm.Exec(c); return $"{sm.Clock()} {c}: {(r.Ok ? "OK" : "ODRZ")} {r.Msg}"; }
             var plan = new (double T, string C)[] { (2, "1Z Pzk"), (20, "A F1 Pociąg"), (20, "1S Wbl"), (21, "1S Pzk"), (22, "F1 1S Pociąg"), (22, "C G1 Pociąg"), (23, "G1 1E Pociąg") };
             int pi = 0; bool seenOd = false;

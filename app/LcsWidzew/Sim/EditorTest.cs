@@ -101,8 +101,8 @@ public static class EditorTest
                 Out("Blokady: " + string.Join("; ", ks.Blocks.Values.Select(b => $"{b.Id} {b.TypeShort}, kier. {b.DefDir}")));
                 Out("Przebiegi od F (bez Ms2): " + string.Join(", ", km.RouteTable.GetValueOrDefault("KB:F", new()).Select(r => r.Id)) + " | od Tm1: " + string.Join(", ", km.RouteTable.GetValueOrDefault("KB:Tm1", new()).Select(r => r.Id)));
                 Out("1E Wbl: " + km.Exec("1E Wbl").Msg);
-                kt.Queue.Add(new TimetableEntry { T = 2, Num = "111", Cat = "IC", From = "1W", To = "1E", Stop = false });
-                kt.Queue.Add(new TimetableEntry { T = 30, Num = "222", Cat = "IC", From = "1W", To = "1E", Stop = false });
+                km.Rozklad.Queue.Add(new TimetableEntry { T = 2, Num = "111", Cat = "IC", From = "1W", To = "1E", Stop = false });
+                km.Rozklad.Queue.Add(new TimetableEntry { T = 30, Num = "222", Cat = "IC", From = "1W", To = "1E", Stop = false });
                 Out(km.Exec("A F Pociąg").Msg); Out(km.Exec("F 1E Pociąg").Msg);
                 bool bk = false, shown = false;
                 for (int i = 0; i < 4 * 900; i++)

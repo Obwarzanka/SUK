@@ -12,7 +12,7 @@ public class Instruktor
 
     public Instruktor(Simulator s) { S = s; }
 
-    /// <summary>Usterki scenariusza (klucz jak w Rozkład / Trains.Scenarios); obiekty spoza układu są pomijane.</summary>
+    /// <summary>Usterki scenariusza (klucz jak w Rozklad.Scenarios); obiekty spoza układu są pomijane.</summary>
     public void Load(string key)
     {
         Queue = key switch

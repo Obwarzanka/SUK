@@ -149,7 +149,7 @@ public partial class Simulator
     {
         string Nb(string sz) => sz == null ? "–" : L.Blocks.TryGetValue(sz, out var b) ? $"{sz} ({(b.Internal ? "tunel / LCS" : b.Nbr)})" : sz;
         if (Trains == null) return new();
-        return Trains.Queue.OrderBy(q => q.T).Select(q =>
+        return Rozklad.Queue.OrderBy(q => q.T).Select(q =>
         {
             var t = Trains.List.FirstOrDefault(x => x.Num == q.Num || x.Num == q.Num + "M" || (q.Term?.NewNum != null && x.Num == q.Term.NewNum));
             string st = !q.Done ? (q.T <= T ? "oczekuje na szlak" : "planowy") : t == null ? "obsłużony" : t.State == "dwell" ? "postój" : t.ReadySince != null && t.V < 0.1 ? "gotowy do odjazdu" + (t.WaitingAt != null ? $" ({t.WaitingAt})" : "") : t.WaitingAt != null ? $"stoi przed {t.WaitingAt}" : "w ruchu";

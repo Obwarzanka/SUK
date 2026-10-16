@@ -8,7 +8,7 @@ namespace LcsWidzew.Sim;
 /// Pociąg w obszarze LCS: wjazd ze szlaku (albo z toru), postoje na ŁW / ŁF wg rozkładu, zmiana czoła w ŁF (stacja czołowa),
 /// próżne z / do zaplecza Olechów, zjazdy luzem lokomotyw z ŁF. Uzupełnienie: manewry jednostek ŁKA z bazy Widzew (przykładowe – brak w źródle).
 /// </summary>
-public partial class Trains
+public partial class Rozklad
 {
     public static string RealSource;
 

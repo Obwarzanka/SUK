@@ -143,9 +143,9 @@ public static class SelfTest
         var tr = new Trains(sim);
         sim.User = new User { Name = "auto", Role = "dyżurny ruchu" };
         tr.Load(key);
-        if (onlyNum != null) tr.Queue = tr.Queue.Where(q => q.Num == onlyNum || q.Num == onlyNum + "M" || q.Duty?.Num == onlyNum).ToList();
-        sb.AppendLine($"Scenariusz {key}: start {sim.Clock()}, w kolejce {tr.Queue.Count}");
-        foreach (var q in tr.Queue) sb.AppendLine($"  {sim.Clock(q.T)} {q.Num,-8} {q.Cat,-5} {(q.From ?? q.StartSec),-9} → {q.To ?? "–",-4} {q.Track}");
+        if (onlyNum != null) sim.Rozklad.Queue = sim.Rozklad.Queue.Where(q => q.Num == onlyNum || q.Num == onlyNum + "M" || q.Duty?.Num == onlyNum).ToList();
+        sb.AppendLine($"Scenariusz {key}: start {sim.Clock()}, w kolejce {sim.Rozklad.Queue.Count}");
+        foreach (var q in sim.Rozklad.Queue) sb.AppendLine($"  {sim.Clock(q.T)} {q.Num,-8} {q.Cat,-5} {(q.From ?? q.StartSec),-9} → {q.To ?? "–",-4} {q.Track}");
         string PageOf(string key2) { var p = Station.PostOf(key2); return st.Pages.FirstOrDefault(x => x.Posts.Contains(p))?.Id ?? sim.Page; }
         CmdResult Ex(string page, string c)
         {
@@ -250,7 +250,7 @@ public static class SelfTest
         sb.AppendLine($"Nastawione przebiegi: {okRoutes}, wjazdy {sim.Stats.TrainsIn}, wyjazdy {sim.Stats.TrainsOut}");
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pozostałe: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.Cat} {t.State} wait={t.WaitingAt}")));
-        sb.AppendLine("Niewykonane z kolejki: " + string.Join(", ", tr.Queue.Where(q => !q.Done).Select(q => q.Num)));
+        sb.AppendLine("Niewykonane z kolejki: " + string.Join(", ", sim.Rozklad.Queue.Where(q => !q.Done).Select(q => q.Num)));
         if (outPath != null) File.WriteAllText(outPath, sb.ToString());
         if (onlyNum == null) return sb.ToString();
         var evs = sim.Events.Where(e => e.Kategoria == "Ruch").Select(e => e.Zdarzenie).ToList();
@@ -265,8 +265,8 @@ public static class SelfTest
         var sb = new StringBuilder();
         var st = Station.Load(stationPath); var sim = new Simulator(st); var tr = new Trains(sim); tr.Load(key);
         string Pat(TimetableEntry q) => $"{q.Cat}|{q.From ?? q.StartSec?.Split(':')[0] + (q.Duty != null ? "-baza" : "")}|{q.To}|{string.Join(">", (q.Track ?? "").Split('→').Select(x => x.Trim().Split(' ').FirstOrDefault(y => y is "ŁW" or "ŁF" or "ŁN")))}|{(q.Term != null ? (q.Term.Reverse ? "rev" : "") + (q.Term.Odstaw ? "odst" : "") : "")}";
-        var groups = tr.Queue.Where(q => !q.Loco || q.Duty != null).GroupBy(Pat).ToList();
-        sb.AppendLine($"Rodzajów biegu: {groups.Count} (pociągów {tr.Queue.Count})");
+        var groups = sim.Rozklad.Queue.Where(q => !q.Loco || q.Duty != null).GroupBy(Pat).ToList();
+        sb.AppendLine($"Rodzajów biegu: {groups.Count} (pociągów {sim.Rozklad.Queue.Count})");
         int ok = 0;
         foreach (var g in groups)
         {

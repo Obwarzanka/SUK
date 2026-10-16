@@ -54,11 +54,11 @@ public class LoginWindow : DarkWindow
         sp.Children.Add(T("Rola:"));
         var role = new ComboBox { ItemsSource = new[] { "dyżurny ruchu", "nastawniczy", "instruktor" }, SelectedIndex = 0 }; sp.Children.Add(role);
         sp.Children.Add(T("Scenariusz:"));
-        var sc = new ComboBox { ItemsSource = Trains.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 }; sp.Children.Add(sc);
-        var desc = T(Trains.Scenarios[0].Desc, 11, Brushes.Gray); sp.Children.Add(desc);
-        sc.SelectionChanged += (a, b) => desc.Text = Trains.Scenarios[sc.SelectedIndex].Desc;
+        var sc = new ComboBox { ItemsSource = Rozklad.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 }; sp.Children.Add(sc);
+        var desc = T(Rozklad.Scenarios[0].Desc, 11, Brushes.Gray); sp.Children.Add(desc);
+        sc.SelectionChanged += (a, b) => desc.Text = Rozklad.Scenarios[sc.SelectedIndex].Desc;
         var bp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-        void Go(bool restart) { UserName = name.Text.Trim() == "" ? "Dyżurny" : name.Text.Trim(); Role = (string)role.SelectedItem; Scenario = Trains.Scenarios[sc.SelectedIndex].Key; Restart = restart; DialogResult = true; }
+        void Go(bool restart) { UserName = name.Text.Trim() == "" ? "Dyżurny" : name.Text.Trim(); Role = (string)role.SelectedItem; Scenario = Rozklad.Scenarios[sc.SelectedIndex].Key; Restart = restart; DialogResult = true; }
         bp.Children.Add(Btn(loggedBefore ? "Zaloguj i rozpocznij od nowa" : "Zaloguj i rozpocznij", (a, b) => Go(true), new SolidColorBrush(Color.FromRgb(0x0a, 0x4a, 0x66))));
         if (loggedBefore) bp.Children.Add(Btn("Zaloguj (kontynuuj)", (a, b) => Go(false)));
         bp.Children.Add(Btn("Anuluj", (a, b) => DialogResult = false));
@@ -214,7 +214,7 @@ public class InstructorWindow : DarkWindow
         var num = Box(); var stop = new CheckBox { Content = "postój na ŁW", IsChecked = true, Foreground = Fg };
         sp.Children.Add(T("Ze szlaku / kategoria / numer / do szlaku:", 11, Brushes.Gray));
         sp.Children.Add(from); sp.Children.Add(cat); sp.Children.Add(num); sp.Children.Add(to); sp.Children.Add(stop);
-        sp.Children.Add(Btn("Dodaj do kolejki", (a, b) => sim.Trains.Enqueue((string)from.SelectedItem, (string)cat.SelectedItem, num.Text.Trim(), (string)to.SelectedItem, stop.IsChecked == true)));
+        sp.Children.Add(Btn("Dodaj do kolejki", (a, b) => sim.Rozklad.Enqueue((string)from.SelectedItem, (string)cat.SelectedItem, num.Text.Trim(), (string)to.SelectedItem, stop.IsChecked == true)));
 
         sp.Children.Add(T("Lokomotywa manewrowa", 14, Brushes.White, true));
         var locoSec = new ComboBox { ItemsSource = sim.L.Sections.Keys.Where(k => k.Contains(":it") || k.Contains(":JT")).OrderBy(k => k).ToList(), SelectedIndex = 0 };
@@ -222,9 +222,9 @@ public class InstructorWindow : DarkWindow
         sp.Children.Add(locoSec); sp.Children.Add(locoDir);
         sp.Children.Add(Btn("Postaw lokomotywę", (a, b) => { if (!sim.Trains.AddLoco((string)locoSec.SelectedItem, locoDir.SelectedIndex == 0 ? 1 : -1, null)) MessageBox.Show("Odcinek zajęty lub nieznany."); }));
         sp.Children.Add(T("Scenariusz", 14, Brushes.White, true));
-        var sc = new ComboBox { ItemsSource = Trains.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 };
+        var sc = new ComboBox { ItemsSource = Rozklad.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 };
         sp.Children.Add(sc);
-        sp.Children.Add(Btn("Uruchom od nowa", (a, b) => { restart(Trains.Scenarios[sc.SelectedIndex].Key); Close(); }));
+        sp.Children.Add(Btn("Uruchom od nowa", (a, b) => { restart(Rozklad.Scenarios[sc.SelectedIndex].Key); Close(); }));
         Content = new ScrollViewer { Content = sp };
     }
 }
