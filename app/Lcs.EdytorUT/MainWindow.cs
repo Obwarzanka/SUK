@@ -146,7 +146,7 @@ public partial class MainWindow : Window
                 ? "Tor – łuk: promień R z pola (R 0 – promień za kursorem: łuk przez punkt pod kursorem), strona i kąt za kursorem, długość łuku z klawiatury + Enter; Shift – koniec równoległy do osi schematu; Tab – prosta; klik na końcu innego toru – połączenie; Enter / PPM – koniec; Backspace – cofnij odcinek"
                 : "Tor – prosta: klik – pierwszy punkt (albo koniec toru – przedłużenie), potem odcinki na przedłużeniu, długość z klawiatury + Enter; Alt – wolny kierunek; Tab – łuk; klik na końcu innego toru – połączenie łukiem / łukami odwrotnymi; Enter / PPM – koniec; Backspace – cofnij odcinek; Esc – rezygnacja",
             UtTool.Rozjazd => Katalog.Find(View.RzType)?.IsCrossing == true
-                ? $"{View.RzType}: kliknij na przecięciu dwóch torów (tor przecinający narysuj narzędziem Tor pod kątem typu)"
+                ? $"{View.RzType}: wciśnij na torze w miejscu środka i przeciągnij w stronę toru przecinającego (powstanie pod kątem typu) albo kliknij na przecięciu dwóch torów"
                 : $"{View.RzType}: wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia; puść na torze sąsiednim – łącznik",
             UtTool.Rownolegly => "Równoległy: 1) klik na torze wzorcowym, 2) klik na podkładzie na osi nowego toru w miejscu początku (odstęp co 1 cm, Shift – co 0,25 m), 3) klik w miejscu końca albo Enter – do końca toru; PPM / Backspace – krok wstecz, Esc – od nowa",
             UtTool.Urzadzenie => $"{UtDevice.KindInfo(View.DevKind).Name}: " + (UtDevice.KindInfo(View.DevKind).Directed && View.DevKind != UtDevice.Koziol

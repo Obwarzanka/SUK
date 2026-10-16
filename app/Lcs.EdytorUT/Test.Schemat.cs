@@ -169,6 +169,19 @@ public static partial class Test
         if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
         Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
 
+        // --- rozjazd krzyżowy przeciągnięciem na jednym torze (tor przecinający powstaje pod kątem typu)
+        w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rkpd 60E1-190-1:9";
+        r2 = w.View.Geometry(t2);
+        var pk = r2.At(850).P; double azk = r2.At(850).Az; Look(pk, 0.3);
+        int ncr = d.P.Crossings.Count, ntk = d.P.Tracks.Count;
+        w.View.SimDrag(S(pk), S(Go(pk, lineAz, 25) - Element.Right(azk) * (3 * k)));
+        var crk = d.P.Crossings.LastOrDefault(); var gk = crk != null ? Rozjazdy.CrossGeo(d.P, crk) : null;
+        Ok(d.P.Crossings.Count == ncr + 1 && d.P.Tracks.Count == ntk + 1 && gk is var (cpk, _, slk, angk) && slk.Count == 2 && Math.Abs(angk - Katalog.Find("Rkpd 60E1-190-1:9").Alpha) < 1e-6 && XY.Dist(cpk, pk) < 0.05,
+            $"Rkpd przeciągnięciem na torze 2: tor przecinający pod 1:9 przez punkt, 2 przejazdy (kąt {(gk?.Angle ?? 0) * 180 / Math.PI:0.###}°)");
+        if (shotRails != null) { w.SetTool(UtTool.Wskaz); w.View.Select(null); Look(pk, 0.15); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_rkpd_nowy.png")); }
+        w.DoUndo(); Ok(d.P.Crossings.Count == ncr && d.P.Tracks.Count == ntk, "Ctrl+Z – rozjazd krzyżowy i tor przecinający cofnięte");
+        w.RzTypeBox.SelectedItem = "Rz 60E1-190-1:9"; w.SetTool(UtTool.Wskaz);
+
         // --- urządzenia na torze (etap 5, część 1)
         r1 = w.View.Geometry(t1); r2 = w.View.Geometry(t2);
         void Kind(string key) => w.DevKindBox.SelectedIndex = Array.FindIndex(UtDevice.Kinds, x => x.Key == key);

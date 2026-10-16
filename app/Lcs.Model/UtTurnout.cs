@@ -388,6 +388,23 @@ public static class Rozjazdy
         return (t1, t2, link, null);
     }
 
+    /// <summary>
+    /// Rozjazd krzyżowy / skrzyżowanie na jednym torze: tor przecinający pod kątem typu (1:N) przez punkt km <paramref name="s"/>,
+    /// w stronę <paramref name="dir"/> toru i na stronę <paramref name="side"/>, z końcami w odległości a od środka (zwrotnice a–d);
+    /// dalej tor przedłuża projektant. Przed dodaniem do projektu.
+    /// </summary>
+    public static (UtCrossing C, UtTrack Cross) NewCrossing(UtProject p, string track, double s, int dir, int side, string type, string number)
+    {
+        var tr = Tr(p, track); var typ = Katalog.Find(type); if (tr == null || typ == null) return (null, null);
+        var r = Trasa.Compute(tr); if (r.Elements.Count == 0) return (null, null);
+        var (pt, az0) = r.At(Math.Clamp(s, 0, r.Length));
+        double az = (dir < 0 ? az0 + Math.PI : az0) + side * typ.Alpha, a = typ.A * r.K;
+        var p1 = pt - Element.Dir(az) * a; var p2 = pt + Element.Dir(az) * a;
+        var cross = new UtTrack { Vertices = new() { new UtVertex { X = p1.X, Y = p1.Y }, new UtVertex { X = p2.X, Y = p2.Y } } };
+        var c = new UtCrossing { Number = number, Type = type, TrackA = track, TrackB = cross.Id, SA = s, SB = typ.A };
+        return (c, cross);
+    }
+
     /// <summary>Środek i końce skrzyżowania (a, b – na torze A, c, d – na torze B) oraz łuki przejazdów rozjazdu krzyżowego.</summary>
     public static (XY P, XY[] Ends, List<List<XY>> Slips, double Angle)? CrossGeo(UtProject p, UtCrossing c)
     {

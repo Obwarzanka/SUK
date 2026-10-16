@@ -45,6 +45,19 @@ public partial class MainWindow
             Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + Notes(b));
         };
         View.CrossingPlace += OnCrossingPlace;
+        View.CrossingNew += (track, s, dir, side) =>
+        {
+            var typ = Katalog.Find(View.RzType);
+            var (c, cross) = Rozjazdy.NewCrossing(Doc.P, track, s, dir, side, typ.Name, "");
+            if (c == null) { Message("Brak toru"); return; }
+            var nums = AskNumbers(typ.Kind == RozjazdTyp.St ? "Skrzyżowanie – numer" : "Rozjazd krzyżowy – numer", new[] { typ.Kind == RozjazdTyp.St ? "Numer skrzyżowania (może być pusty)" : "Numer rozjazdu krzyżowego (zwrotnice a–d)" });
+            if (nums == null) return;
+            if (typ.Kind != RozjazdTyp.St && !NumbersOk(nums)) return;
+            c.Number = nums[0];
+            Doc.Change(typ.Kind == RozjazdTyp.St ? "Skrzyżowanie" : "Rozjazd krzyżowy", p => { p.Tracks.Add(cross); p.Crossings.Add(c); });
+            View.SelectCrossing(c.Id);
+            Message($"{typ.Name} {c.Number}: tor przecinający pod 1:{F(typ.N)} – przedłuż go narzędziem Tor od końców");
+        };
         View.TurnoutMoved += (id, s) =>
         {
             var t = Doc.P.Turnouts.First(x => x.Id == id);

@@ -27,6 +27,8 @@ public partial class UtView
     public record RzPlace(string Track, double S, int Dir, int Side, string Target, double Offset, double EndAlong);
     /// <summary>Skrzyżowanie / rozjazd krzyżowy: klik w punkcie.</summary>
     public event Action<XY> CrossingPlace;
+    /// <summary>Rozjazd krzyżowy / skrzyżowanie przeciągnięciem na jednym torze: tor, km środka, kierunek, strona toru przecinającego.</summary>
+    public event Action<string, double, int, int> CrossingNew;
     public event Action<string, double> TurnoutMoved;
 
     public void SelectTurnout(string id)
@@ -59,7 +61,7 @@ public partial class UtView
     bool RzPress(Point s)
     {
         var typ = Katalog.Find(RzType);
-        if (typ == null || typ.IsCrossing) return false;
+        if (typ == null) return false;
         var id = HitTrack(s); if (id == null) return false;
         var r = Geometry(Track(id));
         rzFrom = (id, r.Nearest(ToWorld(s), 0.2).S); rzTo = ToWorld(s);
@@ -86,6 +88,13 @@ public partial class UtView
     void RzRelease(Point s)
     {
         var (track, km) = rzFrom.Value; rzFrom = null;
+        if (Katalog.Find(RzType)?.IsCrossing == true)
+        {
+            // krótko – klik na istniejącym przecięciu dwóch torów; przeciągnięcie – nowy tor przecinający pod kątem typu
+            if ((ToScreen(Geometry(Track(track)).At(km).P) - s).Length < 8) CrossingPlace?.Invoke(ToWorld(s));
+            else { var pc = RzFromDrag(track, km, s); CrossingNew?.Invoke(track, km, pc.Dir, pc.Side); }
+            InvalidateVisual(); return;
+        }
         if ((ToScreen(Geometry(Track(track)).At(km).P) - s).Length < 8) { DraftInfo?.Invoke("Rozjazd: przeciągnij od miejsca początku rozjazdu w stronę odgałęzienia (obok toru – tor równoległy, na tor sąsiedni – łącznik)"); InvalidateVisual(); return; }
         TurnoutPlace?.Invoke(RzFromDrag(track, km, s));
         InvalidateVisual();
@@ -347,6 +356,14 @@ public partial class UtView
         if (rzFrom is not var (track, km) || hover is not XY h) return;
         if ((ToScreen(Geometry(Track(track)).At(km).P) - ToScreen(h)).Length < 8) return;
         var pl = RzFromDrag(track, km, ToScreen(h));
+        if (Katalog.Find(RzType) is RozjazdTyp ct && ct.IsCrossing)
+        {
+            var tmpc = new UtProject { Tracks = Doc.P.Tracks.ToList() };
+            var (nc, ntr) = Rozjazdy.NewCrossing(tmpc, track, km, pl.Dir, pl.Side, RzType, "");
+            if (ntr != null) dc.DrawLine(RzPreview, ToScreen(ntr.Vertices[0].P), ToScreen(ntr.Vertices[1].P));
+            Label(dc, $"{RzType} – tor przecinający pod 1:{ct.N:0.#}, przedłużysz go narzędziem Tor", ToScreen(h) + new Vector(12, 10), Red, dpi);
+            return;
+        }
         var (dir, side, target) = (pl.Dir, pl.Side, pl.Target);
         var tmp = new UtProject { Tracks = Doc.P.Tracks.ToList() };
         string info;
