@@ -44,7 +44,7 @@ public class UtDocument
         if (!UtProject.DrawingScales.Contains(p.DrawingScale)) p.DrawingScale = 1000;
         p.Backgrounds ??= new();
         p.Tracks ??= new();
-        p.Turnouts ??= new(); p.Crossings ??= new();
+        p.Turnouts ??= new(); p.Crossings ??= new(); p.Devices ??= new();
         Rozjazdy.Sync(p);
         return new UtDocument(p, System.IO.Path.GetFullPath(path));
     }

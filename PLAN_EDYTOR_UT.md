@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobione: poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy) i budowa torów od nowa (§ 5c – prosta / łuk styczne, łączenie łukiem i łukami odwrotnymi, uchwyt łuku). Następny: etap 5 – urządzenia ze znakami z bazy.
+**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobione: poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy) i budowa torów od nowa (§ 5c – prosta / łuk styczne, łączenie łukiem i łukami odwrotnymi, uchwyt łuku). Etap 5, część 1 (§ 5d – urządzenia na torze) zrobiona. Następny: etap 5, część 2 – odcinki kontroli niezajętości, wskaźniki, perony, przejazdy, kilometraż.
 
 ---
 
@@ -98,6 +98,16 @@ Właściciel: „łączenie torów trzeba ogarnąć i to, jak łuki powstają”
 2. **Łączenie:** zakończenie na końcu innego toru (przyciąganie) łączy stycznie – jednym łukiem, gdy styczne się przecinają (R z pola albo największy, jaki się mieści), inaczej łukami odwrotnymi (esowanie, zmiana rozstawu). Tory scalają się w jeden, jeśli drugi nie jest związany z rozjazdem ani skrzyżowaniem. Start na końcu toru A i klik na końcu toru B łączy dwa istniejące tory.
 3. **Edycja łuku myszą:** zaznaczony tor ma uchwyt w środku każdego łuku. Przeciągnięcie zmienia R (środek łuku idzie za kursorem po dwusiecznej), a R widać na żywo. Wierzchołek dalej przeciąga się jak dotąd.
 4. Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje.
+
+## 5d. Etap 5, część 1 – urządzenia na torze (2026-10-16)
+
+Znaki wg Ig-10 zał. 8: semafor świetlny (s. 27), tarcza ostrzegawcza (s. 27–28), tarcza manewrowa świetlna (wysoka / karzełkowa, s. 29), kozioł oporowy (s. 25), wykolejnica (s. 52), licznik osi (s. 51), złącze izolowane (s. 50), ukres W17 (s. 24).
+
+1. **Model `UtDevice`** (`Lcs.Model/UtDevice.cs`): rodzaj, nazwa (opis z planu, np. „A”, „Tm12”, „Wk3”), tor + kilometraż S [m w terenie], kierunek działania `Dir` (+1 – dla jazdy w stronę rosnącego km toru), strona `Side` (+1 – po prawej patrząc w kierunku działania), dla semafora liczba komór. Położenie wynika z toru: po przesunięciu toru urządzenie jedzie razem z nim. Usunięcie toru usuwa jego urządzenia.
+2. **Narzędzie Urządzenie (U)**, rodzaj z listy na pasku. Wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi. Urządzenia bez kierunku (kozioł, licznik, złącze, ukres) – samo kliknięcie. Nazwę wpisuje projektant (okno z podpowiedzią kolejnej wolnej).
+3. **Wskaż:** klik zaznacza, przeciągnięcie przesuwa wzdłuż toru, strzałki 0,1 / 1 m, Del usuwa, PPM – menu (zmień stronę, odwróć kierunek, usuń); panel: nazwa, km, kierunek, strona, liczba komór.
+4. **Rysowanie:** znak w mm arkusza (2,2–3,6 px/mm jak rozjazdy), maszt po stronie urządzenia, komory w stronę nadjeżdżającego pociągu, nazwa przy znaku.
+5. **Część 2 (następna):** odcinki kontroli niezajętości (nazwy, granice z liczników osi / złączy, „Sprawdź”), wskaźniki W4 / W5, perony, przejazdy, kilometraż.
 
 ## 6. Pytania do właściciela
 

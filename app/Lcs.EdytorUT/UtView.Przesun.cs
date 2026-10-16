@@ -32,6 +32,13 @@ public partial class UtView
         if (Doc == null || Busy) return false;
         Vector v = k switch { Key.Left => new(-1, 0), Key.Right => new(1, 0), Key.Up => new(0, -1), Key.Down => new(0, 1), _ => default };
         if (v.Length == 0) return false;
+        if (Dev(SelectedDevice) is UtDevice dv && Urzadzenia.Pos(Doc.P, dv) is var (_, daz, _))
+        {
+            double dd = v * (ScreenDir(daz) * dv.Dir);              // kierunek rosnącego km toru na ekranie
+            if (Math.Abs(dd) < 0.2) return true;
+            DeviceMoved?.Invoke(dv.Id, Math.Round(dv.S + Math.Sign(dd) * (shift ? 1 : 0.1), 3));
+            return true;
+        }
         if (SelectedTurnout != null && Doc.P.Turnouts.FirstOrDefault(x => x.Id == SelectedTurnout) is UtTurnout t)
         {
             var m = t.BranchAtEnd && t.Partner != null ? Doc.P.Turnouts.FirstOrDefault(x => x.Id == t.Partner) ?? t : t;

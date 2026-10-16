@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         InitBg();
         InitTory();
         InitRozjazdy();
+        InitUrzadzenia();
         Closing += OnClosing;
 
         UtDocument doc = null;
@@ -113,6 +114,9 @@ public partial class MainWindow : Window
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Rozjazd, "⑂ Rozjazd", "Rozjazd z katalogu: wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia; puszczenie na torze sąsiednim – łącznik; krzyżowy / skrzyżowanie – klik na przecięciu torów (R)"));
         tb.Items.Add(RzTypeBox);
+        tb.Items.Add(new Separator());
+        tb.Items.Add(ToolBtn(UtTool.Urzadzenie, "⊢○ Urządzenie", "Urządzenie na torze (Ig-10): wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, po stronie, po której stoi; kozioł, licznik, złącze, ukres – klik (U)"));
+        tb.Items.Add(DevKindBox);
         tb.Items.Add(Btn("Symbole Ig-10…", (s, e) => OpenSymbols(), "Katalog znaków Ig-10 (zał. 8) z pliku Dane/symbole_ig10.json – podgląd, ponowne wczytanie po poprawkach"));
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Miarka, "📏 Miarka", "Pomiar długości w terenie: klik – kolejne punkty, Backspace – cofnij punkt, PPM – wyczyść (M)"));
@@ -145,6 +149,9 @@ public partial class MainWindow : Window
                 ? $"{View.RzType}: kliknij na przecięciu dwóch torów (tor przecinający narysuj narzędziem Tor pod kątem typu)"
                 : $"{View.RzType}: wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia; puść na torze sąsiednim – łącznik",
             UtTool.Rownolegly => "Równoległy: 1) klik na torze wzorcowym, 2) klik na podkładzie na osi nowego toru w miejscu początku (odstęp co 1 cm, Shift – co 0,25 m), 3) klik w miejscu końca albo Enter – do końca toru; PPM / Backspace – krok wstecz, Esc – od nowa",
+            UtTool.Urzadzenie => $"{UtDevice.KindInfo(View.DevKind).Name}: " + (UtDevice.KindInfo(View.DevKind).Directed && View.DevKind != UtDevice.Koziol
+                ? "wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi"
+                : View.DevKind == UtDevice.Koziol ? "kliknij przy końcu toru (przyciąga się do końca)" : "kliknij na torze w miejscu urządzenia"),
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
@@ -407,6 +414,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.T) { SetTool(UtTool.Tor); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.R) { SetTool(UtTool.Rozjazd); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.P) { SetTool(UtTool.Rownolegly); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.U) { SetTool(UtTool.Urzadzenie); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && View.NudgeKey(e.Key, shift)) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }

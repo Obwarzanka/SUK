@@ -25,6 +25,8 @@ public class UtProject
     public List<UtTurnout> Turnouts { get; set; } = new();
     /// <summary>Skrzyżowania torów i rozjazdy krzyżowe.</summary>
     public List<UtCrossing> Crossings { get; set; } = new();
+    /// <summary>Urządzenia przytorowe (semafory, tarcze, kozły, wykolejnice, liczniki osi, złącza, ukresy).</summary>
+    public List<UtDevice> Devices { get; set; } = new();
     /// <summary>
     /// Oś schematu: azymut [°] kierunku, który w widoku Schemat biegnie w prawo (układ „do poziomu”); null – kierunek najdłuższego toru.
     /// Tylko widok – geometria się nie zmienia.

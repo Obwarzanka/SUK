@@ -102,7 +102,7 @@ public partial class MainWindow
     /// <summary>Del: zaznaczony wierzchołek (gdy zostają co najmniej 2) albo cały tor.</summary>
     public bool DeleteSelection()
     {
-        if (DeleteTurnoutOrCrossing()) return true;
+        if (DeleteDevice() || DeleteTurnoutOrCrossing()) return true;
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
         if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }

@@ -166,6 +166,63 @@ public static partial class Test
         if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
         Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
 
+        // --- urządzenia na torze (etap 5, część 1)
+        r1 = w.View.Geometry(t1); r2 = w.View.Geometry(t2);
+        void Kind(string key) => w.DevKindBox.SelectedIndex = Array.FindIndex(UtDevice.Kinds, x => x.Key == key);
+        Kind(UtDevice.LicznikOsi); Kind(UtDevice.Semafor);
+        Ok(w.View.Tool == UtTool.Urzadzenie && w.View.DevKind == UtDevice.Semafor, "wybór rodzaju na pasku – narzędzie Urządzenie, semafor");
+        void PlaceDir(UtTrack tr, double km, int dir, int side)
+        {
+            var rr = w.View.Geometry(tr); var (pp, az) = rr.At(km); Look(pp, 0.4);
+            var to = Go(pp, az * 180 / Math.PI + (dir > 0 ? 0 : 180), 8) + Element.Right(az + (dir > 0 ? 0 : Math.PI)) * (side * 1.5 * k);
+            w.View.SimDrag(S(pp), S(to));
+        }
+        PlaceDir(t1, 150, 1, 1);
+        PlaceDir(t1, 1250, -1, 1);
+        Kind(UtDevice.TarczaMan); PlaceDir(t2, 520, -1, -1);
+        int nd0 = d.P.Devices.Count;
+        var br4 = d.P.Tracks.First(x => x.Id == d.P.Turnouts.First(r => r.Number == "8").Branch); var rb4 = w.View.Geometry(br4);
+        Kind(UtDevice.Koziol); Look(rb4.At(rb4.Length).P, 0.4); w.View.SimClick(S(rb4.At(rb4.Length - 3).P));
+        Kind(UtDevice.Wykolejnica); PlaceDir(br4, rb4.Length - 60, 1, 1);
+        Kind(UtDevice.LicznikOsi); foreach (var km in new[] { 360.0, 1040.0 }) { var pp = r1.At(km).P; Look(pp, 0.4); w.View.SimClick(S(pp)); }
+        var dA = d.P.Devices.FirstOrDefault(x => x.Name == "A"); var dB = d.P.Devices.FirstOrDefault(x => x.Name == "B");
+        var dTm = d.P.Devices.FirstOrDefault(x => x.Name == "Tm1"); var dK = d.P.Devices.FirstOrDefault(x => x.Kind == UtDevice.Koziol);
+        var dWk = d.P.Devices.FirstOrDefault(x => x.Name == "Wk1");
+        Ok(dA != null && dA.Track == t1.Id && Math.Abs(dA.S - 150) < 0.3 && dA.Dir == 1 && dA.Side == 1 && dB != null && dB.Dir == -1 && dB.Side == 1,
+            "semafory A (km 150, w stronę rosnącego km, po prawej) i B (km 1250, w drugą stronę, po prawej) – przeciągnięciem");
+        Ok(dTm != null && dTm.Track == t2.Id && dTm.Dir == -1 && dTm.Side == -1, "tarcza manewrowa Tm1 na torze 2 (nazwa podpowiedziana)");
+        Ok(dK != null && dK.Track == br4.Id && Math.Abs(dK.S - rb4.Length) < 0.01 && dWk != null && dWk.Track == br4.Id, "kozioł przyciągnięty do końca bocznicy 4, wykolejnica Wk1 na bocznicy");
+        Ok(d.P.Devices.Count(x => x.Kind == UtDevice.LicznikOsi) == 2 && d.P.Devices.Where(x => x.Kind == UtDevice.LicznikOsi).Select(x => x.Name).OrderBy(x => x).SequenceEqual(new[] { "lo1", "lo2" }),
+            "liczniki osi lo1, lo2 na torze 1 – klikiem");
+        Ok(d.P.Devices.All(x => Urzadzenia.Check(d.P, x).Count == 0), "urządzenia bez uwag");
+        // panel: nazwa, komory; zajęta nazwa
+        w.SetTool(UtTool.Wskaz); w.View.SelectDevice(dA.Id);
+        Type(Find<TextBox>(w.TrackPanel, _ => true), "A1");
+        Ok(d.P.Devices.First(x => x.Id == dA.Id).Name == "A1" && Find<TextBlock>(w.TrackPanel, x => x.Text == "Semafor świetlny A1") != null, "panel urządzenia: nazwa A → A1");
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 5).SelectedItem = "4";
+        Ok(d.P.Devices.First(x => x.Id == dA.Id).Heads == 4, "semafor A1: 4 komory");
+        w.View.SelectDevice(dB.Id); Type(Find<TextBox>(w.TrackPanel, _ => true), "A1");
+        Ok(d.P.Devices.First(x => x.Id == dB.Id).Name == "B" && w.LastMessage.Contains("zajęta"), "zajęta nazwa – odmowa");
+        // przeciąganie, strzałki, menu, Del
+        var pA = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dA.Id)).Value.P; Look(pA, 0.3); w.View.Select(null);
+        w.View.SimDrag(S(pA), S(pA) + (S(Go(pA, lineAz, 12)) - S(pA)));
+        Ok(Math.Abs(d.P.Devices.First(x => x.Id == dA.Id).S - 162) < 0.3 && w.View.SelectedDevice == dA.Id, "przeciągnięcie semafora A1 o 12 m wzdłuż toru (bez zaznaczania)");
+        KeyPress(w, Key.Left); Ok(Math.Abs(d.P.Devices.First(x => x.Id == dA.Id).S - 161.9) < 0.3, "strzałka – semafor o 0,1 m");
+        w.DoUndo(); w.DoUndo();
+        var cmD = w.BuildDeviceMenu(dTm.Id);
+        cmD.Items.OfType<MenuItem>().First(x => x.Header as string == "Odwróć kierunek").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Ok(d.P.Devices.First(x => x.Id == dTm.Id).Dir == 1, "menu PPM: odwrócenie kierunku tarczy Tm1");
+        w.DoUndo();
+        w.View.SelectDevice(dWk.Id); KeyPress(w, Key.Delete);
+        Ok(d.P.Devices.All(x => x.Id != dWk.Id), "Del – wykolejnica usunięta");
+        w.DoUndo(); Ok(d.P.Devices.Any(x => x.Id == dWk.Id), "Ctrl+Z – wróciła");
+        if (shotRails != null)
+        {
+            w.View.Select(null);
+            w.View.FitPoints(new[] { r1.At(100).P, r1.At(560).P, r2.At(100).P, r2.At(560).P });
+            await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_urzadzenia.png"));
+        }
+
         // --- przesuwanie myszą i klawiaturą
         w.SetTool(UtTool.Wskaz); w.View.Select(null);
         var zm1 = d.P.Turnouts.First(x => x.Number == "1"); var zm2 = d.P.Turnouts.First(x => x.Number == "2");
@@ -231,7 +288,7 @@ public static partial class Test
         Ok(d.P.AxisAz == null && Math.Abs(Ang(w.View.AxisAz - ax)) < 1e-6, "Ctrl+Z – oś wraca do automatycznej");
         Ok(w.SaveDoc(false), "zapis stacji");
         var re = UtDocument.Load(d.Path);
-        Ok(UtDocument.Serialize(re.P) == UtDocument.Serialize(d.P) && re.P.View.Schemat && re.P.View.Stretch == 4, "odczyt: identyczny, widok Schemat zapamiętany");
+        Ok(UtDocument.Serialize(re.P) == UtDocument.Serialize(d.P) && re.P.View.Schemat && re.P.View.Stretch == 4 && re.P.Devices.Count == d.P.Devices.Count && d.P.Devices.Count >= 7, $"odczyt: identyczny (z {d.P.Devices.Count} urządzeniami), widok Schemat zapamiętany");
 
         // zrzut zbliżenia: łącznik 1/2 i rozjazd 5
         w.View.Select(null);

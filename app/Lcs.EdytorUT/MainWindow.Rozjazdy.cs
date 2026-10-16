@@ -192,9 +192,10 @@ public partial class MainWindow
     // ------------------------------------------------------------------ panele
     bool BuildObjPanel()
     {
+        if (View.SelectedDevice is string did && Doc.P.Devices.FirstOrDefault(x => x.Id == did) is UtDevice dv) { BuildDevicePanel(dv); return true; }
         if (View.SelectedTurnout is string id && Doc.P.Turnouts.FirstOrDefault(x => x.Id == id) is UtTurnout t) { BuildTurnoutPanel(t); return true; }
         if (View.SelectedCrossing is string cid && Doc.P.Crossings.FirstOrDefault(x => x.Id == cid) is UtCrossing c) { BuildCrossingPanel(c); return true; }
-        return View.SelectedTurnout != null || View.SelectedCrossing != null;   // obiekt zniknął (np. po cofnięciu) – pusty panel
+        return View.SelectedTurnout != null || View.SelectedCrossing != null || View.SelectedDevice != null;   // obiekt zniknął (np. po cofnięciu) – pusty panel
     }
 
     void ChTurnout(string id, string what, Action<UtTurnout> act) => Doc.Change(what, p => { var t = p.Turnouts.FirstOrDefault(x => x.Id == id); if (t != null) act(t); });

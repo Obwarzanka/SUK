@@ -47,8 +47,8 @@ public partial class UtView
 
     public void Select(string track, int vertex = -1)
     {
-        if (SelectedTrack == track && SelectedVertex == vertex && SelectedTurnout == null && SelectedCrossing == null) return;
-        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex; SelectedTurnout = null; SelectedCrossing = null;
+        if (SelectedTrack == track && SelectedVertex == vertex && SelectedTurnout == null && SelectedCrossing == null && SelectedDevice == null) return;
+        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex; SelectedTurnout = null; SelectedCrossing = null; SelectedDevice = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
@@ -102,7 +102,7 @@ public partial class UtView
     public IReadOnlyList<XY> Draft => dv.Skip(Math.Max(0, baseCount - 1)).Select(v => v.P).ToList();
 
     /// <summary>W toku rysowania (Tor) albo wskazywania (Równoległy) – Del nie usuwa zaznaczenia.</summary>
-    public bool Busy => dv.Count > 0 || parSrc != null;
+    public bool Busy => dv.Count > 0 || parSrc != null || devFrom != null;
 
     double KAt(XY p) => Geo.InPoland(p) ? Geo.ScaleFactor(p) : 1;
     static List<UtVertex> Clone(IEnumerable<UtVertex> v) => v.Select(x => x.Clone()).ToList();

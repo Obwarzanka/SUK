@@ -212,6 +212,8 @@ public static class Rozjazdy
             }
         }
         p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
+        p.Devices ??= new();
+        p.Devices.RemoveAll(d => Tr(p, d.Track) == null);           // urządzenia usuniętego toru
         foreach (var c in p.Crossings)
         {
             var ra = Trasa.Compute(Tr(p, c.TrackA)); var rb = Trasa.Compute(Tr(p, c.TrackB));

@@ -31,12 +31,12 @@ public partial class UtView
 
     public void SelectTurnout(string id)
     {
-        SelectedTurnout = id; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1;
+        SelectedTurnout = id; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
     public void SelectCrossing(string id)
     {
-        SelectedCrossing = id; SelectedTurnout = null; SelectedTrack = null; SelectedVertex = -1;
+        SelectedCrossing = id; SelectedTurnout = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
