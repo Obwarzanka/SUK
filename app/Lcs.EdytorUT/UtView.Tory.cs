@@ -8,8 +8,8 @@ namespace Lcs.EdytorUT;
 
 /// <summary>
 /// Tory na płótnie: rysowanie osi (jedna linia jak w ISDR: tory główne 2 px, boczne 1,2 px, numer toru nad osią),
-/// narzędzie Tor (wielobok styczny klikami, długość z klawiatury, przedłużenie kierunku, przyciąganie), zaznaczanie,
-/// przeciąganie wierzchołków, wstawianie wierzchołka dwuklikiem.
+/// narzędzie Tor (odcinki styczne: prosta / łuk, długość z klawiatury, łączenie z końcem innego toru łukiem albo łukami odwrotnymi),
+/// zaznaczanie, przeciąganie wierzchołków i uchwytów łuków (promień), wstawianie wierzchołka dwuklikiem.
 /// </summary>
 public partial class UtView
 {
@@ -17,8 +17,8 @@ public partial class UtView
     public string SelectedTrack { get; private set; }
     public int SelectedVertex { get; private set; } = -1;
     public event Action SelectionChanged;
-    /// <summary>Narzędzie Tor: tor narysowany (wierzchołki, tor przedłużany albo null, przedłużany od początku).</summary>
-    public event Action<List<UtVertex>, string, bool> TrackDrawn;
+    /// <summary>Narzędzie Tor: wierzchołki toru (cały tor), tor zastępowany albo null (nowy), tor wchłonięty przy połączeniu albo null.</summary>
+    public event Action<List<UtVertex>, string, string> TrackDrawn;
     public event Action<string, int, XY> VertexMoved;
     public event Action<string, int, XY> VertexInserted;
     /// <summary>Zmiana stanu rysowania (opis do paska stanu).</summary>
@@ -83,81 +83,141 @@ public partial class UtView
     }
 
     // ------------------------------------------------------------------ narzędzie Tor
-    readonly List<XY> draft = new();
+    /// <summary>Tryb narzędzia Tor: prosta na przedłużeniu albo łuk styczny.</summary>
+    public enum TorMode { Prosta, Luk }
+    TorMode torMode;
+    public TorMode Mode { get => torMode; set { torMode = value; LenBuf = ""; DraftChanged(); ModeChanged?.Invoke(); } }
+    public event Action ModeChanged;
+    /// <summary>Uchwyt łuku przeciągnięty: tor, wierzchołek, nowy promień [m].</summary>
+    public event Action<string, int, double> ArcRadiusChanged;
+
+    // rysowany wielobok (przy przedłużeniu – z wierzchołkami toru, ostatni to koniec); historia do Backspace
+    readonly List<UtVertex> dv = new();
+    readonly Stack<(List<UtVertex> V, int Base)> hist = new();
+    int baseCount, keepFrom;     // liczba wierzchołków toru przedłużanego; od którego indeksu wolno usuwać wierzchołki na prostej
     string extendId; bool extendAtStart;
-    /// <summary>Długość wpisywana z klawiatury [m w terenie].</summary>
+    /// <summary>Długość wpisywana z klawiatury [m w terenie]: prosta – długość, łuk – długość łuku.</summary>
     public string LenBuf { get; private set; } = "";
-    public IReadOnlyList<XY> Draft => draft;
+    /// <summary>Punkty narysowanej części (od początku rysowania albo od przedłużanego końca).</summary>
+    public IReadOnlyList<XY> Draft => dv.Skip(Math.Max(0, baseCount - 1)).Select(v => v.P).ToList();
 
     double KAt(XY p) => Geo.InPoland(p) ? Geo.ScaleFactor(p) : 1;
+    static List<UtVertex> Clone(IEnumerable<UtVertex> v) => v.Select(x => x.Clone()).ToList();
+    double RNow => NewR > 0 ? NewR : 300;
 
-    /// <summary>Kolejny punkt rysowanego toru dla kursora: przyciągnięty; Shift – na przedłużeniu ostatniego odcinka.</summary>
-    XY DraftPoint(Point s)
+    /// <summary>Kandydat na kolejny odcinek: wielobok po dodaniu, opis, cel połączenia (koniec innego toru), błąd.</summary>
+    record Cand(List<UtVertex> V, string Info, SnapResult Join);
+
+    /// <summary>Koniec toru, z którym można się połączyć (nie przedłużany tor, nie koniec ustawiany przez rozjazd).</summary>
+    bool JoinOk(SnapResult sn) =>
+        sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t && t.Vertices.Count >= 2 && t.Id != extendId && !Locked(t.Id, sn.Vertex);
+
+    Cand Candidate(Point s, double? typed = null)
     {
-        var sn = Snap(s);
-        var w = sn.P;
-        if (Mods.HasFlag(ModifierKeys.Shift) && DirLock() is XY d)
+        if (dv.Count == 0) return null;
+        var sn = Snap(s, extendId);
+        var e = dv[^1].P; double k = KAt(e);
+        var az = Budowa.EndAz(dv);
+        // koniec na końcu innego toru – połączenie styczne (łuk albo łuki odwrotne)
+        if (typed == null && az != null && JoinOk(sn))
         {
-            var a = draft[^1]; double t = (w.X - a.X) * d.X + (w.Y - a.Y) * d.Y;
-            w = a + d * Math.Max(0, t);
+            var tv = Track(sn.Track).Vertices; bool atStart = sn.Vertex == 0;
+            double az2 = atStart ? Trasa.Az(tv[0].P, tv[1].P) : Trasa.Az(tv[^1].P, tv[^2].P);   // dojazd w głąb toru
+            var mid = Budowa.Connect(e, az.Value, sn.P, az2, RNow, NewL, k, out var r, out var note);
+            if (mid == null) return new(null, "Połączenie: " + note, null);
+            var nv = Clone(dv); nv.AddRange(mid); nv.Add(new UtVertex { X = sn.P.X, Y = sn.P.Y });
+            string what = mid.Count == 0 ? "połączenie na prostej" : mid.Count == 1 ? $"połączenie łukiem R {r:0.#}" : $"połączenie łukami odwrotnymi R {r:0.#}";
+            return new(nv, what + (note != null ? " – " + note : "") + " – klik łączy tory", sn);
         }
-        return w;
+        List<UtVertex> res; string info;
+        if (torMode == TorMode.Luk)
+        {
+            if (az == null) return new(null, "Łuk: najpierw prosta (kierunek) albo zacznij na końcu toru", null);
+            var w = ToWorld(s); var rt = Element.Right(az.Value);
+            double side = (w - e).X * rt.X + (w - e).Y * rt.Y >= 0 ? 1 : -1;
+            double ang;
+            if (typed is double ls) ang = side * Math.Min(ls / RNow, 170 * Math.PI / 180);
+            else if (Mods.HasFlag(ModifierKeys.Shift) && Doc != null && Budowa.ArcAngleParallel(dv, side, Doc.P.SchematAz()) is var pa && pa != 0) ang = pa;
+            else ang = Budowa.ArcAngleTo(dv, RNow, k, w);
+            res = Budowa.Arc(dv, RNow, NewL, ang, k);
+            info = $"łuk R {RNow:0.##} {(ang > 0 ? "w prawo" : "w lewo")}, {Math.Abs(ang) * 180 / Math.PI:0.##}°, {Len3(RNow * Math.Abs(ang))}";
+        }
+        else if (az == null || Mods.HasFlag(ModifierKeys.Alt))
+        {
+            // pierwszy odcinek albo Alt: kierunek wolny (z Alt – załamanie z łukiem R w wierzchołku)
+            var w = sn.P;
+            if (typed is double l0)
+            {
+                var c = ToWorld(s) - e; if (c.Length < 1e-9) return null;
+                w = e + c * (l0 * k / c.Length);
+            }
+            if (XY.Dist(w, e) < 1e-6) return null;
+            res = Clone(dv);
+            if (az != null) { res[^1].R = RNow; res[^1].L = NewL; }
+            res.Add(new UtVertex { X = w.X, Y = w.Y });
+            info = $"prosta {Len3(Geo.GroundDistance(e, w))}, az {Geo.Azimuth(e, w):0.0}°" + (az != null ? " (Alt – załamanie z łukiem)" : "");
+        }
+        else
+        {
+            var w = ToWorld(s); var d = Element.Dir(az.Value);
+            double len = typed ?? ((w - e).X * d.X + (w - e).Y * d.Y) / k;
+            if (len < 0.01) return new(null, "Prosta: przesuń kursor do przodu (Alt – inny kierunek, Tab – łuk)", null);
+            res = Budowa.Straight(dv, len, k);
+            info = $"prosta {Len3(len)}";
+        }
+        return new(res, info, null);
     }
 
-    /// <summary>Kierunek ostatniego odcinka (rysunek albo przedłużany tor).</summary>
-    XY? DirLock()
+    /// <summary>Przyjęcie odcinka: zapamiętanie stanu (Backspace) i uproszczenie wieloboku.</summary>
+    void Commit(List<UtVertex> v)
     {
-        if (draft.Count >= 2) { var d = draft[^1] - draft[^2]; return d * (1 / d.Length); }
-        if (draft.Count == 1 && extendId != null && Track(extendId) is UtTrack t && t.Vertices.Count >= 2)
-        {
-            var v = t.Vertices; var d = extendAtStart ? v[0].P - v[1].P : v[^1].P - v[^2].P; return d * (1 / d.Length);
-        }
-        return null;
+        hist.Push((Clone(dv), baseCount));
+        dv.Clear(); dv.AddRange(v);
+        baseCount -= Budowa.Simplify(dv, keepFrom, baseCount);
+        LenBuf = "";
     }
 
     void DraftClick(Point s)
     {
-        if (draft.Count == 0)
+        if (dv.Count == 0) { StartDraft(s); return; }
+        var c = Candidate(s);
+        if (c?.V == null) { if (c != null) DraftInfo?.Invoke(c.Info); return; }
+        Commit(c.V);
+        if (c.Join != null) { FinishDraft(c.Join); return; }
+        DraftChanged();
+    }
+
+    void StartDraft(Point s)
+    {
+        var sn = Snap(s);
+        extendId = null; baseCount = 0; keepFrom = 1; hist.Clear(); dv.Clear();
+        // start na końcu istniejącego toru – przedłużenie stycznie
+        if (sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t && t.Vertices.Count >= 2 && !Locked(t.Id, sn.Vertex))
         {
-            var sn = Snap(s);
-            extendId = null;
-            // start na końcu istniejącego toru – przedłużenie tego toru
-            if (sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t && !Locked(t.Id, sn.Vertex)) { extendId = t.Id; extendAtStart = sn.Vertex == 0; }
-            draft.Add(sn.P);
+            extendId = t.Id; extendAtStart = sn.Vertex == 0;
+            dv.AddRange(Clone(t.Vertices)); if (extendAtStart) dv.Reverse();
+            baseCount = dv.Count; keepFrom = baseCount - 1;
+            if (!extendAtStart && Doc != null && Rozjazdy.SkewOwner(Doc.P, t.Id) != null) keepFrom = Math.Max(keepFrom, 3);   // wierzchołek na skosie zostaje
         }
-        else
-        {
-            var p = DraftPoint(s);
-            if (XY.Dist(p, draft[^1]) < 1e-6) return;
-            draft.Add(p);
-            // klik na końcu innego toru – połączenie i koniec rysowania
-            var sn = Snap(s);
-            if (sn.Kind == SnapKind.Koniec && !Mods.HasFlag(ModifierKeys.Shift) && draft.Count >= 2) { FinishDraft(); return; }
-        }
+        else dv.Add(new UtVertex { X = sn.P.X, Y = sn.P.Y });
         LenBuf = ""; DraftChanged();
     }
 
-    /// <summary>Długość wpisana z klawiatury: kolejny wierzchołek w tej odległości [m w terenie] w stronę kursora (Shift – na przedłużeniu).</summary>
+    /// <summary>Długość z klawiatury [m w terenie]: prosta (w stronę kursora, gdy kierunek wolny) albo łuk o tej długości.</summary>
     public bool DraftLength(double len, Point? cursor = null)
     {
-        if (draft.Count == 0 || len <= 0) return false;
-        XY dir;
-        if ((Mods.HasFlag(ModifierKeys.Shift) || cursor == null) && DirLock() is XY d) dir = d;
-        else
-        {
-            var c = cursor != null ? ToWorld(cursor.Value) : hover ?? draft[^1];
-            var v = c - draft[^1]; if (v.Length < 1e-9) { if (DirLock() is XY d2) dir = d2; else return false; } else dir = v * (1 / v.Length);
-        }
-        var a = draft[^1];
-        draft.Add(a + dir * (len * KAt(a)));
-        LenBuf = ""; DraftChanged();
+        if (dv.Count == 0 || len <= 0) return false;
+        var c = Candidate(cursor ?? (hover is XY h ? ToScreen(h) : ToScreen(dv[^1].P)), len);
+        if (c?.V == null) { if (c != null) DraftInfo?.Invoke(c.Info); return false; }
+        Commit(c.V); DraftChanged();
         return true;
     }
 
-    /// <summary>Klawisz w narzędziu Tor: cyfry i przecinek – długość, Enter – wierzchołek / koniec, Backspace – cofnij, Esc – rezygnacja.</summary>
+    /// <summary>Klawisz w narzędziu Tor: cyfry i przecinek – długość, Enter – odcinek / koniec, Tab – prosta / łuk, Backspace – cofnij, Esc – rezygnacja.</summary>
     public bool TorKey(Key k)
     {
         if (tool != UtTool.Tor) return false;
+        if (k == Key.Tab) { Mode = torMode == TorMode.Prosta ? TorMode.Luk : TorMode.Prosta; return true; }
         string ch = k switch
         {
             >= Key.D0 and <= Key.D9 => ((char)('0' + (k - Key.D0))).ToString(),
@@ -165,7 +225,7 @@ public partial class UtView
             Key.OemComma or Key.OemPeriod or Key.Decimal => ",",
             _ => null,
         };
-        if (ch != null && draft.Count > 0) { if (!(ch == "," && LenBuf.Contains(','))) LenBuf += ch; DraftChanged(); return true; }
+        if (ch != null && dv.Count > 0) { if (!(ch == "," && LenBuf.Contains(','))) LenBuf += ch; DraftChanged(); return true; }
         if (k == Key.Enter)
         {
             if (LenBuf.Length > 0 && double.TryParse(LenBuf.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var len)) DraftLength(len, hover != null ? ToScreen(hover.Value) : null);
@@ -175,31 +235,43 @@ public partial class UtView
         if (k == Key.Back)
         {
             if (LenBuf.Length > 0) LenBuf = LenBuf[..^1];
-            else if (draft.Count > 0) draft.RemoveAt(draft.Count - 1);
+            else if (hist.Count > 0) { var (v, b) = hist.Pop(); dv.Clear(); dv.AddRange(v); baseCount = b; }
+            else CancelDraft();
             DraftChanged(); return true;
         }
-        if (k == Key.Escape && draft.Count > 0) { CancelDraft(); return true; }
+        if (k == Key.Escape && dv.Count > 0) { CancelDraft(); return true; }
         return false;
     }
 
-    public void FinishDraft()
+    /// <summary>Tor, który można wchłonąć przy połączeniu (nie związany z rozjazdem ani skrzyżowaniem).</summary>
+    bool MergeOk(UtTrack b) => Doc != null && b.Id != extendId &&
+        !Doc.P.Turnouts.Any(t => t.Track == b.Id || t.Branch == b.Id) && !Doc.P.Crossings.Any(c => c.TrackA == b.Id || c.TrackB == b.Id);
+
+    /// <summary>Koniec rysowania; <paramref name="join"/> – połączenie z końcem innego toru (scalenie, jeśli wolno).</summary>
+    public void FinishDraft(SnapResult join = null)
     {
-        if (draft.Count >= 2)
+        if (dv.Count - Math.Max(0, baseCount - 1) < 2) { CancelDraft(); return; }
+        var verts = Clone(dv); string replace = extendId, delete = null; bool atStart = extendAtStart;
+        if (join != null && Track(join.Track) is UtTrack b && MergeOk(b))
         {
-            var vs = draft.Select(p => new UtVertex { X = p.X, Y = p.Y, R = NewR, L = NewL }).ToList();
-            var ext = extendId; bool atStart = extendAtStart;
-            CancelDraft();
-            TrackDrawn?.Invoke(vs, ext, atStart);
+            var bv = Clone(b.Vertices); bool bStart = join.Vertex == 0; if (!bStart) bv.Reverse();
+            verts.AddRange(bv.Skip(1));
+            Budowa.Simplify(verts, keepFrom);
+            if (replace == null) { replace = b.Id; if (!bStart) verts.Reverse(); }   // nowy odcinek wchodzi do toru B, kierunek B zostaje
+            else delete = b.Id;
         }
-        else CancelDraft();
+        if (extendId != null && atStart) verts.Reverse();
+        CancelDraft();
+        TrackDrawn?.Invoke(verts, replace, delete);
     }
 
-    public void CancelDraft() { draft.Clear(); extendId = null; LenBuf = ""; DraftChanged(); }
+    public void CancelDraft() { dv.Clear(); hist.Clear(); extendId = null; baseCount = 0; LenBuf = ""; DraftChanged(); }
 
     void DraftChanged()
     {
         InvalidateVisual();
-        DraftInfo?.Invoke(draft.Count == 0 ? "" : $"Tor: {draft.Count} pkt" + (extendId != null ? " (przedłużenie toru)" : "") + (LenBuf.Length > 0 ? $" · długość: {LenBuf} m – Enter" : ""));
+        int n = Draft.Count;
+        DraftInfo?.Invoke(dv.Count == 0 ? "" : $"Tor ({(torMode == TorMode.Luk ? "łuk" : "prosta")}): {Math.Max(0, n - 1)} odc." + (extendId != null ? " (przedłużenie toru)" : "") + (LenBuf.Length > 0 ? $" · {(torMode == TorMode.Luk ? "długość łuku" : "długość")}: {LenBuf} m – Enter" : ""));
     }
 
     bool DoubleClick(Point p)
@@ -236,6 +308,17 @@ public partial class UtView
 
     // ------------------------------------------------------------------ zaznaczanie i wierzchołki
     (string Track, int Index)? vDrag; XY vDragTo; bool vDragMoved;
+    /// <summary>Przeciąganie uchwytu łuku (zamiast wierzchołka) i promień na żywo.</summary>
+    bool vArc; double vArcR;
+
+    /// <summary>Uchwyty łuków zaznaczonego toru: wierzchołek i środek łuku (wierzchołki ustawiane przez rozjazd – bez uchwytu).</summary>
+    List<(int I, XY Mid)> ArcHandles(UtTrack t)
+    {
+        var res = new List<(int, XY)>(); var r = Geometry(t);
+        for (int i = 1; i < t.Vertices.Count - 1; i++)
+            if (t.Vertices[i].R > 0 && !Locked(t.Id, i) && Budowa.ArcMid(r, i) is XY m) res.Add((i, m));
+        return res;
+    }
 
     public string HitTrack(Point s)
     {
@@ -263,6 +346,14 @@ public partial class UtView
     bool PressVertex(Point s)
     {
         if (Track(SelectedTrack) is not UtTrack t) return false;
+        foreach (var (ai, m) in ArcHandles(t))
+            if ((ToScreen(m) - s).Length <= HandlePx)
+            {
+                vDrag = (t.Id, ai); vArc = true; vArcR = t.Vertices[ai].R; vDragMoved = false;
+                Select(t.Id, ai);
+                return true;
+            }
+        vArc = false;
         for (int i = 0; i < t.Vertices.Count; i++)
             if ((ToScreen(t.Vertices[i].P) - s).Length <= HandlePx)
             {
@@ -278,6 +369,18 @@ public partial class UtView
     {
         if (downAt is Point d && (s - d).Length > ClickTol) vDragMoved = true;
         if (!vDragMoved) return;
+        if (vArc && Track(vDrag.Value.Track) is UtTrack at)
+        {
+            // środek łuku za kursorem po dwusiecznej
+            int i = vDrag.Value.Index; var vp = at.Vertices[i].P;
+            if (Budowa.ArcMid(Geometry(at), i) is XY m0)
+            {
+                var u = m0 - vp; double ul = u.Length;
+                if (ul > 1e-9) { var w = ToWorld(s); double dist = ((w - vp).X * u.X + (w - vp).Y * u.Y) / ul; if (dist > 1e-3) vArcR = Budowa.RadiusForMid(at.Vertices, i, dist, KAt(vp)); }
+            }
+            DraftInfo?.Invoke($"Łuk W{i + 1}: R {vArcR:0} m");
+            InvalidateVisual(); return;
+        }
         vDragTo = Snap(s, vDrag.Value.Track, vDrag.Value.Index).P;
         // wierzchołek odgałęzienia za rozjazdem – tylko wzdłuż skosu rozjazdu
         if (SkewTurnout(vDrag.Value.Track, vDrag.Value.Index) is UtTurnout ot && Rozjazdy.OnSkew(Doc.P, ot, vDragTo) is var (q, _)) vDragTo = q;
@@ -287,7 +390,9 @@ public partial class UtView
     void EndVertexDrag(Point s)
     {
         var (id, i) = vDrag.Value; vDrag = null;
-        if (vDragMoved) VertexMoved?.Invoke(id, i, vDragTo);
+        if (vDragMoved && vArc) ArcRadiusChanged?.Invoke(id, i, vArcR);
+        else if (vDragMoved) VertexMoved?.Invoke(id, i, vDragTo);
+        vArc = false;
         InvalidateVisual();
     }
 
@@ -307,18 +412,22 @@ public partial class UtView
         if (Doc == null) return;
         foreach (var t in Doc.P.Tracks)
         {
-            var src = t;
-            if (vDrag is var (vid, vi) && vid == t.Id && vDragMoved)
-            {
-                src = new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => v.Clone()).ToList() };
-                src.Vertices[vi].X = vDragTo.X; src.Vertices[vi].Y = vDragTo.Y;
-            }
+            var src = Dragged(t);
             var (_, res, pts) = Cached(src);
             bool sel = t.Id == SelectedTrack;
             DrawAxis(dc, src, res, pts, sel, dpi);
         }
         if (Track(SelectedTrack) is UtTrack st) DrawTrackEdit(dc, st, dpi);
         if (tool == UtTool.Tor) DrawDraft(dc, dpi);
+    }
+
+    /// <summary>Tor w trakcie przeciągania wierzchołka albo uchwytu łuku (podgląd) albo sam tor.</summary>
+    UtTrack Dragged(UtTrack t)
+    {
+        if (vDrag is not var (vid, vi) || vid != t.Id || !vDragMoved) return t;
+        var src = new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => v.Clone()).ToList() };
+        if (vArc) src.Vertices[vi].R = vArcR; else { src.Vertices[vi].X = vDragTo.X; src.Vertices[vi].Y = vDragTo.Y; }
+        return src;
     }
 
     void DrawAxis(DrawingContext dc, UtTrack t, TrasaResult res, List<(XY P, double Az)> pts, bool sel, double dpi)
@@ -392,12 +501,7 @@ public partial class UtView
 
     void DrawTrackEdit(DrawingContext dc, UtTrack t, double dpi)
     {
-        var src = t; var res = Geometry(t);
-        if (vDrag is var (vid, vi) && vid == t.Id && vDragMoved)
-        {
-            src = new UtTrack { Id = t.Id + "~", Vertices = t.Vertices.Select(v => v.Clone()).ToList() };
-            src.Vertices[vi].X = vDragTo.X; src.Vertices[vi].Y = vDragTo.Y; res = Geometry(src);
-        }
+        var src = Dragged(t); var res = Geometry(src);
         var v = src.Vertices;
         // wielobok stycznych
         for (int i = 1; i < v.Count; i++) dc.DrawLine(PolyPen, ToScreen(v[i - 1].P), ToScreen(v[i].P));
@@ -412,45 +516,49 @@ public partial class UtView
         {
             var s = ToScreen(v[i].P);
             dc.DrawRectangle(i == SelectedVertex ? HandleSel : HandleFill, HandlePen, new Rect(s.X - 4.5, s.Y - 4.5, 9, 9));
-            if (i > 0 && i < v.Count - 1 && v[i].R > 0)
-                Label(dc, v[i].L > 0 ? $"R {v[i].R:0.##} · L {v[i].L:0.##}" : $"R {v[i].R:0.##}", s + new Vector(9, -20), Ink, dpi);
+        }
+        // uchwyty łuków (kółko w środku łuku) z promieniem
+        foreach (var (i, m) in ArcHandles(src))
+        {
+            var ms = ToScreen(m);
+            dc.DrawEllipse(i == SelectedVertex ? HandleSel : HandleFill, ArcHandlePen, ms, 5.5, 5.5);
+            Label(dc, v[i].L > 0 ? $"R {v[i].R:0.##} · L {v[i].L:0.##}" : $"R {v[i].R:0.##}", ms + new Vector(9, -20), Ink, dpi);
         }
     }
 
+    static readonly Pen ArcHandlePen = FrozenPen(Color.FromRgb(0xe0, 0x70, 0x00), 2);
+
     void DrawDraft(DrawingContext dc, double dpi)
     {
-        if (hover is XY h)
+        if (hover is not XY h) { DrawDraftDone(dc); return; }
+        var hs = ToScreen(h);
+        var sn = Snap(hs, extendId);
+        if (sn.Kind != SnapKind.Brak)
         {
-            var hs = ToScreen(h);
-            var sn = Snap(hs);
-            if (sn.Kind != SnapKind.Brak)
-            {
-                var p = ToScreen(sn.P);
-                if (sn.Kind == SnapKind.Tor) dc.DrawEllipse(null, SnapPen, p, 6, 6); else dc.DrawRectangle(null, SnapPen, new Rect(p.X - 6, p.Y - 6, 12, 12));
-            }
+            var p = ToScreen(sn.P);
+            if (sn.Kind == SnapKind.Tor) dc.DrawEllipse(null, SnapPen, p, 6, 6); else dc.DrawRectangle(null, SnapPen, new Rect(p.X - 6, p.Y - 6, 12, 12));
         }
-        if (draft.Count == 0) return;
-        var pts = draft.ToList();
-        if (hover is XY hv) pts.Add(DraftPoint(ToScreen(hv)));
-        // podgląd z łukami (promień i przejściowa jak w nowych wierzchołkach; przy przedłużeniu – z wierzchołkami toru)
-        var verts = pts.Select(p => new UtVertex { X = p.X, Y = p.Y, R = NewR, L = NewL }).ToList();
-        if (extendId != null && Track(extendId) is UtTrack et)
+        DrawDraftDone(dc);
+        if (dv.Count == 0) return;
+        double? typed = LenBuf.Length > 0 && double.TryParse(LenBuf.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var lb) ? lb : null;
+        var c = Candidate(hs, typed);
+        if (c?.V != null)
         {
-            var old = et.Vertices.Select(x => x.Clone()).ToList();
-            if (extendAtStart) { old.Reverse(); }
-            old[^1].R = NewR; old[^1].L = NewL;
-            verts = old.Concat(verts.Skip(1)).ToList();
+            var res = Trasa.Compute(c.V, KAt(dv[^1].P));
+            var sp = res.Sample(0.5);
+            if (sp.Count >= 2) dc.DrawGeometry(null, new Pen(DraftInk, 1.6) { LineJoin = PenLineJoin.Round, DashStyle = new DashStyle(new double[] { 4, 2 }, 0) }, Line(sp, 0));
+            if (!res.Ok) Label(dc, string.Join("; ", res.Notes.Where(n => n.Error).Select(n => n.Text)), hs + new Vector(12, 30), Red, dpi);
         }
-        var res = Trasa.Compute(verts, KAt(pts[0]));
+        if (c != null) Label(dc, (LenBuf.Length > 0 ? $"{LenBuf} m ⏎ · " : "") + c.Info, hs + new Vector(12, 8), c.V == null ? Red : DraftInk, dpi);
+    }
+
+    /// <summary>Narysowana już część (pełny wielobok rysowanego toru).</summary>
+    void DrawDraftDone(DrawingContext dc)
+    {
+        if (dv.Count == 0) return;
+        var res = Trasa.Compute(dv, KAt(dv[^1].P));
         var sp = res.Sample(0.5);
         if (sp.Count >= 2) dc.DrawGeometry(null, new Pen(DraftInk, 2) { LineJoin = PenLineJoin.Round }, Line(sp, 0));
-        for (int i = 1; i < pts.Count; i++) dc.DrawLine(DraftPoly, ToScreen(pts[i - 1]), ToScreen(pts[i]));
-        foreach (var p in draft) { var s = ToScreen(p); dc.DrawRectangle(DraftInk, null, new Rect(s.X - 3, s.Y - 3, 6, 6)); }
-        if (pts.Count >= 2)
-        {
-            var a = pts[^2]; var b = pts[^1];
-            string txt = LenBuf.Length > 0 ? $"{LenBuf} m ⏎" : Len3(Geo.GroundDistance(a, b)) + $" · az {Geo.Azimuth(a, b):0.0}°";
-            Label(dc, txt, ToScreen(b) + new Vector(12, 8), DraftInk, dpi);
-        }
+        var e = ToScreen(dv[^1].P); dc.DrawRectangle(DraftInk, null, new Rect(e.X - 3, e.Y - 3, 6, 6));
     }
 }

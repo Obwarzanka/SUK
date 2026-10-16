@@ -94,9 +94,16 @@ public static partial class Test
         // za KR prosto 40 m (na przedłużeniu odgałęzienia), potem łuk R 300 do bocznicy
         double azDiv5 = Rozjazdy.Geometry(d.P, z5).AzDiv * 180 / Math.PI;
         var k1 = Go(kr, azDiv5, 40);
-        w.View.SimClick(S(k1)); w.View.SimClick(S(Go(k1, lineAz - 1, 110))); w.View.SimClick(S(Go(k1, lineAz - 1, 120)), MouseButton.Right);
-        br5 = d.P.Tracks.First(x => x.Id == z5.Branch);
-        Ok(br5.Vertices.Count == 5 && w.View.Geometry(br5).Ok, $"{tag}odgałęzienie 5 przedłużone od KR (bocznica {M(w.View.Geometry(br5).Length)} m)");
+        // prosta na skosie, łuk z Shift – koniec równoległy do osi (toru 1), prosta dalej
+        w.View.Mode = UtView.TorMode.Prosta; w.View.SimClick(S(k1));
+        w.View.Mode = UtView.TorMode.Luk;
+        UtView.TestMods = System.Windows.Input.ModifierKeys.Shift; w.View.SimClick(S(Go(k1, lineAz, 60))); UtView.TestMods = System.Windows.Input.ModifierKeys.None;
+        w.View.Mode = UtView.TorMode.Prosta; w.View.SimClick(S(Go(k1, lineAz, 160)));
+        w.View.SimClick(S(k1), MouseButton.Right);
+        br5 = d.P.Tracks.First(x => x.Id == z5.Branch); var gb5 = w.View.Geometry(br5);
+        Ok(br5.Vertices.Count == 5 && gb5.Ok && Math.Abs(Math.IEEERemainder(gb5.Elements[^1].Az0 - r2.At(600).Az, Math.PI)) < 1e-9 && Math.Abs(Skew5() - z5.Side * Katalog.Find(z5.Type).Alpha) < 1e-9,
+            $"{tag}odgałęzienie 5 przedłużone od KR: prosta, łuk R 300 z Shift – bocznica równoległa do toru 2, skos 1:9 zachowany ({M(gb5.Length)} m)");
+        double Skew5() { var g = Rozjazdy.Geometry(d.P, z5); var bb = d.P.Tracks.First(x => x.Id == z5.Branch); return Math.IEEERemainder(Trasa.Az(g.SR, bb.Vertices[2].P) - g.Az, 2 * Math.PI); }
 
         if (full)
         {

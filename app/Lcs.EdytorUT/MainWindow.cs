@@ -106,6 +106,7 @@ public partial class MainWindow : Window
         tray.ToolBars.Add(tb);
         tb.Items.Add(ToolBtn(UtTool.Wskaz, "✋ Wskaż", "Przesuwanie widoku (V, Esc)"));
         tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
+        tb.Items.Add(ProstaBtn); tb.Items.Add(LukBtn);
         tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
         tb.Items.Add(new TextBlock { Text = " L", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewLBox);
         tb.Items.Add(new Separator());
@@ -136,7 +137,9 @@ public partial class MainWindow : Window
         foreach (var (t, b) in toolBtns) b.IsChecked = View.Tool == t;
         Message(View.Tool switch
         {
-            UtTool.Tor => "Tor: klikaj wierzchołki wieloboku stycznych (po osi toru na zdjęciu); długość z klawiatury + Enter; Shift – na przedłużeniu; Ctrl – bez przyciągania; start na końcu toru – przedłużenie; Enter / PPM / dwuklik – koniec; Backspace – cofnij; Esc – rezygnacja",
+            UtTool.Tor => View.Mode == UtView.TorMode.Luk
+                ? "Tor – łuk: promień R z pola, strona i kąt za kursorem, długość łuku z klawiatury + Enter; Shift – koniec równoległy do osi schematu; Tab – prosta; klik na końcu innego toru – połączenie; Enter / PPM – koniec; Backspace – cofnij odcinek"
+                : "Tor – prosta: klik – pierwszy punkt (albo koniec toru – przedłużenie), potem odcinki na przedłużeniu, długość z klawiatury + Enter; Alt – wolny kierunek; Tab – łuk; klik na końcu innego toru – połączenie łukiem / łukami odwrotnymi; Enter / PPM – koniec; Backspace – cofnij odcinek; Esc – rezygnacja",
             UtTool.Rozjazd => Katalog.Find(View.RzType)?.IsCrossing == true
                 ? $"{View.RzType}: kliknij na przecięciu dwóch torów (tor przecinający narysuj narzędziem Tor pod kątem typu)"
                 : $"{View.RzType}: wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia; puść na torze sąsiednim – łącznik",

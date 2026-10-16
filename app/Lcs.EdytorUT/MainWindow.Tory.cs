@@ -16,6 +16,8 @@ public partial class MainWindow
 {
     public readonly TextBox NewRBox = new() { Width = 52, Text = "300", VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Promień łuku w nowych wierzchołkach [m] (0 – bez łuku)" };
     public readonly TextBox NewLBox = new() { Width = 40, Text = "0", VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Długość krzywych przejściowych (parabola 3°) w nowych wierzchołkach [m] (0 – bez)" };
+    public readonly System.Windows.Controls.Primitives.ToggleButton ProstaBtn = new() { Content = "─ Prosta", IsChecked = true, Padding = new Thickness(4, 2, 4, 2), ToolTip = "Tor: prosta na przedłużeniu końca (Tab – łuk); Alt – wolny kierunek" },
+        LukBtn = new() { Content = "◠ Łuk", Padding = new Thickness(4, 2, 4, 2), ToolTip = "Tor: łuk styczny o promieniu R, strona i kąt za kursorem (Tab – prosta); Shift – koniec równoległy do osi schematu" };
     public readonly StackPanel TrackPanel = new() { Margin = new Thickness(0, 0, 0, 6) };
     static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
 
@@ -37,6 +39,10 @@ public partial class MainWindow
             ChTrack(id, "Nowy wierzchołek", t => t.Vertices.Insert(i, new UtVertex { X = p.X, Y = p.Y, R = View.NewR, L = View.NewL }));
             View.Select(id, i);
         };
+        View.ArcRadiusChanged += (id, i, r) => { ChTrack(id, "Promień łuku", t => t.Vertices[i].R = r); Message($"Łuk W{i + 1}: R {F(r)} m"); };
+        View.ModeChanged += () => { ProstaBtn.IsChecked = View.Mode == UtView.TorMode.Prosta; LukBtn.IsChecked = View.Mode == UtView.TorMode.Luk; if (View.Tool == UtTool.Tor) ToolShown(); };
+        ProstaBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Prosta; };
+        LukBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Luk; };
         View.SelectionChanged += RefreshTrackPanel;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()
@@ -54,26 +60,28 @@ public partial class MainWindow
     void ChTrack(string id, string what, Action<UtTrack> act) =>
         Doc.Change(what, p => { var t = p.Tracks.FirstOrDefault(x => x.Id == id); if (t != null) act(t); });
 
-    void OnTrackDrawn(List<UtVertex> vs, string ext, bool atStart)
+    /// <summary>Tor z narzędzia Tor: nowy, przedłużony (cały wielobok) albo połączony z innym (tamten wchłonięty).</summary>
+    void OnTrackDrawn(List<UtVertex> vs, string replace, string delete)
     {
-        string id = ext;
-        if (ext != null)
-            ChTrack(ext, "Przedłużenie toru", t =>
+        string id = replace, what;
+        if (replace != null)
+        {
+            what = delete != null ? "Połączenie torów" : "Przedłużenie toru";
+            Doc.Change(what, p =>
             {
-                var add = vs.Skip(1).ToList();
-                var joint = atStart ? t.Vertices[0] : t.Vertices[^1];
-                joint.R = View.NewR; joint.L = View.NewL;          // dotychczasowy koniec staje się wierzchołkiem z łukiem
-                if (atStart) { add.Reverse(); t.Vertices.InsertRange(0, add); } else t.Vertices.AddRange(add);
+                var t = p.Tracks.First(x => x.Id == replace); t.Vertices = vs;
+                if (delete != null) p.Tracks.RemoveAll(x => x.Id == delete);
             });
+        }
         else
         {
             var t = new UtTrack { Vertices = vs };
-            id = t.Id;
-            Doc.Change("Nowy tor", p => p.Tracks.Add(t));
+            id = t.Id; what = "Nowy tor";
+            Doc.Change(what, p => p.Tracks.Add(t));
         }
         View.Select(id);
         var tr = Doc.P.Tracks.First(x => x.Id == id); var r = View.Geometry(tr);
-        Message($"{(ext != null ? "Tor przedłużony" : "Nowy tor")}: {tr.Vertices.Count} wierzchołków, długość {UtView.Len3(r.Length)} w terenie" + (r.Notes.Count > 0 ? " – " + string.Join("; ", r.Notes.Select(n => $"W{n.Vertex + 1}: {n.Text}")) : ""));
+        Message($"{what}: {tr.Vertices.Count} wierzchołków, długość {UtView.Len3(r.Length)} w terenie" + (r.Notes.Count > 0 ? " – " + string.Join("; ", r.Notes.Select(n => $"W{n.Vertex + 1}: {n.Text}")) : ""));
     }
 
     /// <summary>Del: zaznaczony wierzchołek (gdy zostają co najmniej 2) albo cały tor.</summary>

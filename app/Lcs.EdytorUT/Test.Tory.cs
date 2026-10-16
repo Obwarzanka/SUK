@@ -92,29 +92,50 @@ public static partial class Test
         Find<ToggleButton>(w, b => (b.Content as string)?.Contains("Tor") == true).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         Ok(w.View.Tool == UtTool.Tor, "przycisk Tor – narzędzie Tor");
         w.NewRBox.Text = "500"; w.NewLBox.Text = "40";
-        Ok(w.View.NewR == 500 && w.View.NewL == 40, "R 500, L 40 dla nowych wierzchołków (pola na pasku)");
+        Ok(w.View.NewR == 500 && w.View.NewL == 40, "R 500, L 40 dla nowych łuków (pola na pasku)");
+        Ok(w.View.Mode == UtView.TorMode.Prosta && w.ProstaBtn.IsChecked == true, "tryb Prosta na start");
         var c = w.View.Center;
         Point S(XY p) => w.View.ToScreen(p);
-        var q0 = Go(c, 280, 260); var q1 = Go(c, 100, 0); var q2 = Go(c, 108, 220);
-        w.View.SimClick(S(q0)); w.View.SimClick(S(q1)); w.View.SimClick(S(q2));
-        Ok(w.View.Draft.Count == 3, "trzy wierzchołki kliknięte");
-        // długość z klawiatury: 150 m w stronę kursora
-        var cursor = Go(q2, 125, 80);
+        var q0 = Go(c, 280, 260); var q1 = Go(c, 100, 0);
+        w.View.SimClick(S(q0)); w.View.SimClick(S(q1));
+        Ok(w.View.Draft.Count == 2, "pierwsza prosta: dwa punkty, kierunek za kursorem");
+        // łuk z klawiatury: 120 m w prawo (kursor po prawej stronie toru)
+        Click(w.LukBtn);
+        Ok(w.View.Mode == UtView.TorMode.Luk && w.LukBtn.IsChecked == true && w.ProstaBtn.IsChecked == false, "przycisk Łuk – tryb łuku");
+        var cursor = Go(Go(q1, 100, 60), 190, 30);
         w.View.Drag(S(cursor), false);
-        foreach (var key in new[] { Key.D1, Key.D5, Key.D0 }) KeyPress(w, key);
-        Ok(w.View.LenBuf == "150", "wpisana długość 150");
+        foreach (var key in new[] { Key.D1, Key.D2, Key.D0 }) KeyPress(w, key);
+        Ok(w.View.LenBuf == "120", "wpisana długość łuku 120");
         KeyPress(w, Key.Enter);
-        var q3 = w.View.Draft[^1];
-        Ok(w.View.Draft.Count == 4 && Math.Abs(Geo.GroundDistance(q2, q3) - 150) < 0.001 && Math.Abs(Geo.Azimuth(q2, q3) - Geo.Azimuth(q2, cursor)) < 1e-6, $"Enter: wierzchołek w odległości {M(Geo.GroundDistance(q2, q3))} m w terenie, w stronę kursora");
-        KeyPress(w, Key.D9); KeyPress(w, Key.Back); Ok(w.View.LenBuf == "" && w.View.Draft.Count == 4, "Backspace kasuje wpisywaną cyfrę");
-        w.View.SimClick(S(Go(q3, 300, 1)), MouseButton.Right);
+        // prosta 150 m na przedłużeniu łuku (Tab – przełączenie)
+        KeyPress(w, Key.Tab);
+        Ok(w.View.Mode == UtView.TorMode.Prosta, "Tab – z powrotem prosta");
+        w.View.Drag(S(Go(c, 150, 400)), false);
+        foreach (var key in new[] { Key.D1, Key.D5, Key.D0 }) KeyPress(w, key);
+        KeyPress(w, Key.Enter);
+        KeyPress(w, Key.D9); KeyPress(w, Key.Back); Ok(w.View.LenBuf == "", "Backspace kasuje wpisywaną cyfrę");
+        w.View.SimClick(S(q0), MouseButton.Right);
         var tr1 = d0.P.Tracks.SingleOrDefault();
-        Ok(tr1 != null && tr1.Vertices.Count == 4 && tr1.Vertices[1].R == 500 && tr1.Vertices[2].L == 40 && w.View.Draft.Count == 0, "PPM – koniec: tor z 4 wierzchołkami, R 500 / L 40 w wierzchołkach wewnętrznych");
+        Ok(tr1 != null && tr1.Vertices.Count == 3 && tr1.Vertices[1].R == 500 && tr1.Vertices[1].L == 40 && w.View.Draft.Count == 0,
+            $"PPM – koniec: tor prosta – łuk – prosta = 3 wierzchołki (punkty na prostych usunięte), R 500 / L 40 ({tr1?.Vertices.Count} wierzch.)");
         var g1 = w.View.Geometry(tr1);
-        Ok(g1.Ok && g1.Elements.Count(e => e.Kind == ElKind.Luk) == 2 && Continuity(g1).Pos < 1e-6, $"geometria toru bez błędów: 2 łuki z przejściowymi, długość {M(g1.Length)} m");
+        double turn = Math.IEEERemainder(g1.Elements[^1].Az0 - g1.Elements[0].Az0, 2 * Math.PI);
+        Ok(g1.Ok && g1.Elements.Select(e => e.Kind).SequenceEqual(new[] { ElKind.Prosta, ElKind.Przejsciowa, ElKind.Luk, ElKind.Przejsciowa, ElKind.Prosta }) && Continuity(g1).Pos < 1e-6 && Continuity(g1).Az < 1e-9,
+            "geometria: prosta, przejściowa, łuk, przejściowa, prosta – styki ciągłe");
+        Ok(Math.Abs(g1.Elements[0].Len / g1.K - 260) < 1e-3 && Math.Abs(g1.Elements[^1].Len / g1.K - 150) < 1e-3 && Math.Abs(turn - 120.0 / 500) < 1e-9,
+            $"prosta 260 m do początku łuku, łuk w prawo o 120/500 rad ({turn * 180 / Math.PI:0.###}°), prosta 150 m za łukiem");
         Ok(w.View.SelectedTrack == tr1.Id && Find<TextBlock>(w.TrackPanel, tb => tb.Text == "Tor (bez numeru)") != null, "nowy tor zaznaczony, panel toru");
         Ok(UndoDepth(w) == 1 && d0.UndoName == "Nowy tor", "jedno Ctrl+Z na cały tor");
-
+        // łuk myszą: kąt za kursorem, Backspace cofa odcinek
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
+        var f0 = Go(c, 0, 300); w.View.SimClick(S(f0)); w.View.SimClick(S(Go(f0, 90, 100)));
+        w.View.Mode = UtView.TorMode.Luk;
+        var aim = Go(Go(f0, 90, 100), 45, 80);
+        w.View.SimClick(S(aim));
+        Ok(w.View.Draft.Count == 3, "łuk myszą: wierzchołek i koniec łuku (punkt na prostej przed łukiem usunięty)");
+        KeyPress(w, Key.Back);
+        Ok(w.View.Draft.Count == 2, "Backspace – łuk cofnięty");
+        KeyPress(w, Key.Escape); Ok(w.View.Draft.Count == 0 && d0.P.Tracks.Count == 1, "Esc – rysowanie porzucone");
         // panel: numer, kategoria, promień w wierzchołku
         var boxes = new List<TextBox>(); void Collect(DependencyObject x) { if (x is TextBox tb) boxes.Add(tb); foreach (var ch in LogicalTreeHelper.GetChildren(x).OfType<DependencyObject>()) Collect(ch); }
         Collect(w.TrackPanel);
@@ -140,18 +161,22 @@ public static partial class Test
         t = d0.P.Tracks[0];
         w.View.Select(t.Id);
         var mid = (t.Vertices[0].P + t.Vertices[1].P) * 0.5;
+        int nv0 = t.Vertices.Count;
         w.View.SimDoubleClick(S(mid));
-        Ok(d0.P.Tracks[0].Vertices.Count == 5 && XY.Dist(d0.P.Tracks[0].Vertices[1].P, mid) < 0.01 && w.View.SelectedVertex == 1, "dwuklik na boku wieloboku – nowy wierzchołek W2");
+        Ok(d0.P.Tracks[0].Vertices.Count == nv0 + 1 && XY.Dist(d0.P.Tracks[0].Vertices[1].P, mid) < 0.01 && w.View.SelectedVertex == 1, "dwuklik na boku wieloboku – nowy wierzchołek W2");
         KeyPress(w, Key.Delete);
-        Ok(d0.P.Tracks[0].Vertices.Count == 4, "Del – zaznaczony wierzchołek usunięty");
+        Ok(d0.P.Tracks[0].Vertices.Count == nv0, "Del – zaznaczony wierzchołek usunięty");
         // przedłużenie toru od końca
         w.SetTool(UtTool.Tor);
-        t = d0.P.Tracks[0]; var end = t.Vertices[^1].P;
+        t = d0.P.Tracks[0]; var end = t.Vertices[^1].P; int nvx = t.Vertices.Count; double lenx = w.View.Geometry(t).Length;
+        w.View.Mode = UtView.TorMode.Prosta;
         w.View.SimClick(S(end));
-        var ext = Go(end, 115, 120);
-        w.View.SimClick(S(ext));
-        w.View.SimClick(S(ext), MouseButton.Right);
-        Ok(d0.P.Tracks.Count == 1 && d0.P.Tracks[0].Vertices.Count == 5 && XY.Dist(d0.P.Tracks[0].Vertices[^1].P, ext) < 0.01 && d0.P.Tracks[0].Vertices[3].R == 500, "start na końcu toru – tor przedłużony, dawny koniec dostał łuk");
+        w.View.Drag(S(Go(end, 150, 50)), false);
+        KeyPress(w, Key.D8); KeyPress(w, Key.D0); KeyPress(w, Key.Enter);
+        w.View.SimClick(S(end), MouseButton.Right);
+        var tx = d0.P.Tracks[0]; var gx = w.View.Geometry(tx);
+        Ok(d0.P.Tracks.Count == 1 && tx.Vertices.Count == nvx && Math.Abs(gx.Length - lenx - 80) < 1e-3 && gx.Ok && d0.UndoName == "Przedłużenie toru",
+            $"start na końcu toru – przedłużenie stycznie o 80 m (koniec przesunięty, bez nowego wierzchołka; {UtView.Len3(lenx)} → {UtView.Len3(gx.Length)}, wierzch. {nvx} → {tx.Vertices.Count}, {d0.UndoName})");
         // tor równoległy z panelu
         w.SetTool(UtTool.Wskaz); w.View.Select(d0.P.Tracks[0].Id);
         Click(BtnIn(w.TrackPanel, "po prawej →"));
@@ -179,6 +204,56 @@ public static partial class Test
         Ok(w.SaveDoc(false), "zapis projektu z torami");
         var re = UtDocument.Load(d0.Path);
         Ok(UtDocument.Serialize(re.P) == UtDocument.Serialize(d0.P) && re.P.Tracks.Count == 2 && Math.Abs(Trasa.Compute(re.P.Tracks[0]).Length - rm.Length) < 1e-9, "odczyt: tory i ich długości identyczne");
+
+        // ---------------- łączenie torów
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta; w.NewRBox.Text = "300"; w.NewLBox.Text = "0";
+        UtTrack Line2(XY a, double az, double len)
+        {
+            w.View.SimClick(S(a)); w.View.SimClick(S(Go(a, az, len))); w.View.SimClick(S(a), MouseButton.Right);
+            return d0.P.Tracks.Last();
+        }
+        var pa = Go(c, 200, 700); w.View.SetView(Go(pa, 100, 300), 1);
+        var tA = Line2(pa, 100, 200);
+        var pb = Go(Go(Go(pa, 100, 200), 100, 140), 190, 6);
+        var tB = Line2(pb, 100, 200);
+        int ntr0 = d0.P.Tracks.Count;
+        w.View.SimClick(S(tA.Vertices[^1].P));
+        if (shotRails != null) { w.View.Drag(S(tB.Vertices[0].P) + new Vector(2, 1), false); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_laczenie.png")); }
+        w.View.SimClick(S(tB.Vertices[0].P));
+        var tAB = d0.P.Tracks.FirstOrDefault(x => x.Id == tA.Id); var gAB = tAB != null ? w.View.Geometry(tAB) : null;
+        Ok(tAB != null && d0.P.Tracks.Count == ntr0 - 1 && d0.P.Tracks.All(x => x.Id != tB.Id) && d0.UndoName == "Połączenie torów", "koniec toru A → początek toru B: jeden tor (B wchłonięty)");
+        Ok(gAB != null && gAB.Ok && Continuity(gAB).Pos < 1e-6 && Continuity(gAB).Az < 1e-9 && gAB.Elements.Count(e => e.Kind == ElKind.Luk) == 2 && Math.Abs(gAB.Length - (200 + 200 + 140)) < 1,
+            $"esowanie łukami odwrotnymi (zmiana rozstawu 6 m na 140 m), styki ciągłe, długość {UtView.Len3(gAB?.Length ?? 0)}");
+        // jeden łuk: tor C na wschód, tor D zaczyna się 90° dalej w prawo; R 300 się nie mieści – zmniejszony
+        var pc = Go(c, 200, 900); w.View.SetView(Go(pc, 100, 300), 1);
+        var tC = Line2(pc, 100, 200);
+        var xC = Go(Go(pc, 100, 200), 100, 150); var tD = Line2(Go(xC, 190, 150), 190, 200);
+        w.View.SimClick(S(tC.Vertices[^1].P)); w.View.SimClick(S(tD.Vertices[0].P));
+        var tCD = d0.P.Tracks.First(x => x.Id == tC.Id); var gCD = w.View.Geometry(tCD);
+        var arcCD = gCD.Elements.Where(e => e.Kind == ElKind.Luk).ToList();
+        Ok(d0.P.Tracks.All(x => x.Id != tD.Id) && gCD.Ok && arcCD.Count == 1 && Math.Abs(Math.Abs(arcCD[0].R) / gCD.K - 150) < 0.2 && Continuity(gCD).Az < 1e-9 && w.LastMessage.Length > 0,
+            $"połączenie jednym łukiem 90°: R zmniejszony do największego, jaki się mieści ({Math.Abs(arcCD.FirstOrDefault()?.R ?? 0) / gCD.K:0.0} m)");
+        // uchwyt łuku: przeciągnięcie w stronę wierzchołka zmniejsza R
+        w.SetTool(UtTool.Wskaz); w.View.Select(tCD.Id);
+        int ia = tCD.Vertices.FindIndex(v => v.R > 0); double r0 = tCD.Vertices[ia].R;
+        var mA = Budowa.ArcMid(gCD, ia).Value; var vA = tCD.Vertices[ia].P;
+        w.View.SimDrag(S(mA), S(mA) + (S(vA) - S(mA)) * 0.4);
+        var tCD2 = d0.P.Tracks.First(x => x.Id == tC.Id); var gCD2 = w.View.Geometry(tCD2);
+        var m2 = Budowa.ArcMid(gCD2, ia).Value;
+        Ok(tCD2.Vertices[ia].R < r0 - 10 && gCD2.Ok && d0.UndoName == "Promień łuku" && Math.Abs(XY.Dist(m2, vA) - XY.Dist(mA, vA) * 0.6) < 0.6 * k,
+            $"uchwyt łuku przeciągnięty do wierzchołka: R {r0:0} → {tCD2.Vertices[ia].R:0} m, środek łuku pod kursorem");
+        w.DoUndo(); Ok(d0.P.Tracks.First(x => x.Id == tC.Id).Vertices[ia].R == r0, "Ctrl+Z – promień wrócił");
+        if (shotRails != null) { w.View.FitPoints(gCD.Sample(2).Select(q => q.P).ToList()); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_uchwyt_luku.png")); }
+        // Alt – wolny kierunek (załamanie z łukiem R w wierzchołku)
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
+        var pe = Go(c, 200, 1100); w.View.SetView(Go(pe, 100, 200), 1);
+        w.View.SimClick(S(pe)); w.View.SimClick(S(Go(pe, 100, 150)));
+        UtView.TestMods = ModifierKeys.Alt; w.View.SimClick(S(Go(Go(pe, 100, 150), 130, 150))); UtView.TestMods = ModifierKeys.None;
+        w.View.SimClick(S(pe), MouseButton.Right);
+        var tE = d0.P.Tracks.Last();
+        Ok(tE.Vertices.Count == 3 && tE.Vertices[1].R == 300 && w.View.Geometry(tE).Ok, "Alt – wolny kierunek: wierzchołek z łukiem R 300");
+        w.SetTool(UtTool.Wskaz);
+        foreach (var id in new[] { tA.Id, tC.Id, tE.Id }) d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == id));
 
         // widok do zrzutów
         w.View.Select(d0.P.Tracks[0].Id);

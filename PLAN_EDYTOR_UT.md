@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobiona poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy). Następny: etap 5 – urządzenia ze znakami z bazy.
+**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobione: poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy) i budowa torów od nowa (§ 5c – prosta / łuk styczne, łączenie łukiem i łukami odwrotnymi, uchwyt łuku). Następny: etap 5 – urządzenia ze znakami z bazy.
 
 ---
 
@@ -86,6 +86,18 @@ Właściciel ocenił widok jako nierealny i zbyt szczegółowy. Wzór: UT w styl
 4. **Odgałęzienie trzyma skos rozjazdu:** wierzchołki PR i ŚR ustawia rozjazd, a trzeci wierzchołek leży zawsze na prostej skosu za ŚR (`branchLen` – odległość od ŚR, w terenie). Przesunięcie rozjazdu przenosi całe odgałęzienie, a ten wierzchołek można przeciągać tylko wzdłuż skosu. Wcześniej po przesunięciu rozjazdu albo wierzchołka kąt przestawał być 1:N.
 5. **Odgałęzienie do toru równoległego:** przy wstawianiu rozjazdu puszczenie myszy obok toru (nie na torze) buduje od razu tor odgałęźny: skos rozjazdu, łuk zwrotny R (pole R na pasku) i prosta równoległa w odstępie zaokrąglonym do 0,5 m (od 4,5 m). Krótkie przeciągnięcie daje samo odgałęzienie do KR, jak dotąd. Puszczenie na torze sąsiednim tworzy łącznik, bez zmian.
 6. **Panel:** sekcje „Obszar” i „Podkłady” są zwinięte, a na wierzchu jest panel zaznaczonego obiektu.
+
+## 5c. Budowa torów od nowa – prosta i łuk po kolei, łączenie, edycja łuku (decyzja właściciela, 2026-10-16)
+
+Właściciel: „łączenie torów trzeba ogarnąć i to, jak łuki powstają”. Do poprawy są wszystkie cztery sprawy: łączenie (dziś osobny tor z załamaniem), łuk w wierzchołku wieloboku (trzeba trafić w punkt poza torem), brak połączeń łukiem i łuków odwrotnych, edycja łuku tylko liczbami. Model (wielobok styczny z R i L) zostaje, a zmieniają się narzędzia:
+
+1. **Tor: tryb Prosta / Łuk** (przyciski na pasku, Tab przełącza). Każdy odcinek jest styczny do końca toru, jak w ISDR:
+   - **Prosta** – na przedłużeniu, długość z położenia kursora albo z klawiatury. Pierwszy odcinek nowego toru ma kierunek za kursorem. Alt – wolny kierunek (załamanie z łukiem R w wierzchołku, dawny sposób, np. do odrysowania ze zdjęcia).
+   - **Łuk** – promień R (i przejściowe L) z pola, strona i kąt za kursorem, z klawiatury długość łuku [m]; Shift – koniec łuku równoległy do osi schematu (tor stacyjny).
+   - Wielobok powstaje sam: łuk o kącie α to wierzchołek w odległości T od końca, a zbędne wierzchołki na prostej znikają.
+2. **Łączenie:** zakończenie na końcu innego toru (przyciąganie) łączy stycznie – jednym łukiem, gdy styczne się przecinają (R z pola albo największy, jaki się mieści), inaczej łukami odwrotnymi (esowanie, zmiana rozstawu). Tory scalają się w jeden, jeśli drugi nie jest związany z rozjazdem ani skrzyżowaniem. Start na końcu toru A i klik na końcu toru B łączy dwa istniejące tory.
+3. **Edycja łuku myszą:** zaznaczony tor ma uchwyt w środku każdego łuku. Przeciągnięcie zmienia R (środek łuku idzie za kursorem po dwusiecznej), a R widać na żywo. Wierzchołek dalej przeciąga się jak dotąd.
+4. Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje.
 
 ## 6. Pytania do właściciela
 
