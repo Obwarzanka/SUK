@@ -106,7 +106,7 @@ Znaki wg Ig-10 zał. 8: semafor świetlny (s. 27), tarcza ostrzegawcza (s. 27–
 1. **Model `UtDevice`** (`Lcs.Model/UtDevice.cs`): rodzaj, nazwa (opis z planu, np. „A”, „Tm12”, „Wk3”), tor + kilometraż S [m w terenie], kierunek działania `Dir` (+1 – dla jazdy w stronę rosnącego km toru), strona `Side` (+1 – po prawej patrząc w kierunku działania), dla semafora liczba komór. Położenie wynika z toru: po przesunięciu toru urządzenie jedzie razem z nim. Usunięcie toru usuwa jego urządzenia.
 2. **Narzędzie Urządzenie (U)**, rodzaj z listy na pasku. Wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi. Urządzenia bez kierunku (kozioł, licznik, złącze, ukres) – samo kliknięcie. Nazwę wpisuje projektant (okno z podpowiedzią kolejnej wolnej).
 3. **Wskaż:** klik zaznacza, przeciągnięcie przesuwa wzdłuż toru, strzałki 0,1 / 1 m, Del usuwa, PPM – menu (zmień stronę, odwróć kierunek, usuń); panel: nazwa, km, kierunek, strona, liczba komór.
-4. **Rysowanie:** znak w mm arkusza (2,2–3,6 px/mm jak rozjazdy), maszt po stronie urządzenia, komory w stronę nadjeżdżającego pociągu, nazwa przy znaku.
+4. **Rysowanie:** znak w mm arkusza (2,2–3,6 px/mm jak rozjazdy), maszt po stronie urządzenia, komory w stronę jazdy, której dotyczy (Ig-10 „A ⊢○⊘”), nazwa przy stopie.
 5. **Część 2 (następna):** odcinki kontroli niezajętości (nazwy, granice z liczników osi / złączy, „Sprawdź”), wskaźniki W4 / W5, perony, przejazdy, kilometraż.
 
 ## 6. Pytania do właściciela

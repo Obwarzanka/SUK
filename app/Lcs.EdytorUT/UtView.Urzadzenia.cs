@@ -9,7 +9,7 @@ namespace Lcs.EdytorUT;
 /// <summary>
 /// Urządzenia na torze (Ig-10 zał. 8): narzędzie Urządzenie – wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy,
 /// której dotyczy, po stronie, po której stoi (urządzenia bez kierunku – klik); kozioł przyciąga się do końca toru. We Wskaż: klik
-/// zaznacza, przeciągnięcie przesuwa wzdłuż toru, PPM – menu. Znaki w mm arkusza (jak rozjazdy), komory w stronę nadjeżdżającego pociągu.
+/// zaznacza, przeciągnięcie przesuwa wzdłuż toru, PPM – menu. Znaki w mm arkusza (jak rozjazdy), komory w stronę jazdy (Ig-10 „A ⊢○⊘”).
 /// </summary>
 public partial class UtView
 {
@@ -77,7 +77,7 @@ public partial class UtView
         {
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
-            foreach (var q in new[] { b, b + n * (2.5 * k), b + n * (2.5 * k) - dd * (4 * k) })
+            foreach (var q in new[] { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) })
             { double dist = (q - s).Length; if (dist < bd) { bd = dist; best = d.Id; } }
         }
         return best;
@@ -149,7 +149,7 @@ public partial class UtView
 
     /// <summary>
     /// Znak urządzenia w punkcie <paramref name="b"/> na osi toru: x – w kierunku działania <paramref name="d"/>, y – w stronę urządzenia
-    /// (Side), w mm arkusza × <paramref name="k"/>. Komory sygnalizatora od masztu w stronę nadjeżdżającego pociągu (−x).
+    /// (Side), w mm arkusza × <paramref name="k"/>. Komory sygnalizatora od masztu w stronę jazdy (+x), nazwa za stopą (−x).
     /// </summary>
     static void DrawDevice(DrawingContext dc, UtDevice dv, Point b, Vector d, double k, Brush ink, double dpi)
     {
@@ -166,7 +166,7 @@ public partial class UtView
         {
             if (string.IsNullOrEmpty(s)) return;
             var ft = new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(10.5, 1.8 * 1.4 * k), ink, dpi);
-            // away > 0: napis odsunięty od punktu w kierunku +x znaku (na ekranie – w stronę d) o połowę swojej szerokości
+            // away ±1: napis odsunięty od punktu w kierunku ±x znaku o połowę swojej szerokości (nie wchodzi na stopę)
             var c = P(x, y) + d * (away * (ft.Width / 2 + 2));
             dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2));
         }
@@ -177,7 +177,7 @@ public partial class UtView
             case UtDevice.TarczaOstrz:
             case UtDevice.TarczaMan:
             {
-                // Ig-10: „A ⊢○○” – stopa (a = 2 mm), maszt (b = 2 mm), komory Ø 2 mm w stronę nadjeżdżającego pociągu; nazwa przy stopie
+                // Ig-10 zał. 8 s. 27: „A ⊢○⊘” – nazwa, stopa (a = 2 mm), maszt (b = 2 mm), komory Ø 2 mm w stronę jazdy, której dotyczy
                 int heads = dv.Kind == UtDevice.Semafor ? Math.Clamp(dv.Heads, 1, 6) : 2;
                 double x0 = 0, r = 1.1;
                 bool dwarf = dv.Kind == UtDevice.TarczaMan && dv.Dwarf;
@@ -185,13 +185,13 @@ public partial class UtView
                 {
                     L(0, 0.8, 0, Y - 1.1);                         // od toru do stopy masztu
                     L(0, Y - 1.1, 0, Y + 1.1);                     // stopa
-                    L(0, Y, -1.8, Y);                              // maszt
-                    x0 = -1.8;
+                    L(0, Y, 1.8, Y);                               // maszt
+                    x0 = 1.8;
                 }
                 double yy = dwarf ? 2 : Y;
                 for (int i = 0; i < heads; i++)
-                    C(x0 - r - 2 * r * i, yy, r, false, dv.Kind == UtDevice.TarczaOstrz && i == heads - 1);
-                T(dv.Name, 0.8, yy, 1);
+                    C(x0 + r + 2 * r * i, yy, r, false, dv.Kind == UtDevice.TarczaOstrz && i == heads - 1);
+                T(dv.Name, -0.8, yy, -1);
                 break;
             }
             case UtDevice.Wykolejnica:
