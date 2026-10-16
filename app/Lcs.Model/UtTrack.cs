@@ -231,7 +231,8 @@ public static class Trasa
             }
             // prosta od bieżącego punktu do początku łuku (albo końca toru)
             double len = (tsPoint.X - cur.X) * Math.Cos(azIn) + (tsPoint.Y - cur.Y) * Math.Sin(azIn);
-            if (len < -1e-6)
+            // tolerancja 1 mm: wymiary katalogowe a, b są zaokrąglone (np. Rz 500 1:12: a = 20,797, styczna R·tg(α/2) = 20,7973)
+            if (len < -1e-3)
                 res.Notes.Add((vi, $"łuk w wierzchołku nie mieści się – brakuje {(-len) / k:0.##} m prostej przed nim (zmniejsz R lub L albo odsuń wierzchołki)", true));
             if (len > 1e-9) res.Elements.Add(new Element(ElKind.Prosta, cur, azIn, len, 0, 0, false, default, 0, vi));
             if (curve != null) { res.Elements.AddRange(curve); cur = stPoint; curAz = azOut; }

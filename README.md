@@ -103,6 +103,7 @@ Stan (etapy 1–4):
 
 - **Tor (T):** budujesz tor odcinkami stycznymi, jak w ISDR. Tryb wybierasz przyciskiem „─ Prosta” / „◠ Łuk” albo klawiszem Tab.
   - Pierwszy klik to początek toru albo koniec istniejącego toru (wtedy go przedłużasz). Pierwsza prosta nowego toru idzie w stronę kursora.
+  - Dopóki tor ma jedną prostą, każde kolejne kliknięcie przestawia jej koniec. Kliknij więc daleko, na osi toru na zdjęciu: im dalej, tym dokładniejszy kierunek.
   - **Prosta** biegnie na przedłużeniu końca. Długość wynika z kursora albo wpisujesz ją z klawiatury i zatwierdzasz Enterem. Alt daje wolny kierunek: powstaje załamanie z łukiem R w wierzchołku.
   - **Łuk** ma promień R i krzywe przejściowe L z pól na pasku. Stronę i kąt wyznacza kursor, a z klawiatury wpisujesz długość łuku. Z Shift łuk kończy się równolegle do osi schematu.
   - **Łączenie:** kliknięcie na końcu innego toru łączy oba tory stycznie: jednym łukiem albo łukami odwrotnymi (esowanie). Gdy R się nie mieści, program bierze największy możliwy. Tory scalają się w jeden, chyba że drugi należy do rozjazdu. Start na końcu toru A i kliknięcie na końcu toru B łączy dwa gotowe tory.

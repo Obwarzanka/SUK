@@ -23,6 +23,14 @@ public static partial class Test
         sw.Close();
         Ok(Katalog.Types.Count >= 16 && Katalog.Source.EndsWith("rozjazdy.json") && Katalog.Find("Rz 60E1-190-1:9") is { R: 190, N: 9, A: 16.615 }, $"katalog rozjazdów z pliku Dane/rozjazdy.json ({Katalog.Types.Count} typów)");
 
+        // Rz 500 1:12 – styczna łuku dłuższa od zaokrąglonego a o 0,3 mm: bez fałszywego błędu „łuk nie mieści się”
+        {
+            var o0 = Geo.ToPuwg92(51.7631, 19.5438);
+            var tp = new UtProject(); var tm = new UtTrack { Vertices = new() { new UtVertex { X = o0.X, Y = o0.Y }, new UtVertex { X = o0.X + 50, Y = o0.Y + 200 } } }; tp.Tracks.Add(tm);
+            var (rz, rb) = Rozjazdy.NewSingle(tp, tm.Id, 20, 1, 1, "Rz 60E1-500-1:12", "1"); tp.Tracks.Add(rb); tp.Turnouts.Add(rz); Rozjazdy.Sync(tp);
+            var t12 = Katalog.Find("Rz 60E1-500-1:12");
+            Ok(Trasa.Compute(rb).Ok && Rozjazdy.Check(tp, rz).Count == 0, $"Rz 500 1:12: styczna {500 * Math.Tan(t12.Alpha / 2):0.0000} m > a = {t12.A} m o ułamek mm – bez błędu");
+        }
         foreach (var lineAz in new[] { 250.0, 63.0 }) await Mijanka(w, lineAz, lineAz == 63);
         await Task.CompletedTask;
     }

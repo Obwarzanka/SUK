@@ -186,6 +186,8 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 
 **ZROBIONE 2026-10-16 – usuwanie:** Del działa w każdym narzędziu, gdy nic się nie rysuje (dawniej tylko we Wskaż – po narysowaniu toru Del nic nie robił). Usunięcie toru zabiera jego rozjazdy (i skrzyżowania), odgałęzienia do skosu i tory łączące łączników (z rozjazdami na drugim torze); przedłużone odgałęzienia (bocznice) zostają jako zwykłe tory – komunikat je wymienia. Test: Del w narzędziu Tor, Del w trakcie rysowania nic nie usuwa, Del toru 1 w stacji testowej (zostają rozjazdy 5, 6, 7 i bocznica 4), Ctrl+Z.
 
+**ZROBIONE 2026-10-16 – tory nie pasowały do zdjęcia** (właściciel: „podkłady krzywo”): zdjęcie było dobre – kierunek szyn zmierzony z pikseli ortofotomapy (tensor struktury) 105,7°, narysowane tory 102,9°, czyli 5 m odchyłki na 108 m. Przyczyna w narzędziu Tor: prosta szła zawsze na przedłużeniu, więc błąd kierunku krótkiego pierwszego odcinka rósł z długością. Poprawki: (1) dopóki tor ma jedną prostą, klik przestawia jej koniec (kierunek od początku do nowego punktu – im dalej, tym dokładniej); (2) przy przedłużaniu opis pokazuje, ile kursor jest obok kierunku („kursor 1,8 m obok kierunku – Alt”); (3) tolerancja 1 mm w `Trasa.Compute` – Rz 500 1:12 pokazywał fałszywy błąd „łuk nie mieści się – brakuje 0 m prostej” (styczna 20,7973 m, a w katalogu 20,797 m). Słupy sieci „kładą się” na ortofotomapie – to cecha zdjęcia (wysokie obiekty), nie błąd podkładu. Narysowane już tory poprawia się przeciągnięciem końcowych wierzchołków.
+
 **Następny krok:** etap 5 – urządzenia na torze (semafory, tarcze, kozły, wykolejnice, liczniki osi / złącza, perony, przejazdy, kilometraż) ze znakami z bazy symboli Ig-10
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**

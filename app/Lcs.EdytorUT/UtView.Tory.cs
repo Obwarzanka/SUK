@@ -183,13 +183,24 @@ public partial class UtView
             res.Add(new UtVertex { X = w.X, Y = w.Y });
             info = $"prosta {Len3(Geo.GroundDistance(e, w))}, az {Geo.Azimuth(e, w):0.0}°" + (az != null ? " (Alt – załamanie z łukiem)" : "");
         }
+        else if (baseCount == 0 && dv.Count == 2)
+        {
+            // tor ma dopiero jedną prostą: klik przestawia jej koniec – kierunek od początku do kursora (dalej = dokładniej)
+            var a0 = dv[0].P; var w = sn.P;
+            if (typed is double l1) { var c = ToWorld(s) - a0; if (c.Length < 1e-9) return null; w = a0 + c * (l1 * k / c.Length); }
+            if (XY.Dist(w, a0) < 1e-6) return null;
+            res = new() { dv[0].Clone(), new UtVertex { X = w.X, Y = w.Y } };
+            info = $"prosta {Len3(Geo.GroundDistance(a0, w))}, az {Geo.Azimuth(a0, w):0.00}° – klik przestawia koniec (Tab – łuk)";
+        }
         else
         {
             var w = ToWorld(s); var d = Element.Dir(az.Value);
             double len = typed ?? ((w - e).X * d.X + (w - e).Y * d.Y) / k;
             if (len < 0.01) return new(null, "Prosta: przesuń kursor do przodu (Alt – inny kierunek, Tab – łuk)", null);
             res = Budowa.Straight(dv, len, k);
-            info = $"prosta {Len3(len)}";
+            // jak daleko kursor jest od kierunku – żeby było widać, że przedłużenie rozjeżdża się ze zdjęciem
+            double off = Math.Abs(d.X * (w - e).Y - d.Y * (w - e).X) / k;
+            info = $"prosta {Len3(len)}" + (typed == null && off >= 0.2 ? $" – kursor {off.ToString("0.0", CultureInfo.GetCultureInfo("pl-PL"))} m obok kierunku (Alt – inny kierunek)" : "");
         }
         return new(res, info, null);
     }

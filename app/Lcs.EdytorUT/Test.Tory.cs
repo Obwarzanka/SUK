@@ -97,8 +97,10 @@ public static partial class Test
         var c = w.View.Center;
         Point S(XY p) => w.View.ToScreen(p);
         var q0 = Go(c, 280, 260); var q1 = Go(c, 100, 0);
-        w.View.SimClick(S(q0)); w.View.SimClick(S(q1));
+        w.View.SimClick(S(q0)); w.View.SimClick(S(Go(q0, 100, 25) + Element.Right(100 * Math.PI / 180) * (0.6 * k)));
         Ok(w.View.Draft.Count == 2, "pierwsza prosta: dwa punkty, kierunek za kursorem");
+        w.View.SimClick(S(q1));
+        Ok(w.View.Draft.Count == 2 && XY.Dist(w.View.Draft[1], q1) < 0.01 * k, "pierwsza prosta: krótki odcinek z błędem 0,6 m, klik dalej przestawił koniec – prosta od początku do q1 (dalej = dokładniej)");
         // łuk z klawiatury: 120 m w prawo (kursor po prawej stronie toru)
         Click(w.LukBtn);
         Ok(w.View.Mode == UtView.TorMode.Luk && w.LukBtn.IsChecked == true && w.ProstaBtn.IsChecked == false, "przycisk Łuk – tryb łuku");
