@@ -13,8 +13,11 @@ public class UtProject
     public string Name { get; set; } = "Nowy obszar";
     /// <summary>Układ współrzędnych – zawsze PUWG 1992.</summary>
     public string Crs { get; set; } = "EPSG:2180";
-    /// <summary>Skala rysunku 1:N – wielkość symboli Ig-10 (mm arkusza) i wydruku. Geometria od niej nie zależy.</summary>
-    public int DrawingScale { get; set; } = 1000;
+    /// <summary>
+    /// Skala podłużna arkusza 1:N (Ig-10 § 3: 1:2000, za zgodą 1:4000); poprzeczna = N / 4 (1:500 / 1:1000). Znaki Ig-10 mają wymiary
+    /// w mm tego arkusza: 1 mm = N / 4000 m w poprzek osi. Geometria od niej nie zależy.
+    /// </summary>
+    public int DrawingScale { get; set; } = 2000;
     /// <summary>Uwagi projektanta.</summary>
     public string Notes { get; set; } = "";
     /// <summary>Podkłady od dołu do góry (ortofotomapy, grafiki).</summary>
@@ -35,7 +38,9 @@ public class UtProject
     /// <summary>Ostatni widok edytora (nie podlega cofaniu).</summary>
     public UtViewState View { get; set; } = new();
 
-    public static readonly int[] DrawingScales = { 500, 1000, 2000 };
+    public static readonly int[] DrawingScales = { 2000, 4000 };
+    /// <summary>Metry terenu (w poprzek osi) na 1 mm arkusza – wielkość znaków Ig-10.</summary>
+    public double MetresPerSheetMm => DrawingScale / 4000.0;
 
     /// <summary>Oś schematu [rad]: wpisana albo cięciwa najdłuższego toru (zwrócona na wschód); bez torów – wschód.</summary>
     public double SchematAz()
@@ -49,7 +54,8 @@ public class UtProject
             if (l > bl) { bl = l; best = t; }
         }
         if (best == null) return Math.PI / 2;
-        return EastFacing(Trasa.Az(best.Vertices[0].P, best.Vertices[^1].P));
+        // Ig-10 § 3 ust. 3: kilometraż rośnie od lewej do prawej – oś w kierunku toru (od początku do końca)
+        return Trasa.Az(best.Vertices[0].P, best.Vertices[^1].P);
     }
 
     /// <summary>Kierunek zwrócony na wschód (składowa Y ≥ 0), w przedziale [0, π).</summary>

@@ -178,8 +178,8 @@ public partial class MainWindow : Window
         sp.Children.Add(NameBox);
         sp.Children.Add(Label("Układ współrzędnych"));
         sp.Children.Add(new TextBlock { Text = "PUWG 1992 (EPSG:2180)\nX – na północ, Y – na wschód, Z – wysokość [m]", Margin = new Thickness(0, 2, 0, 8), Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap });
-        sp.Children.Add(Label("Skala rysunku (wielkość symboli Ig-10, wydruk)"));
-        foreach (var k in UtProject.DrawingScales) ScaleBox.Items.Add($"1:{k}");
+        sp.Children.Add(Label("Skala arkusza (Ig-10 § 3) – wielkość znaków, wydruk"));
+        foreach (var k in UtProject.DrawingScales) ScaleBox.Items.Add($"1:{k} wzdłuż, 1:{k / 4} w poprzek");
         ScaleBox.SelectionChanged += (s, e) =>
         {
             if (refreshing || ScaleBox.SelectedIndex < 0) return;
@@ -233,7 +233,8 @@ public partial class MainWindow : Window
     public void AxisFromTrack()
     {
         var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == View.SelectedTrack);
-        double? az = t != null && t.Vertices.Count >= 2 ? UtProject.EastFacing(Trasa.Az(t.Vertices[0].P, t.Vertices[^1].P)) * 180 / Math.PI : null;
+        // Ig-10 § 3 ust. 3: kilometraż rośnie od lewej do prawej – oś w kierunku toru
+        double? az = t != null && t.Vertices.Count >= 2 ? (Trasa.Az(t.Vertices[0].P, t.Vertices[^1].P) * 180 / Math.PI + 360) % 360 : null;
         Doc.Change("Oś schematu", p => p.AxisAz = az);
         if (!View.Schemat) SetSchemat(true); else ApplyMode(true);
         Message(t != null ? $"Oś schematu wzdłuż toru {t.Number} (azymut {az:0.###}°)" : "Oś schematu wzdłuż najdłuższego toru");

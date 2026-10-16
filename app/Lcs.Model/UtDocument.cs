@@ -41,7 +41,7 @@ public class UtDocument
         var p = Deserialize(File.ReadAllText(path));
         if (p.Crs != "EPSG:2180") throw new InvalidDataException($"Nieznany układ współrzędnych „{p.Crs}” – edytor obsługuje PUWG 1992 (EPSG:2180)");
         p.View ??= new UtViewState();
-        if (!UtProject.DrawingScales.Contains(p.DrawingScale)) p.DrawingScale = 1000;
+        if (!UtProject.DrawingScales.Contains(p.DrawingScale)) p.DrawingScale = 2000;     // dawne 1:500 / 1:1000 – skala Ig-10
         p.Backgrounds ??= new();
         p.Tracks ??= new();
         p.Turnouts ??= new(); p.Crossings ??= new(); p.Devices ??= new();

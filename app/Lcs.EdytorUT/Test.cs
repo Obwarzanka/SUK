@@ -130,19 +130,20 @@ public static partial class Test
         Ok(w.Title.StartsWith("* Stacja testowa"), "tytuł okna: gwiazdka i nazwa");
         Type(w.NameBox, "Stacja testowa");
         Ok(d.UndoName == "Nazwa obszaru" && UndoDepth(w) == 1, "ta sama nazwa – bez nowej zmiany");
-        w.ScaleBox.SelectedIndex = 2;
-        Ok(d.P.DrawingScale == 2000 && d.UndoName == "Skala rysunku", "skala rysunku 1:2000 z listy");
+        Ok(d.P.DrawingScale == 2000 && w.ScaleBox.SelectedIndex == 0, "skala arkusza domyślnie 1:2000 / 1:500 (Ig-10 § 3)");
+        w.ScaleBox.SelectedIndex = 1;
+        Ok(d.P.DrawingScale == 4000 && d.UndoName == "Skala rysunku", "skala arkusza 1:4000 / 1:1000 z listy");
         Type(w.NotesBox, "uwaga 1");
         Ok(d.P.Notes == "uwaga 1", "uwagi");
 
         // --- cofnij / ponów
-        w.DoUndo(); Ok(d.P.Notes == "" && d.P.DrawingScale == 2000, "Ctrl+Z: uwagi cofnięte");
-        Click(w.UndoBtn); Ok(d.P.DrawingScale == 1000 && w.ScaleBox.SelectedIndex == 1, "Cofnij: skala 1:1000, lista w panelu też");
+        w.DoUndo(); Ok(d.P.Notes == "" && d.P.DrawingScale == 4000, "Ctrl+Z: uwagi cofnięte");
+        Click(w.UndoBtn); Ok(d.P.DrawingScale == 2000 && w.ScaleBox.SelectedIndex == 0, "Cofnij: skala 1:2000, lista w panelu też");
         Click(w.UndoBtn); Ok(d.P.Name == "Nowy obszar" && w.NameBox.Text == "Nowy obszar", "Cofnij: nazwa, pole w panelu też");
         Ok(!w.UndoBtn.IsEnabled && w.RedoBtn.IsEnabled, "nic więcej do cofnięcia, jest co ponowić");
         Ok(!d.Undo(), "kolejne cofnięcie nic nie robi");
         Click(w.RedoBtn); Click(w.RedoBtn);
-        Ok(d.P.Name == "Stacja testowa" && d.P.DrawingScale == 2000 && d.P.Notes == "", "Ponów ×2: nazwa i skala wróciły");
+        Ok(d.P.Name == "Stacja testowa" && d.P.DrawingScale == 4000 && d.P.Notes == "", "Ponów ×2: nazwa i skala wróciły");
 
         // --- widok: idź do, kółko myszy, przeciąganie
         w.View.Focus();

@@ -62,8 +62,10 @@ public static partial class Test
         Ok(XY.Dist(before, w.View.ToWorld(sp)) < 1e-6, "Schemat: kółko myszy – punkt pod kursorem zostaje");
         var c0 = w.View.ToWorld(new Point(500, 300)); w.View.PanBy(new Vector(40, -25));
         Ok(XY.Dist(w.View.ToWorld(new Point(540, 275)), c0) < 1e-6, "Schemat: przeciąganie – punkt jedzie za myszą");
-        Look(r1.At(700).P, 2); double kFar = w.View.PxPerMm; Look(r1.At(700).P, 0.02); double kNear = w.View.PxPerMm;
-        Ok(kFar >= 2.2 && kNear <= 3.6, $"znaki Ig-10: {kFar:0.0} px/mm oddalone, {kNear:0.0} px/mm przybliżone (nie puchną)");
+        Look(r1.At(700).P, 2); double kFar = w.View.PxPerMm; Look(r1.At(700).P, 0.5); double kNear = w.View.PxPerMm;
+        double gapPx = Math.Abs(S(r2.At(700).P).Y - S(r1.At(700).P).Y);
+        Ok(Math.Abs(kFar - 1) < 1e-9 && Math.Abs(kNear - 4) < 1e-9 && Math.Abs(gapPx / kNear - 5 * k / 0.5) < 0.05,
+            $"znaki w skali arkusza Ig-10 (1:2000 / 1:500): {kFar:0.0} px/mm przy 2 m/px, {kNear:0.0} px/mm przy 0,5 m/px; międzytorze 5 m = {gapPx / kNear:0.0} mm arkusza");
 
         // --- w schemacie: łącznik 1/2 (tor 1 → tor 2) i 3/4
         w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rz 60E1-190-1:9"; w.NewRBox.Text = "300";

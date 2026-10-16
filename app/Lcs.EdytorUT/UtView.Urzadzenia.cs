@@ -111,8 +111,8 @@ public partial class UtView
     static readonly Pen DevPen = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 1.2), DevThick = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 2.2);
     static readonly Brush DevInk = Frozen(Color.FromRgb(0x10, 0x10, 0x10));
 
-    /// <summary>Px na mm dla znaków urządzeń: jak rozjazdy, ale nie mniej niż 2,8 (komory semafora czytelne przy oddaleniu).</summary>
-    double DevK => Math.Max(PxPerMm, 2.8);
+    /// <summary>Px na mm dla znaków urządzeń – skala arkusza (jak rozjazdy i tory).</summary>
+    double DevK => PxPerMm;
 
     void DrawDevices(DrawingContext dc, double dpi)
     {
@@ -124,8 +124,8 @@ public partial class UtView
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p);
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
-            if (d.Id == SelectedDevice) dc.DrawEllipse(RzSel, null, b, 7 * PxPerMm / 2.2, 7 * PxPerMm / 2.2);
-            DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi);
+            if (d.Id == SelectedDevice) dc.DrawEllipse(RzSel, null, b, Math.Max(8, 4 * PxPerMm), Math.Max(8, 4 * PxPerMm));
+            DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn);
             var notes = Urzadzenia.Check(Doc.P, d0);
             if (notes.Count > 0) { dc.DrawEllipse(null, ErrPen, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
         }
@@ -140,7 +140,7 @@ public partial class UtView
                 var (sk, dir, side) = DevFromDrag(track, km, hs);
                 var g = new UtDevice { Kind = DevKind, Name = Urzadzenia.NextName(Doc.P, DevKind), Track = track, S = sk, Dir = dir, Side = side };
                 if (Urzadzenia.Pos(Doc.P, g) is var (gp, gaz, _))
-                    DrawDevice(dc, g, ToScreen(gp), ScreenDir(gaz), DevK, Red, dpi);
+                    DrawDevice(dc, g, ToScreen(gp), ScreenDir(gaz), DevK, Red, dpi, true);
                 if (devFrom == null && UtDevice.KindInfo(DevKind).Directed && DevKind != UtDevice.Koziol)
                     Label(dc, "wciśnij i przeciągnij w stronę jazdy, po stronie urządzenia", hs + new Vector(12, 10), Red, dpi);
             }
@@ -151,7 +151,7 @@ public partial class UtView
     /// Znak urządzenia w punkcie <paramref name="b"/> na osi toru: x – w kierunku działania <paramref name="d"/>, y – w stronę urządzenia
     /// (Side), w mm arkusza × <paramref name="k"/>. Komory sygnalizatora od masztu w stronę jazdy (+x), nazwa za stopą (−x).
     /// </summary>
-    static void DrawDevice(DrawingContext dc, UtDevice dv, Point b, Vector d, double k, Brush ink, double dpi)
+    static void DrawDevice(DrawingContext dc, UtDevice dv, Point b, Vector d, double k, Brush ink, double dpi, bool labels)
     {
         var n = new Vector(-d.Y, d.X) * dv.Side;
         Point P(double x, double y) => b + d * (x * k) + n * (y * k);
@@ -164,8 +164,8 @@ public partial class UtView
         }
         void T(string s, double x, double y, double away = 0)
         {
-            if (string.IsNullOrEmpty(s)) return;
-            var ft = new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(10.5, 1.8 * 1.4 * k), ink, dpi);
+            if (string.IsNullOrEmpty(s) || !labels) return;
+            var ft = new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), FontPx(k), ink, dpi);
             // away ±1: napis odsunięty od punktu w kierunku ±x znaku o połowę swojej szerokości (nie wchodzi na stopę)
             var c = P(x, y) + d * (away * (ft.Width / 2 + 2));
             dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2));

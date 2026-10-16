@@ -183,7 +183,12 @@ public partial class UtView
     /// Piksele na mm arkusza dla znaków Ig-10: wg skali rysunku, ale w stałym przedziale 2,2–3,6 px/mm (klin 8 mm: 18–29 px) –
     /// znaki czytelne przy oddaleniu i nie puchną przy przybliżaniu.
     /// </summary>
-    public double PxPerMm => Math.Clamp((Doc?.P.DrawingScale ?? 1000) / 1000.0 / mpp, 2.2, 3.6);
+    public double PxPerMm => (Doc?.P.MetresPerSheetMm ?? 0.5) * stretch / mpp;
+
+    /// <summary>Wielkość napisów [px]: tekst 1,8 mm arkusza, ale w granicach 10–15 px (czytelny przy każdym przybliżeniu).</summary>
+    public static double FontPx(double k) => Math.Clamp(1.8 * 1.4 * k, 10, 15);
+    /// <summary>Napisy przy znakach (numery rozjazdów, nazwy urządzeń) – gdy znaki mają co najmniej 1 px/mm.</summary>
+    public bool LabelsOn => PxPerMm >= 1;
 
     /// <summary>Znak rozjazdu z bazy symboli Ig-10 (Dane/symbole_ig10.json): zaczepiony w PR, wzdłuż toru w stronę KR, po stronie odgałęzienia.</summary>
     public static string SymbolFor(UtTurnout t) => t.Manual ? "rz_nieuzal" : t.Zas == "-" ? "rz_uzal_zwrot" : "rz_uzal_wprost";
@@ -200,7 +205,7 @@ public partial class UtView
         if (pr.X < -150 || pr.Y < -150 || pr.X > ActualWidth + 150 || pr.Y > ActualHeight + 150) return;
         double k = PxPerMm;
         var dir = ScreenDir(g.Az);
-        if (sel) dc.DrawEllipse(RzSel, null, pr + dir * (4 * k), 6 * k, 6 * k);
+        if (sel) dc.DrawEllipse(RzSel, null, pr + dir * (4 * k), Math.Max(9, 6 * k), Math.Max(9, 6 * k));
         // odgałęzienie z geometrii typu: PR – ŚR (łuk R) – KR na zwrot
         var br = Trasa.Compute(new[] { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.Typ.R }, new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y } }, g.K);
         var pts = br.Sample(0.5).Select(q => ToScreen(q.P)).ToList();
@@ -217,8 +222,8 @@ public partial class UtView
     {
         var nn = new Vector(-d.Y, d.X);
         dc.DrawLine(StartPen, pr - nn * k, pr + nn * k);
-        if (string.IsNullOrEmpty(nr)) return;
-        var ft = new FormattedText(nr, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(10.5, 1.8 * 1.4 * k), WedgeInk, dpi);
+        if (string.IsNullOrEmpty(nr) || !LabelsOn) return;
+        var ft = new FormattedText(nr, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), FontPx(k), WedgeInk, dpi);
         var c = pr - d * (2.5 * k + ft.Width / 2) + n * (1.6 * k + ft.Height / 2);
         dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2));
     }
@@ -320,9 +325,12 @@ public partial class UtView
             }
             var nA = new Vector(-dA.Y, dA.X);
             dc.DrawLine(StartPen, ps - nA * k, ps + nA * k);
-            var ft = new FormattedText(c.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), Math.Max(10.5, 1.8 * 1.4 * k), WedgeInk, dpi);
-            var tc = ps - n * (2.2 * k + ft.Height / 2);
-            dc.DrawText(ft, new Point(tc.X - ft.Width / 2, tc.Y - ft.Height / 2));
+            if (LabelsOn)
+            {
+                var ft = new FormattedText(c.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), FontPx(k), WedgeInk, dpi);
+                var tc = ps - n * (2.2 * k + ft.Height / 2);
+                dc.DrawText(ft, new Point(tc.X - ft.Width / 2, tc.Y - ft.Height / 2));
+            }
             return;
         }
         // skrzyżowanie: znak z bazy Ig-10 w punkcie matematycznym; strona – w którą stronę od toru A idzie tor B na końcu +x

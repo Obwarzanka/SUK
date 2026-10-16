@@ -46,7 +46,7 @@ public static class SymbolPainter
                     var txt = (p.Text ?? "").Replace("{nr}", nr ?? "");
                     if (txt.Length == 0) break;
                     // wysokość wersalików H mm → rozmiar czcionki ok. 1,4·H; nie mniej niż 10 px
-                    var ft = new FormattedText(txt, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Font, Math.Max(10, p.H * 1.4 * pxPerMm), ink, dpi);
+                    var ft = new FormattedText(txt, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Font, Math.Clamp(p.H * 1.4 * pxPerMm, 10, 15), ink, dpi);
                     var c = P(p.At);
                     dc.DrawRoundedRectangle(Halo, null, new Rect(c.X - ft.Width / 2 - 2, c.Y - ft.Height / 2, ft.Width + 4, ft.Height), 2, 2);
                     dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2));
