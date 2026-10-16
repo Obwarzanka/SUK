@@ -107,6 +107,7 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Wskaz, "✋ Wskaż", "Przesuwanie widoku (V, Esc)"));
         tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
         tb.Items.Add(ProstaBtn); tb.Items.Add(LukBtn);
+        tb.Items.Add(ToolBtn(UtTool.Rownolegly, "⫽ Równoległy", "Tor równoległy z podkładu: klik na torze wzorcowym, klik na osi nowego toru (początek), klik na końcu albo Enter (P)"));
         tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
         tb.Items.Add(new TextBlock { Text = " L", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewLBox);
         tb.Items.Add(new Separator());
@@ -143,6 +144,7 @@ public partial class MainWindow : Window
             UtTool.Rozjazd => Katalog.Find(View.RzType)?.IsCrossing == true
                 ? $"{View.RzType}: kliknij na przecięciu dwóch torów (tor przecinający narysuj narzędziem Tor pod kątem typu)"
                 : $"{View.RzType}: wciśnij na torze w miejscu początku rozjazdu (PR) i przeciągnij w stronę odgałęzienia; puść na torze sąsiednim – łącznik",
+            UtTool.Rownolegly => "Równoległy: 1) klik na torze wzorcowym, 2) klik na podkładzie na osi nowego toru w miejscu początku (odstęp co 1 cm, Shift – co 0,25 m), 3) klik w miejscu końca albo Enter – do końca toru; PPM / Backspace – krok wstecz, Esc – od nowa",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
@@ -389,6 +391,7 @@ public partial class MainWindow : Window
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control), shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         bool inText = Keyboard.FocusedElement is TextBox;
         if (!inText && !ctrl && View.TorKey(e.Key)) { e.Handled = true; return; }
+        if (!inText && !ctrl && View.ParKey(e.Key)) { e.Handled = true; return; }
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
@@ -403,6 +406,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.M) { SetTool(UtTool.Miarka); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.T) { SetTool(UtTool.Tor); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.R) { SetTool(UtTool.Rozjazd); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.P) { SetTool(UtTool.Rownolegly); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && View.Tool == UtTool.Wskaz && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.S) { SetSchemat(!View.Schemat); e.Handled = true; }

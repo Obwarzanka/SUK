@@ -106,7 +106,29 @@ public partial class UtView
     double RNow => NewR > 0 ? NewR : 300;
 
     /// <summary>Kandydat na kolejny odcinek: wielobok po dodaniu, opis, cel połączenia (koniec innego toru), błąd.</summary>
-    record Cand(List<UtVertex> V, string Info, SnapResult Join);
+    record Cand(List<UtVertex> V, string Info, SnapResult Join, string CrossTo = null);
+    /// <summary>Łącznik z dwóch rozjazdów: rozjazd, od którego odgałęzienia zaczęto, i rozjazd wskazany.</summary>
+    public event Action<string, string> CrossoverJoin;
+
+    /// <summary>Rozjazd pojedynczy z samym odgałęzieniem (3 wierzchołki), którego odgałęzieniem jest tor; null – inny tor.</summary>
+    UtTurnout StubOwner(string track) =>
+        Doc != null && Rozjazdy.SkewOwner(Doc.P, track) is UtTurnout t && Track(track)?.Vertices.Count == 3 ? t : null;
+
+    /// <summary>
+    /// Start na końcu odgałęzienia rozjazdu A (nic jeszcze nie narysowano) i kursor na odgałęzieniu rozjazdu B – łącznik:
+    /// podgląd na kopii projektu (B przesunięty wzdłuż toru tak, żeby skosy się zeszły).
+    /// </summary>
+    Cand CrossCandidate(Point s)
+    {
+        if (extendId == null || hist.Count > 0 || StubOwner(extendId) is not UtTurnout a) return null;
+        var hit = HitTrack(s); if (hit == null || hit == extendId || StubOwner(hit) is not UtTurnout b) return null;
+        var tmp = UtDocument.Deserialize(UtDocument.Serialize(Doc.P));
+        var err = Rozjazdy.MakeCrossover(tmp, a.Id, b.Id, out var shift);
+        if (err != null) return new(null, $"Łącznik {a.Number}/{b.Number}: {err}", null);
+        var link = tmp.Tracks.First(x => x.Id == a.Branch);
+        var note = Rozjazdy.Check(tmp, tmp.Turnouts.First(x => x.Id == b.Id));
+        return new(Clone(link.Vertices), $"łącznik {a.Number}/{b.Number} – rozjazd {b.Number} przesunie się o {shift.ToString("0.##", CultureInfo.GetCultureInfo("pl-PL"))} m" + (note.Count > 0 ? " – " + string.Join("; ", note) : "") + " – klik", null, b.Id);
+    }
 
     /// <summary>Koniec toru, z którym można się połączyć (nie przedłużany tor, nie koniec ustawiany przez rozjazd).</summary>
     bool JoinOk(SnapResult sn) =>
@@ -116,6 +138,7 @@ public partial class UtView
     {
         if (dv.Count == 0) return null;
         var sn = Snap(s, extendId);
+        if (typed == null && CrossCandidate(s) is Cand cc) return cc;
         var e = dv[^1].P; double k = KAt(e);
         var az = Budowa.EndAz(dv);
         // koniec na końcu innego toru – połączenie styczne (łuk albo łuki odwrotne)
@@ -182,6 +205,7 @@ public partial class UtView
         if (dv.Count == 0) { StartDraft(s); return; }
         var c = Candidate(s);
         if (c?.V == null) { if (c != null) DraftInfo?.Invoke(c.Info); return; }
+        if (c.CrossTo != null && StubOwner(extendId) is UtTurnout ca) { CancelDraft(); CrossoverJoin?.Invoke(ca.Id, c.CrossTo); return; }
         Commit(c.V);
         if (c.Join != null) { FinishDraft(c.Join); return; }
         DraftChanged();
@@ -421,6 +445,17 @@ public partial class UtView
         if (tool == UtTool.Tor) DrawDraft(dc, dpi);
     }
 
+    /// <summary>Krótki opis błędu przy czerwonym kółku (do 60 znaków, pełny w panelu).</summary>
+    void ErrLabel(DrawingContext dc, string text, Point at, double dpi)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        if (text.Length > 60) text = text[..57] + "…";
+        var ft = new FormattedText(text, CultureInfo.GetCultureInfo("pl-PL"), FlowDirection.LeftToRight, UiFont, 11, Red, dpi);
+        var o = at + new Vector(12, 4);
+        dc.DrawRoundedRectangle(Halo, null, new Rect(o.X - 2, o.Y - 1, ft.Width + 4, ft.Height + 2), 2, 2);
+        dc.DrawText(ft, o);
+    }
+
     /// <summary>Tor w trakcie przeciągania wierzchołka albo uchwytu łuku (podgląd) albo sam tor.</summary>
     UtTrack Dragged(UtTrack t)
     {
@@ -442,7 +477,8 @@ public partial class UtView
         if (sel) dc.DrawGeometry(null, new Pen(SelGlow, wpx + 7) { LineJoin = PenLineJoin.Round }, Line(pts, 0));
         dc.DrawGeometry(null, new Pen(ink, wpx) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, Line(pts, 0));
         // błędy geometrii – czerwone kółko w wierzchołku
-        foreach (var (v, _, err) in res.Notes) if (err && v < t.Vertices.Count) dc.DrawEllipse(null, ErrPen, ToScreen(t.Vertices[v].P), 9, 9);
+        foreach (var (v, text, err) in res.Notes)
+            if (err && v < t.Vertices.Count) { var ep = ToScreen(t.Vertices[v].P); dc.DrawEllipse(null, ErrPen, ep, 9, 9); ErrLabel(dc, text, ep, dpi); }
         // numer toru: kropka i numer nad osią (jak w ISDR), w środku widocznej części toru
         if (t.Number.Length > 0 && res.Elements.Count > 0)
         {

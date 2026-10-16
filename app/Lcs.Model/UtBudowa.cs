@@ -180,4 +180,53 @@ public static class Budowa
         }
         return Math.Max(1, Math.Round(lo));
     }
+    /// <summary>
+    /// Część toru od kilometrażu <paramref name="s1"/> do <paramref name="s2"/> [m w terenie, od początku toru]. Cięcie na prostej –
+    /// dokładnie w tym miejscu; w łuku (z przejściowymi) – na bliższym końcu łuku, bo wielobok styczny nie umie zacząć się w łuku.
+    /// </summary>
+    public static List<UtVertex> Trim(IReadOnlyList<UtVertex> v, double k, double s1, double s2)
+    {
+        if (s1 > s2) (s1, s2) = (s2, s1);
+        var r = Trasa.Compute(v, k);
+        if (r.Elements.Count == 0) return v.Select(x => x.Clone()).ToList();
+        s1 = Math.Max(0, s1); s2 = Math.Min(r.Length, s2);
+        // elementy z kilometrażem początku [m w układzie]
+        var els = new List<(Element E, double A)>(); double acc = 0;
+        foreach (var e in r.Elements) { els.Add((e, acc)); acc += e.Len; }
+        (Element E, double A) At(double g) { foreach (var x in els) if (g <= x.A + x.E.Len + 1e-9) return x; return els[^1]; }
+        var res = v.Select(x => x.Clone()).ToList();
+        // koniec (najpierw – indeksy początku się nie zmienią)
+        double g2 = s2 * r.K; var (e2, a2) = At(g2);
+        if (e2.Kind == ElKind.Prosta)
+        {
+            var q = e2.At(g2 - a2).P; int j = e2.Vertex;
+            res = res.Take(j).ToList(); res.Add(new UtVertex { X = q.X, Y = q.Y });
+        }
+        else
+        {
+            // łuk w wierzchołku j: koniec na początku (przed łukiem) albo na końcu (za łukiem) wszystkich elementów tego łuku
+            int j = e2.Vertex; var arc = els.Where(x => x.E.Vertex == j && x.E.Kind != ElKind.Prosta).ToList();
+            double ga = arc[0].A, gb = arc[^1].A + arc[^1].E.Len;
+            if (g2 - ga < gb - g2) { var q = arc[0].E.At(0).P; res = res.Take(j).ToList(); res.Add(new UtVertex { X = q.X, Y = q.Y }); }
+            else { var q = arc[^1].E.End; res = res.Take(j + 1).ToList(); res.Add(new UtVertex { X = q.X, Y = q.Y }); }
+        }
+        // początek
+        double g1 = s1 * r.K; var (e1, a1) = At(g1);
+        int n0 = res.Count;
+        if (e1.Kind == ElKind.Prosta)
+        {
+            var q = e1.At(g1 - a1).P; int j = e1.Vertex;
+            if (j < n0) { res = res.Skip(j).ToList(); res.Insert(0, new UtVertex { X = q.X, Y = q.Y }); res[0].R = 0; }
+        }
+        else
+        {
+            int j = e1.Vertex; var arc = els.Where(x => x.E.Vertex == j && x.E.Kind != ElKind.Prosta).ToList();
+            double ga = arc[0].A, gb = arc[^1].A + arc[^1].E.Len;
+            if (g1 - ga < gb - g1) { var q = arc[0].E.At(0).P; res = res.Skip(j).ToList(); res.Insert(0, new UtVertex { X = q.X, Y = q.Y }); }
+            else if (j + 1 < n0) { var q = arc[^1].E.End; res = res.Skip(j + 1).ToList(); res.Insert(0, new UtVertex { X = q.X, Y = q.Y }); }
+        }
+        if (res.Count > 0) { res[0].R = 0; res[0].L = 0; res[^1].R = 0; res[^1].L = 0; }
+        Simplify(res, 1);
+        return res;
+    }
 }

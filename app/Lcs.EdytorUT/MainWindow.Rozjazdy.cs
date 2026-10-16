@@ -34,6 +34,15 @@ public partial class MainWindow
         RzTypeBox.SelectedIndex = 0; View.RzType = Katalog.Types[0].Name;
         RzTypeBox.SelectionChanged += (s, e) => { if (RzTypeBox.SelectedItem is string n) { View.RzType = n; if (View.Tool == UtTool.Rozjazd) ToolShown(); } };
         View.TurnoutPlace += OnTurnoutPlace;
+        View.CrossoverJoin += (aId, bId) =>
+        {
+            string err = null; double shift = 0;
+            var a = Doc.P.Turnouts.First(x => x.Id == aId); var b = Doc.P.Turnouts.First(x => x.Id == bId);
+            Doc.Change("Łącznik z dwóch rozjazdów", p => err = Rozjazdy.MakeCrossover(p, aId, bId, out shift));
+            if (err != null) { Message($"Łącznik {a.Number}/{b.Number}: {err}"); return; }
+            View.SelectTurnout(aId);
+            Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + Notes(b));
+        };
         View.CrossingPlace += OnCrossingPlace;
         View.TurnoutMoved += (id, s) =>
         {

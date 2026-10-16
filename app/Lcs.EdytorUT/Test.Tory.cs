@@ -252,6 +252,30 @@ public static partial class Test
         w.View.SimClick(S(pe), MouseButton.Right);
         var tE = d0.P.Tracks.Last();
         Ok(tE.Vertices.Count == 3 && tE.Vertices[1].R == 300 && w.View.Geometry(tE).Ok, "Alt – wolny kierunek: wierzchołek z łukiem R 300");
+        // narzędzie Równoległy: tor wzorcowy, oś nowego toru na podkładzie (początek), koniec
+        var src0 = d0.P.Tracks[0]; var rs = w.View.Geometry(src0);
+        w.SetTool(UtTool.Rownolegly); w.View.SetView(rs.At(200).P, 0.5);
+        Ok(w.View.Tool == UtTool.Rownolegly, "klawisz P / przycisk – narzędzie Równoległy");
+        XY Off(double sk, double dd) { var (pp, aa) = rs.At(sk); return pp + Element.Right(aa) * (dd * rs.K); }
+        int ntp = d0.P.Tracks.Count;
+        w.View.SimClick(S(rs.At(120).P));
+        w.View.SimClick(S(Off(150, 5.034)));
+        w.View.SetView(rs.At(280).P, 0.35);
+        if (shotRails != null) { w.View.Drag(S(Off(380, 9)), false); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_rownolegly.png")); }
+        w.View.SimClick(S(Off(380, 9)));
+        var tPar = d0.P.Tracks.Last(); var rPar = w.View.Geometry(tPar);
+        double gmin = 1e9, gmax = 0; for (double sk = 160; sk < 370; sk += 5) { var dd = rPar.Nearest(rs.At(sk).P, 0.05).Dist / rs.K; gmin = Math.Min(gmin, dd); gmax = Math.Max(gmax, dd); }
+        Ok(d0.P.Tracks.Count == ntp + 1 && rPar.Ok && XY.Dist(tPar.Vertices[0].P, Off(150, 5.03)) < 0.01 * k && gmin > 5.02 && gmax < 5.04 && d0.UndoName == "Tor równoległy",
+            $"Równoległy: odstęp z kliknięcia na podkładzie 5,03 m (co 1 cm), od km 150 do km ok. 380 toru wzorcowego, międzytorze {gmin:0.000}–{gmax:0.000} m");
+        // Shift – odstęp co 0,25 m, Enter – do końca toru
+        w.View.SetView(rs.At(100).P, 0.5);
+        w.View.SimClick(S(rs.At(100).P));
+        UtView.TestMods = ModifierKeys.Shift; w.View.SimClick(S(Off(100, -4.62))); UtView.TestMods = ModifierKeys.None;
+        w.View.Drag(S(rs.At(200).P), false); KeyPress(w, Key.Enter);
+        var tPar2 = d0.P.Tracks.Last(); var rPar2 = w.View.Geometry(tPar2);
+        Ok(d0.P.Tracks.Count == ntp + 2 && rPar2.Ok && Math.Abs(rPar2.Nearest(rs.At(rs.Length - 1).P, 0.05).Dist / rs.K - 4.5) < 0.002 && Math.Abs(rPar2.Length - (rs.Length - 100)) < 30,
+            $"Shift – odstęp 4,5 m (co 0,25 m), po lewej; Enter – do końca toru wzorcowego (długość {UtView.Len3(rPar2.Length)})");
+        foreach (var id in new[] { tPar.Id, tPar2.Id }) d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == id));
         w.SetTool(UtTool.Wskaz);
         foreach (var id in new[] { tA.Id, tC.Id, tE.Id }) d0.Change("test", pp => pp.Tracks.RemoveAll(x => x.Id == id));
 

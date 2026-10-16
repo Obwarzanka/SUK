@@ -135,6 +135,37 @@ public static partial class Test
         w.View.SelectTurnout(d.P.Turnouts.First(x => x.Number == "2").Id);
         Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 2 && (c.Items[0] as string)?.StartsWith("+") == true).SelectedIndex = 1;
 
+        // --- dwa osobne rozjazdy (9 na torze 1, 10 na torze 2) z samymi odgałęzieniami → łącznik narzędziem Tor
+        w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rz 60E1-190-1:9";
+        r1 = w.View.Geometry(t1); r2 = w.View.Geometry(t2);
+        var p9 = r1.At(600).P; Look(Go(p9, lineAz, 40), 0.5);
+        w.View.SimDrag(S(p9), S(Go(p9, lineAz, 25) - Element.Right(r1.At(600).Az) * (1 * k)));
+        var p10 = r2.At(668).P; Look(Go(p10, lineAz, -30), 0.5);
+        w.View.SimDrag(S(p10), S(Go(p10, lineAz, -25) + Element.Right(r2.At(668).Az) * (1 * k)));
+        var z9 = d.P.Turnouts.FirstOrDefault(x => x.Number == "9"); var z10 = d.P.Turnouts.FirstOrDefault(x => x.Number == "10");
+        Ok(z9 != null && z10 != null && z9.Single && z10.Single && z10.Dir == -1, "rozjazdy 9 i 10 postawione osobno (same odgałęzienia, skosy się mijają)");
+        int ntr9 = d.P.Tracks.Count; double s10 = z10.S;
+        w.SetTool(UtTool.Tor);
+        var b9 = d.P.Tracks.First(x => x.Id == z9.Branch); var b10 = d.P.Tracks.First(x => x.Id == z10.Branch);
+        Look((b9.Vertices[^1].P + b10.Vertices[^1].P) * 0.5, 0.3);
+        w.View.SimClick(S(b9.Vertices[^1].P));
+        w.View.SimClick(S(b10.Vertices[^1].P));
+        z9 = d.P.Turnouts.First(x => x.Number == "9"); z10 = d.P.Turnouts.First(x => x.Number == "10");
+        var lk = d.P.Tracks.FirstOrDefault(x => x.Id == z9.Branch); var rlk = lk != null ? w.View.Geometry(lk) : null;
+        Ok(z9.Partner == z10.Id && z10.Partner == z9.Id && z10.BranchAtEnd && d.P.Tracks.Count == ntr9 - 1 && rlk != null && rlk.Ok && Continuity(rlk).Az < 1e-9
+            && Rozjazdy.Check(d.P, z9).Count == 0 && Rozjazdy.Check(d.P, z10).Count == 0 && d.UndoName == "Łącznik z dwóch rozjazdów",
+            $"Tor: koniec odgałęzienia 9 → odgałęzienie 10: łącznik 9/10, rozjazd 10 przesunięty o {Math.Abs(z10.S - s10):0.00} m, bez uwag");
+        w.DoUndo(); Ok(d.P.Turnouts.First(x => x.Number == "10").Partner == null && d.P.Tracks.Count == ntr9, "Ctrl+Z – znowu dwa osobne rozjazdy");
+        w.DoRedo();
+        // tory nie całkiem równoległe (1,5°) – łącznik jednym przeciągnięciem i tak powstaje
+        var tp = new UtProject();
+        var ta = new UtTrack { Vertices = new() { new UtVertex { X = o.X, Y = o.Y }, new UtVertex { X = Go(o, lineAz, 400).X, Y = Go(o, lineAz, 400).Y } } };
+        var sb0 = Go(o, lineAz - 90, 5); var tb = new UtTrack { Vertices = new() { new UtVertex { X = sb0.X, Y = sb0.Y }, new UtVertex { X = Go(sb0, lineAz - 1.5, 400).X, Y = Go(sb0, lineAz - 1.5, 400).Y } } };
+        tp.Tracks.Add(ta); tp.Tracks.Add(tb);
+        var (nc1, nc2, nlk, nerr) = Rozjazdy.NewCrossover(tp, ta.Id, 100, 1, -1, tb.Id, "Rz 60E1-190-1:9", "21", "22");
+        if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
+        Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
+
         // --- Teren ↔ Schemat, oś wg toru, obrót 180°, zapis
         Click(w.TerenBtn);
         Ok(!w.View.Schemat && Math.Abs(w.View.AxisAz - Math.PI / 2) < 1e-12 && w.View.Stretch == 1, "przełączenie na Teren: północ u góry, 1:1");

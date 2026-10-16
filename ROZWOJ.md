@@ -177,6 +177,13 @@ Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa j
 - **Uchwyt łuku:** zaznaczony tor ma kółko w środku każdego łuku z etykietą R; przeciągnięcie zmienia promień (`Budowa.RadiusForMid` – bisekcja, środek łuku pod kursorem na dwusiecznej), z cofaniem.
 - Test `--test`: razem 240 sprawdzeń, **0 błędów**; etap 3 przepisany: prosta 260 m – łuk 120 m z klawiatury (R 500, L 40) – prosta 150 m daje 3 wierzchołki i dokładne długości, łuk myszą i Backspace, przedłużenie o 80 m bez nowego wierzchołka, esowanie (zmiana rozstawu 6 m na 140 m) w jeden tor, łuk 90° z R zmniejszonym do 150 m, uchwyt łuku (R 150 → 90), Alt; w mijance bocznica od KR: prosta, łuk z Shift równoległy do toru, skos 1:9 zachowany. Zrzuty: `zrzuty/EdytorUT_tor_laczenie.png`, `EdytorUT_tor_uchwyt_luku.png`.
 
+**ZROBIONE 2026-10-16 – łączniki i tory równoległe z podkładu** (zrzuty właściciela: łącznik z dwóch osobno postawionych rozjazdów – skosy się mijały):
+- **Łącznik jednym ruchem** narzędziem Rozjazd (przeciągnięcie z toru na tor sąsiedni) działa też na torach odrysowanych nie idealnie równolegle – do 3° (`Rozjazdy.MaxSkewDev`; dawniej 0,5°), z uwagą „skos odchyla się o x°” powyżej 0,5°.
+- **Łącznik z dwóch rozjazdów:** narzędzie Tor – start na końcu odgałęzienia rozjazdu A (samo odgałęzienie do skosu), klik na odgałęzieniu rozjazdu B → `Rozjazdy.MakeCrossover`: odgałęzienie A staje się torem łączącym, B przesuwa się wzdłuż toru tak, żeby jego ŚR leżał na skosie A (komunikat o przesunięciu), odgałęzienie B znika; podgląd przed kliknięciem.
+- **Opisy błędów na płótnie** przy czerwonych kółkach (rozjazd – uwagi z „Sprawdź”, tor – błąd geometrii w wierzchołku).
+- **Narzędzie Równoległy (P)**, `UtView.Rownolegly.cs`: klik na torze wzorcowym, klik na podkładzie na osi nowego toru w miejscu początku (odstęp z kliknięcia co 1 cm, Shift – co 0,25 m), klik w miejscu końca albo Enter – do końca toru wzorcowego; tor przesunięty `Trasa.Offset` i przycięty `Budowa.Trim` (cięcie na prostej dokładnie, w łuku – na bliższym końcu łuku). Panelowy „Tor równoległy” (cały tor, wpisany odstęp) zostaje.
+- Test: 245 sprawdzeń, 0 błędów (łącznik 9/10 z dwóch rozjazdów – rozjazd 10 przesunięty o 10,23 m, bez uwag, Ctrl+Z; łącznik na torach 1,5°; Równoległy 5,03 m od km 150 do 380, Shift 4,5 m + Enter). Zrzut: `zrzuty/EdytorUT_tor_rownolegly.png`.
+
 **Następny krok:** etap 5 – urządzenia na torze (semafory, tarcze, kozły, wykolejnice, liczniki osi / złącza, perony, przejazdy, kilometraż) ze znakami z bazy symboli Ig-10
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**

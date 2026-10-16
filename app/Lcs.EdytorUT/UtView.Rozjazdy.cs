@@ -189,7 +189,7 @@ public partial class UtView
         double endAlong = (ToScreen(g.KRMain) - pr) * dir;
         var n = DrawWedge(dc, pr, dir, pts, endAlong, t.Zas != "-", t.Manual, k);
         DrawSwitchStart(dc, pr, dir, n, k, t.Number, dpi);
-        if (err) dc.DrawEllipse(null, ErrPen, ToScreen(g.SR), 10, 10);
+        if (err) { var es = ToScreen(g.SR); dc.DrawEllipse(null, ErrPen, es, 10, 10); ErrLabel(dc, $"{t.Number}: " + string.Join("; ", Rozjazdy.Check(Doc.P, t)), es, dpi); }
     }
 
     static readonly Pen StartPen = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 1.3), WedgeOutline = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 1);

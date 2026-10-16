@@ -43,6 +43,14 @@ public partial class MainWindow
         View.ModeChanged += () => { ProstaBtn.IsChecked = View.Mode == UtView.TorMode.Prosta; LukBtn.IsChecked = View.Mode == UtView.TorMode.Luk; if (View.Tool == UtTool.Tor) ToolShown(); };
         ProstaBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Prosta; };
         LukBtn.Click += (s, e) => { SetTool(UtTool.Tor); View.Mode = UtView.TorMode.Luk; };
+        View.ParallelDrawn += (src, vs, d) =>
+        {
+            var st = Doc.P.Tracks.FirstOrDefault(x => x.Id == src);
+            var n = new UtTrack { Vertices = vs, Elec = st?.Elec ?? false };
+            Doc.Change("Tor równoległy", p => p.Tracks.Add(n));
+            View.Select(n.Id);
+            Message($"Tor równoległy {F(Math.Abs(d))} m po {(d > 0 ? "prawej" : "lewej")} toru {st?.Number}: długość {UtView.Len3(View.Geometry(n).Length)}");
+        };
         View.SelectionChanged += RefreshTrackPanel;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()
