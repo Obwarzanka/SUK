@@ -344,6 +344,7 @@ public partial class Simulator
     /// </summary>
     public void StatusZwrotnicy(string num, string pol, bool przekladanie, bool przekroczonyCzas)
     {
+        Urzadzenia.LogStatus("zwrotnica", num, pol != null ? $"kontrola „{pol}”" : przekladanie ? "przekładanie" + (przekroczonyCzas ? ", przekroczony czas" : "") : "brak kontroli");
         var w = Sws[num];
         w.Frozen = przekroczonyCzas;
         if (przekroczonyCzas && w.Moving != null && !w.Moving.Alarmed) { w.Moving.Alarmed = true; Alarm($"Zwrotnica {num}: przestawianie trwa zbyt długo – przestaw do położenia pierwotnego (§24 ust. 6)", "Zwrotnica", num, stillActive: () => w.Moving != null); }
@@ -372,6 +373,7 @@ public partial class Simulator
     /// <summary>Status karty wykolejnicy: założona / zdjęta (null – przekładanie).</summary>
     public void StatusWykolejnicy(string name, bool? zalozona)
     {
+        Urzadzenia.LogStatus("wykolejnica", name, zalozona is bool zz ? (zz ? "założona" : "zdjęta") : "przekładanie");
         if (zalozona is not bool z) return;
         var d = Ders[name]; d.On = z;
         if (d.MovingTo == z) d.MovingTo = null;
@@ -511,6 +513,7 @@ public partial class Simulator
     /// <summary>Status karty sygnalizatora: sygnał wyświetlany, uszkodzenie światła zezwalającego, brak łączności.</summary>
     public void StatusSygnalizatora(string sig, string wyswietlany, bool uszkZezwalajacego, bool brakDanych)
     {
+        Urzadzenia.LogStatus("sygnalizator", sig, "wyświetla " + (wyswietlany == "" ? "– (ciemny)" : wyswietlany) + (uszkZezwalajacego ? ", uszkodzone światło zezwalające" : "") + (brakDanych ? ", brak łączności" : ""));
         var s = Sigs[sig];
         s.Wyswietlany = wyswietlany;
         if (s.LampFault && !uszkZezwalajacego) s.FailAlarm = false;

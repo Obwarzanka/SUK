@@ -298,6 +298,8 @@ Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Rele
 
 Karty sygnalizatorów pokazują sygnał zlecony przez KZ i wyświetlany w terenie wg Ie-1 (S1…S13a, Sz, Ms1, Ms2) i zapalone światła. Sygnał wynika z prędkości przebiegu (zwrotnice na bok) i sygnału następnego semafora (Ie-1 zał. 1) – np. wjazdowy przy wyjazdowym na „Stój” pokazuje S13, po otwarciu wyjazdowego sam zmienia się na S12; na SBL czterostawnej S3 oznacza dwa wolne odstępy. Wiersze żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli, sygnał niezapalony, brak łączności. Filtry: rodzaj karty, posterunek (odstępowe – szlak), obiekt, „tylko stany nietypowe”.
 
+Zakładka **„Komputer zależności”**: na górze **kontrola zależności na żywo** – zielone „brak naruszeń” albo czerwona lista naruszeń (np. sygnał zezwalający przy zwrotnicy bez kontroli, odcinek w dwóch przebiegach, sygnał niezgodny z Ie-1) i żółte uwagi (np. przebieg czeka na kontrolę zwrotnicy w ochronie bocznej); niżej przebiegi w KZ (stan, sygnał, prędkość, zwrotnice, odcinki, ochrona boczna), utwierdzenia, dziennik **komunikacji KZ ↔ karty** (rozkazy i zmiany statusów) i **polecenia z pulpitu** z odpowiedzią KZ. **Sprawdź przebieg** – wpisz fragment nazwy (np. `P102 1A`): zwrotnice, odcinki, ochrona boczna, prędkość, sygnał i dlaczego można albo nie można go nastawić.
+
 Połączenie przez sieć: symulator (gra jednoosobowa albo serwer) zawsze nasłuchuje dla Komputerowni na **127.0.0.1:47121** (tylko ten komputer) – wystarczy „Połącz”. Do serwera stanowisk na innym komputerze (np. przez Radmin) – jego adres i port **47120**. `Komputerownia.exe --connect host:port` łączy od razu.
 
 ## Testy (bez okna)

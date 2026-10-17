@@ -46,9 +46,15 @@ public static class SelfTest
         sb.AppendLine($"Scenariusz: {todo.Count} przebiegów do nastawienia (szlaki {todo.Count(r => r.EndKind == "szlak")}, wjazdy {todo.Count(r => r.Type == "P" && r.EndKind != "szlak")}, manewry {(man != null ? 1 : 0)})");
         var done = new HashSet<RouteDef>(); var ok = new HashSet<string>(); var failed = new Dictionary<RouteDef, string>(); var lastWbl = new Dictionary<string, double>();
         bool conflictChecked = false; int conflictOk = 0, conflictTotal = 0;
+        var naruszenia = new Dictionary<string, string>(); int kontroli = 0;
         for (int i = 0; i < 4 * 900; i++)
         {
             sim.Tick(0.25);
+            if (i % 8 == 0)
+            {
+                // kontrola zależności na żywo (niezmienniki KZ) – co 2 s scenariusza
+                kontroli++; foreach (var k in KzPodglad.Kontrola(sim, out _).Where(k => k.Poziom == "naruszenie")) naruszenia.TryAdd(k.Tekst, sim.Clock());
+            }
             if (i % 20 != 0) continue;
             // posterunki sąsiednie i drugi koniec szlaku wewnętrznego dają pozwolenie
             foreach (var (id, bs) in sim.Blocks)
@@ -103,6 +109,25 @@ public static class SelfTest
         }
         Prog("koniec pętli");
         sb.AppendLine($"WYNIK: nastawione {ok.Count} z {todo.Count} przebiegów; kontrola zależności {conflictOk} z {conflictTotal}");
+        sb.AppendLine($"KONTROLA KZ NA ŻYWO: {kontroli} kontroli w trakcie scenariusza, naruszeń: {naruszenia.Count}");
+        foreach (var (t, c) in naruszenia) sb.AppendLine($"   naruszenie {c}: {t}");
+        {
+            // kontrola musi wykrywać naruszenia: celowo zepsuty stan KZ (osobny symulator)
+            var ns = new Simulator(st) { User = sim.User }; int wyk = 0;
+            var sg = st.Signals.Values.First(x => x.Type == "wyjazdowy").Name;
+            ns.Sigs[sg].Aspect = Aspect.Train;
+            if (KzPodglad.Kontrola(ns, out _).Any(k => k.Poziom == "naruszenie" && k.Tekst.Contains("bez nastawionego przebiegu"))) wyk++;
+            ns.Sigs[sg].Aspect = Aspect.Stop;
+            var pr = ns.RouteTable.Values.SelectMany(v => v).FirstOrDefault(r => r.Type == "P" && r.Sw.Count > 0 && ns.WhyNot(r).Count == 0);
+            if (pr != null)
+            {
+                ns.Page = PageOf(pr.Start); ns.Exec(Cmd(pr), false);
+                for (int k = 0; k < 160 && !ns.Routes.Values.Any(x => x.Id == pr.Id && x.State == "set"); k++) ns.Tick(0.25);
+                var (num, pos) = pr.Sw[0]; ns.Sws[num].Pos = pos == "+" ? "-" : "+";     // „zgubione” położenie zwrotnicy w KZ
+                if (KzPodglad.Kontrola(ns, out _).Any(k => k.Poziom == "naruszenie" && k.Tekst.Contains(Station.Lbl(num)))) wyk++;
+            }
+            sb.AppendLine($"KONTROLA KZ – wykrywanie celowych naruszeń: {wyk} z 2");
+        }
         // ochrona boczna (poradnik UTK 1.5.8, Tabela 22) – osobny symulator bez pociągów
         {
             var fs = new Simulator(st) { User = sim.User };

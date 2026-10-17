@@ -16,7 +16,8 @@ namespace LcsWidzew.Net;
 // Protokół: jedna wiadomość JSON w linii, pole "t" – rodzaj. Stanowisko → serwer: hello, cmd, confirm, cancel, ack, login,
 // page, reqctl, relctl, ansctl, phone, get (plan / score / book), book. Serwer → stanowisko: welcome / reset (układ, tablica
 // przebiegów, rejestrator), ind (meldunki), ev, al, alupd, res, special, pendexp, beep.
-// Program serwisowy Komputerownia: serwis (zamiast hello – bez stanowiska), karty (→ res: KomputerowniaStan), usterka (key, target, clear).
+// Program serwisowy Komputerownia: serwis (zamiast hello – bez stanowiska), karty (→ res: KomputerowniaStan), usterka (key, target, clear),
+// kz (odKom, odPol → KzStan: przebiegi, utwierdzenia, kontrola zależności, komunikacja z kartami, polecenia), kzprzebieg (tekst → PrzebiegTest[]).
 // ---------------------------------------------------------------------------------------------------------------------------
 
 public static class Wire
@@ -144,6 +145,8 @@ public class LcsServer : IDisposable
             switch (t)
             {
                 case "karty": Res(sim.Urzadzenia.Stan()); break;
+                case "kz": Res(KzPodglad.Stan(sim, m["odKom"]?.GetValue<long>() ?? 0, m["odPol"]?.GetValue<long>() ?? 0)); break;
+                case "kzprzebieg": Res(KzPodglad.Sprawdz(sim, (string)m["tekst"])); break;
                 case "usterka":
                 {
                     var key = (string)m["key"]; var target = (string)m["target"]; var clear = m["clear"]?.GetValue<bool>() ?? false;

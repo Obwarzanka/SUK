@@ -61,6 +61,9 @@ public class MainWindow : Window
     };
     public readonly StackPanel Szczegoly = new() { Margin = new Thickness(14, 0, 0, 0) };
     public readonly ObservableCollection<Karta> Karty = new();
+    public readonly TabControl Zakladki = new();
+    /// <summary>Zakładka „Komputer zależności”.</summary>
+    public readonly KzPanel Kz = new();
     readonly Dictionary<string, Karta> byId = new();
     ICollectionView widok;
     public Polaczenie Pol;
@@ -89,6 +92,8 @@ public class MainWindow : Window
         top.Children.Add(BtnPolacz);
         top.Children.Add(Info);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
+        var kartyPanel = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        Kz.Margin = new Thickness(0, 8, 0, 0);
 
         var left = new StackPanel { Width = 230, Margin = new Thickness(0, 0, 12, 0) };
         left.Children.Add(Naglowek("Rodzaj karty"));
@@ -107,11 +112,11 @@ public class MainWindow : Window
                    "Kolumny: rozkaz od KZ – ostatni rozkaz i kiedy przyszedł; status do KZ – to, co widzi komputer zależności; teren – stan rzeczywisty przy torze. " +
                    "Żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli, sygnał niezapalony, brak łączności. Sygnały semaforów – kody i światła wg Ie-1 (S1…S13a, Sz, Ms1, Ms2).",
         });
-        DockPanel.SetDock(left, Dock.Left); root.Children.Add(left);
+        DockPanel.SetDock(left, Dock.Left); kartyPanel.Children.Add(left);
 
         Szczegoly.Width = 300;
         var right = new ScrollViewer { Content = Szczegoly, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        DockPanel.SetDock(right, Dock.Right); root.Children.Add(right);
+        DockPanel.SetDock(right, Dock.Right); kartyPanel.Children.Add(right);
 
         Kolumna("Post.", nameof(Karta.Post), 48); Kolumna("Obiekt", nameof(Karta.Obiekt), 70); Kolumna("Karta", nameof(Karta.Rodzaj), 92); Kolumna("Typ", nameof(Karta.Typ), 95);
         Kolumna("Rozkaz od KZ", nameof(Karta.Rozkaz), 0.9, true); Kolumna("kiedy", nameof(Karta.RozkazKiedy), 78); Kolumna("Status do KZ", nameof(Karta.Status), 1.2, true);
@@ -122,7 +127,11 @@ public class MainWindow : Window
         Tabela.RowStyle = rs;
         widok = CollectionViewSource.GetDefaultView(Karty); widok.Filter = Filtr;
         Tabela.ItemsSource = widok;
-        root.Children.Add(Tabela);
+        kartyPanel.Children.Add(Tabela);
+        Zakladki.Items.Add(new TabItem { Header = "Karty sterowników obiektowych", Content = kartyPanel, Padding = new Thickness(10, 3, 10, 3) });
+        Zakladki.Items.Add(new TabItem { Header = "Komputer zależności", Content = Kz, Padding = new Thickness(10, 3, 10, 3) });
+        Zakladki.SelectionChanged += async (s, e) => { if (e.Source == Zakladki) await Odswiez(); };
+        root.Children.Add(Zakladki);
         Content = root;
 
         BtnPolacz.Click += (s, e) => { if (Pol == null) Polacz(); else Rozlacz("rozłączono"); };
@@ -160,7 +169,7 @@ public class MainWindow : Window
         try { Pol = Polaczenie.Polacz(Host.Text.Trim(), port); }
         catch (Exception ex) { Pol = null; Info.Text = "Nie można połączyć: " + (ex.InnerException?.Message ?? ex.Message); return; }
         Pol.Rozlaczono += why => Dispatcher.BeginInvoke(() => Rozlacz(why));
-        Karty.Clear(); byId.Clear();
+        Karty.Clear(); byId.Clear(); Kz.Ustaw(Pol);
         BtnPolacz.Content = "Rozłącz"; Host.IsEnabled = Port.IsEnabled = false;
         Info.Text = $"Połączono z „{Pol.Stacja}” ({Pol.Adres})";
         timer.Start();
@@ -181,6 +190,7 @@ public class MainWindow : Window
         wToku = true;
         try
         {
+            if (Zakladki.SelectedIndex == 1) { await Kz.Odswiez(); Odswiezenia++; return; }
             var d = await Pol.Zadanie("karty");
             if (d == null || Pol == null) return;
             double t = d["T"]?.GetValue<double>() ?? 0;

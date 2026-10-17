@@ -32,7 +32,11 @@ public class KartaOdcinka
     }
 
     /// <summary>Status dla komputera zależności: zajętość przez pojazd i stan urządzenia.</summary>
-    public void Publikuj() { var k = S.Secs[Id]; k.TrainOcc = Pojazd; k.Fault = Stan; }
+    public void Publikuj()
+    {
+        var k = S.Secs[Id]; k.TrainOcc = Pojazd; k.Fault = Stan;
+        S.Urzadzenia?.LogStatus("odcinek", Id, (Pojazd || Stan != null ? "zajęty" : "wolny") + Stan switch { "occ" => " (bez pojazdu)", "reset" => ", wymaga zerowania", "await" => ", czeka na 1. przejazd", _ => "" });
+    }
 
     /// <summary>Koniec przejazdu przy błędzie zliczenia: liczba osi się nie zgadza – odcinek zostaje zajęty, wymagane ZeroLO.</summary>
     public void KontrolaZliczenia()

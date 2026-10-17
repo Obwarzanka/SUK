@@ -58,11 +58,11 @@ public partial class Urzadzenia
 
     // ------------------------------------------------------------------ rozkazy komputera zależności
     /// <summary>Zerowanie licznika osi (ZeroLO po potwierdzeniu dyżurnego).</summary>
-    public void Zeruj(string sec) => Odcinki[sec].Zeruj();
+    public void Zeruj(string sec) { LogRozkaz("odcinek", sec, "zerowanie licznika osi"); Odcinki[sec].Zeruj(); }
     /// <summary>Przestawienie zwrotnicy do położenia „+” / „-”.</summary>
-    public void Przestaw(string sw, string pol) => Zwrotnice[sw].Rozkaz(pol);
+    public void Przestaw(string sw, string pol) { LogRozkaz("zwrotnica", sw, $"przestaw do „{pol}”"); Zwrotnice[sw].Rozkaz(pol); }
     /// <summary>Założenie (true) / zdjęcie (false) wykolejnicy.</summary>
-    public void Wykolejnica(string name, bool zaloz) => Wykolejnice[name].Rozkaz(zaloz);
+    public void Wykolejnica(string name, bool zaloz) { LogRozkaz("wykolejnica", name, zaloz ? "załóż" : "zdejmij"); Wykolejnice[name].Rozkaz(zaloz); }
     /// <summary>Sygnał do wyświetlenia (kod Ie-1).</summary>
-    public void Sygnal(string sig, string kod) { if (Sygnalizatory.TryGetValue(sig, out var k)) k.Rozkaz(kod); }
+    public void Sygnal(string sig, string kod) { if (!Sygnalizatory.TryGetValue(sig, out var k)) return; LogRozkaz("sygnalizator", sig, kod == "" ? "wygaś" : "sygnał " + kod); k.Rozkaz(kod); }
 }

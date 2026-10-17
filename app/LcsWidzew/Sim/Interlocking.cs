@@ -124,7 +124,8 @@ public partial class Simulator
         return (true, null, r);
     }
 
-    List<string> SignalConditions(Route r)
+    /// <summary>Warunki sygnału zezwalającego nastawionego przebiegu – przeszkody (puste – można otworzyć semafor).</summary>
+    public List<string> SignalConditions(Route r)
     {
         var why = RouteObstacles(r, false);
         foreach (var (num, pos) in r.Sw) if (Sws[num].Pos != pos || !SwControlled(num)) why.Add($"zwr. {num} bez kontroli w położeniu {pos}");

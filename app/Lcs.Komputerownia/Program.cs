@@ -93,6 +93,20 @@ static class Test
             w.UpdateLayout(); await Task.Delay(200);
             Program.Save(w, System.IO.Path.ChangeExtension(shot, null) + "_sygnaly.png");
         }
+        if (w.Pol != null)
+        {
+            // zakładka „Komputer zależności”
+            w.Zakladki.SelectedIndex = 1; for (int i = 0; i < 40 && (w.Kz.Naruszenia < 0 || w.Kz.Kom.Count == 0); i++) { await w.Odswiez(); await Task.Delay(150); }
+            var kz = w.Kz; var prz = (kz.Przebiegi.ItemsSource as System.Collections.IList)?.Count ?? 0;
+            Ok(prz > 0, $"KZ: przebiegi aktywne {prz}");
+            Ok(kz.Naruszenia == 0 && kz.Sprawdzono > 0, $"KZ: {kz.KontrolaInfo.Text}");
+            Ok(kz.Kom.Any(k => k.Kierunek == "KZ → karta") && kz.Kom.Any(k => k.Kierunek == "karta → KZ"), $"KZ: komunikacja z kartami – wpisów {kz.Kom.Count}, np. {string.Join(" | ", kz.Kom.Take(3).Select(k => $"{k.Czas} {k.Kierunek} {k.Obiekt}: {k.Tresc}"))}");
+            Ok(kz.Pol.Count > 0, $"KZ: polecenia z pulpitu {kz.Pol.Count}, np. {kz.Pol.FirstOrDefault()?.Tresc}");
+            kz.SprawdzTekst.Text = "P102 1A"; await kz.Sprawdz();
+            Ok(kz.SprawdzWynik.Text.Contains("P102→1A"), "KZ: sprawdź przebieg „P102 1A”: " + kz.SprawdzWynik.Text.Split((char)10).FirstOrDefault(x => x.Contains("nastawić") || x.Contains("aktywny"))?.Trim());
+            w.UpdateLayout(); await Task.Delay(200);
+            if (shot != null) Program.Save(w, System.IO.Path.ChangeExtension(shot, null) + "_kz.png");
+        }
         log.AppendLine($"błędów: {err}");
         File.WriteAllText(outPath, log.ToString());
     }

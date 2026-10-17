@@ -265,3 +265,22 @@ Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decy
   odstęp zajęty S5 → S1. Komputerownia `--test` z symulatorem: błędów 0 (126 kart sygnalizatorów).
 - Do ustalenia z właścicielem: prędkość linii ≤ 100 km/h (zał. 1 dotyczy linii > 100 km/h – wtedy S6–S9 zamiast S2–S5 nie są potrzebne; dziś
   brak danych o prędkości linii), tarcze ostrzegawcze i powtarzacze (Os, Sp) – bez karty, pulpit jak dotąd.
+
+## 12. Komputerownia – zakładka „Komputer zależności” (2026-10-17)
+
+Prośba właściciela: przebiegi i ich stan, utwierdzenia, rozkazy wysłane do kart i statusy odebrane, polecenia z pulpitu, możliwość sprawdzenia,
+czy KZ dobrze działa.
+- Protokół: żądania `kz` (odKom, odPol – przyrostowo) → `KzStan` i `kzprzebieg` (tekst) → lista `PrzebiegTest` (`Sim/Urzadzenia/KzPodglad.cs`).
+- **Dziennik komunikacji KZ ↔ karty** (`Urzadzenia.Dziennik`): każdy rozkaz (przestaw, załóż / zdejmij, sygnał Sx, zerowanie) i każda
+  **zmiana** statusu karty (kontrola / przekładanie / brak kontroli, wyświetlany sygnał, zajętość odcinka); pierwszy status po starcie bez wpisu.
+- **Kontrola zależności na żywo** (`KzPodglad.Kontrola`) – niezmienniki KZ: przy sygnale zezwalającym zwrotnice z kontrolą w położeniu
+  i utwierdzone, odcinki utwierdzone (pociągowy – wolne), wykolejnice zdjęte, ochrona boczna w położeniu; sygnał zezwalający tylko przy
+  nastawionym przebiegu; odcinek w jednym przebiegu; utwierdzenia tylko istniejących przebiegów; sygnał zgodny z Ie-1 (prędkość × następny);
+  karta wyświetla sygnał zlecony (bez usterki, rozkaz starszy niż 0,5 s). Uwagi (nie błędy): zwrotnica przekładana przy zajętym odcinku,
+  przebieg dłużej niż 20 s w nastawianiu – z warunkami sygnału zezwalającego (`SignalConditions`, teraz publiczne), np. „ochrona boczna:
+  zwr. 57 bez kontroli”.
+- **Sprawdź przebieg**: przebiegi z tablicy zawierające tekst – zwrotnice, odcinki, ochrona boczna, V i sygnał, przeszkody (`WhyNot`)
+  albo stan aktywnego z warunkami, na które czeka.
+- Selftest: kontrola co 2 s całego scenariusza z pociągami – **`KONTROLA KZ NA ŻYWO: 450 kontroli …, naruszeń: 0`**; test, że kontrola
+  wykrywa celowo zepsuty stan (sygnał bez przebiegu, „zgubione” położenie zwrotnicy) – **`2 z 2`**. Komputerownia `--test`: błędów 0
+  (2 przebiegi, 303 warunki bez naruszeń, 180 wpisów komunikacji, polecenia, sprawdzenie przebiegu), zrzut `zrzuty/Komputerownia_kz.png`.
