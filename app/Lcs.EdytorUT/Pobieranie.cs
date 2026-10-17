@@ -41,6 +41,14 @@ public static class Pobieranie
         return await resp.Content.ReadAsByteArrayAsync(ct);
     }
 
+    /// <summary>Zapytanie stałym połączeniem (keep-alive) – kafelki: bez nowego uzgadniania TLS przy każdym.</summary>
+    public static async Task<byte[]> Get(string url, CancellationToken ct)
+    {
+        using var resp = await http.GetAsync(url, ct);
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadAsByteArrayAsync(ct);
+    }
+
     public static async Task<byte[]> Retry(Func<Task<byte[]>> get, CancellationToken ct, int n = 6)
     {
         for (int i = 1; ; i++)

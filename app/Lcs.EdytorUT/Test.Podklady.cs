@@ -310,6 +310,53 @@ public static partial class Test
         Ok(et.Bmp != null && Math.Abs(et.Geo.Mpp - w.View.Mpp) / w.View.Mpp < 0.75, "kafelek Esri w skali widoku (afinicznie do PUWG 1992)");
         w.LiveBox.SelectedIndex = 0;
 
+        // --- OpenRailwayMap jako warstwa do rysowania: przełącznik, zastępstwo przy przybliżaniu, dysk, kolejka od widoku
+        w.OrmBox.IsChecked = true; w.OrmBox.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Ok(w.View.Live.Overlay == LivePreview.Orm, "„linie kolejowe (OpenRailwayMap)” – warstwa ORM nad podglądem");
+        var oc0 = w.View.Center; double om0 = w.View.Mpp;
+        w.View.SetView(oc0, 1.2);
+        (XY, XY) Box() => (w.View.ToWorld(new Point(0, 0)), w.View.ToWorld(new Point(w.View.ActualWidth, w.View.ActualHeight)));
+        var (otl, obr) = Box();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm);
+        Ok(await WaitFor(() => w.View.Live.TilePending == 0 && w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm).Count > 0, 40000),
+            $"ORM: {w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm).Count} kafelków w {sw.ElapsedMilliseconds} ms (z dysku {w.View.Live.FromDisk}, z sieci {w.View.Live.FromNet})");
+        int ormFull = w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm).Count;
+        // przybliżenie ×2: zanim przyjdą nowe kafelki, widać przycięte kawałki poprzednich (bez pustego ekranu)
+        w.View.SetView(oc0, 0.6); (otl, obr) = Box();
+        var zoomed = w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm);
+        double Foot((System.Windows.Media.Imaging.BitmapSource Bmp, Affine Geo) t) => t.Geo.Mpp * t.Bmp.PixelWidth;
+        var full = w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm);
+        Ok(zoomed.Count > 0 && zoomed.All(t => Math.Abs(Foot(t) / Foot(zoomed[0]) - 1) < 0.01),
+            $"przybliżenie: od razu {zoomed.Count} kafelków zastępczych – przycięte kawałki poziomu wyżej ({zoomed[0].Bmp.PixelWidth} px), wszystkie tej samej wielkości w terenie ({Foot(zoomed[0]):0} m)");
+        await WaitFor(() => w.View.Live.TilePending == 0, 40000);
+        full = w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm);
+        Ok(full.Count > 0 && full.All(t => Math.Abs(Foot(t) / Foot(zoomed[0]) - 1) < 0.01), $"po pobraniu: właściwe kafelki ({full[0].Bmp.PixelWidth} px) w miejscu zastępczych, ta sama wielkość {Foot(full[0]):0} m");
+        await WaitFor(() => w.View.Live.TilePending == 0, 40000);
+        // przesunięcie daleko w trakcie pobierania: kafelki starego widoku wypadają z kolejki
+        w.View.SetView(oc0 + new XY(0, 3000), 0.6); (otl, obr) = Box(); w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm);
+        w.View.SetView(oc0 + new XY(0, -3000), 0.6); var (ftl, fbr) = Box(); w.View.Live.VisibleTiles(ftl, fbr, LivePreview.Orm);
+        Ok(w.View.Live.TilePending <= 8 + w.View.Live.VisibleTiles(ftl, fbr, LivePreview.Orm).Count + 40, $"przesunięcie: w kolejce tylko widoczne kafelki ({w.View.Live.TilePending})");
+        await WaitFor(() => w.View.Live.TilePending == 0, 40000);
+        // drugie okno (nowy podgląd, pusta pamięć): te same kafelki z dysku
+        var fresh = new LivePreview(() => (oc0, 1.2, 1000, 700));
+        w.View.SetView(oc0, 1.2); (otl, obr) = Box();
+        fresh.VisibleTiles(otl, obr, LivePreview.Orm);
+        sw.Restart();
+        Ok(await WaitFor(() => fresh.TilePending == 0 && fresh.VisibleTiles(otl, obr, LivePreview.Orm).Count >= ormFull, 20000) && fresh.FromDisk >= ormFull && fresh.FromNet == 0,
+            $"ponowne otwarcie: {fresh.FromDisk} kafelków ORM z dysku w {sw.ElapsedMilliseconds} ms, z sieci {fresh.FromNet} ({Kafelki.Dir})");
+        if (shotRails != null)
+        {
+            w.View.SetView(oc0, 0.6); w.View.Live.Schedule();
+            await WaitFor(() => !w.View.Live.OrtoBusy && w.View.Live.ortoImg != null, 40000);
+            (otl, obr) = Box(); w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm); await WaitFor(() => w.View.Live.TilePending == 0, 30000);
+            await Settle(w);
+            log.AppendLine($"INFO  zrzut ORM: kafelków {w.View.Live.VisibleTiles(otl, obr, LivePreview.Orm).Count}, w kolejce {w.View.Live.TilePending}, nieudanych {w.View.Live.FailedCount} ({w.View.Live.LastError}), z dysku {w.View.Live.FromDisk}, z sieci {w.View.Live.FromNet}");
+            Save(w, shotRails.Replace("_szyny.png", "_orm.png"));
+        }
+        w.View.SetView(oc0, om0);
+        w.OrmBox.IsChecked = false; w.OrmBox.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+
         // --- mapka kafelków
         var mw = w.OpenTileMap();
         Ok(mw.IsVisible && w.OpenTileMap() == mw, "przycisk „Mapka kafelków…” – jedno okno");

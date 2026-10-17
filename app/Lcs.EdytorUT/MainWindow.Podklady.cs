@@ -16,7 +16,9 @@ namespace Lcs.EdytorUT;
 /// </summary>
 public partial class MainWindow
 {
-    public readonly ComboBox LiveBox = new() { Margin = new Thickness(0, 2, 0, 8) };
+    public readonly ComboBox LiveBox = new() { Margin = new Thickness(0, 2, 0, 4) };
+    public readonly CheckBox OrmBox = new() { Content = "linie kolejowe (OpenRailwayMap) na wierzchu", Margin = new Thickness(0, 0, 0, 8),
+        ToolTip = "Przezroczysta warstwa OpenRailwayMap nad podglądem: osie torów, rozjazdy, numery linii – do odrysowania; kafelki zapamiętywane na dysku" };
     public readonly ComboBox ResBox = new() { Width = 90, Margin = new Thickness(0, 0, 6, 0) };
     public readonly Button MapBtn = new() { Content = "🗺 Mapka kafelków…", Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 2, 0, 6), HorizontalAlignment = HorizontalAlignment.Left, FontWeight = FontWeights.SemiBold };
     public TileMapWindow MapWin { get; private set; }
@@ -58,6 +60,8 @@ public partial class MainWindow
         LiveBox.SelectedIndex = 0;
         LiveBox.SelectionChanged += (s, e) => { if (LiveBox.SelectedIndex >= 0) View.Live.Source = LivePreview.Sources[LiveBox.SelectedIndex].Key; };
         sp.Children.Add(LiveBox);
+        OrmBox.Click += (s, e) => View.Live.Overlay = OrmBox.IsChecked == true ? LivePreview.Orm : null;
+        sp.Children.Add(OrmBox);
 
         sp.Children.Add(Label("Pobierz ortofotomapę do projektu (Geoportal)"));
         MapBtn.Click += (s, e) => OpenTileMap();

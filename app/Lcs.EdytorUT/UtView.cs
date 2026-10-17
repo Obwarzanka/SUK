@@ -325,8 +325,7 @@ public partial class UtView : FrameworkElement
             var lv = LiveView(); var ltl = lv.TopLeft; var lbr = new XY(ltl.X - lv.H * lv.Mpp, ltl.Y + lv.W * lv.Mpp);
             if (Schemat) dc.PushOpacity(0.55);
             if (Live.ortoImg is var (ob, og)) DrawImage(dc, ob, og, ob.PixelWidth, ob.PixelHeight, 1);
-            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr)) DrawImage(dc, tb, tg, 256, 256, 1);
-            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr, Live.Overlay)) DrawImage(dc, tb, tg, 256, 256, 1);
+            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr)) DrawImage(dc, tb, tg, tb.PixelWidth, tb.PixelHeight, 1);
             if (Schemat) dc.Pop();
         }
 
@@ -353,6 +352,15 @@ public partial class UtView : FrameworkElement
                 if (moving) dc.Pop();
             }
         DrawnTiles = drawn;
+
+        // linie kolejowe (OpenRailwayMap) na wierzchu – także nad podkładami projektu
+        if (BgOn && Live.Overlay != null)
+        {
+            var lv = LiveView(); var ltl = lv.TopLeft; var lbr = new XY(ltl.X - lv.H * lv.Mpp, ltl.Y + lv.W * lv.Mpp);
+            if (Schemat) dc.PushOpacity(0.55);
+            foreach (var (tb, tg) in Live.VisibleTiles(ltl, lbr, Live.Overlay)) DrawImage(dc, tb, tg, tb.PixelWidth, tb.PixelHeight, 1);
+            if (Schemat) dc.Pop();
+        }
 
         DrawSelection(dc);
         DrawTracks(dc, dpi);
