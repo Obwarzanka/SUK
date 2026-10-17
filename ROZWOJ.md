@@ -2,7 +2,7 @@
 
 Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest **źródłem prawdy o kierunku prac** i ma pierwszeństwo przed przestarzałym `archiwum/PLAN.md` (v0.4–0.5).
 
-Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT), `HISTORIA_EDYTOR_UT.md` (szczegółowe opisy zrobionych prac nad edytorem UT i kalkulatorem przechyłki), `PODZIAL_MODULOW.md` (podział `Simulator` na moduły), `README.md` (obsługa programów).
+Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT), `PLAN_EDYTOR_ZOBRAZOWANIA.md` (etap 8 – edytor zobrazowania, zaakceptowany 2026-10-17), `HISTORIA_EDYTOR_UT.md` (szczegółowe opisy zrobionych prac nad edytorem UT i kalkulatorem przechyłki), `PODZIAL_MODULOW.md` (podział `Simulator` na moduły), `README.md` (obsługa programów).
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 

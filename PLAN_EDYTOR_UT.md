@@ -50,7 +50,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 | 5 ✔ | Urządzenia na torze, symbole Ig-10 w skali rysunku, obrót / strona / kierunek, odcinki kontroli niezajętości, perony, przejazdy, kilometraż. | mijanka z semaforami, kozłami i odcinkami; „Sprawdź” bez uwag |
 | 6 ✔ | Wysokości (Z): profil podłużny, pochylenia, NMT z Geoportalu, nasyp / przekop. | profil toru zgodny z NMT w punktach kontrolnych |
 | 7 ✔ | Kontrola układu (otwarte końce, rozjazd bez numeru, urządzenie poza torem, nakładające się tory), warstwy, wydruk / eksport PNG / PDF w skali. | wydruk 1:1000 – zmierzone na kartce = skala |
-| 8 | Edytor zobrazowania jako osobna aplikacja (osobny plan, po zakończeniu UT). | – |
+| 8 | Edytor zobrazowania jako osobna aplikacja – plan: `PLAN_EDYTOR_ZOBRAZOWANIA.md` (zaakceptowany 2026-10-17). | – |
 | 9 | Przekazywanie danych z UT do symulatora: z UT powstaje topologia (tory, zwrotnice, odcinki, sygnalizatory, długości, pochylenia, prędkości) dla komputera zależności, kart urządzeń i ruchu pociągów; przebiegi i zależności projektuje człowiek (tablica zależności). | do ustalenia z właścicielem |
 
 Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, wg `lcs-testuj-jak-uzytkownik`), zrzut, szczegółowy wpis w `HISTORIA_EDYTOR_UT.md` i skrót w `ROZWOJ.md`.
