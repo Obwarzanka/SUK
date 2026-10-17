@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="53" font-size="34" font-weight="700" fill="white">SUK / obliczenia dwa razy, skutek raz</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">System nadrzędny i urządzenia nie są kopiowane do grup. Odrzucony plan nie zmienia świata.</text>
+<rect x="40" y="185" width="300" height="215" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="40" y="185" width="6" height="215" fill="#087f86"/>
+<text x="62" y="220" font-size="24" fill="#17334d" font-weight="700">1. Przyjęcie intencji</text>
+<text x="62" y="255" font-size="21" fill="#547084">Parser / prawa / kolejka</text>
+<text x="62" y="284" font-size="21" fill="#547084">Jeden requestId</text>
+<text x="62" y="313" font-size="21" fill="#547084">Jeden cel KZ / obiekt</text>
+<rect x="410" y="185" width="380" height="215" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="410" y="185" width="6" height="215" fill="#087f86"/>
+<text x="432" y="220" font-size="24" fill="#17334d" font-weight="700">2. Obie grupy liczą</text>
+<text x="432" y="255" font-size="21" fill="#547084">To samo wejście i czas</text>
+<text x="432" y="284" font-size="21" fill="#547084">Prywatne stany / kanały</text>
+<text x="432" y="313" font-size="21" fill="#547084">Dwa plany, bez skutków</text>
+<rect x="860" y="185" width="490" height="215" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="860" y="185" width="6" height="215" fill="#087f86"/>
+<text x="882" y="220" font-size="24" fill="#17334d" font-weight="700">3. Selektor</text>
+<text x="882" y="255" font-size="21" fill="#547084">Aktualna grupa i epoka</text>
+<text x="882" y="284" font-size="21" fill="#547084">Kwalifikacja + effectId + prawa</text>
+<text x="882" y="313" font-size="21" fill="#547084">Odrzucenie duplikatu / starego planu</text>
+<path d="M340,292 L410,292" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M790,292 L860,292" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<rect x="860" y="520" width="490" height="185" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="860" y="520" width="6" height="185" fill="#087f86"/>
+<text x="882" y="555" font-size="24" fill="#17334d" font-weight="700">4. Karty / sterowniki</text>
+<text x="882" y="590" font-size="21" fill="#547084">Jeden wybrany strumień rozkazów</text>
+<text x="882" y="619" font-size="21" fill="#547084">Kontrola przyjęcia i statusów</text>
+<text x="882" y="648" font-size="21" fill="#547084">ZeroLO tylko raz</text>
+<rect x="410" y="520" width="380" height="185" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="410" y="520" width="6" height="185" fill="#087f86"/>
+<text x="432" y="555" font-size="24" fill="#17334d" font-weight="700">5. Teren i pociągi</text>
+<text x="432" y="590" font-size="21" fill="#547084">Jeden fizyczny krok świata</text>
+<text x="432" y="619" font-size="21" fill="#547084">Jeden skład na granicy</text>
+<text x="432" y="648" font-size="21" fill="#547084">Statusy do kolejnego cyklu</text>
+<rect x="40" y="520" width="300" height="185" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="40" y="520" width="6" height="185" fill="#087f86"/>
+<text x="62" y="555" font-size="24" fill="#17334d" font-weight="700">6. Wynik / zdarzenie</text>
+<text x="62" y="590" font-size="21" fill="#547084">Książka i statystyka raz</text>
+<text x="62" y="619" font-size="21" fill="#547084">Komunikat KZ-KZ raz</text>
+<text x="62" y="648" font-size="21" fill="#547084">Meldunek i wynik klienta</text>
+<path d="M1105,400 L1105,520" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M860,612 L790,612" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M410,612 L340,612" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="40" y="775" font-size="23" fill="#17334d" font-weight="700">Rebuild rezerwy odtwarza stan obliczeń, nigdy już wykonane wyjścia do terenu.</text>
+<text x="40" y="817" font-size="20" fill="#547084">Schemat logiczny. Szczegółowa kolejność faz zachowuje zatwierdzony cykl i opóźnienia rdzenia.</text>
+</g></svg>

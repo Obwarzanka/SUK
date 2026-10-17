@@ -1,0 +1,256 @@
+{
+  "date": "2026-10-17",
+  "scope": "documentation only, not simulator acceptance",
+  "stage_count": 28,
+  "all_stages_planned": true,
+  "dependency_graph_acyclic": true,
+  "cards_exist": true,
+  "markdown_content_count": 171,
+  "html": {
+    "sections": 171,
+    "images": [
+      {
+        "src": "grafiki/01_architektura.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/02_polecenie.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/03_przekazanie.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/04_lacznosc_ai.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/05_etapy.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/06_kz_posterunkow.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/07_podglad_i_sterowanie.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/08_ebilock_grupy.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/09_jeden_skutek.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/10_stos.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/13_admin_klucze.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/11_panel_administracyjny.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/12_dyspozytor.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/14_stan_obecny.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/16_logi.png",
+        "loaded": true
+      },
+      {
+        "src": "grafiki/15_czaty.png",
+        "loaded": true
+      }
+    ],
+    "overflow": false,
+    "errors": []
+  },
+  "local_links_broken": [],
+  "pdf_pages": 272,
+  "pdf_text_characters": 617366,
+  "pdf_replacement_characters": 0,
+  "pdf_words_outside_safe_page_bounds": [],
+  "pdf_rasterized_pages": 272,
+  "pdf_render_warnings": [
+    "Syntax Error: No display font for 'Symbol'",
+    "Syntax Error: No display font for 'ArialUnicode'"
+  ],
+  "repository_head": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568",
+  "head_unchanged": false,
+  "git_status_porcelain": "?? SUK_plan_multiplayer.pdf",
+  "source_hash_changes": [
+    "D:\\Projects\\SUK\\AGENTS.md",
+    "D:\\Projects\\SUK\\CLAUDE.md",
+    "D:\\Projects\\SUK\\ROZWOJ.md",
+    "D:\\Projects\\SUK\\README.md",
+    "D:\\Projects\\SUK\\PODZIAL_MODULOW.md",
+    "D:\\Projects\\SUK\\PLAN_EDYTOR_UT.md",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Net\\LcsNet.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Meldunki.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Desk.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Commands.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Blocks.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Simulator.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Trains.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\State.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Model\\Station.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\MainWindow.xaml.cs",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\LcsWidzew.csproj",
+    "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Interlocking.cs"
+  ],
+  "source_changes_since_review": [],
+  "review_head": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568",
+  "head_stable_since_review": true,
+  "original_baseline_drift_explained_in": "ZRODLA_KONTROLA_1_8.json",
+  "station_sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+  "initial_git_status_porcelain": "?? SUK_plan_multiplayer.pdf",
+  "git_status_unchanged_since_review": true,
+  "untracked_file_hash_changes": [],
+  "simulator_built": false,
+  "simulator_tests_run": false,
+  "deployment_performed": false,
+  "visual_review": "passed_after_latest_png_review",
+  "plan_version": "1.8",
+  "job_audit": {
+    "plan_version": "1.8",
+    "jobs": 90,
+    "parent_stages": 28,
+    "KZ_prompts": 17,
+    "prompt_files": 110,
+    "small_packets": 90,
+    "requirements": 37,
+    "DAG_acyclic": true,
+    "all_jobs_planned": true,
+    "parent_dependencies_preserved": true,
+    "no_cross_A_B_dependency": true,
+    "author_neutral_guide_consistent": true,
+    "all_context_hashes_match": true,
+    "bounded_read_docs_max": 6,
+    "logging_foundation": "S01.01",
+    "independent_review_corrections": [
+      "full AI_START conflicted with author isolation; neutral author guide and explicit role exemption",
+      "full manifest too large for a single job;90 small per-job packets",
+      "S01 title index corrected after ordering logging foundation first"
+    ]
+  },
+  "current_edit_scope": "planning documents only; owner-authorized final documentation copies to D:/Projects/SUK",
+  "application_implementation_performed": false,
+  "git_writes_performed": false,
+  "future_implementation_chats_created": false,
+  "independent_review": "logging agent reviewed source contract and final job/prompt integration; isolation and context-size conflicts corrected",
+  "visual_review_evidence": {
+    "pdf_pages_covered": 272,
+    "contact_sheets": [
+      "podglad/PRZEGLAD_1.png",
+      "podglad/PRZEGLAD_2.png",
+      "podglad/PRZEGLAD_3.png",
+      "podglad/PRZEGLAD_4.png",
+      "podglad/PRZEGLAD_5.png",
+      "podglad/PRZEGLAD_6.png",
+      "podglad/PRZEGLAD_7.png",
+      "podglad/PRZEGLAD_8.png",
+      "podglad/PRZEGLAD_9.png",
+      "podglad/PRZEGLAD_10.png",
+      "podglad/PRZEGLAD_11.png",
+      "podglad/PRZEGLAD_12.png",
+      "podglad/PRZEGLAD_13.png",
+      "podglad/PRZEGLAD_14.png",
+      "podglad/PRZEGLAD_15.png",
+      "podglad/PRZEGLAD_16.png",
+      "podglad/PRZEGLAD_17.png",
+      "podglad/PRZEGLAD_18.png",
+      "podglad/PRZEGLAD_19.png",
+      "podglad/PRZEGLAD_20.png",
+      "podglad/PRZEGLAD_21.png",
+      "podglad/PRZEGLAD_22.png",
+      "podglad/PRZEGLAD_23.png"
+    ],
+    "key_html_screenshots": [
+      "LOGI",
+      "CZATY",
+      "PROMPTY"
+    ],
+    "new_diagrams": [
+      "15_czaty",
+      "16_logi"
+    ],
+    "observed_clipping_or_missing_glyphs": false,
+    "review_split": {
+      "source_agent": "pages1-96 plus full8,75,90",
+      "prompt_agent": "pages97-192 plus full98,104,186; glyph defect corrected",
+      "primary_agent": "pages193-272, diagrams15/16, key HTML and full263,266,271,218; corrected98 rechecked"
+    },
+    "correction": "Two membership glyphs replaced by plain Polish text; final changed raster pages compared and rechecked.",
+    "last_glyph_fix": {
+      "raster_pages_unchanged": 271,
+      "changed_pages": [
+        "pdf-098.png"
+      ],
+      "changed_page_rechecked": true
+    }
+  },
+  "pdf_render_warning_assessment": "Poppler fallback-font warnings retained; latest pages and embedded Arial inspected without missing glyphs.",
+  "source_review_reuse": "Same application HEAD5eddb5c;141 source hashes stable in current worktree.",
+  "final_artifacts": {
+    "SUK_plan_multiplayer.pdf": {
+      "sha256": "17ea0cb2226eb39d3c32de7d24a61aa3d488b1d1fea282c65b116110d23f2351",
+      "size_bytes": 2949507
+    },
+    "START.html": {
+      "sha256": "807501efb814a42fbe37f8d4cd869b60814e7e7cd48c2b509adca49286959deb",
+      "size_bytes": 737784
+    },
+    "manifest.json": {
+      "sha256": "06533e26f632d282986bd4c41c5dc9245d8f35f819d731c4e97b83aabf913c7a",
+      "size_bytes": 216345
+    },
+    "25_LOGOWANIE_I_DIAGNOSTYKA.md": {
+      "sha256": "f0b3245f03a33f3100f3f91a43247fe042e305dda89aa4b2a9e38c0a1577f823",
+      "size_bytes": 26321
+    },
+    "26_PRACA_W_OSOBNYCH_CZATACH.md": {
+      "sha256": "4ceda768241d2795ebbeac1def8478676082b67767531501cb1ff0d1f07cd83f",
+      "size_bytes": 12226
+    },
+    "27_PROMPTY_KZ.md": {
+      "sha256": "ff9723a18a01a232c30e01805e80559a00a0e5bcba947477da83ae27621f2a39",
+      "size_bytes": 4328
+    },
+    "28_AUDYT_KONCOWY_1_8.md": {
+      "sha256": "a26cfdab01950c9bee4a79e358d0a90e9059bcba19f1a6fb56f0b3f527ecdb82",
+      "size_bytes": 3545
+    },
+    "AI_START_AUTOR_KZ.md": {
+      "sha256": "34d6d87c10ad2b24e5ef1ddfd99bbc095d41b8fbdee91f5fbbcdfb9ee8435ffa",
+      "size_bytes": 2510
+    },
+    "AUDYT_ZADAN_1_8.json": {
+      "sha256": "9e5bdf161b8491a140873fd56e162b0e39d4352cc0dfecfc0a6c66cdef10172e",
+      "size_bytes": 735
+    }
+  },
+  "delivery": {
+    "owner_confirmed": true,
+    "root": "D:\\Projects\\SUK",
+    "pdf": "D:\\Projects\\SUK\\SUK_plan_multiplayer.pdf",
+    "portable_package": "D:\\Projects\\SUK\\SUK_plan_multiplayer",
+    "existing_pdf_preserved": "D:\\Projects\\SUK - Dokumetacja nie gitowa\\Plan_multiplayer_2026-10-17\\archiwum\\v1.7\\PDF_zastany_w_D_Projects_SUK.pdf",
+    "all_files_sha256_equal": true,
+    "copied_payload_files": 411,
+    "tracked_source_changes_by_delivery": false,
+    "git_status_after": "?? SUK_plan_multiplayer.pdf\n?? SUK_plan_multiplayer/",
+    "head_after": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568"
+  }
+}

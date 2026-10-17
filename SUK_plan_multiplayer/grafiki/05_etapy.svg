@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" font-weight="700" fill="white">SUK / 28 kart od infrastruktury do finału</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Ada: wspólny kontrakt → dwa niezależne czaty A/B → integracja. Wszystkie etapy są zaplanowane.</text>
+<rect x="50" y="170" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="170" width="6" height="125" fill="#087f86"/>
+<text x="70" y="205" font-size="24" fill="#17334d" font-weight="700">S00</text>
+<text x="70" y="240" font-size="21" fill="#547084">Baza, wymagania, wersje</text>
+<rect x="520" y="170" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="170" width="6" height="125" fill="#087f86"/>
+<text x="540" y="205" font-size="24" fill="#17334d" font-weight="700">S01-S02</text>
+<text x="540" y="240" font-size="21" fill="#547084">Rdzeń, host i granice danych</text>
+<rect x="990" y="170" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="990" y="170" width="6" height="125" fill="#087f86"/>
+<text x="1010" y="205" font-size="24" fill="#17334d" font-weight="700">S02A + S02A1-A4</text>
+<text x="1010" y="240" font-size="21" fill="#547084">Moduły, ABI, A || B, integracja</text>
+<rect x="50" y="395" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="395" width="6" height="125" fill="#087f86"/>
+<text x="70" y="430" font-size="24" fill="#17334d" font-weight="700">S02B-S02D</text>
+<text x="70" y="465" font-size="21" fill="#547084">Dwie grupy Ada, losowanie</text>
+<rect x="520" y="395" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="395" width="6" height="125" fill="#087f86"/>
+<text x="540" y="430" font-size="24" fill="#17334d" font-weight="700">S03-S12</text>
+<text x="540" y="465" font-size="21" fill="#547084">Konta, sieć, prawa, łączność</text>
+<rect x="990" y="395" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="990" y="395" width="6" height="125" fill="#087f86"/>
+<text x="1010" y="430" font-size="24" fill="#17334d" font-weight="700">S13</text>
+<text x="1010" y="465" font-size="21" fill="#547084">Bramka i pilot 20-40</text>
+<rect x="50" y="620" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="620" width="6" height="125" fill="#087f86"/>
+<text x="70" y="655" font-size="24" fill="#17334d" font-weight="700">S14-S17</text>
+<text x="70" y="690" font-size="21" fill="#547084">Algorytm ruchu oraz skala</text>
+<rect x="520" y="620" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="620" width="6" height="125" fill="#087f86"/>
+<text x="540" y="655" font-size="24" fill="#17334d" font-weight="700">S18</text>
+<text x="540" y="690" font-size="21" fill="#547084">Pełny panel administracji</text>
+<rect x="990" y="620" width="360" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="990" y="620" width="6" height="125" fill="#087f86"/>
+<text x="1010" y="655" font-size="24" fill="#17334d" font-weight="700">S19</text>
+<text x="1010" y="690" font-size="21" fill="#547084">Nadzór i koordynacja ruchu</text>
+<path d="M410,232 L520,232" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M880,232 L990,232" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M1170,295 L1170,340 L230,340 L230,395" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M410,457 L520,457" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M880,457 L990,457" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M1170,520 L1170,565 L230,565 L230,620" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M410,682 L520,682" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M880,682 L990,682" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="50" y="814" font-size="20" fill="#547084">Poglądowe grupy etapów. Dokładny DAG i równoległe A/B oraz S03: manifest.json i rozdział 12.</text>
+</g></svg>

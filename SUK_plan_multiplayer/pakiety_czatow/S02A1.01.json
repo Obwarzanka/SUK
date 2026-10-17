@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "plan_version": "1.8",
+  "manifest_sha256": "06533e26f632d282986bd4c41c5dc9245d8f35f819d731c4e97b83aabf913c7a",
+  "job": {
+    "id": "S02A1.01",
+    "parent": "S02A1",
+    "title": "Neutralna specyfikacja źródeł",
+    "status": "planned",
+    "depends_on": [
+      "S02A.04"
+    ],
+    "goal": "Opisz zaakceptowane reguły i dane z konkretnymi źródłami. Brak wskazanego Ie-1 blokuje zamrożenie odpowiednich reguł; uzyskaj zatwierdzone źródło zamiast zgadywać.",
+    "read_docs": [
+      "AI_START.md",
+      "etapy/S02A1.md",
+      "23_KZ_ADA_I_INTEGRACJA.md",
+      "19_AUDYT_ZRODEL_I_ZALEZNOSCI.md",
+      "25_LOGOWANIE_I_DIAGNOSTYKA.md"
+    ],
+    "read_code": [
+      "app/LcsWidzew/Sim/Kz/KomputerZaleznosci.cs",
+      "app/LcsWidzew/Sim/Kz/Interlocking.cs",
+      "app/LcsWidzew/Sim/Kz/Blocks.cs",
+      "app/LcsWidzew/Sim/Kz/Commands.cs"
+    ],
+    "input": [
+      "raporty/S02A.04.md"
+    ],
+    "evidence": [
+      "Opisz zaakceptowane reguły i dane z konkretnymi źródłami. Brak wskazanego Ie-1 blokuje zamrożenie odpowiednich reguł; uzyskaj zatwierdzone źródło zamiast zgadywać.",
+      "Właściwa regresja11 i logi F24/25; ścieżki do rzeczywistych wyników, bez oznaczania niewykonanej próby jako zaliczonej."
+    ],
+    "output": [
+      "raporty/S02A1.01.md",
+      "manifest artefaktów i hashe kontraktów/specyfikacji oraz własnych zmienionych plików"
+    ],
+    "out_of_scope": "Inne zadania, automatyczne zależności/zobrazowanie, chroniony station.json, Git/commit/push i wdrożenie. Nowych funkcji downstream nie implementuj dla samego testu; użyj jawnego stubu.",
+    "card": "czaty/S02A1.01.md",
+    "prompt": "prompty_czatow/S02A1.01.md",
+    "kz_prompt": "prompty_kz/S02A1.01.md",
+    "packet": "pakiety_czatow/S02A1.01.json"
+  },
+  "invariants": [
+    "station.json requires owner permission",
+    "human-designed topology/dependencies/display",
+    "server-authoritative multiplayer simulation",
+    "same core in offline singleplayer",
+    "AI neighbours only in singleplayer",
+    "advanced AI after infrastructure gate",
+    "Each post has its own logically separate interlocking computer module; LCS aggregates but never merges KZ state.",
+    "Relinquishing post control preserves LCS dispatcher view access while revoking all control authority for that post.",
+    "Each logical post KZ has two computing groups, active and hot standby, on the authoritative host.",
+    "One fenced selector commits each logical effect once; group calculations never directly mutate physical terrain.",
+    "EBILock sets, internal dual channels, EBISCREEN servers and physical host HA are distinct.",
+    "Traffic AI is an in-house data-driven rule/state-machine/planning algorithm. LLMs are excluded from operational decisions, procedural replies and fallback execution in both multiplayer and offline singleplayer.",
+    "Interlocking domain logic is implemented in Ada; C#/.NET remains the client, host, terrain, movement and services.",
+    "Two independent Ada implementations Kz_A and Kz_B are authored in separate future chats from a frozen common specification without reading or copying each other.",
+    "Each hardware-style group 1/2 runs both independent A/B channels; four private dynamic contexts and one physical world.",
+    "At server-world startup, select the active group randomly per logical KZ only after readiness; record the choice. Replay reuses it and reconnect/lease changes never reroll.",
+    "Full admin panel S18 and supervisory dispatch mode S19 are final stages; minimum S08 moderation precedes the public pilot.",
+    "Admin desktop is not a secret: require device key AND account AND current rights. Password alone cannot enroll or recover admin access.",
+    "Owner-confirmed: administrator private keys are generated locally on administrator devices; server receives public keys and issues certificates, never generating, delivering or storing administrator private keys.",
+    "Each new module provides bounded structured logging through a module adapter; Ada emits passive diagnostics through its result, never direct filesystem/network I/O during evaluation.",
+    "Each execution chat handles one bounded job with declared dependencies, source/specification hashes, evidence and an explicit handoff. A and B keep separate authoring lineages.",
+    "Final documentation copies to D:/Projects/SUK are explicitly owner-authorized; no code edits, commit, index, push or deployment are authorized."
+  ],
+  "dependency_jobs": [
+    {
+      "id": "S02A.04",
+      "status": "planned",
+      "report": "raporty/S02A.04.md"
+    }
+  ],
+  "context_files": [
+    {
+      "path": "19_AUDYT_ZRODEL_I_ZALEZNOSCI.md",
+      "sha256": "9619306d128ee78ace26abb8264c935530aeee71006f322cfdc7d7fb97b929da"
+    },
+    {
+      "path": "23_KZ_ADA_I_INTEGRACJA.md",
+      "sha256": "26c81b91a872ff900ff319c5bb1285565f24dd3ed8cd48c814ce478fc187c3d6"
+    },
+    {
+      "path": "25_LOGOWANIE_I_DIAGNOSTYKA.md",
+      "sha256": "f0b3245f03a33f3100f3f91a43247fe042e305dda89aa4b2a9e38c0a1577f823"
+    },
+    {
+      "path": "AI_START.md",
+      "sha256": "44dd4a5a33cf686fa60cd800855891514a942a84939fe9ac358439554a1e3f14"
+    },
+    {
+      "path": "czaty/S02A1.01.md",
+      "sha256": "4985ed1b070925ae202d694b1ededc2acb780c557afc6b11103acd1b0a351ee4"
+    },
+    {
+      "path": "etapy/S02A1.md",
+      "sha256": "2751684d64b8ee05eeb4eaf9a0aa048ef57e3ad0b7e373ee36f4d6b17c765053"
+    },
+    {
+      "path": "prompty_czatow/S02A1.01.md",
+      "sha256": "f7bcc91bddd5f1776c07256dfb7f0aef23f7f778f51597d3c97105c2c3cc33dc"
+    },
+    {
+      "path": "prompty_kz/S02A1.01.md",
+      "sha256": "f7bcc91bddd5f1776c07256dfb7f0aef23f7f778f51597d3c97105c2c3cc33dc"
+    }
+  ],
+  "implementation_performed": false
+}

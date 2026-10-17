@@ -1,0 +1,6 @@
+flowchart LR
+  cs[Moduly C#] --> adapter[Redakcja limity kontekst]
+  ada[Ada bierny bounded batch] --> adapter
+  adapter --> queue[Kolejka i worker]
+  queue --> file[JSONL rotacja retencja licznik strat]
+  gate[Jeden OutputGate] --> audit[Odrębny trwaly audyt i commit]

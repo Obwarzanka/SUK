@@ -1,0 +1,6 @@
+flowchart LR
+ X[X przed: ViewGrant + ControlLease A] --> T[Przekazanie: nowy controlEpoch]
+ T --> V[X po: ViewGrant A, brak ControlLease A]
+ T --> Y[Y: ControlLease A]
+ V --> K[Ten sam KZ_A: aktualne meldunki]
+ Y --> K

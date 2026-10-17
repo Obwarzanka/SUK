@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "plan_version": "1.8",
+  "manifest_sha256": "06533e26f632d282986bd4c41c5dc9245d8f35f819d731c4e97b83aabf913c7a",
+  "job": {
+    "id": "S07.01",
+    "parent": "S07",
+    "title": "Zakres subskrypcji",
+    "status": "planned",
+    "depends_on": [
+      "S06.03"
+    ],
+    "goal": "Wprowadź jawne zakresy i prawa odbiorcy oraz filtrowanie projekcji bez ujawnienia prywatnych danych.",
+    "read_docs": [
+      "AI_START.md",
+      "etapy/S07.md",
+      "04_PROTOKOL.md",
+      "10_ZASOBY_I_SKALOWANIE.md",
+      "25_LOGOWANIE_I_DIAGNOSTYKA.md"
+    ],
+    "read_code": [
+      "app/LcsWidzew/Net/LcsNet.cs",
+      "app/LcsWidzew/Sim/Pulpit/SystemNadrzedny.cs",
+      "app/LcsWidzew/Sim/Meldunki.cs"
+    ],
+    "input": [
+      "raporty/S06.03.md"
+    ],
+    "evidence": [
+      "Wprowadź jawne zakresy i prawa odbiorcy oraz filtrowanie projekcji bez ujawnienia prywatnych danych.",
+      "Właściwa regresja11 i logi F24/25; ścieżki do rzeczywistych wyników, bez oznaczania niewykonanej próby jako zaliczonej."
+    ],
+    "output": [
+      "raporty/S07.01.md",
+      "manifest artefaktów i hashe kontraktów/specyfikacji oraz własnych zmienionych plików"
+    ],
+    "out_of_scope": "Inne zadania, automatyczne zależności/zobrazowanie, chroniony station.json, Git/commit/push i wdrożenie. Nowych funkcji downstream nie implementuj dla samego testu; użyj jawnego stubu.",
+    "card": "czaty/S07.01.md",
+    "prompt": "prompty_czatow/S07.01.md",
+    "packet": "pakiety_czatow/S07.01.json"
+  },
+  "invariants": [
+    "station.json requires owner permission",
+    "human-designed topology/dependencies/display",
+    "server-authoritative multiplayer simulation",
+    "same core in offline singleplayer",
+    "AI neighbours only in singleplayer",
+    "advanced AI after infrastructure gate",
+    "Each post has its own logically separate interlocking computer module; LCS aggregates but never merges KZ state.",
+    "Relinquishing post control preserves LCS dispatcher view access while revoking all control authority for that post.",
+    "Each logical post KZ has two computing groups, active and hot standby, on the authoritative host.",
+    "One fenced selector commits each logical effect once; group calculations never directly mutate physical terrain.",
+    "EBILock sets, internal dual channels, EBISCREEN servers and physical host HA are distinct.",
+    "Traffic AI is an in-house data-driven rule/state-machine/planning algorithm. LLMs are excluded from operational decisions, procedural replies and fallback execution in both multiplayer and offline singleplayer.",
+    "Interlocking domain logic is implemented in Ada; C#/.NET remains the client, host, terrain, movement and services.",
+    "Two independent Ada implementations Kz_A and Kz_B are authored in separate future chats from a frozen common specification without reading or copying each other.",
+    "Each hardware-style group 1/2 runs both independent A/B channels; four private dynamic contexts and one physical world.",
+    "At server-world startup, select the active group randomly per logical KZ only after readiness; record the choice. Replay reuses it and reconnect/lease changes never reroll.",
+    "Full admin panel S18 and supervisory dispatch mode S19 are final stages; minimum S08 moderation precedes the public pilot.",
+    "Admin desktop is not a secret: require device key AND account AND current rights. Password alone cannot enroll or recover admin access.",
+    "Owner-confirmed: administrator private keys are generated locally on administrator devices; server receives public keys and issues certificates, never generating, delivering or storing administrator private keys.",
+    "Each new module provides bounded structured logging through a module adapter; Ada emits passive diagnostics through its result, never direct filesystem/network I/O during evaluation.",
+    "Each execution chat handles one bounded job with declared dependencies, source/specification hashes, evidence and an explicit handoff. A and B keep separate authoring lineages.",
+    "Final documentation copies to D:/Projects/SUK are explicitly owner-authorized; no code edits, commit, index, push or deployment are authorized."
+  ],
+  "dependency_jobs": [
+    {
+      "id": "S06.03",
+      "status": "planned",
+      "report": "raporty/S06.03.md"
+    }
+  ],
+  "context_files": [
+    {
+      "path": "04_PROTOKOL.md",
+      "sha256": "523f5fc772859f6bd29564922ec4fa55b348f0d70104839b4fa84d84cd6fc8fe"
+    },
+    {
+      "path": "10_ZASOBY_I_SKALOWANIE.md",
+      "sha256": "7b162abfc295e79e949bd0efc2120d43ee8903afa7c7ed2095a92f2f23942243"
+    },
+    {
+      "path": "25_LOGOWANIE_I_DIAGNOSTYKA.md",
+      "sha256": "f0b3245f03a33f3100f3f91a43247fe042e305dda89aa4b2a9e38c0a1577f823"
+    },
+    {
+      "path": "AI_START.md",
+      "sha256": "44dd4a5a33cf686fa60cd800855891514a942a84939fe9ac358439554a1e3f14"
+    },
+    {
+      "path": "czaty/S07.01.md",
+      "sha256": "0f16446e174889b02d6c2dc007e9b4ed0f5efad2218167e8fce03ad72091de15"
+    },
+    {
+      "path": "etapy/S07.md",
+      "sha256": "3bfd64c21bd01e3ae698a64eec1286a099067a2807f7fdd140b3fa8b1ce01e0e"
+    },
+    {
+      "path": "prompty_czatow/S07.01.md",
+      "sha256": "bfc2b0248d1ac5aa8a22357d57aa53d4b63c18af5f3f3ab36d01e1586ab517d0"
+    }
+  ],
+  "implementation_performed": false
+}

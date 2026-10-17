@@ -1,0 +1,6 @@
+flowchart TB
+ E["Kontrolowany enrollment: konto+MFA+zaproszenie+zgoda na klucz"] --> K["Rejestr i certyfikat"]
+ A["SUK.Admin WPF"] --> B["Prywatny API: mTLS AND token AND aktualne prawa"]
+ K --> B
+ B --> C["Istniejące konta/sankcje/audyt"]
+ C --> D["Saved oraz Applied w światach/mediach"]

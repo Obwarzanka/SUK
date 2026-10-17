@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" font-weight="700" fill="white">SUK / konkretny stos i granice techniczne</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">C# / .NET 10 dla aplikacji i hosta • Ada dla zależności • jeden autorytatywny świat</text>
+<rect x="50" y="180" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="180" width="6" height="160" fill="#087f86"/>
+<text x="70" y="215" font-size="24" fill="#17334d" font-weight="700">Klient WPF</text>
+<text x="70" y="250" font-size="21" fill="#547084">C# 14 / .NET 10 / XAML</text>
+<text x="70" y="278" font-size="21" fill="#547084">SignalR.Client / LocalSession</text>
+<text x="70" y="306" font-size="21" fill="#547084">Pulpit + tryb dyspozytora</text>
+<rect x="520" y="180" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="180" width="6" height="160" fill="#087f86"/>
+<text x="540" y="215" font-size="24" fill="#17334d" font-weight="700">Brama i usługi</text>
+<text x="540" y="250" font-size="21" fill="#547084">ASP.NET Core 10 / SignalR</text>
+<text x="540" y="278" font-size="21" fill="#547084">Identity + OpenIddict</text>
+<text x="540" y="306" font-size="21" fill="#547084">TLS, prawa, limity, kolejka</text>
+<rect x="990" y="180" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="990" y="180" width="6" height="160" fill="#087f86"/>
+<text x="1010" y="215" font-size="24" fill="#17334d" font-weight="700">WorldHost / C#</text>
+<text x="1010" y="250" font-size="21" fill="#547084">Windows Service / IPC ACL</text>
+<text x="1010" y="278" font-size="21" fill="#547084">Jeden teren i ruch</text>
+<text x="1010" y="306" font-size="21" fill="#547084">Autoryzowany OutputGate</text>
+<path d="M410,260 L520,260" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M880,260 L990,260" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<rect x="50" y="480" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="480" width="6" height="160" fill="#087f86"/>
+<text x="70" y="515" font-size="24" fill="#17334d" font-weight="700">SUK.Admin / WPF</text>
+<text x="70" y="550" font-size="21" fill="#547084">C# 14 / .NET 10 / XAML</text>
+<text x="70" y="578" font-size="21" fill="#547084">Prywatne Admin API / mTLS</text>
+<text x="70" y="606" font-size="21" fill="#547084">Konto + klucz urządzenia</text>
+<rect x="520" y="480" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="480" width="6" height="160" fill="#087f86"/>
+<text x="540" y="515" font-size="24" fill="#17334d" font-weight="700">PostgreSQL 18</text>
+<text x="540" y="550" font-size="21" fill="#547084">EF Core 10 / Npgsql 10</text>
+<text x="540" y="578" font-size="21" fill="#547084">Konta, sankcje, audyt</text>
+<text x="540" y="606" font-size="21" fill="#547084">Zapis i projekcje poza tickiem</text>
+<rect x="990" y="480" width="360" height="160" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="990" y="480" width="6" height="160" fill="#087f86"/>
+<text x="1010" y="515" font-size="24" fill="#17334d" font-weight="700">SukKz.dll / Ada</text>
+<text x="1010" y="550" font-size="21" fill="#547084">GNAT + gprbuild / C ABI</text>
+<text x="1010" y="578" font-size="21" fill="#547084">Kz_A + Kz_B w grupach 1/2</text>
+<text x="1010" y="606" font-size="21" fill="#547084">LibraryImport / SafeHandle</text>
+<path d="M410,560 L460,560 L460,300 L520,300" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M700,340 L700,480" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M1170,340 L1170,480" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="50" y="723" font-size="23" fill="#17334d" font-weight="700">Audio: gotowy serwer mediów i adapter po prototypie S10. Aktualizator: osobna bramka zaufania.</text>
+<text x="50" y="769" font-size="20" fill="#547084">Pokazano odpowiedzialności, nie gotową instalację. Dokładne wersje i zgodność blokujemy przed implementacją.</text>
+<text x="50" y="811" font-size="20" fill="#547084">Singleplayer używa tego samego rdzenia i biblioteki Ada lokalnie. Algorytm ruchu pozostaje bez LLM.</text>
+</g></svg>

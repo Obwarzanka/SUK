@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850"><defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs><rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" fill="white" font-weight="700">SUK / indywidualny klucz administratora</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Ustalone 1.6.1: klucz prywatny lokalnie; serwer zatwierdza publiczny klucz i wydaje certyfikat</text>
+<text x="50" y="155" font-size="24" fill="#17334d" font-weight="700">1. REJESTRACJA - bez czynności administracyjnych</text>
+<rect x="50" y="185" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="185" width="6" height="175" fill="#087f86"/>
+<text x="68" y="219" font-size="23" fill="#17334d" font-weight="700">SUK.Admin / Windows</text>
+<text x="68" y="254" font-size="20" fill="#547084">Konto + MFA</text>
+<text x="68" y="283" font-size="20" fill="#547084">Lokalny klucz CNG / TPM</text>
+<text x="68" y="312" font-size="20" fill="#547084">CSR / klucz publiczny →</text>
+<rect x="505" y="185" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="505" y="185" width="6" height="175" fill="#087f86"/>
+<text x="523" y="219" font-size="23" fill="#17334d" font-weight="700">Ograniczony enrollment</text>
+<text x="523" y="254" font-size="20" fill="#547084">VPN + HTTPS + zaproszenie</text>
+<text x="523" y="283" font-size="20" fill="#547084">Zatwierdzenie konta i klucza</text>
+<text x="523" y="312" font-size="20" fill="#547084">Bez operacji admina</text>
+<rect x="960" y="185" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="185" width="6" height="175" fill="#087f86"/>
+<text x="978" y="219" font-size="23" fill="#17334d" font-weight="700">Rejestr + certyfikat</text>
+<text x="978" y="254" font-size="20" fill="#547084">userId / deviceId / keyId</text>
+<text x="978" y="283" font-size="20" fill="#547084">Publiczny certyfikat do klienta</text>
+<text x="978" y="312" font-size="20" fill="#547084">Prywatny klucz zostaje lokalnie</text>
+<path d="M440,270 L505,270" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<path d="M895,270 L960,270" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<text x="50" y="420" font-size="24" fill="#17334d" font-weight="700">2. ZWYKŁA SESJA - wymagane wszystkie warunki</text>
+<rect x="50" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="450" width="6" height="175" fill="#087f86"/>
+<text x="68" y="484" font-size="23" fill="#17334d" font-weight="700">Osobna aplikacja WPF</text>
+<text x="68" y="519" font-size="20" fill="#547084">Dowód klucza: mTLS</text>
+<text x="68" y="548" font-size="20" fill="#547084">Token konta związany z certem</text>
+<text x="68" y="577" font-size="20" fill="#547084">Zarejestrowane urządzenie</text>
+<rect x="505" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="505" y="450" width="6" height="175" fill="#087f86"/>
+<text x="523" y="484" font-size="23" fill="#17334d" font-weight="700">Prywatny Admin API</text>
+<text x="523" y="519" font-size="20" fill="#547084">Certyfikat ORAZ token ORAZ rola</text>
+<text x="523" y="548" font-size="20" fill="#547084">Aktywna para konto-klucz</text>
+<text x="523" y="577" font-size="20" fill="#547084">Uprawnienie konkretnej operacji</text>
+<rect x="960" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="450" width="6" height="175" fill="#087f86"/>
+<text x="978" y="484" font-size="23" fill="#17334d" font-weight="700">Wspólne usługi SUK</text>
+<text x="978" y="519" font-size="20" fill="#547084">Istniejące sankcje i audyt</text>
+<text x="978" y="548" font-size="20" fill="#547084">Saved ≠ Applied per świat</text>
+<text x="978" y="577" font-size="20" fill="#547084">Bez bezpośredniego KZ / SQL</text>
+<path d="M440,540 L505,540" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<path d="M895,540 L960,540" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<text x="50" y="700" font-size="23" fill="#17334d" font-weight="700">Revoke / utrata urządzenia → odcięcie sesji → nowy zatwierdzony enrollment.</text>
+<text x="50" y="750" font-size="21" fill="#547084">Sam EXE, hasło albo publiczny certyfikat nie wystarczają. Rejestracja nie nadaje roli.</text>
+<text x="50" y="797" font-size="21" fill="#547084">TPM nie chroni przed użyciem klucza przez przejętą sesję. Profil i odzyskanie: D18; próby: N41.</text>
+</g></svg>

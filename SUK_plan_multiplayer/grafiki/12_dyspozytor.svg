@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" font-weight="700" fill="white">SUK / ostatni etap: dyspozytor S19</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Potwierdzony zakres: nadzór i koordynacja • rola dyspozytora nie nadaje ControlLease</text>
+<rect x="50" y="175" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="175" width="6" height="175" fill="#087f86"/>
+<text x="70" y="210" font-size="24" fill="#17334d" font-weight="700">Obraz okręgu / WPF</text>
+<text x="70" y="245" font-size="21" fill="#547084">Rozkład, opóźnienia, konflikty</text>
+<text x="70" y="273" font-size="21" fill="#547084">Grafik ruchu czas–droga</text>
+<text x="70" y="301" font-size="21" fill="#547084">Bieżący zakres i świeżość</text>
+<rect x="520" y="175" width="360" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="520" y="175" width="6" height="175" fill="#087f86"/>
+<text x="540" y="210" font-size="24" fill="#17334d" font-weight="700">Dyspozycja domenowa</text>
+<text x="540" y="245" font-size="21" fill="#547084">Cel i parametry ze wzoru</text>
+<text x="540" y="273" font-size="21" fill="#547084">Id, wersja, czas, odbiorcy</text>
+<text x="540" y="301" font-size="21" fill="#547084">Bez bezpośredniego SetSignal</text>
+<rect x="960" y="175" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="175" width="6" height="175" fill="#087f86"/>
+<text x="980" y="210" font-size="24" fill="#17334d" font-weight="700">Dyżurny lub algorytm</text>
+<text x="980" y="245" font-size="21" fill="#547084">Przyjęcie według procedury</text>
+<text x="980" y="273" font-size="21" fill="#547084">Możliwa odmowa z powodem</text>
+<text x="980" y="301" font-size="21" fill="#547084">F17: dane/reguły, bez LLM</text>
+<path d="M440,262 L520,262" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M880,262 L960,262" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<rect x="50" y="490" width="830" height="155" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="490" width="6" height="155" fill="#087f86"/>
+<text x="70" y="525" font-size="24" fill="#17334d" font-weight="700">Stany nie są równoważne</text>
+<text x="70" y="560" font-size="21" fill="#547084">Issued → Received → AcceptedOperationally → Executing → Completed</text>
+<text x="70" y="588" font-size="21" fill="#547084">Draft / Rejected / Cancelled mają jawne zasady</text>
+<text x="70" y="616" font-size="21" fill="#547084">Doręczenie i głos nie oznaczają akceptacji lub wykonania</text>
+<rect x="960" y="490" width="390" height="155" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="490" width="6" height="155" fill="#087f86"/>
+<text x="980" y="525" font-size="24" fill="#17334d" font-weight="700">Realizacja</text>
+<text x="980" y="560" font-size="21" fill="#547084">Zwykłe prawa i ControlLease</text>
+<text x="980" y="588" font-size="21" fill="#547084">KZ w Ada sprawdza zależności</text>
+<text x="980" y="616" font-size="21" fill="#547084">Jedna fizyczna zmiana świata</text>
+<path d="M1155,350 L1155,490" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="50" y="738" font-size="23" fill="#17334d" font-weight="700">Anulowanie dyspozycji nie cofa fizycznie przejazdu. Każdy stan ma autora, czas i wersję.</text>
+<text x="50" y="786" font-size="20" fill="#547084">Grafik jest widokiem koordynacji ruchu, odrębnym od zobrazowania Ie-104 i ręcznego układu torowego.</text>
+<text x="50" y="823" font-size="20" fill="#547084">S19 następuje po S18; szczegółowy katalog dyspozycji zatwierdza właściciel (D19).</text>
+</g></svg>

@@ -1,0 +1,12 @@
+flowchart LR
+ subgraph Enrollment["Pierwsza rejestracja, bez operacji admina"]
+ A["Konto+MFA+zaproszenie"] --> B["Lokalny klucz i CSR"]
+ B --> C["Zatwierdzenie konta i klucza"]
+ C --> D["Serwer wydaje certyfikat; klucz prywatny lokalnie"]
+ end
+ subgraph Session["Zwykła sesja"]
+ E["SUK.Admin WPF"] --> F["mTLS AND token związany z certem AND aktywna para konto-klucz AND prawo"]
+ F --> G["Istniejące usługi: Saved/Applied"]
+ end
+ D --> E
+ G --> H["Revoke i odcięcie sesji"]

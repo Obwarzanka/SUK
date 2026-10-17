@@ -1,0 +1,8 @@
+flowchart TB
+  I["Jedna CycleInput: statusy, czas, autoryzowane intencje"] --> G1
+  I --> G2
+  G1["Group1: prywatny stan, niezależne Ada A/B"] --> S
+  G2["Group2: prywatny stan, niezależne Ada A/B"] --> S
+  S["Ada: selektor aktywnej gotowej grupy"] --> O
+  O["C# OutputGate: prawa nowych intencji, epoki, effectId"] --> C
+  C["Karty: jeden fizyczny teren i ruch"] --> I

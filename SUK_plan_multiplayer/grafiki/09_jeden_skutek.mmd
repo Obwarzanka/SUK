@@ -1,0 +1,6 @@
+flowchart LR
+  N["System nadrzędny: przyjęcie raz"] --> G["Obie grupy: obliczenia bez skutków"]
+  G --> S["Jeden selektor + sprawdzenie praw"]
+  S --> K["Karty / sterowniki"]
+  K --> T["Jeden teren i ruch"]
+  T --> E["Wynik / książka / statystyka / KZ-KZ raz"]

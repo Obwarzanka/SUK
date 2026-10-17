@@ -1,0 +1,733 @@
+{
+  "date": "2026-10-17",
+  "review_head": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568",
+  "previous_review_head": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568",
+  "original_baseline_head": "4869fc185a70e6f390bf2bf1ad07680fdb5c32ff",
+  "repository_path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK",
+  "delivery_repository_path": "D:\\Projects\\SUK",
+  "files": [
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\AGENTS.md",
+      "sha256": "b017ef492c0529839ef02fe7c96d365ed9abb0f789a6f3ffe7f8a9974401ae1c",
+      "size_bytes": 1838
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Dane\\rozjazdy.json",
+      "sha256": "ac255107dea1eb0eb9eeef6e3c202ecb63154e7e7e4930b86c6f2e9e394875e8",
+      "size_bytes": 2626
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Dane\\symbole_ig10.json",
+      "sha256": "3ebf1f73ec722989ec674438bc31b13b20ed6556fa716e32f18106f4806df9b2",
+      "size_bytes": 8770
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Eksport.cs",
+      "sha256": "d525e57905fb62511ec902116e9811b67620ea2c9af59e76d4c162b22fb9e148",
+      "size_bytes": 11949
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\ImageCache.cs",
+      "sha256": "db8a1310db624d00e68025b13ab35147a7e630436ae92c4ffb56718828f45457",
+      "size_bytes": 4062
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\KrzywiznaView.cs",
+      "sha256": "1f2b57a03b8924ef54fd478595aa2f7f0c6870c73cd6d8b77c7df0ed3e4c20c6",
+      "size_bytes": 16522
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Lcs.EdytorUT.csproj",
+      "sha256": "f2aa8d286a7c1a8ab23f3887e03062bfa2e09f2d7915ad44d6d90a9269ec8e17",
+      "size_bytes": 785
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\LivePreview.cs",
+      "sha256": "220c17d9f95a1fdece74bc74f0ddd2c1c1f5a1927f747b92746c53ae44539da0",
+      "size_bytes": 14678
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.cs",
+      "sha256": "f7b0d37a4ddea3417bedbe2b6818abd7fbef5ab277356ac5a03b6a95d68d7ea9",
+      "size_bytes": 32085
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Elementy.cs",
+      "sha256": "8c06fa75adbac9e6e60a9f0a144fe885a3ded5c581f3d8b4e43f117d971d1b06",
+      "size_bytes": 12295
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Kontrola.cs",
+      "sha256": "2415ca33a3965fc018da5ccf752fc6de4f461b27def82207153b18298b220cfa",
+      "size_bytes": 10380
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Podklady.cs",
+      "sha256": "717050611cbd80de65922e3eab06b64b8c54508ca8de11bfbdd11b9e3f768e4a",
+      "size_bytes": 32440
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Rozjazdy.cs",
+      "sha256": "76964bcfee84dbe12e5774ccb3c0953b1ef3e7926b2d7cf408359db15f9ce647",
+      "size_bytes": 25391
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Tory.cs",
+      "sha256": "38f1cd86288fd75970f84d6d7827410fbb2eb86655043342ea3338ea24ea9dfe",
+      "size_bytes": 24164
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Urzadzenia.cs",
+      "sha256": "be8120a5ae95bb173af9e369249e52875f2b52a7a380e225354dd144a8599f05",
+      "size_bytes": 16103
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Wyposazenie.cs",
+      "sha256": "60af5cacff6d9402b990022e22554cbdd09e970f8aa76c5dae1cb15c4a9e4847",
+      "size_bytes": 21443
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\MainWindow.Zaznaczenie.cs",
+      "sha256": "b2109a540d13132ce3a13fe0a83b7f9cb604a3cf0c9e6211bf33c02b9da86529",
+      "size_bytes": 11543
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\OsmPunkty.cs",
+      "sha256": "cfe050b64977ed7e1a8f9d151a8d1cf5f5da142179873ebc65fa8b45b9a341c2",
+      "size_bytes": 2459
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Pobieranie.cs",
+      "sha256": "49be69e855c0c01880b31abecfa76d9720d987b9d628967a7d279a0933f5f4ff",
+      "size_bytes": 12716
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\ProfilWindow.cs",
+      "sha256": "14812f2c75ba4cf6e738e75e8ad3d94333649a813bfac02d4694fe0aa92a694a",
+      "size_bytes": 18183
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Program.cs",
+      "sha256": "708c9892c2ab0a248edcbca5cb998021cba561f89ce543627a6a43526bb1e5f5",
+      "size_bytes": 1833
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\SymbolPainter.cs",
+      "sha256": "cd5118de8eb587fccadcf5a991bcb2a0771cceff17d7b018539671fe7808cc42",
+      "size_bytes": 8022
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Bramka.cs",
+      "sha256": "b65dd9bd8a45451cf378ac9607f3b91d1aca1165e326fcb8926c06c8b52de95a",
+      "size_bytes": 7252
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.cs",
+      "sha256": "da42842b7b85b14a2de707819464691ff9db18feca6afc6063e01b97bd12dd36",
+      "size_bytes": 12422
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Lacznik.cs",
+      "sha256": "834f853c2f2ca95b4d481ced4656f05063e9baa94aab16030b9769984961b31b",
+      "size_bytes": 6426
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.LukKoszowy.cs",
+      "sha256": "f68d7fa9cc7e8099f9f65256e42d64a6ac2c89fb518169ac8847a7099221538a",
+      "size_bytes": 8509
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Lukowe.cs",
+      "sha256": "f765c505df5da9eb07628cab1dd423ae00d096ec8240b4b69b6433abb8f1b5c4",
+      "size_bytes": 12484
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.LukPunkty.cs",
+      "sha256": "55447b6069e6b572be17686214723b0fccdea0bf7b406879bc21d76a2a2c3621",
+      "size_bytes": 7591
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.MetodyLuku.cs",
+      "sha256": "6246394689f6b255734a9b681178041a6d342ab65913d24622e27150f73bfa5a",
+      "size_bytes": 14326
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Podklady.cs",
+      "sha256": "45f828544c00a8fab4b5089986895b8392e0999e1e528e9d7497bb9cd0d62d4c",
+      "size_bytes": 33921
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.PoprawLuk.cs",
+      "sha256": "08d85b75e3a906eb8a46615e02df3ce3abb111b6d6cebad1a681a02209343d9a",
+      "size_bytes": 4212
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Rozjazdy.cs",
+      "sha256": "b2fceaf3b5b94badf890a6a5cb1cf88d397e18f6a15e7a329f4c7a8fa8f9fe11",
+      "size_bytes": 16245
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Schemat.cs",
+      "sha256": "eeb13f07da6d1098157525cfa864728d71b8e2da7e9f4e4cf2736c1a20c75f53",
+      "size_bytes": 33475
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Tory.cs",
+      "sha256": "c9db23255d4ad3fb78fdda65d5f7d9076cb9c9ec91c4e9e2660ac1dd0e771fe3",
+      "size_bytes": 29117
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Wygladzanie.cs",
+      "sha256": "65b8d29e4ff6b23247ed40e4e17a505eb8e1d310011eeaa463da0c66ad5f8ca7",
+      "size_bytes": 7347
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Wyposazenie.cs",
+      "sha256": "762785c2143e6a122e6c2ab1f70cdd9d14124795733b2a3c49b572705ed276d5",
+      "size_bytes": 27077
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\Test.Zaznaczenie.cs",
+      "sha256": "1ba72e1eeab77b12f9784165901729ea631e004ffaba63f2879eac5344dde2fb",
+      "size_bytes": 8017
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\TileMapWindow.cs",
+      "sha256": "6bf5b60ef1078f01fa1df59ba7deff4d3bc5d63315d463ab780e4fba16c79753",
+      "size_bytes": 10833
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.cs",
+      "sha256": "d2b69794b22d7fe2b8fbd3b5fe2ee7d07e32c198c40118a0e2d3041db873f12d",
+      "size_bytes": 40850
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.LukOdDo.cs",
+      "sha256": "4fcaafa220f793bf880aed2c213560d36fc439d8f2ddb2484366db37f6c9c4c2",
+      "size_bytes": 4446
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.LukPunkty.cs",
+      "sha256": "fcf63e81e43b99624a65e330a3e28219baa5269dd1533eb30ebceb4cfc6cab19",
+      "size_bytes": 11994
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Przesun.cs",
+      "sha256": "12017a0445f4f3a2679bd30632996088bc17701cffbdf8edfa316cf5009cc62f",
+      "size_bytes": 4336
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Rownolegly.cs",
+      "sha256": "1df4adbd33f722daa8119bede2e02cbd549dd261645ec5a15094d4953b7583a1",
+      "size_bytes": 6156
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Rozjazdy.cs",
+      "sha256": "a5c7f831395c7f80ceb2e160694852dde30dcb1162515b1f8f903c18fb1799a2",
+      "size_bytes": 23653
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Tory.cs",
+      "sha256": "080fb06299e8f1641a0cf4d5f50189fa227da206248e4c9cf3ab74ccc03b265b",
+      "size_bytes": 39742
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Uchwyty.cs",
+      "sha256": "acd57e8ef51658e7d968779812c0945e6fcd9cc1ce3395c804d80fe6b76054ce",
+      "size_bytes": 6138
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Urzadzenia.cs",
+      "sha256": "a713ffb37769d7e5749d136522bffdb2121e02e35001b63617aaf5f0cdd4f15b",
+      "size_bytes": 25432
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Wyposazenie.cs",
+      "sha256": "f468cacf7a63e25f8e6bd2253358832eda6acd9b271f485a8aeb4ca67b8fe359",
+      "size_bytes": 32339
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.EdytorUT\\UtView.Zaznaczenie.cs",
+      "sha256": "2bf2c257b949e72577866ca573bf91bfb08f9ecf48614b0821190e3868cb3d64",
+      "size_bytes": 9769
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Komputerownia\\KzPanel.cs",
+      "sha256": "fc9200cf53da1cbba5284b5610d74417c61d26f239bdfc606c251c86e218c6fb",
+      "size_bytes": 12852
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Komputerownia\\Lcs.Komputerownia.csproj",
+      "sha256": "1214c8e6f8bdece8fa762dcd5e42ff384b9c6797dd2f124b868036e3d517ff82",
+      "size_bytes": 621
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Komputerownia\\MainWindow.cs",
+      "sha256": "639486b61db9ea60676d035cfa95892abd2e39b828c00d4b6bbd86849fdf6fe7",
+      "size_bytes": 16395
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Komputerownia\\Polaczenie.cs",
+      "sha256": "7d8362d071ee6a518b39cc5ee62d02a2e343da5140689ba3e7e3561813431850",
+      "size_bytes": 3992
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Komputerownia\\Program.cs",
+      "sha256": "6a1db2ef2eabc716e1f5219b585536c9f4c52b3a93d4061adbfbe9b7b240fd1c",
+      "size_bytes": 8217
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\Affine.cs",
+      "sha256": "a194651aedc889314887032f0b859061875f00860c70a2552e43eecb389c3d5e",
+      "size_bytes": 5379
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\Geo.cs",
+      "sha256": "16cebf7ce4b9f98e07b521675c45e7ae36a240733cd4f214ec5c420e352ffacf",
+      "size_bytes": 8044
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\Lcs.Model.csproj",
+      "sha256": "3039a0ebdbf7c93555c05601008429e1727f4f63bd529389f3a7e31ef6f58763",
+      "size_bytes": 355
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\Symbole.cs",
+      "sha256": "9650cff04e5ed8568824668768a864dd43613768bdc67778a526908b07364448",
+      "size_bytes": 2222
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtBackground.cs",
+      "sha256": "129824fe7e8a8dc8d8bcc35de3462b4e1fda2ad49bcfb059b40dc49c3721ce53",
+      "size_bytes": 4986
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtBudowa.cs",
+      "sha256": "9002e3cdfe64430bc84f6f0cd0fe667b78b0942786b3e0e1d5f1799c55cef24f",
+      "size_bytes": 49034
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtCiecie.cs",
+      "sha256": "e0f9679be6dd6ca864830a06ece4267391b5b562bd9dc6e3687aae8e0fe0fdf0",
+      "size_bytes": 9946
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtDevice.cs",
+      "sha256": "f575ac60d8b5f56ceec97184f9444fc47502e515b0cb943f520194b7d42379e1",
+      "size_bytes": 9712
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtDocument.cs",
+      "sha256": "e388a730f98bb2b69e451b28d387b5224dc54817ace386d9f0f9bc34d330ce5a",
+      "size_bytes": 6175
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtKontrola.cs",
+      "sha256": "14b48cd3481a0c3555146b3926eb50aca35d925a5df50fa138f9c17afbf9b123",
+      "size_bytes": 9859
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtKrzywizna.cs",
+      "sha256": "96f9ca56871b0d352d8fc03ae9d8c1c00c387d2321f92200279f41512d5daf30",
+      "size_bytes": 4624
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtOdcinki.cs",
+      "sha256": "4a8a9aabeab4b5da27778863cb8f4253ef44c94df2269cf13ae6cde168a9c8ab",
+      "size_bytes": 15529
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtProject.cs",
+      "sha256": "1af54930e0861fbf19e1e3cae607a84f5da0cb6098195dda9ccfa97264ed9c95",
+      "size_bytes": 4920
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtPrzechylka.cs",
+      "sha256": "7e846cc8035f2db6f6eb090238e734f0f0ad990568cb2d00c3814013034b2ebc",
+      "size_bytes": 4175
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtTrack.cs",
+      "sha256": "801da2e0358cf689d036b53154d5f99b8858056eaa974d214b6d4964d20e1635",
+      "size_bytes": 16751
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtTrasaElem.cs",
+      "sha256": "ba18a3c9342c2086389c26b5ac3465c622352d580dc589393762b6f3d7fc9dda",
+      "size_bytes": 18180
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtTurnout.cs",
+      "sha256": "620f96fb33ec7f69a331d45238436c4d0df2a13db21702d7398530223e39d578",
+      "size_bytes": 44964
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Model\\UtWyposazenie.cs",
+      "sha256": "5a38d658105469886366aed0e4a8ac2c832681e36b642bd773329e35bbec4b49",
+      "size_bytes": 17920
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Przechylka\\Lcs.Przechylka.csproj",
+      "sha256": "4e0e214ad16f649253d068a4fecc76bcd4c250d9188d5f6b1f25233cfb5ae5b2",
+      "size_bytes": 706
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Przechylka\\MainWindow.cs",
+      "sha256": "caea7ea8ea43dacc6a6e10a31880e0aac4b61d2b7146cb4a9a1814afb77c4b26",
+      "size_bytes": 8619
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.Przechylka\\Program.cs",
+      "sha256": "623ec934136b741bcfcd10524f9e8fc43c26deddc6d424b338102e746948cdfa",
+      "size_bytes": 4110
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\Lcs.slnx",
+      "sha256": "8c78952cdaeddaa0288d3a3b3e3b4e55dab67240a004de8297434571a528630f",
+      "size_bytes": 302
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\App.xaml",
+      "sha256": "f288304ee1792cc5898b1ad70825bee40c6a08740ddf21a2a0b8d4d857c03e88",
+      "size_bytes": 343
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\App.xaml.cs",
+      "sha256": "13724cb47cc9b43e6a118ba34f3d82e9227a67a98b5a4953e6c562502c4cb498",
+      "size_bytes": 4369
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\AssemblyInfo.cs",
+      "sha256": "3fac2af92385f676e9a941befd23fe38f0a5fa6167d4a3a88f07e730c5595ca3",
+      "size_bytes": 643
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\projekty\\kopie\\pusty_szablon_20261016_012048.json",
+      "sha256": "26fb8c5499cf423bfe9a0cb7995ab1edc8a81e9501b77e45c99807f4c2c639c4",
+      "size_bytes": 702
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\projekty\\pusty_szablon.json",
+      "sha256": "dab1c4343292de7658c8f25354912aa00558e05b47ca917a0b17a8023c125ea5",
+      "size_bytes": 24095
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\projekty\\stacja_testowa.json",
+      "sha256": "1130159201833546f102f0951dae5887430c81d42ab06ab0f70ba3da7b5014fd",
+      "size_bytes": 21924
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\rozklad.json",
+      "sha256": "671df2ddcbe41fc9a84b19b8d86d5afa3ae7ef8c441affca3995472f7f98dd56",
+      "size_bytes": 266366
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\rozklad_ic.json",
+      "sha256": "65f079d80821a71968d82f4a82c5d9eb635e4eaf5b4865dcc096b40b6f42158e",
+      "size_bytes": 51929
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\station.json",
+      "sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+      "size_bytes": 274794
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Data\\sygnaly_ie1.json",
+      "sha256": "5b5b5d94427ddf3dbf9bbbc98dc9bd5c63c5ede5217f22a1409e5304b1584886",
+      "size_bytes": 4578
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\LcsWidzew.csproj",
+      "sha256": "55b09d7b692b54f614c44d95b51e9580b0ee3ecb2d960d711af4ac02935b5be1",
+      "size_bytes": 715
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\MainWindow.xaml",
+      "sha256": "ef3a3854fbd1f30515f80da49efa9c3f92070bc3b4072d8a606d283928065c90",
+      "size_bytes": 13611
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\MainWindow.xaml.cs",
+      "sha256": "4e3ca5de495c28a8ca39fbf8cc06f4522fcb9f7bca2594b51da1a37631cfcaa3",
+      "size_bytes": 44428
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Model\\Station.cs",
+      "sha256": "fe7f5933751784a3581698f6e5b4c90e3b1eb4b80b74a4ab4e59a56034b25fa8",
+      "size_bytes": 39182
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Model\\TrackOrientation.cs",
+      "sha256": "c849075d4e6d6798a54e1d14ec48e3f4c5f5439eb13ae7db7835d2dadd3eab99",
+      "size_bytes": 13698
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Net\\LcsNet.cs",
+      "sha256": "5e59e0ef2a415e82aeacc9ca79ef0fa1c9b6b42e110dd513d6bd66a101cdfd72",
+      "size_bytes": 17639
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Desk.cs",
+      "sha256": "78c137cfb8b54357c53d506bf38a54a08ea09979a48e983547498477753b0e80",
+      "size_bytes": 6361
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Instruktor.cs",
+      "sha256": "28d709f17da9aef28e527359550142a90a00559d2cf7fa00a79dfca68664f5b2",
+      "size_bytes": 4686
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Kz\\Blocks.cs",
+      "sha256": "1dfc1835ec7e1fdfb397976dd80ff5ee40a8bcc3232e328849ead52ce77a5990",
+      "size_bytes": 16301
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Kz\\Commands.cs",
+      "sha256": "9703d3e3faf2c0baec1fc59e5818bd4cae8a197b2e8b849422ad8d5af38f1e36",
+      "size_bytes": 14727
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Kz\\Fasada.cs",
+      "sha256": "f3c6fbd3bde39848a3781de0f47587de8a6f15a0e814d9596667a2dc874f596f",
+      "size_bytes": 2359
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Kz\\Interlocking.cs",
+      "sha256": "87e3b189416bfde661a192dfad166b4ec7dba298c786075ed5f65fdf3de0eecb",
+      "size_bytes": 16156
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Kz\\KomputerZaleznosci.cs",
+      "sha256": "68e07360ae752346d7eb7cabe336a8e04d8197c000f67ec9a0ca6d2ae8820c05",
+      "size_bytes": 25535
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Meldunki.cs",
+      "sha256": "1a7ce9a26f5d076b036b6a7b59776229653a9291445e4038c649f4a951bb78bf",
+      "size_bytes": 9198
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Otoczenie.cs",
+      "sha256": "48ddc8457dd12f731859f2db9214b85a7b6b9ede57af55cec895409eb1ee6f7c",
+      "size_bytes": 4965
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Pulpit\\Pip.cs",
+      "sha256": "f837fde1ce7feb8372b5a94949f141e65b5e3979d4768cd9c81e1e3b729745a1",
+      "size_bytes": 6033
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Pulpit\\SystemNadrzedny.cs",
+      "sha256": "15694e7cc951fa2579368305914cd84ae4164117f4819f45d5115cc8a655f1d3",
+      "size_bytes": 32731
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\RealTimetable.cs",
+      "sha256": "2d373b0db4a0be81f4363fdcf3add3a53f12370e340974852a71e20c774ab360",
+      "size_bytes": 12804
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Rejestrator.cs",
+      "sha256": "5aafdbb781970af11de2aeecb1a66c0150dd07327f12a688d492f5bd23af01e7",
+      "size_bytes": 4073
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Rozklad.cs",
+      "sha256": "ff8291664bdbbdc0661e87d8da2ee08b699552ac27c3516fd1f759d596fb0e00",
+      "size_bytes": 5004
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\SelfTest.cs",
+      "sha256": "107dab10013121042c79a83a68d592e67c5acb014a66ce9dd9dd9044a549eb83",
+      "size_bytes": 40598
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Session.cs",
+      "sha256": "fda2beff1abcbdf2d5a247cd88129ae23bf845f1f249f9b5e167a5aec427f0ba",
+      "size_bytes": 4173
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Simulator.cs",
+      "sha256": "66debf061a987004f9326743919471dd66d2a3c5f5422c21631e4225f5c35ead",
+      "size_bytes": 6035
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\State.cs",
+      "sha256": "5445b226fd38aad90d213b44ae6cf33071aa6440277a430697471810a6c17942",
+      "size_bytes": 8114
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Sygnaly.cs",
+      "sha256": "2d7601fcd5feea46118df5621bd646c6a84af20dabc55feb0ec8cc997d82780e",
+      "size_bytes": 4201
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Trains.cs",
+      "sha256": "fe664fb95053f320859076fc43448c4a0242ae9becd530450528f32c1c387046",
+      "size_bytes": 27710
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\KartaOdcinka.cs",
+      "sha256": "8f38731937b8696ef701ca98cf9479836523234682de620c1a7b192d8b094e05",
+      "size_bytes": 4809
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\KartaSygnalizatora.cs",
+      "sha256": "8029bb7e5e100490d9ef467c6aefe85f0dbf5952820217f15cd0698f8165cc31",
+      "size_bytes": 2873
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\KartaZwrotnicy.cs",
+      "sha256": "7ebaf029e5cfb66cb670e3dd54b59d9a41eb2a44f98462a83d95174dbac87074",
+      "size_bytes": 6725
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\Komputerownia.cs",
+      "sha256": "1445b6d5259a9f5fa01fde4d0ee6b0cfe905a153cbde66faeb8b3531b237a405",
+      "size_bytes": 7733
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\KzPodglad.cs",
+      "sha256": "5e9f93a574e3873af43c20441aabd1dfc2617bd01072b2393e9506a269ce1378",
+      "size_bytes": 13602
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\Urzadzenia.cs",
+      "sha256": "8ef4eefab54c4fb1f21107d3bf81fe1c37364749b6a9b046e79e8c897a75c9cd",
+      "size_bytes": 5291
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Sim\\Urzadzenia\\Zasilanie.cs",
+      "sha256": "5fd78b570ba69191503e1a6991936664646a52d0319f1a66009fadcde3da1ddd",
+      "size_bytes": 3526
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\Testy\\station_test.json",
+      "sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+      "size_bytes": 274794
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\Dialogs.cs",
+      "sha256": "d662a174fc25c3f60078f3b353cfff3f9fc707724e6aea2e1615ff4b3b4cf61b",
+      "size_bytes": 20874
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\Ig10.cs",
+      "sha256": "8935dde7b95a854c74ddfe27d60755414653c79c8efe41a2bc2e84023cca203e",
+      "size_bytes": 18198
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\KzWindow.cs",
+      "sha256": "0c42be49cbb3970dc619ddb831fc4222dbc868c4725ea72e3241278158830d91",
+      "size_bytes": 12329
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\LayoutChooser.cs",
+      "sha256": "89ec8123ef7cfc15ff4a2f6e162b92bbcbf384c0f8bd1e842d0bfe190e119b3c",
+      "size_bytes": 3440
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\NetWindow.cs",
+      "sha256": "d1fdd796cb5927761e5403c5349753e0261aa059fd93b3b320598c708aedbfb5",
+      "size_bytes": 10239
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\PanelView.cs",
+      "sha256": "5fde32edf0904ba5e9bba9e8a7106b6ac58bd281ea86de920bbd9131e6e57962",
+      "size_bytes": 52492
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\app\\LcsWidzew\\UI\\PlanStationWindow.cs",
+      "sha256": "410882489ae34792539a7adee2a545b875adde7c62be96da4ab1daca75fef9eb",
+      "size_bytes": 18675
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\CLAUDE.md",
+      "sha256": "b017ef492c0529839ef02fe7c96d365ed9abb0f789a6f3ffe7f8a9974401ae1c",
+      "size_bytes": 1838
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\HISTORIA_EDYTOR_UT.md",
+      "sha256": "ca9709341ce7472c6fb5cbddf6cb4721dcb3d022b7fa1accbb3e89fabaca744c",
+      "size_bytes": 70213
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\PLAN_EDYTOR_UT.md",
+      "sha256": "7d221fa0fb13aa4b0a2fa01cb7abe1f6d4e96c002440951d3ce14e5523d9ff8a",
+      "size_bytes": 27419
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\PLAN_EDYTOR_ZOBRAZOWANIA.md",
+      "sha256": "e232411f82a01e87b7f6bf2da52b261bfaa085afbedbd0d9716b678dbce16766",
+      "size_bytes": 13842
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\PODZIAL_MODULOW.md",
+      "sha256": "3aae3d2aaa27f8d83c921efbab66b72d33f0df26a054919a77fe22be57338bdf",
+      "size_bytes": 33185
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\README.md",
+      "sha256": "50d1671667ff09fb79753842736aa6b7848001b7d7f9160998a31b87a36e5908",
+      "size_bytes": 42761
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\ROZWOJ.md",
+      "sha256": "533248cbacbfdf33771ea2f1b390be8a743267d1fb1ccd0e8d010309664d0818",
+      "size_bytes": 36883
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\uruchom.bat",
+      "sha256": "96e469d935e9ed9781df587bd76c401f0b20892983480ec8e7871bcee760fe4c",
+      "size_bytes": 147
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\uruchom_edytor_ut.bat",
+      "sha256": "126784b39472c156f57c55de1eb5c596566006de368a78e1344bfe5535151eb6",
+      "size_bytes": 147
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\uruchom_komputerownia.bat",
+      "sha256": "f6b091cd28abd4ddc41e4248b2c1d1711b341ac01b950fd625e048211bba4ddf",
+      "size_bytes": 224
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\uruchom_przechylka.bat",
+      "sha256": "41e93ead7304921409e262c52c54cbe87469500c4a617e3cf089fb4210c71f1b",
+      "size_bytes": 168
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\Zrodla\\EBILock_komputerownia.md",
+      "sha256": "3b087b00ec4d36dcdd483f343c7fb9b427d6c0b4a52f9267cdad5a726a2720fa",
+      "size_bytes": 46212
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\Zrodla\\KOMPUTERY_notatki.md",
+      "sha256": "ea2926ae4d977790885c0bc5b480e5ead4091619848b3a296a322b8291d54365",
+      "size_bytes": 7597
+    },
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\Zrodla\\Poradnik_dla_inspektorow_TOM_I_Automatyka_sterowania_ruchem_kolejowym_i_prowadzenie_ruchu_kolejowego (1).pdf",
+      "sha256": "35662cd1307f746440b79951e3ce08002f6df95ae46a116ea034513c19a90ac3",
+      "size_bytes": 26038908
+    }
+  ],
+  "worktree_status_porcelain_at_review": "?? SUK_plan_multiplayer.pdf",
+  "delivery_status_porcelain_before": "?? SUK_plan_multiplayer.pdf",
+  "delivery_head_before": "5eddb5c5d58eccd5af6467f7ca2373a2daed6568",
+  "untracked_files_preserved": [
+    {
+      "path": "C:\\Users\\JohnE\\.codex\\worktrees\\3315\\SUK\\SUK_plan_multiplayer.pdf",
+      "sha256": "e0b9e6108761d754edc5a8318b983dcd80a7e10e301a0c63cfcee547a3d2268a",
+      "size_bytes": 2331937
+    }
+  ],
+  "delivery_existing_pdf_before": {
+    "path": "D:\\Projects\\SUK\\SUK_plan_multiplayer.pdf",
+    "sha256": "e0b9e6108761d754edc5a8318b983dcd80a7e10e301a0c63cfcee547a3d2268a",
+    "size_bytes": 2331937
+  },
+  "delivery_existing_pdf_backup": "D:\\Projects\\SUK - Dokumetacja nie gitowa\\Plan_multiplayer_2026-10-17\\archiwum\\v1.7\\PDF_zastany_w_D_Projects_SUK.pdf",
+  "delivery_pdf_replacement_authorized": true,
+  "application_source_changed_by_this_work": false
+}

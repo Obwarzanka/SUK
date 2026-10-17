@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="53" font-size="34" font-weight="700" fill="white">SUK / dwie grupy każdego KZ</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Stałe tożsamości 1/2 • zmienne role • jeden logiczny posterunek • obie grupy liczą</text>
+<rect x="370" y="145" width="660" height="110" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="370" y="145" width="6" height="110" fill="#087f86"/>
+<text x="392" y="180" font-size="24" fill="#17334d" font-weight="700">Wspólne, uporządkowane wejście</text>
+<text x="392" y="215" font-size="21" fill="#547084">CycleInput: czas, statusy, intencje, komunikaty KZ-KZ</text>
+<rect x="50" y="325" width="595" height="215" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="325" width="6" height="215" fill="#087f86"/>
+<text x="72" y="360" font-size="24" fill="#17334d" font-weight="700">Group1 / przykład: AKTYWNA</text>
+<text x="72" y="395" font-size="21" fill="#547084">Prywatne stany Ada: kanał A i kanał B</text>
+<text x="72" y="424" font-size="21" fill="#547084">Kontrola zgodności kanałów</text>
+<text x="72" y="453" font-size="21" fill="#547084">OutputPlan bez fizycznego skutku</text>
+<rect x="755" y="325" width="595" height="215" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="755" y="325" width="6" height="215" fill="#087f86"/>
+<text x="777" y="360" font-size="24" fill="#17334d" font-weight="700">Group2 / przykład: GORĄCA REZERWA</text>
+<text x="777" y="395" font-size="21" fill="#547084">Prywatne stany Ada: kanał A i kanał B</text>
+<text x="777" y="424" font-size="21" fill="#547084">Stale liczy; Ready + rola Reserve</text>
+<text x="777" y="453" font-size="21" fill="#547084">OutputPlan bez fizycznego skutku</text>
+<path d="M570,255 L570,285 L345,285 L345,325" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M830,255 L830,285 L1050,285 L1050,325" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<rect x="365" y="605" width="670" height="95" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="365" y="605" width="6" height="95" fill="#087f86"/>
+<text x="387" y="640" font-size="24" fill="#17334d" font-weight="700">SELEKTOR Ada + BRAMKA C# / kzId</text>
+<text x="387" y="675" font-size="21" fill="#547084">activeGroupId + selectionEpoch + effectId</text>
+<path d="M345,540 L345,575 L550,575 L550,605" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M1050,540 L1050,575 L850,575 L850,605" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="57" y="584" font-size="18" fill="#547084">plany nie wykonują rozkazów</text>
+<text x="1045" y="584" font-size="18" fill="#547084">stare / rezerwowe: odrzuć</text>
+<rect x="365" y="735" width="670" height="72" rx="15" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="365" y="735" width="6" height="72" fill="#087f86"/>
+<text x="387" y="770" font-size="24" fill="#17334d" font-weight="700">Karty → jeden teren i ruch</text>
+<path d="M700,700 L700,735" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="40" y="834" font-size="18" fill="#547084">Niezależne Kz_A / Kz_B z dwóch czatów. Losowana grupa 1/2 po Ready; wynik zapisany do replay.</text>
+</g></svg>

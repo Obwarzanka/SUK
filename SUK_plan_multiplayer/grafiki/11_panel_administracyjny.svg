@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs>
+<rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" font-weight="700" fill="white">SUK / osobna aplikacja administracyjna S18</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Pełny interfejs po S16 i S17 • minimalne narzędzia moderacji S08 pozostają przed pilotem</text>
+<rect x="50" y="165" width="720" height="125" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="165" width="6" height="125" fill="#087f86"/>
+<text x="70" y="200" font-size="24" fill="#17334d" font-weight="700">Osobny EXE i prywatne API</text>
+<text x="70" y="235" font-size="21" fill="#547084">SUK.Admin WPF → VPN / mTLS + token konta → Admin API</text>
+<rect x="50" y="350" width="340" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="350" width="6" height="145" fill="#087f86"/>
+<text x="70" y="385" font-size="24" fill="#17334d" font-weight="700">Konta i role</text>
+<text x="70" y="420" font-size="21" fill="#547084">Sesje, zakresy, unieważnienia</text>
+<text x="70" y="448" font-size="21" fill="#547084">Bez ujawniania haseł</text>
+<rect x="430" y="350" width="340" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="430" y="350" width="6" height="145" fill="#087f86"/>
+<text x="450" y="385" font-size="24" fill="#17334d" font-weight="700">Sankcje i audyt</text>
+<text x="450" y="420" font-size="21" fill="#547084">Ban / kick / mute / zakaz</text>
+<text x="450" y="448" font-size="21" fill="#547084">Powód i historia decyzji</text>
+<rect x="50" y="555" width="340" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="555" width="6" height="145" fill="#087f86"/>
+<text x="70" y="590" font-size="24" fill="#17334d" font-weight="700">Światy i obsada</text>
+<text x="70" y="625" font-size="21" fill="#547084">Lista, zdrowie, aktualne prawa</text>
+<text x="70" y="653" font-size="21" fill="#547084">Kontrolowane operacje</text>
+<rect x="430" y="555" width="340" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="430" y="555" width="6" height="145" fill="#087f86"/>
+<text x="450" y="590" font-size="24" fill="#17334d" font-weight="700">Raporty i zasoby</text>
+<text x="450" y="625" font-size="21" fill="#547084">Stronicowanie, limity eksportu</text>
+<text x="450" y="653" font-size="21" fill="#547084">Świeżość CPU / tick / buforów</text>
+<rect x="900" y="350" width="450" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="900" y="350" width="6" height="145" fill="#087f86"/>
+<text x="920" y="385" font-size="24" fill="#17334d" font-weight="700">Te same usługi SUK</text>
+<text x="920" y="420" font-size="21" fill="#547084">Konta, sankcje, audyt z S08</text>
+<text x="920" y="448" font-size="21" fill="#547084">Bez drugiej bazy użytkowników</text>
+<rect x="900" y="555" width="450" height="145" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="900" y="555" width="6" height="145" fill="#087f86"/>
+<text x="920" y="590" font-size="24" fill="#17334d" font-weight="700">Saved ≠ Applied</text>
+<text x="920" y="625" font-size="21" fill="#547084">Osobny wynik każdego świata</text>
+<text x="920" y="653" font-size="21" fill="#547084">Odebranie praw i mediów</text>
+<path d="M770,422 L900,422" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M1125,495 L1125,555" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M410,290 L410,325 L220,325 L220,350" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<path d="M410,325 L600,325 L600,350" stroke="#087f86" stroke-width="3" fill="none" marker-end="url(#a)"/>
+<text x="50" y="773" font-size="22" fill="#17334d" font-weight="700">Administracja kont i utrzymania nie nadaje automatycznie sterowania urządzeniami ani roli dyspozytora.</text>
+<text x="50" y="818" font-size="21" fill="#547084">WPF / C#. Klucz + konto + prawa. Rejestracja i odzyskanie: osobny ograniczony proces.</text>
+</g></svg>

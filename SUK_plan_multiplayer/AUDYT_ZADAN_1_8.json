@@ -1,0 +1,22 @@
+{
+  "plan_version": "1.8",
+  "jobs": 90,
+  "parent_stages": 28,
+  "KZ_prompts": 17,
+  "prompt_files": 110,
+  "small_packets": 90,
+  "requirements": 37,
+  "DAG_acyclic": true,
+  "all_jobs_planned": true,
+  "parent_dependencies_preserved": true,
+  "no_cross_A_B_dependency": true,
+  "author_neutral_guide_consistent": true,
+  "all_context_hashes_match": true,
+  "bounded_read_docs_max": 6,
+  "logging_foundation": "S01.01",
+  "independent_review_corrections": [
+    "full AI_START conflicted with author isolation; neutral author guide and explicit role exemption",
+    "full manifest too large for a single job;90 small per-job packets",
+    "S01 title index corrected after ordering logging foundation first"
+  ]
+}

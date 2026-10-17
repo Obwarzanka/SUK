@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-17",
+  "review_head": "2120ab0bcbedbc503a4a859eda26a7823644d0b7",
+  "original_baseline_head": "4869fc185a70e6f390bf2bf1ad07680fdb5c32ff",
+  "files": [
+    {
+      "path": "D:\\Projects\\SUK\\AGENTS.md",
+      "sha256": "284fc9d41c5419c858481098e1c81d4432942159a1062cc62bb721e0fbd1550a",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\CLAUDE.md",
+      "sha256": "72b67fb78ec4f9f6ae8a3f0ddd14bbb1385056c70a51a16466cddaf9f13c576a",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\ROZWOJ.md",
+      "sha256": "9301b908a5886924920520eaf4dc4b3b3f849b8003dd991fd74eaf4de30e6c1d",
+      "changed_from_original": true
+    },
+    {
+      "path": "D:\\Projects\\SUK\\README.md",
+      "sha256": "be27b7b28b5a5a0ebbdf1159bf26e4802861b282c0cd245eb46cfe8fec1b4920",
+      "changed_from_original": true
+    },
+    {
+      "path": "D:\\Projects\\SUK\\PODZIAL_MODULOW.md",
+      "sha256": "d182ae480511e4e811ce6a1f30246f423f8967685ef6d44c01657735b106d60c",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\PLAN_EDYTOR_UT.md",
+      "sha256": "42df9a40dea5fb79fd3fc758122080f4bed993693fc13006aa8cac0f74fef0a6",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\Zrodla\\KOMPUTERY_notatki.md",
+      "sha256": "ea2926ae4d977790885c0bc5b480e5ead4091619848b3a296a322b8291d54365",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\Zrodla\\EBILock_komputerownia.md",
+      "sha256": "3b087b00ec4d36dcdd483f343c7fb9b427d6c0b4a52f9267cdad5a726a2720fa",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Session.cs",
+      "sha256": "fda2beff1abcbdf2d5a247cd88129ae23bf845f1f249f9b5e167a5aec427f0ba",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Net\\LcsNet.cs",
+      "sha256": "4b5ac19f48a2ed7a19ad823848ea32b19943e5755eae949ed8b2e62cf363d70b",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Meldunki.cs",
+      "sha256": "4ed22b3146492a724e404942628b4f3cfd9597ee9c9e115fe185f3fa64ddc2a2",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Desk.cs",
+      "sha256": "15375315df4fd6b1d90abe7e07cffd0efa47329ea4489220b89b98f52c5ff643",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Commands.cs",
+      "sha256": "bb34dc3cd42a35a2b7057efffbd0b53829e45f8d0fe37a0454bdcb4d241944fa",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Blocks.cs",
+      "sha256": "f7194b7d528adfec4f052ab77cf02e8ded4e82d0b4f2992b066680cfefb3e5a5",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Otoczenie.cs",
+      "sha256": "48ddc8457dd12f731859f2db9214b85a7b6b9ede57af55cec895409eb1ee6f7c",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Simulator.cs",
+      "sha256": "a9a150167310ce4a644e2635790641668e95782cd308708f0a9f98d922296ed3",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Trains.cs",
+      "sha256": "1ca303f5e70c2cf141ea7a116e1895344e4a1073b091805e6718238e96da1d58",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Rozklad.cs",
+      "sha256": "ff8291664bdbbdc0661e87d8da2ee08b699552ac27c3516fd1f759d596fb0e00",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\State.cs",
+      "sha256": "9efe737449672f6a4c7727f284d595a01f3491157a4052e79b81ca3b9f4fffe7",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Rejestrator.cs",
+      "sha256": "5aafdbb781970af11de2aeecb1a66c0150dd07327f12a688d492f5bd23af01e7",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\RealTimetable.cs",
+      "sha256": "2d373b0db4a0be81f4363fdcf3add3a53f12370e340974852a71e20c774ab360",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Model\\Station.cs",
+      "sha256": "672d099a5af080952d86f73f42254efa2ebbe27333ddd3782dcac52684421ac3",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\MainWindow.xaml.cs",
+      "sha256": "1be2f0ab00cd28c89f8e00c44b7ae98e1d9a3f79ee79642843f4a4d48ba44178",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\App.xaml.cs",
+      "sha256": "13724cb47cc9b43e6a118ba34f3d82e9227a67a98b5a4953e6c562502c4cb498",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\LcsWidzew.csproj",
+      "sha256": "81682554300e3dbbe6e168d02f81aa9c6fc629bb2b53d8301d27671566d92d6b",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Data\\station.json",
+      "sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\app\\LcsWidzew\\Sim\\Interlocking.cs",
+      "sha256": "feede510607e3d14676742bb8fc4056ad1345e2a776e40e4f0a569d0dbfb7f40",
+      "changed_from_original": false
+    },
+    {
+      "path": "D:\\Projects\\SUK\\Zrodla\\Poradnik_dla_inspektorow_TOM_I_Automatyka_sterowania_ruchem_kolejowym_i_prowadzenie_ruchu_kolejowego (1).pdf",
+      "sha256": "35662cd1307f746440b79951e3ce08002f6df95ae46a116ea034513c19a90ac3",
+      "changed_from_original": false
+    }
+  ],
+  "git_diff_paths": [
+    "README.md",
+    "ROZWOJ.md",
+    "app/Lcs.EdytorUT/MainWindow.cs",
+    "app/Lcs.EdytorUT/Test.Schemat.cs",
+    "app/Lcs.EdytorUT/UtView.cs",
+    "app/Lcs.Przechylka/MainWindow.cs",
+    "app/Lcs.Przechylka/Obliczenia.cs",
+    "app/Lcs.Przechylka/Program.cs",
+    "zrzuty/EdytorUT_siatka_schemat.png",
+    "zrzuty/Przechylka.png"
+  ],
+  "status": "",
+  "interpretation": "New commits detected during read-only review. Changes concern UT grid and standalone cant calculator; relevant interlocking sources unchanged. Original hash registry retained.",
+  "repository_writes_performed_by_documentation_work": false
+}

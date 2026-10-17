@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850"><defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 Z" fill="#087f86"/></marker></defs><rect width="1400" height="850" fill="#eef3f7"/><rect width="1400" height="118" fill="#17334d"/><g font-family="Arial,sans-serif">
+<text x="40" y="52" font-size="33" fill="white" font-weight="700">SUK / co już istnieje, a co pozostaje planem</text>
+<text x="40" y="91" font-size="21" fill="#c4e6e9">Baza 5eddb5c • C# / .NET 8 / WPF • analiza statyczna, bez uruchamiania testów</text>
+<rect x="50" y="180" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="180" width="6" height="175" fill="#087f86"/>
+<text x="68" y="214" font-size="23" fill="#17334d" font-weight="700">System nadrzędny / PIP</text>
+<text x="68" y="249" font-size="20" fill="#547084">Sim/Pulpit: parser i stanowiska</text>
+<text x="68" y="278" font-size="20" fill="#547084">Pending / książka / obszary</text>
+<text x="68" y="307" font-size="20" fill="#547084">PIP śledzi zajętości odcinków</text>
+<rect x="505" y="180" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="505" y="180" width="6" height="175" fill="#087f86"/>
+<text x="523" y="214" font-size="23" fill="#17334d" font-weight="700">Jeden KZ w C#</text>
+<text x="523" y="249" font-size="20" fill="#547084">Sim/Kz/KomputerZaleznosci</text>
+<text x="523" y="278" font-size="20" fill="#547084">Cały Station, wspólne słowniki</text>
+<text x="523" y="307" font-size="20" fill="#547084">Wywołuje karty bez OutputPlan</text>
+<rect x="960" y="180" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="180" width="6" height="175" fill="#087f86"/>
+<text x="978" y="214" font-size="23" fill="#17334d" font-weight="700">Karty i zasilanie</text>
+<text x="978" y="249" font-size="20" fill="#547084">Zwrotnice / wykolejnice</text>
+<text x="978" y="278" font-size="20" fill="#547084">Sygnalizatory / odcinki</text>
+<text x="978" y="307" font-size="20" fill="#547084">Rozkazy i statusy urządzeń</text>
+<path d="M440,265 L505,265" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<path d="M895,265 L960,265" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<rect x="50" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="50" y="450" width="6" height="175" fill="#bb5f27"/>
+<text x="68" y="484" font-size="23" fill="#17334d" font-weight="700">Osobna Komputerownia</text>
+<text x="68" y="519" font-size="20" fill="#547084">Diagnostyka kart / KZ</text>
+<text x="68" y="548" font-size="20" fill="#547084">Kontrola i wprowadzanie usterek</text>
+<text x="68" y="577" font-size="20" fill="#547084">Stary kanał wymaga ochrony</text>
+<rect x="505" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="505" y="450" width="6" height="175" fill="#087f86"/>
+<text x="523" y="484" font-size="23" fill="#17334d" font-weight="700">Jeden teren i ruch</text>
+<text x="523" y="519" font-size="20" fill="#547084">Fasada Simulator koordynuje Tick</text>
+<text x="523" y="548" font-size="20" fill="#547084">Ruch już używa części kart</text>
+<text x="523" y="577" font-size="20" fill="#547084">Pozostałe odczyty stanu KZ</text>
+<rect x="960" y="450" width="390" height="175" rx="14" fill="white" stroke="#c6d4df" stroke-width="2"/><rect x="960" y="450" width="6" height="175" fill="#bb5f27"/>
+<text x="978" y="484" font-size="23" fill="#17334d" font-weight="700">Nadal do wykonania</text>
+<text x="978" y="519" font-size="20" fill="#547084">KZ per posterunek + Ada A/B</text>
+<text x="978" y="548" font-size="20" fill="#547084">Dwie grupy + wejścia i plany</text>
+<text x="978" y="577" font-size="20" fill="#547084">Bezpieczna sieć / N42 / pilot</text>
+<path d="M1155,355 L1155,410 L700,410 L700,450" fill="none" stroke="#087f86" stroke-width="3" marker-end="url(#a)"/>
+<text x="50" y="707" font-size="22" fill="#17334d" font-weight="700">S02A odbiera i domyka istniejące moduły; nie zleca ponownego pisania kart, PIP ani fasady.</text>
+<text x="50" y="752" font-size="21" fill="#547084">Jedna klasa KZ nie jest wieloma KZ ani gorącą rezerwą. Komputerownia nie jest kanałem B.</text>
+<text x="50" y="798" font-size="21" fill="#547084">UT i .zob.json: plan zaakceptowany, konwersja nadal przyszła. Simulator czyta station.json.</text>
+</g></svg>

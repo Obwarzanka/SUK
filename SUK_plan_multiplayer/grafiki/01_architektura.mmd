@@ -1,0 +1,6 @@
+flowchart LR
+ C[Klient WPF] <-->|HTTPS/WSS| G[Brama SUK]
+ G <-->|Named Pipes + ACL| W[WorldHost: KZ, teren, ruch]
+ G --> D[(Konta, audyt, zdarzenia)]
+ C <-->|audio| M[Gotowy serwer mediów]
+ C --> U[Paczki i wydania HTTPS]
