@@ -59,6 +59,7 @@ public static partial class Test
                 log.AppendLine("== etap 4: rozjazdy"); await RunRozjazdy(w);
                 log.AppendLine("== widok schematu (poprawka po etapie 4)"); await RunSchemat(w);
                 if (shot != null) { await Settle(w); Save(w, shot); }
+                log.AppendLine("== rozjazdy łukowe i wstawki międzyrozjazdowe"); await RunLukowe(w);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

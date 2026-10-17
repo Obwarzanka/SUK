@@ -128,8 +128,31 @@ public class UtCrossing
     public int Slip { get; set; } = 1;
 }
 
-/// <summary>Położenie rozjazdu w układzie: PR, ŚR, KR na wprost i na zwrot, kierunki [rad].</summary>
-public record TurnoutGeo(XY PR, XY SR, XY KRMain, XY KRDiv, double Az, double AzDiv, double K, RozjazdTyp Typ);
+/// <summary>
+/// Położenie rozjazdu w układzie: PR, ŚR, KR na wprost i na zwrot, kierunki [rad] (<see cref="AzDiv"/> – kierunek skosu za ŚR).
+/// Rozjazd na łuku toru zasadniczego to rozjazd łukowy (wygięty rozjazd zwyczajny): <see cref="RMain"/> – promień toru zasadniczego
+/// [m, 0 – prosty], <see cref="RDiv"/> – promień toru zwrotnego [m, 0 – prosty], <see cref="Kind"/> – Rz, Rłj (oba tory wygięte w tę samą
+/// stronę) albo Rłd (w przeciwne). <see cref="Q"/> – skala długości stycznych względem rozjazdu prostego (A·Q, B·Q).
+/// </summary>
+public record TurnoutGeo(XY PR, XY SR, XY KRMain, XY KRDiv, double Az, double AzDiv, double K, RozjazdTyp Typ,
+    double RMain = 0, double RDiv = 0, string Kind = "Rz", double Q = 1)
+{
+    /// <summary>Odległość ŚR – KR na zwrot [m w terenie].</summary>
+    public double B => Typ.B * Q;
+    /// <summary>Prędkość na zwrot ze wzoru v = 3,6·√(0,65·R) (Zrodla/rozjazdy_1.pdf), zaokrąglona w dół do 10 km/h.</summary>
+    public int VDiv => RDiv <= 0 ? 0 : (int)(Math.Floor(3.6 * Math.Sqrt(0.65 * RDiv) / 10) * 10);
+}
+
+/// <summary>
+/// Wstawka międzyrozjazdowa: odcinek między stykami (KR / PR) dwóch rozjazdów. <see cref="Len"/> [m] (ujemna – rozjazdy nachodzą
+/// na siebie), <see cref="Min"/> – najmniejsza dopuszczalna [m] (0 – przepisy nie wymagają), <see cref="Psi"/> – przyrost przyspieszenia
+/// niezrównoważonego [m/s³] (0 – nie liczony), <see cref="Other"/> – numer drugiego rozjazdu, <see cref="Crossover"/> – wstawka łącznika.
+/// </summary>
+public record Wstawka(string Other, double Len, double Min, double Psi, bool Crossover)
+{
+    /// <summary>Dłuższa niż 30 m – osobny tor z numerem, nie wstawka (Kampczyk, Skoczylas, Przegląd Komunikacyjny 4/2017).</summary>
+    public bool Tor => Len > 30;
+}
 
 /// <summary>Geometria rozjazdu i skrzyżowania, synchronizacja odgałęzień z torem zasadniczym, sprawdzanie.</summary>
 public static class Rozjazdy
@@ -145,9 +168,27 @@ public static class Rozjazdy
         double k = r.K;
         var (pr, az0) = r.At(Math.Clamp(t.S, 0, r.Length));
         double az = t.Dir < 0 ? az0 + Math.PI : az0;
-        var sr = pr + Element.Dir(az) * (typ.A * k);
-        double azDiv = az + t.Side * typ.Alpha;
-        return new TurnoutGeo(pr, sr, sr + Element.Dir(az) * (typ.B * k), sr + Element.Dir(azDiv) * (typ.B * k), az, azDiv, k, typ);
+        // tor zasadniczy: punkt KR i kierunek na końcu rozjazdu – krzywizna toru na długości rozjazdu (łuk → rozjazd łukowy)
+        double lm = typ.A + typ.B;
+        var (krm, azE0) = r.At(Math.Clamp(t.S + t.Dir * lm, 0, r.Length));
+        double dMain = Math.IEEERemainder((t.Dir < 0 ? azE0 + Math.PI : azE0) - az, 2 * Math.PI);
+        double kg = Math.Abs(dMain) < 1e-7 ? 0 : dMain / lm;            // krzywizna toru zasadniczego (+ w prawo) [1/m]
+        if (kg == 0 || typ.R <= 0)
+        {
+            var sr0 = pr + Element.Dir(az) * (typ.A * k);
+            double azD = az + t.Side * typ.Alpha;
+            return new TurnoutGeo(pr, sr0, sr0 + Element.Dir(az) * (typ.B * k), sr0 + Element.Dir(azD) * (typ.B * k), az, azD, k, typ, 0, typ.R);
+        }
+        // łukowanie: krzywizna toru zwrotnego = krzywizna toru zasadniczego + 1/R typu (po stronie odgałęzienia); na długości łuku
+        // zwrotnego R·α różnica kierunków torów jest kątem rozjazdu α (skos 1:N) – jak w rozjeździe prostym
+        double k1 = kg + t.Side / typ.R, lb = typ.R * typ.Alpha, dDiv = k1 * lb;
+        double rDiv = Math.Abs(k1) < 1e-9 ? 0 : 1 / Math.Abs(k1);
+        double tan = rDiv == 0 ? lb / 2 : rDiv * Math.Tan(Math.Abs(dDiv) / 2);
+        double q = tan / (typ.R * Math.Tan(typ.Alpha / 2));
+        var sr = pr + Element.Dir(az) * (typ.A * q * k);
+        double azDiv = az + dDiv;
+        string kind = rDiv == 0 ? "Rłd" : Math.Sign(k1) == Math.Sign(kg) ? "Rłj" : "Rłd";
+        return new TurnoutGeo(pr, sr, krm, sr + Element.Dir(azDiv) * (typ.B * q * k), az, azDiv, k, typ, 1 / Math.Abs(kg), Math.Round(rDiv, 1), kind, q);
     }
 
     /// <summary>Uwagi o rozjeździe: poza torem, na łuku (rozjazdy łukowe – później), nachodzi na inny rozjazd.</summary>
@@ -160,22 +201,35 @@ public static class Rozjazdy
         var r = Trasa.Compute(main);
         double s1 = t.S, s2 = t.S + t.Dir * (typ.A + typ.B);
         if (Math.Min(s1, s2) < -1e-6 || Math.Max(s1, s2) > r.Length + 1e-6) res.Add("rozjazd wychodzi poza koniec toru zasadniczego");
-        double acc = 0;
+        // rozjazd łukowy leży na stałym promieniu: nie na krzywej przejściowej ani na granicy prostej i łuku
+        double acc = 0; var on = new List<ElKind>();
         foreach (var e in r.Elements)
         {
             double a = acc / r.K, b = (acc + e.Len) / r.K; acc += e.Len;
-            if (e.Kind != ElKind.Prosta && b > Math.Min(s1, s2) + 1e-6 && a < Math.Max(s1, s2) - 1e-6) { res.Add("rozjazd leży na łuku toru zasadniczego (rozjazdy łukowe – w kolejnym etapie)"); break; }
+            if (e.Len > 1e-9 && b > Math.Min(s1, s2) + 0.01 && a < Math.Max(s1, s2) - 0.01) on.Add(e.Kind);
         }
+        if (on.Contains(ElKind.Przejsciowa)) res.Add("rozjazd leży na krzywej przejściowej – rozjazd łukowy układa się na stałym promieniu, przesuń go");
+        else if (on.Distinct().Count() > 1) res.Add("rozjazd leży na granicy prostej i łuku – przesuń go w całości na prostą albo na łuk");
+        if (Geometry(main, t) is TurnoutGeo gl && gl.Kind != "Rz" && gl.RDiv > 0 && gl.RDiv < MinRDiv)
+            res.Add($"promień toru zwrotnego rozjazdu łukowego {gl.RDiv:0} m mniejszy od najmniejszego {MinRDiv:0} m (warunki techniczne § 24)");
         if (t.BranchAtEnd && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout pm && Geometry(p, pm) is TurnoutGeo gpm && Geometry(main, t) is TurnoutGeo gt)
         {
             double dev = Math.Abs(Math.Abs(Math.IEEERemainder(gpm.AzDiv - gt.Az, Math.PI)) - typ.Alpha) * 180 / Math.PI;
             if (dev > 0.5) res.Add($"tory łącznika nie są równoległe – skos odchyla się o {dev:0.##}° od 1:{typ.N:0.#}");
         }
+        if (t.Partner != null && !t.BranchAtEnd)
+            foreach (var w in Wstawki(p, t).Where(w => w.Crossover))
+            {
+                if (w.Len < -0.01) res.Add($"rozjazdy łącznika {t.Number}/{w.Other} nachodzą na siebie o {-w.Len:0.##} m – brak wstawki; zwiększ rozstaw torów albo weź rozjazd o mniejszym skosie");
+                else if (w.Len < w.Min - 0.01) res.Add($"wstawka międzyrozjazdowa {w.Len:0.##} m krótsza od najmniejszej {w.Min:0.#} m (v/10, nie mniej niż 6 m – warunki techniczne § 24)");
+                if (w.Psi > 1 + 1e-9) res.Add($"przyrost przyspieszenia ψ = {w.Psi:0.##} m/s³ w łączniku większy od 1 m/s³ (§ 24, § 35)");
+            }
         if (t.Single && Tr(p, t.Branch) is UtTrack br && br.Vertices.Count > 3)
         {
             var rb = Trasa.Compute(br);
-            if (rb.Tangent.TryGetValue(2, out var tv) && t.BranchLen - tv / rb.K < typ.B - 0.01)
-                res.Add($"łuk za rozjazdem zaczyna się {typ.B - (t.BranchLen - tv / rb.K):0.##} m przed końcem rozjazdu (KR) – wydłuż skos albo zmniejsz R");
+            double bq = Geometry(main, t)?.B ?? typ.B;
+            if (rb.Tangent.TryGetValue(2, out var tv) && t.BranchLen - tv / rb.K < bq - 0.01)
+                res.Add($"łuk za rozjazdem zaczyna się {bq - (t.BranchLen - tv / rb.K):0.##} m przed końcem rozjazdu (KR) – wydłuż skos albo zmniejsz R");
         }
         foreach (var o in p.Turnouts.Where(o => o.Id != t.Id && o.Track == t.Track && Katalog.Find(o.Type) is RozjazdTyp ot))
         {
@@ -190,6 +244,42 @@ public static class Rozjazdy
     /// Synchronizacja po każdej zmianie: rozjazdy bez toru – usunięte; drugi rozjazd łącznika – na przecięciu odgałęzienia z jego torem;
     /// wierzchołki odgałęzień od strony rozjazdu – PR i ŚR (promień R typu); skrzyżowania – na przecięciu torów.
     /// </summary>
+    /// <summary>
+    /// Wstawki międzyrozjazdowe rozjazdu: w łączniku – między KR obu rozjazdów na torze łączącym (krzyżownice łukowe końcami do siebie:
+    /// najmniejsza l = v/10, nie mniej niż 6 m – warunki techniczne § 24 ust. 2 pkt 4; ψ = V·(a₁ + a₂) / (3,6·(b + w)), b = 20 m,
+    /// a = V² / (12,96·R), dopuszczalne 1 m/s³ – § 35 ust. 7, § 24 ust. 2 pkt 5); na torze zasadniczym – do najbliższego rozjazdu
+    /// przed i za (do 30 m, bez wymagań).
+    /// </summary>
+    public static List<Wstawka> Wstawki(UtProject p, UtTurnout t)
+    {
+        var res = new List<Wstawka>();
+        var typ = Katalog.Find(t.Type); var g = Geometry(p, t); if (typ == null || g == null) return res;
+        if (t.Partner != null && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout o && Geometry(p, o) is TurnoutGeo go)
+        {
+            double w = XY.Dist(g.SR, go.SR) / g.K - g.B - go.B;
+            double v = Math.Min(typ.Vbok > 0 ? typ.Vbok : 40, Math.Min(g.VDiv > 0 ? g.VDiv : 999, go.VDiv > 0 ? go.VDiv : 999));
+            double a1 = g.RDiv > 0 ? v * v / (12.96 * g.RDiv) : 0, a2 = go.RDiv > 0 ? v * v / (12.96 * go.RDiv) : 0;
+            double psi = v * (a1 + a2) / (3.6 * (20 + Math.Max(0, w)));
+            res.Add(new Wstawka(o.Number, w, Math.Max(6, v / 10), psi, true));
+        }
+        // na torze zasadniczym: najbliższy rozjazd przed PR i za KR
+        double s1 = Math.Min(t.S, t.S + t.Dir * (typ.A + typ.B)), s2 = Math.Max(t.S, t.S + t.Dir * (typ.A + typ.B));
+        Wstawka best1 = null, best2 = null;
+        foreach (var n in p.Turnouts.Where(n => n.Id != t.Id && n.Track == t.Track))
+        {
+            var ot = Katalog.Find(n.Type); if (ot == null) continue;
+            double o1 = Math.Min(n.S, n.S + n.Dir * (ot.A + ot.B)), o2 = Math.Max(n.S, n.S + n.Dir * (ot.A + ot.B));
+            if (o1 >= s2 - 0.01 && o1 - s2 <= 30 && (best2 == null || o1 - s2 < best2.Len)) best2 = new Wstawka(n.Number, o1 - s2, 0, 0, false);
+            if (o2 <= s1 + 0.01 && s1 - o2 <= 30 && (best1 == null || s1 - o2 < best1.Len)) best1 = new Wstawka(n.Number, s1 - o2, 0, 0, false);
+        }
+        if (best1 != null) res.Add(best1);
+        if (best2 != null) res.Add(best2);
+        return res;
+    }
+
+    /// <summary>Najmniejszy promień toru zwrotnego [m] – rozporządzenie w sprawie warunków technicznych (Dz.U. 2014 poz. 867) § 24 ust. 2 pkt 2.</summary>
+    public const double MinRDiv = 140;
+
     public static void Sync(UtProject p)
     {
         p.Turnouts.RemoveAll(t => Tr(p, t.Track) == null || Tr(p, t.Branch) == null);
@@ -201,12 +291,13 @@ public static class Rozjazdy
             var g = Geometry(p, t); var br = Tr(p, t.Branch); if (g == null || br == null) continue;
             var v = br.Vertices;
             while (v.Count < 3) v.Add(new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y });
-            if (!t.BranchAtEnd) { Set(v[0], g.PR, 0); Set(v[1], g.SR, g.Typ.R); }
-            else { Set(v[^1], g.PR, 0); Set(v[^2], g.SR, g.Typ.R); }
+            if (!t.BranchAtEnd) { Set(v[0], g.PR, 0); Set(v[1], g.SR, g.RDiv); }
+            else { Set(v[^1], g.PR, 0); Set(v[^2], g.SR, g.RDiv); }
             if (t.Single)
             {
                 // trzeci wierzchołek na prostej skosu: długość z modelu albo (stare pliki) rzut dotychczasowego punktu, nie mniej niż b
-                if (t.BranchLen <= 0) t.BranchLen = Math.Max(g.Typ.B, Math.Round(((v[2].P - g.SR).X * Math.Cos(g.AzDiv) + (v[2].P - g.SR).Y * Math.Sin(g.AzDiv)) / g.K, 3));
+                if (t.BranchLen <= 0) t.BranchLen = Math.Max(g.B, Math.Round(((v[2].P - g.SR).X * Math.Cos(g.AzDiv) + (v[2].P - g.SR).Y * Math.Sin(g.AzDiv)) / g.K, 3));
+                t.BranchLen = Math.Max(t.BranchLen, g.B);
                 var q = g.SR + Element.Dir(g.AzDiv) * (t.BranchLen * g.K);
                 v[2].X = q.X; v[2].Y = q.Y;
             }
@@ -284,7 +375,11 @@ public static class Rozjazdy
     /// <paramref name="aId"/> staje się torem łączącym, rozjazd <paramref name="bId"/> przesuwa się wzdłuż swojego toru tak,
     /// żeby jego ŚR leżał na skosie pierwszego, a jego odgałęzienie znika. Zwraca błąd (null – zrobione) i przesunięcie ŚR [m].
     /// </summary>
-    public static string MakeCrossover(UtProject p, string aId, string bId, out double shift)
+    public static string MakeCrossover(UtProject p, string aId, string bId, out double shift) => MakeCrossover(p, aId, bId, out shift, false);
+
+    /// <param name="joined">Odgałęzienia mogą być już przedłużone, jeśli ich końce się stykają (połączone ręcznie narzędziem Tor) –
+    /// przedłużenia znikają, powstaje zwykły łącznik.</param>
+    public static string MakeCrossover(UtProject p, string aId, string bId, out double shift, bool joined)
     {
         shift = 0;
         var a = p.Turnouts.FirstOrDefault(x => x.Id == aId); var b = p.Turnouts.FirstOrDefault(x => x.Id == bId);
@@ -292,7 +387,15 @@ public static class Rozjazdy
         if (a.Track == b.Track) return "oba rozjazdy leżą na tym samym torze";
         if (a.Type != b.Type) return $"rozjazdy różnych typów ({a.Type}, {b.Type}) – ustaw ten sam typ";
         var ba = Tr(p, a.Branch); var bb = Tr(p, b.Branch);
-        if (ba == null || bb == null || ba.Vertices.Count != 3 || bb.Vertices.Count != 3) return "odgałęzienie jest już przedłużone – łącznik powstaje tylko z odgałęzień do skosu";
+        if (ba == null || bb == null) return "brak odgałęzienia";
+        if (ba.Vertices.Count != 3 || bb.Vertices.Count != 3)
+        {
+            if (!joined) return "odgałęzienie jest już przedłużone – łącznik powstaje tylko z odgałęzień do skosu";
+            // przedłużone odgałęzienia: tylko gdy łączą się ze sobą (końce się stykają) – inaczej zniknąłby np. tor bocznicy
+            if (XY.Dist(ba.Vertices[^1].P, bb.Vertices[^1].P) > 1) return "odgałęzienia nie są ze sobą połączone (prowadzą dalej) – łącznik usunąłby ten tor";
+            ba.Vertices = ba.Vertices.Take(3).Select(v => v.Clone()).ToList(); ba.Vertices[2].R = 0; ba.Vertices[2].L = 0;
+            bb.Vertices = bb.Vertices.Take(3).Select(v => v.Clone()).ToList(); bb.Vertices[2].R = 0; bb.Vertices[2].L = 0;
+        }
         var ga = Geometry(p, a); var gb = Geometry(p, b); var rb = Trasa.Compute(Tr(p, b.Track));
         if (ga == null || gb == null) return "brak geometrii rozjazdu";
         if (RayHit(rb, ga.SR, ga.AzDiv) is not var (sSr, _)) return "skos rozjazdu nie trafia w tor drugiego rozjazdu";
@@ -306,6 +409,23 @@ public static class Rozjazdy
         Sync(p);
         if (Geometry(p, b) is TurnoutGeo nb) shift = XY.Dist(oldSr, nb.SR) / nb.K;
         return null;
+    }
+
+    /// <summary>
+    /// Rozjazdy, z którymi rozjazd <paramref name="aId"/> może utworzyć łącznik (pojedyncze, ten sam typ, inny tor, skos trafia w ich tor,
+    /// przesunięcie do 50 m): rozjazd i przesunięcie [m]. Sprawdzane na kopii projektu.
+    /// </summary>
+    public static List<(UtTurnout B, double Shift)> CrossoverCandidates(UtProject p, string aId)
+    {
+        var res = new List<(UtTurnout, double)>();
+        var a = p.Turnouts.FirstOrDefault(x => x.Id == aId); if (a == null || !a.Single) return res;
+        string json = UtDocument.Serialize(p);
+        foreach (var b in p.Turnouts.Where(x => x.Id != aId && x.Single && x.Type == a.Type && x.Track != a.Track))
+        {
+            var tmp = UtDocument.Deserialize(json);
+            if (MakeCrossover(tmp, aId, b.Id, out var sh, true) == null && sh <= 50) res.Add((b, sh));
+        }
+        return res.OrderBy(x => x.Item2).ToList();
     }
 
     /// <summary>Kolejny wolny numer (liczba większa od wszystkich numerów liczbowych).</summary>
@@ -329,8 +449,8 @@ public static class Rozjazdy
     {
         var t = new UtTurnout { Number = number, Type = type, Track = track, S = s, Dir = dir, Side = side };
         var g = Geometry(p, t);
-        var br = new UtTrack { Vertices = new() { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.Typ.R } } };
-        if (offset <= 0) { t.BranchLen = g.Typ.B; br.Vertices.Add(new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y }); }
+        var br = new UtTrack { Vertices = new() { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.RDiv } } };
+        if (offset <= 0) { t.BranchLen = g.B; br.Vertices.Add(new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y }); }
         else
         {
             offset = Math.Max(offset, MinOffset(g.Typ, rz));
@@ -364,7 +484,7 @@ public static class Rozjazdy
     public static (XY P, double Len)? OnSkew(UtProject p, UtTurnout t, XY w)
     {
         var g = Geometry(p, t); if (g == null) return null;
-        var d = w - g.SR; double len = Math.Max(g.Typ.B, (d.X * Math.Cos(g.AzDiv) + d.Y * Math.Sin(g.AzDiv)) / g.K);
+        var d = w - g.SR; double len = Math.Max(g.B, (d.X * Math.Cos(g.AzDiv) + d.Y * Math.Sin(g.AzDiv)) / g.K);
         return (g.SR + Element.Dir(g.AzDiv) * (len * g.K), len);
     }
 
@@ -384,7 +504,7 @@ public static class Rozjazdy
         var link = new UtTrack();
         var t2 = new UtTurnout { Number = n2, Type = type, Track = trackB, Side = side, Branch = link.Id, BranchAtEnd = true, Partner = t1.Id };
         t1.Branch = link.Id; t1.Partner = t2.Id;
-        link.Vertices = new() { new UtVertex { X = g1.PR.X, Y = g1.PR.Y }, new UtVertex { X = g1.SR.X, Y = g1.SR.Y, R = g1.Typ.R }, new UtVertex(), new UtVertex() };
+        link.Vertices = new() { new UtVertex { X = g1.PR.X, Y = g1.PR.Y }, new UtVertex { X = g1.SR.X, Y = g1.SR.Y, R = g1.RDiv }, new UtVertex(), new UtVertex() };
         return (t1, t2, link, null);
     }
 

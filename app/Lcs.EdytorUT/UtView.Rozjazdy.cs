@@ -216,10 +216,17 @@ public partial class UtView
         var dir = ScreenDir(g.Az);
         if (sel) dc.DrawEllipse(RzSel, null, pr + dir * (4 * k), Math.Max(9, 6 * k), Math.Max(9, 6 * k));
         // odgałęzienie z geometrii typu: PR – ŚR (łuk R) – KR na zwrot
-        var br = Trasa.Compute(new[] { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.Typ.R }, new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y } }, g.K);
+        var br = Trasa.Compute(new[] { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.RDiv }, new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y } }, g.K);
         var pts = br.Sample(0.5).Select(q => ToScreen(q.P)).ToList();
         double endAlong = (ToScreen(g.KRMain) - pr) * dir;
-        var n = DrawWedge(dc, pr, dir, pts, endAlong, t.Zas != "-", t.Manual, k);
+        // rozjazd łukowy: klin od osi toru zasadniczego (łuk), nie od stycznej w PR
+        List<Point> main = null;
+        if (g.RMain > 0 && Track(t.Track) is UtTrack mt)
+        {
+            var rm = Trasa.Compute(mt); double len = g.Typ.A + g.Typ.B; main = new();
+            for (double u = 0; u <= len + 1e-9; u += 0.5) main.Add(ToScreen(rm.At(Math.Clamp(t.S + t.Dir * u, 0, rm.Length)).P));
+        }
+        var n = DrawWedge(dc, pr, dir, pts, endAlong, t.Zas != "-", t.Manual, k, main);
         DrawSwitchStart(dc, pr, dir, n, k, t.Number, dpi);
         if (err) { var es = ToScreen(g.SR); dc.DrawEllipse(null, ErrPen, es, 10, 10); ErrLabel(dc, $"{t.Number}: " + string.Join("; ", Rozjazdy.Check(Doc.P, t)), es, dpi); }
     }
@@ -242,16 +249,26 @@ public partial class UtView
     /// (punkty ekranu od PR) do <paramref name="endAlong"/> px wzdłuż toru. <paramref name="closedBranch"/> – zamknięte odgałęzienie
     /// (klin przy odgałęzieniu, odstęp przy torze), inaczej zamknięty tor na wprost. Zwraca normalną w stronę odgałęzienia.
     /// </summary>
-    Vector DrawWedge(DrawingContext dc, Point pr, Vector d, IList<Point> branch, double endAlong, bool closedBranch, bool manual, double k)
+    Vector DrawWedge(DrawingContext dc, Point pr, Vector d, IList<Point> branch, double endAlong, bool closedBranch, bool manual, double k, IList<Point> main = null)
     {
         var nn = new Vector(-d.Y, d.X);
         var last = branch.Count > 0 ? branch[^1] : pr;
-        var n = (last - pr) * nn >= 0 ? nn : -nn;
+        // tor zasadniczy w łuku: odsunięcie osi toru od stycznej w PR (wzdłuż → w poprzek), odgałęzienie liczone względem niego
+        var ml = main?.Select(q => ((q - pr) * d, (q - pr) * nn)).ToList();
+        double M(double a)
+        {
+            if (ml == null || ml.Count < 2) return 0;
+            for (int i = 1; i < ml.Count; i++)
+                if (ml[i].Item1 >= a || i == ml.Count - 1) { var (a0, l0) = ml[i - 1]; var (a1, l1) = ml[i]; return l0 + (l1 - l0) * ((a - a0) / Math.Max(1e-9, a1 - a0)); }
+            return 0;
+        }
+        var n = (last - pr) * nn - M((last - pr) * d) >= 0 ? nn : -nn;
+        double sgn = n == nn ? 1 : -1;
         // punkty odgałęzienia w układzie (wzdłuż, w poprzek) do końca rozjazdu
         var pl = new List<(double A, double L)>();
         foreach (var q in branch)
         {
-            double a = (q - pr) * d, l = (q - pr) * n;
+            double a = (q - pr) * d, l = (q - pr) * n - sgn * M(a);
             if (a > endAlong)
             {
                 if (pl.Count > 0) { var (a0, l0) = pl[^1]; double u = (endAlong - a0) / Math.Max(1e-9, a - a0); pl.Add((endAlong, l0 + (l - l0) * u)); }
@@ -274,7 +291,7 @@ public partial class UtView
             int ie = pl.FindIndex(x => x.A >= endAlong);
             if (ie > 0) { var (ea, el) = pl[ie - 1]; var (fa, fl) = pl[ie]; pl = pl.Take(ie).ToList(); pl.Add((endAlong, el + (fl - el) * ((endAlong - ea) / Math.Max(1e-9, fa - ea)))); }
         }
-        Point P(double a, double l) => pr + d * a + n * l;
+        Point P(double a, double l) => pr + d * a + n * (l + sgn * M(a));
         var poly = new List<Point>();
         if (closedBranch)
         {

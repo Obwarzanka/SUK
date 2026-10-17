@@ -109,8 +109,20 @@ Znaki wg Ig-10 zał. 8: semafor świetlny (s. 27), tarcza ostrzegawcza (s. 27–
 4. **Rysowanie:** znak w mm arkusza Ig-10 (1:2000 / 1:500 – skaluje się razem z torami, jak wydruk), maszt po stronie urządzenia, komory w stronę jazdy, której dotyczy (Ig-10 „A ⊢○⊘”), nazwa przy stopie.
 5. **Część 2 (następna):** odcinki kontroli niezajętości (nazwy, granice z liczników osi / złączy, „Sprawdź”), wskaźniki W4 / W5, perony, przejazdy, kilometraż.
 
+## 5e. Rozjazdy łukowe i wstawki międzyrozjazdowe (2026-10-17)
+
+Właściciel: „te łączniki to wstawki międzyrozjazdowe, znajdź coś na ich temat” i „rozjazdy łukowe, które trzeba na bieżąco dostosowywać w edytorze”.
+
+Źródła: rozporządzenie w sprawie warunków technicznych dla budowli kolejowych (Dz.U. 2014 poz. 867) § 24 ust. 2, § 33, § 35; Kampczyk, Skoczylas, „Geometryczne układy połączeń torów kolejowych z zastosowaniem rozjazdów zwyczajnych”, Przegląd Komunikacyjny 4/2017; `Zrodla/rozjazdy_1.pdf` (Rłj, Rłd, v = 3,6·√(0,65·R)).
+
+1. **Wstawka międzyrozjazdowa** – odcinek między stykami dwóch rozjazdów, do 30 m (dłuższy to tor z numerem). W łączniku z krzyżownicami łukowymi końcami do siebie: l ≥ v/10, nie mniej niż 6 m (§ 24 ust. 2 pkt 4); ψ = V·(a₁ + a₂) / (3,6·(b + w)), b = 20 m, a = V² / (12,96·R) – nie więcej niż 1 m/s³ (§ 24 ust. 2 pkt 5, § 35 ust. 7). `Rozjazdy.Wstawki` liczy wstawkę łącznika (KR – KR) i odstępy do sąsiednich rozjazdów na torze zasadniczym; „Sprawdź” – wstawka za krótka, rozjazdy nachodzą na siebie, ψ > 1. Panel rozjazdu pokazuje wstawki.
+2. **Rozjazd łukowy** = rozjazd zwyczajny z katalogu położony na łuku toru (wygięty). Program nie ma osobnych typów Rłj / Rłd: rodzaj i promienie wynikają z toru i liczą się przy każdej zmianie (`Rozjazdy.Geometry`, `Sync`). Krzywizna toru zwrotnego = krzywizna toru zasadniczego ± 1/R typu (1/Rz = 1/Rg + 1/R – odgałęzienie do środka łuku, Rłj; 1/R − 1/Rg – na zewnątrz, Rłd); kąt między torami na końcu rozjazdu zostaje 1:N. Na torze prostym geometria bez zmian. Uwagi: rozjazd na krzywej przejściowej albo na granicy prostej i łuku, zwrotny R < 140 m (§ 24 ust. 2 pkt 2). Panel: rodzaj, R obu torów, V z promienia.
+   - Przybliżenie do sprawdzenia przez właściciela: tor zwrotny jako jeden łuk od PR (jak w rozjeździe prostym), bez osobnego wygięcia prostej za krzyżownicą; dokładne wzory łukowania – W. Rzepka, „Rozjazdy łukowe w planie i profilu” (nie mamy).
+3. **Łącznik z rozjazdem** (panel i PPM rozjazdu): z dwóch osobno postawionych rozjazdów tego samego typu, także gdy odgałęzienie dociągnięto narzędziem Tor do drugiego (przedłużenia znikają, gdy końce się stykają). **Dopasuj promienie** (panel toru z błędem „łuk nie mieści się”): R zmniejszane po 5 %, nie poniżej 140 m; łuki rozjazdu bez zmian.
+
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).
 8. Wymiary a / b rozjazdów katalogowe (np. z Id-4 albo kart katalogowych) – jeśli masz, wpiszemy do tabeli typów.
 9. Istniejące `Data/station.json` (Widzew, Fabryczna): zostaje tylko dla symulatora, a w nowym edytorze rysujesz od nowa – czy coś trzeba z niego przenieść (np. numery torów i zwrotnic)?
+10. Rozjazdy łukowe: czy wystarczy przybliżenie z § 5e (jeden łuk toru zwrotnego), czy potrzebne są dokładne wymiary z kart katalogowych Rłj / Rłd? Wstawka – czy liczyć ją między KR (styki), jak teraz?

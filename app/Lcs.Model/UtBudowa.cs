@@ -272,4 +272,28 @@ public static class Budowa
         string note = Math.Abs(T1 - T2) / k > 0.5 ? $"początek i koniec niesymetrycznie (styczne {T1 / k:0.0} i {T2 / k:0.0} m) – wzięto średnią" : null;
         return (res, r, note, null);
     }
+    /// <summary>
+    /// Dopasowanie promieni: łuki, które się nie mieszczą („brakuje m prostej”), zmniejszane po 5 % (do pełnych metrów), aż tor nie ma
+    /// takich błędów, nie poniżej <paramref name="minR"/> (najmniejszy promień – warunki techniczne § 24); inne łuki bez zmian. Zwraca nowe wierzchołki i listę zmian (wierzchołek, R przed, R po).
+    /// </summary>
+    public static (List<UtVertex> V, List<(int I, double From, double To)> Changes) FitRadii(IReadOnlyList<UtVertex> v, double k, Func<int, bool> locked = null, double minR = Rozjazdy.MinRDiv)
+    {
+        var res = v.Select(x => x.Clone()).ToList();
+        var orig = v.Select(x => x.R).ToArray();
+        for (int it = 0; it < 200; it++)
+        {
+            var r = Trasa.Compute(res, k);
+            var bad = r.Notes.Where(n => n.Error && n.Text.Contains("nie mieści")).Select(n => n.Vertex).Distinct().ToList();
+            if (bad.Count == 0) break;
+            bool changed = false;
+            foreach (var bi in bad)
+                // błąd przypisany wierzchołkowi i dotyczy prostej przed nim – zmniejsza się łuk w nim i w poprzednim
+                foreach (var j in new[] { bi, bi - 1 })
+                    if (j > 0 && j < res.Count - 1 && res[j].R > minR && locked?.Invoke(j) != true) { res[j].R = Math.Max(minR, Math.Floor(res[j].R * 0.95)); changed = true; }
+            if (!changed) break;
+        }
+        var ch = new List<(int, double, double)>();
+        for (int i = 0; i < res.Count; i++) if (Math.Abs(res[i].R - orig[i]) > 1e-9) ch.Add((i, orig[i], res[i].R));
+        return (res, ch);
+    }
 }

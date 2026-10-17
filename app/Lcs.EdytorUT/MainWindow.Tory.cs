@@ -251,9 +251,22 @@ public partial class MainWindow
         var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
         act.Children.Add(SmallBtn("Odwróć kierunek", () => ChTrack(id, "Odwrócenie kierunku toru", x => x.Vertices.Reverse()), "Początek toru na drugim końcu (kilometraż toru od drugiej strony)"));
         act.Children.Add(SmallBtn("Pokaż", () => FitTrack(t), "Cały tor w oknie"));
+        if (Trasa.Compute(t).Notes.Any(n => n.Error && n.Text.Contains("nie mieści")))
+            act.Children.Add(SmallBtn("Dopasuj promienie", () => FitRadii(id), "Zmniejsz R tylko w łukach, które się nie mieszczą (po 5 %, do pełnych metrów, nie poniżej 140 m); łuki ustawiane przez rozjazd bez zmian"));
         act.Children.Add(SmallBtn("Usuń tor", () => { View.Select(id); DeleteSelection(); }, "Usuń tor (Del)"));
         TrackPanel.Children.Add(act);
         TrackPanel.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
+    }
+
+    /// <summary>Dopasowanie promieni łuków, które się nie mieszczą (<see cref="Budowa.FitRadii"/>).</summary>
+    public void FitRadii(string id)
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        var (v, ch) = Budowa.FitRadii(t.Vertices, Trasa.Compute(t).K, i => View.Locked(id, i));
+        if (ch.Count == 0) { Message("Nie ma czego zmniejszyć – łuki, które się nie mieszczą, ustawia rozjazd albo brakuje miejsca na same wierzchołki"); return; }
+        ChTrack(id, "Dopasowanie promieni", x => x.Vertices = v);
+        bool ok = Trasa.Compute(Doc.P.Tracks.First(x => x.Id == id)).Notes.All(n => !(n.Error && n.Text.Contains("nie mieści")));
+        Message("Promienie: " + string.Join(", ", ch.Select(c => $"W{c.I + 1} R {F(c.From, "0")} → {F(c.To, "0")} m")) + (ok ? "" : $" – nadal się nie mieści (najmniejszy R {F(Rozjazdy.MinRDiv, "0")} m): odsuń albo usuń wierzchołki, przy dwóch rozjazdach – „Łącznik z rozjazdem”"));
     }
 
     /// <summary>Tor równoległy w odległości d [m]: + po prawej, − po lewej.</summary>

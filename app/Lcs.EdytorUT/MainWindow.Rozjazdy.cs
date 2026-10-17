@@ -35,15 +35,7 @@ public partial class MainWindow
         RzTypeBox.SelectionChanged += (s, e) => { if (RzTypeBox.SelectedItem is string n) { View.RzType = n; if (View.Tool == UtTool.Rozjazd) ToolShown(); } };
         View.TurnoutPlace += OnTurnoutPlace;
         View.TurnoutMenu += id => { var cm = BuildTurnoutMenu(id); cm.PlacementTarget = View; cm.IsOpen = true; };
-        View.CrossoverJoin += (aId, bId) =>
-        {
-            string err = null; double shift = 0;
-            var a = Doc.P.Turnouts.First(x => x.Id == aId); var b = Doc.P.Turnouts.First(x => x.Id == bId);
-            Doc.Change("Łącznik z dwóch rozjazdów", p => err = Rozjazdy.MakeCrossover(p, aId, bId, out shift));
-            if (err != null) { Message($"Łącznik {a.Number}/{b.Number}: {err}"); return; }
-            View.SelectTurnout(aId);
-            Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + Notes(b));
-        };
+        View.CrossoverJoin += (aId, bId) => View_CrossoverJoin(aId, bId);
         View.CrossingPlace += OnCrossingPlace;
         View.CrossingNew += (track, s, dir, side) =>
         {
@@ -70,6 +62,16 @@ public partial class MainWindow
     }
 
     /// <summary>Menu PPM rozjazdu: strona, odwrócenie, położenie zasadnicze, zwrotnica ręczna, odgałęzienie, usunięcie.</summary>
+    void View_CrossoverJoin(string aId, string bId)
+    {
+        string err = null; double shift = 0;
+        var a = Doc.P.Turnouts.First(x => x.Id == aId); var b = Doc.P.Turnouts.First(x => x.Id == bId);
+        Doc.Change("Łącznik z dwóch rozjazdów", p => err = Rozjazdy.MakeCrossover(p, aId, bId, out shift, true));
+        if (err != null) { Message($"Łącznik {a.Number}/{b.Number}: {err}"); return; }
+        View.SelectTurnout(aId);
+        Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + Notes(b));
+    }
+
     public ContextMenu BuildTurnoutMenu(string id)
     {
         var cm = new ContextMenu();
@@ -80,6 +82,9 @@ public partial class MainWindow
         Item("Odwróć", () => ChTurnout(id, "Kierunek rozjazdu", x => { var ty = Katalog.Find(x.Type); x.S += x.Dir * (ty.A + ty.B); x.Dir = -x.Dir; }), t.Partner == null);
         Item(t.Zas == "-" ? "Położenie zasadnicze: na wprost (+)" : "Położenie zasadnicze: na zwrot (−)", () => ChTurnout(id, "Położenie zasadnicze", x => x.Zas = x.Zas == "-" ? "+" : "-"));
         Item(t.Manual ? "Zwrotnica uzależniona" : "Zwrotnica ręczna (nieuzależniona)", () => ChTurnout(id, "Zwrotnica ręczna", x => x.Manual = !x.Manual));
+        if (t.Partner == null)
+            foreach (var (b, sh) in Rozjazdy.CrossoverCandidates(Doc.P, id))
+                Item($"Łącznik z rozjazdem {b.Number} (przesunie się o {F(sh)} m)", () => View_CrossoverJoin(id, b.Id));
         cm.Items.Add(new Separator());
         Item("Zaznacz odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); });
         Item(t.Partner != null ? "Usuń łącznik" : "Usuń rozjazd", () => { View.SelectTurnout(id); DeleteTurnoutOrCrossing(); });
@@ -262,6 +267,29 @@ public partial class MainWindow
                 Text = $"R = {F(typ.R)} m, skos 1:{F(typ.N)} ({F(typ.Alpha * 180 / Math.PI, "0.###")}°)\na = {F(typ.A, "0.###")} m, b = {F(typ.B, "0.###")} m{(typ.Approx ? " (przybliżone – wpisz katalogowe w Dane/rozjazdy.json)" : "")}\nV na zwrot {typ.Vbok} km/h",
                 TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 6),
             });
+        if (Rozjazdy.Geometry(Doc.P, t) is TurnoutGeo g && g.Kind != "Rz")
+            P.Children.Add(new TextBlock
+            {
+                Text = $"Rozjazd łukowy {(g.Kind == "Rłj" ? "jednostronny (Rłj)" : "dwustronny (Rłd)")} – wygięty {typ?.Name}, dopasowuje się do łuku toru:\n" +
+                       $"tor zasadniczy R {F(g.RMain, "0")} m, tor zwrotny {(g.RDiv > 0 ? $"R {F(g.RDiv, "0")} m" : "prosty")}" +
+                       (g.VDiv > 0 ? $"\nV na zwrot z promienia ≈ {g.VDiv} km/h (3,6·√(0,65·R))" : ""),
+                TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.DarkSlateBlue, Margin = new Thickness(0, 0, 0, 6),
+            });
+        foreach (var w in Rozjazdy.Wstawki(Doc.P, t))
+            P.Children.Add(new TextBlock
+            {
+                Text = w.Crossover
+                    ? $"Wstawka międzyrozjazdowa {t.Number}/{w.Other}: {F(w.Len, "0.##")} m (KR – KR), najmniejsza {F(w.Min, "0.#")} m; ψ = {F(w.Psi, "0.##")} m/s³ (dop. 1)" + (w.Tor ? "; ponad 30 m – osobny tor z numerem" : "")
+                    : $"Wstawka do rozjazdu {w.Other}: {F(w.Len, "0.##")} m",
+                TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(0, 0, 0, 4),
+                Foreground = w.Crossover && (w.Len < w.Min - 0.01 || w.Psi > 1) ? Brushes.Firebrick : Brushes.DimGray,
+                ToolTip = "Wstawka międzyrozjazdowa – odcinek między stykami rozjazdów, do 30 m (dłuższy to tor z numerem). W łączniku z krzyżownicami łukowymi " +
+                          "końcami do siebie: l ≥ v/10, nie mniej niż 6 m (warunki techniczne § 24 ust. 2 pkt 4); ψ = V·(a₁+a₂)/(3,6·(20 + w)) ≤ 1 m/s³.",
+            });
+        if (partner == null && t.Single)
+            foreach (var (b, sh) in Rozjazdy.CrossoverCandidates(Doc.P, t.Id))
+                P.Children.Add(SmallBtn($"Łącznik z rozjazdem {b.Number} (przesunie się o {F(sh)} m)", () => View_CrossoverJoin(t.Id, b.Id),
+                    $"Rozjazdy {t.Number} i {b.Number} jako łącznik ze wspólną wstawką; rozjazd {b.Number} przesunie się tak, żeby skosy się zeszły. Przedłużenia odgałęzień łączące oba rozjazdy znikną."));
         foreach (var n in Rozjazdy.Check(Doc.P, t).Concat(partner != null ? Rozjazdy.Check(Doc.P, partner).Select(x => $"rozjazd {partner.Number}: {x}") : Enumerable.Empty<string>()))
             P.Children.Add(new TextBlock { Text = n, Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 6) };
