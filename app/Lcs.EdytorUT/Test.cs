@@ -60,6 +60,7 @@ public static partial class Test
                 log.AppendLine("== widok schematu (poprawka po etapie 4)"); await RunSchemat(w);
                 if (shot != null) { await Settle(w); Save(w, shot); }
                 log.AppendLine("== rozjazdy łukowe i wstawki międzyrozjazdowe"); await RunLukowe(w);
+                log.AppendLine("== łącznik na łuku (łuk wyrównujący)"); await RunLacznik(w);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

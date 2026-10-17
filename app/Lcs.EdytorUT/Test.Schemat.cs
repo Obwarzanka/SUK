@@ -175,7 +175,9 @@ public static partial class Test
         tp.Tracks.Add(ta); tp.Tracks.Add(tb);
         var (nc1, nc2, nlk, nerr) = Rozjazdy.NewCrossover(tp, ta.Id, 100, 1, -1, tb.Id, "Rz 60E1-190-1:9", "21", "22");
         if (nerr == null) { tp.Tracks.Add(nlk); tp.Turnouts.Add(nc1); tp.Turnouts.Add(nc2); Rozjazdy.Sync(tp); }
-        Ok(nerr == null && Trasa.Compute(nlk).Ok && Rozjazdy.Check(tp, nc2).Any(x => x.Contains("nie są równoległe")), $"łącznik na torach rozchodzących się o 1,5°: powstaje, z uwagą o odchyłce skosu ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
+        var eq15 = nerr == null ? Rozjazdy.Equalizer(Rozjazdy.Geometry(tp, nc1), Rozjazdy.Geometry(tp, nc2)) : null;
+        Ok(nerr == null && Trasa.Compute(nlk).Ok && nlk.Vertices.Count == 5 && eq15 is var (_, dv15, rx15) && Math.Abs(dv15 * 180 / Math.PI - 1.5) < 0.01 && rx15 >= Rozjazdy.MinRDiv && Rozjazdy.Check(tp, nc2).Count == 0,
+            $"łącznik na torach rozchodzących się o 1,5°: powstaje z łukiem wyrównującym R {eq15?.R:0} m we wstawce, bez uwag ({nerr ?? string.Join("; ", Rozjazdy.Check(tp, nc2))})");
 
         // --- rozjazd krzyżowy przeciągnięciem na jednym torze (tor przecinający powstaje pod kątem typu)
         w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rkpd 60E1-190-1:9";

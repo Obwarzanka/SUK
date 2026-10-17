@@ -148,7 +148,7 @@ public record TurnoutGeo(XY PR, XY SR, XY KRMain, XY KRDiv, double Az, double Az
 /// na siebie), <see cref="Min"/> – najmniejsza dopuszczalna [m] (0 – przepisy nie wymagają), <see cref="Psi"/> – przyrost przyspieszenia
 /// niezrównoważonego [m/s³] (0 – nie liczony), <see cref="Other"/> – numer drugiego rozjazdu, <see cref="Crossover"/> – wstawka łącznika.
 /// </summary>
-public record Wstawka(string Other, double Len, double Min, double Psi, bool Crossover)
+public record Wstawka(string Other, double Len, double Min, double Psi, bool Crossover, double REq = 0, double DevDeg = 0)
 {
     /// <summary>Dłuższa niż 30 m – osobny tor z numerem, nie wstawka (Kampczyk, Skoczylas, Przegląd Komunikacyjny 4/2017).</summary>
     public bool Tor => Len > 30;
@@ -209,13 +209,22 @@ public static class Rozjazdy
             if (e.Len > 1e-9 && b > Math.Min(s1, s2) + 0.01 && a < Math.Max(s1, s2) - 0.01) on.Add(e.Kind);
         }
         if (on.Contains(ElKind.Przejsciowa)) res.Add("rozjazd leży na krzywej przejściowej – rozjazd łukowy układa się na stałym promieniu, przesuń go");
-        else if (on.Distinct().Count() > 1) res.Add("rozjazd leży na granicy prostej i łuku – przesuń go w całości na prostą albo na łuk");
+        else if (on.Distinct().Count() > 1)
+        {
+            // granice elementów pod rozjazdem: przesunięcie w stronę malejącego km (koniec przed pierwszą granicą) i rosnącego
+            double lo = Math.Min(s1, s2), hi = Math.Max(s1, s2), acc2 = 0, bMin = double.MaxValue, bMax = double.MinValue;
+            foreach (var e in r.Elements) { acc2 += e.Len; double b = acc2 / r.K; if (b > lo + 0.01 && b < hi - 0.01) { bMin = Math.Min(bMin, b); bMax = Math.Max(bMax, b); } }
+            res.Add(bMin < double.MaxValue
+                ? $"rozjazd leży na granicy prostej i łuku – przesuń go o {hi - bMin:0.##} m w stronę malejącego km albo o {bMax - lo:0.##} m w stronę rosnącego (w całości na prostą albo na łuk)"
+                : "rozjazd leży na granicy prostej i łuku – przesuń go w całości na prostą albo na łuk");
+        }
         if (Geometry(main, t) is TurnoutGeo gl && gl.Kind != "Rz" && gl.RDiv > 0 && gl.RDiv < MinRDiv)
             res.Add($"promień toru zwrotnego rozjazdu łukowego {gl.RDiv:0} m mniejszy od najmniejszego {MinRDiv:0} m (warunki techniczne § 24)");
-        if (t.BranchAtEnd && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout pm && Geometry(p, pm) is TurnoutGeo gpm && Geometry(main, t) is TurnoutGeo gt)
+        if (t.BranchAtEnd && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout pm && Geometry(p, pm) is TurnoutGeo gpm && Geometry(main, t) is TurnoutGeo gt
+            && Equalizer(gpm, gt) is var (_, dev, rx))
         {
-            double dev = Math.Abs(Math.Abs(Math.IEEERemainder(gpm.AzDiv - gt.Az, Math.PI)) - typ.Alpha) * 180 / Math.PI;
-            if (dev > 0.5) res.Add($"tory łącznika nie są równoległe – skos odchyla się o {dev:0.##}° od 1:{typ.N:0.#}");
+            if (dev > MaxSkewDev) res.Add($"skosy łącznika rozchodzą się o {dev * 180 / Math.PI:0.##}° (więcej niż {MaxSkewDev * 180 / Math.PI:0}°) – tory za mało równoległe na łącznik");
+            else if (rx < MinRDiv) res.Add($"brak miejsca na łuk wyrównujący we wstawce (skosy rozchodzą się o {dev * 180 / Math.PI:0.##}°, mieści się R {rx:0} m < {MinRDiv:0} m) – rozsuń tory albo przesuń łącznik na prostszy odcinek");
         }
         if (t.Partner != null && !t.BranchAtEnd)
             foreach (var w in Wstawki(p, t).Where(w => w.Crossover))
@@ -256,11 +265,12 @@ public static class Rozjazdy
         var typ = Katalog.Find(t.Type); var g = Geometry(p, t); if (typ == null || g == null) return res;
         if (t.Partner != null && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout o && Geometry(p, o) is TurnoutGeo go)
         {
-            double w = XY.Dist(g.SR, go.SR) / g.K - g.B - go.B;
+            var eq = t.BranchAtEnd ? Equalizer(go, g) : Equalizer(g, go);
+            double w = (eq is var (ex, _, _) ? XY.Dist(g.SR, ex) + XY.Dist(ex, go.SR) : XY.Dist(g.SR, go.SR)) / g.K - g.B - go.B;
             double v = Math.Min(typ.Vbok > 0 ? typ.Vbok : 40, Math.Min(g.VDiv > 0 ? g.VDiv : 999, go.VDiv > 0 ? go.VDiv : 999));
             double a1 = g.RDiv > 0 ? v * v / (12.96 * g.RDiv) : 0, a2 = go.RDiv > 0 ? v * v / (12.96 * go.RDiv) : 0;
             double psi = v * (a1 + a2) / (3.6 * (20 + Math.Max(0, w)));
-            res.Add(new Wstawka(o.Number, w, Math.Max(6, v / 10), psi, true));
+            res.Add(new Wstawka(o.Number, w, Math.Max(6, v / 10), psi, true, eq?.R ?? 0, (eq?.Dev ?? 0) * 180 / Math.PI));
         }
         // na torze zasadniczym: najbliższy rozjazd przed PR i za KR
         double s1 = Math.Min(t.S, t.S + t.Dir * (typ.A + typ.B)), s2 = Math.Max(t.S, t.S + t.Dir * (typ.A + typ.B));
@@ -302,6 +312,16 @@ public static class Rozjazdy
                 v[2].X = q.X; v[2].Y = q.Y;
             }
         }
+        // tor łączący łącznika: PR1 – ŚR1 – (X z łukiem wyrównującym) – ŚR2 – PR2
+        foreach (var t in p.Turnouts.Where(t => t.Partner != null && !t.BranchAtEnd))
+        {
+            var o = p.Turnouts.FirstOrDefault(x => x.Id == t.Partner); var link = Tr(p, t.Branch);
+            if (o == null || link == null || o.Branch != t.Branch || Geometry(p, t) is not TurnoutGeo g1 || Geometry(p, o) is not TurnoutGeo g2) continue;
+            var nv = new List<UtVertex> { V(g1.PR, 0), V(g1.SR, g1.RDiv) };
+            if (Equalizer(g1, g2) is var (x, _, rx)) nv.Add(V(x, rx));
+            nv.Add(V(g2.SR, g2.RDiv)); nv.Add(V(g2.PR, 0));
+            link.Vertices = nv;
+        }
         p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
         p.Devices ??= new();
         p.Devices.RemoveAll(d => Tr(p, d.Track) == null);           // urządzenia usuniętego toru
@@ -313,8 +333,14 @@ public static class Rozjazdy
     }
 
     static void Set(UtVertex v, XY p, double r) { v.X = p.X; v.Y = p.Y; v.R = r; v.L = 0; }
+    static UtVertex V(XY p, double r) => new() { X = p.X, Y = p.Y, R = r };
 
-    /// <summary>Drugi rozjazd łącznika: ŚR na przecięciu promienia odgałęzienia pierwszego rozjazdu z osią jego toru.</summary>
+    /// <summary>
+    /// Drugi rozjazd łącznika. Tory proste i równoległe: ŚR2 na prostej skosu rozjazdu 1. Tory w łuku (albo nie całkiem równoległe)
+    /// obracają się na długości łącznika, więc skosy obu rozjazdów rozchodzą się o kąt δ – wtedy we wstawce jest łuk wyrównujący
+    /// w przecięciu skosów (Kampczyk, Skoczylas 2017: „łuk kołowy wyrównujący w torach nierównoległych”), a rozjazd 2 stoi tak,
+    /// żeby łuk był w środku wstawki (cięciwa ŚR1 – ŚR2 w kierunku średnim obu skosów).
+    /// </summary>
     static void Relink(UtProject p, UtTurnout t)
     {
         var m = p.Turnouts.FirstOrDefault(o => o.Id == t.Partner); if (m == null) return;
@@ -326,7 +352,38 @@ public static class Rozjazdy
         // kierunek rozjazdu 2 (od PR2 do KR2) przeciwny do kierunku rozjazdu 1 względem toru – po stronie zgodnej z odgałęzieniem
         double azT = azBack - t.Side * typ.Alpha;
         t.Dir = Math.Cos(azT - azB) >= 0 ? 1 : -1;
-        t.S = sSr - t.Dir * typ.A;
+        double s0 = sSr - t.Dir * typ.A;
+        // f(S) – kąt między cięciwą ŚR1 → ŚR2 a średnim kierunkiem skosów; 0 – łuk wyrównujący w środku (tory równoległe: ŚR2 na skosie 1)
+        double F(double s)
+        {
+            t.S = s; var g = Geometry(tr, t); if (g == null) return double.NaN;
+            double back = Math.IEEERemainder(g.AzDiv + Math.PI - gm.AzDiv, 2 * Math.PI);
+            return Math.IEEERemainder(Trasa.Az(gm.SR, g.SR) - (gm.AzDiv + back / 2), 2 * Math.PI);
+        }
+        double a = s0, fa = F(a), b = s0 + 0.5, fb = F(b);
+        for (int i = 0; i < 30 && double.IsFinite(fa) && double.IsFinite(fb) && Math.Abs(fb) > 1e-10 && Math.Abs(fb - fa) > 1e-15; i++)
+        {
+            double c = b - fb * (b - a) / (fb - fa);
+            if (!double.IsFinite(c) || Math.Abs(c - s0) > 60) break;
+            a = b; fa = fb; b = c; fb = F(b);
+        }
+        t.S = double.IsFinite(fb) && Math.Abs(fb) < 1e-6 ? b : s0;
+    }
+
+    /// <summary>Łuk wyrównujący łącznika: wierzchołek X (przecięcie skosów), kąt δ [rad], promień [m] (największy, przy którym KR obu
+    /// rozjazdów zostają na prostej, co 10 m, najwyżej 50 000); null – skosy na jednej prostej (δ ≈ 0).</summary>
+    public static (XY X, double Dev, double R)? Equalizer(TurnoutGeo g1, TurnoutGeo g2)
+    {
+        double back = Math.IEEERemainder(g2.AzDiv + Math.PI - g1.AzDiv, 2 * Math.PI);
+        if (Math.Abs(back) < 1e-6) return null;
+        var d1 = Element.Dir(g1.AzDiv); var d2 = Element.Dir(g2.AzDiv);
+        double den = d1.X * d2.Y - d1.Y * d2.X; if (Math.Abs(den) < 1e-12) return null;
+        var w = g2.SR - g1.SR; double u = (w.X * d2.Y - w.Y * d2.X) / den;
+        if (u <= 0) return null;
+        var x = g1.SR + d1 * u;
+        double room = Math.Min(u / g1.K - g1.B, XY.Dist(x, g2.SR) / g2.K - g2.B), tan = Math.Tan(Math.Abs(back) / 2);
+        double rr = room <= 0 ? 0 : Math.Min(50000, Math.Floor(room / tan / 10) * 10);
+        return (x, Math.Abs(back), rr);
     }
 
     /// <summary>Przecięcie półprostej z osią toru: kilometraż [m w terenie] i odległość od początku półprostej [m w układzie].</summary>

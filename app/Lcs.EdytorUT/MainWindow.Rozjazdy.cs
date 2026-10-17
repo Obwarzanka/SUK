@@ -279,7 +279,7 @@ public partial class MainWindow
             P.Children.Add(new TextBlock
             {
                 Text = w.Crossover
-                    ? $"Wstawka międzyrozjazdowa {t.Number}/{w.Other}: {F(w.Len, "0.##")} m (KR – KR), najmniejsza {F(w.Min, "0.#")} m; ψ = {F(w.Psi, "0.##")} m/s³ (dop. 1)" + (w.Tor ? "; ponad 30 m – osobny tor z numerem" : "")
+                    ? $"Wstawka międzyrozjazdowa {t.Number}/{w.Other}: {F(w.Len, "0.##")} m (KR – KR), najmniejsza {F(w.Min, "0.#")} m; ψ = {F(w.Psi, "0.##")} m/s³ (dop. 1)" + (w.REq > 0 ? $"; łuk wyrównujący R {F(w.REq, "0")} m (skosy rozchodzą się o {F(w.DevDeg, "0.##")}° – tory w łuku)" : "") + (w.Tor ? "; ponad 30 m – osobny tor z numerem" : "")
                     : $"Wstawka do rozjazdu {w.Other}: {F(w.Len, "0.##")} m",
                 TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(0, 0, 0, 4),
                 Foreground = w.Crossover && (w.Len < w.Min - 0.01 || w.Psi > 1) ? Brushes.Firebrick : Brushes.DimGray,
