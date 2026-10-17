@@ -287,6 +287,58 @@ public static class Rozjazdy
         return res;
     }
 
+    /// <summary>Wariant poprawy łuku pod rozjazdem: opis, wierzchołek łuku, R przed i po, nowe wierzchołki toru zasadniczego.</summary>
+    public record ArcFix(string Label, int Vertex, double R0, double R1, List<UtVertex> V);
+
+    /// <summary>
+    /// „Popraw łuk”: gdy rozjazd leży na granicy prostej i łuku (albo na krzywej przejściowej), granica łuku przesuwa się tuż za rozjazd
+    /// (łuk zaczyna się za końcem rozjazdu / kończy przed jego początkiem) albo tak, żeby rozjazd leżał w całości na łuku. Wierzchołek
+    /// i kierunki prostych zostają, zmienia się R (styczna T – <see cref="Budowa.RadiusFor"/>). Tylko warianty, po których uwaga
+    /// o granicy znika, a tor jest bez błędów. Tor z elementów – bez wariantów (granice przeciąga się na wykresie krzywizny).
+    /// </summary>
+    public static List<ArcFix> ArcFixes(UtProject p, UtTurnout t, double margin = 1)
+    {
+        var res = new List<ArcFix>();
+        var main = Tr(p, t.Track); var typ = Katalog.Find(t.Type); if (main == null || typ == null || main.Align != null) return res;
+        double k = Trasa.KFor(main); var r = Trasa.Compute(main.Vertices, k);
+        double s1 = Math.Min(t.S, t.S + t.Dir * (typ.A + typ.B)), s2 = Math.Max(t.S, t.S + t.Dir * (typ.A + typ.B));
+        bool Boundary(List<string> c) => c.Any(x => x.Contains("granicy prostej i łuku") || x.Contains("krzywej przejściowej"));
+        for (int vi = 1; vi < main.Vertices.Count - 1; vi++)
+        {
+            var v = main.Vertices[vi]; if (v.R <= 0 || v.LockR) continue;
+            if (p.Turnouts.Any(z => z.Branch == main.Id && (z.Partner != null || (!z.BranchAtEnd ? vi <= 1 : vi >= main.Vertices.Count - 2)))) continue;
+            double acc = 0, cs = -1, ce = -1;
+            foreach (var e in r.Elements) { if (e.Vertex == vi && e.Kind != ElKind.Prosta) { if (cs < 0) cs = acc / r.K; ce = (acc + e.Len) / r.K; } acc += e.Len; }
+            if (cs < 0) continue;
+            double T1 = r.Tangent.TryGetValue(vi, out var a1) ? a1 / k : 0, T2 = r.Tangent2.TryGetValue(vi, out var a2) ? a2 / k : 0;
+            var cands = new List<(string, bool, double)>();      // (opis, styczna wyjściowa?, nowa styczna)
+            if (cs > s1 + 0.01 && cs < s2 - 0.01)
+            {
+                cands.Add(($"początek łuku W{vi + 1} za rozjazdem", false, T1 - (s2 + margin - cs)));
+                cands.Add(($"początek łuku W{vi + 1} przed rozjazdem (rozjazd na łuku)", false, T1 + (cs - (s1 - margin))));
+            }
+            if (ce > s1 + 0.01 && ce < s2 - 0.01)
+            {
+                cands.Add(($"koniec łuku W{vi + 1} przed rozjazdem", true, T2 - (ce - (s1 - margin))));
+                cands.Add(($"koniec łuku W{vi + 1} za rozjazdem (rozjazd na łuku)", true, T2 + (s2 + margin - ce)));
+            }
+            foreach (var (label, outT, target) in cands)
+            {
+                if (target <= 0.5) continue;
+                var nv = Budowa.RadiusFor(main.Vertices, vi, k, rr => (outT ? rr.Tangent2 : rr.Tangent).TryGetValue(vi, out var q) ? q / rr.K : double.NaN, target);
+                if (nv == null) continue;
+                // sprawdzenie na kopii: uwaga o granicy znika, tor bez błędów
+                var others = p.Turnouts.Where(z => z.Id != t.Id && z.Track == main.Id).ToList();
+                int before = others.Count(z => Boundary(Check(p, z)));
+                var old = main.Vertices; main.Vertices = nv;
+                bool ok = Trasa.Compute(nv, k).Ok && !Boundary(Check(p, t)) && others.Count(z => Boundary(Check(p, z))) <= before;
+                main.Vertices = old;
+                if (ok) res.Add(new ArcFix($"{label} (R {v.R:0} → {nv[vi].R:0} m)", vi, v.R, nv[vi].R, nv));
+            }
+        }
+        return res.OrderBy(x => Math.Abs(x.R1 - x.R0)).ToList();
+    }
+
     /// <summary>Najmniejszy promień toru zwrotnego [m] – rozporządzenie w sprawie warunków technicznych (Dz.U. 2014 poz. 867) § 24 ust. 2 pkt 2.</summary>
     public const double MinRDiv = 140;
 

@@ -85,10 +85,20 @@ public partial class MainWindow
         if (t.Partner == null)
             foreach (var (b, sh) in Rozjazdy.CrossoverCandidates(Doc.P, id))
                 Item($"Łącznik z rozjazdem {b.Number} (przesunie się o {F(sh)} m)", () => View_CrossoverJoin(id, b.Id));
+        foreach (var fx in Rozjazdy.ArcFixes(Doc.P, t)) Item("Popraw łuk: " + fx.Label, () => ApplyArcFix(id, fx));
         cm.Items.Add(new Separator());
         Item("Zaznacz odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); });
         Item(t.Partner != null ? "Usuń łącznik" : "Usuń rozjazd", () => { View.SelectTurnout(id); DeleteTurnoutOrCrossing(); });
         return cm;
+    }
+
+    /// <summary>„Popraw łuk” pod rozjazdem – nowe wierzchołki toru zasadniczego (zmienia się R jednego łuku).</summary>
+    public void ApplyArcFix(string turnoutId, Rozjazdy.ArcFix fx)
+    {
+        var z = Doc.P.Turnouts.FirstOrDefault(x => x.Id == turnoutId); if (z == null) return;
+        ChTrack(z.Track, "Popraw łuk", tr => tr.Vertices = fx.V.Select(v => v.Clone()).ToList());
+        View.SelectTurnout(turnoutId);
+        Message($"Popraw łuk przy rozjeździe {z.Number}: {fx.Label}; zmiana R o {fx.R1 - fx.R0:+0;−0} m (Ctrl+Z przywraca)");
     }
 
     /// <summary>Numery z okna (domyślnie kolejne wolne); null – rezygnacja.</summary>
@@ -293,6 +303,8 @@ public partial class MainWindow
                     $"Rozjazdy {t.Number} i {b.Number} jako łącznik ze wspólną wstawką; rozjazd {b.Number} przesunie się tak, żeby skosy się zeszły. Przedłużenia odgałęzień łączące oba rozjazdy znikną."));
         foreach (var n in Rozjazdy.Check(Doc.P, t).Concat(partner != null ? Rozjazdy.Check(Doc.P, partner).Select(x => $"rozjazd {partner.Number}: {x}") : Enumerable.Empty<string>()))
             P.Children.Add(new TextBlock { Text = n, Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
+        foreach (var fx in Rozjazdy.ArcFixes(Doc.P, t))
+            P.Children.Add(SmallBtn("Popraw łuk: " + fx.Label, () => ApplyArcFix(t.Id, fx), "Granica łuku przesuwa się poza rozjazd – zmienia się tylko R łuku (wierzchołek i proste zostają)"));
         var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 6) };
         act.Children.Add(SmallBtn("Odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); }, "Zaznacz tor odgałęzienia (przedłużysz go narzędziem Tor od końca)"));
         act.Children.Add(SmallBtn("Usuń rozjazd", () => { View.SelectTurnout(t.Id); DeleteTurnoutOrCrossing(); }, "Usuń rozjazd z odgałęzieniem (Del)"));

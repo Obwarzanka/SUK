@@ -65,6 +65,7 @@ public static partial class Test
                 log.AppendLine("== łuk o zmiennym promieniu (podział łuku)"); await RunLukKoszowy(w);
                 log.AppendLine("== wygładzanie łuku, przejściowe z prędkości"); await RunWygladzanie(w);
                 log.AppendLine("== metody budowy łuku (§ 5g)"); await RunMetodyLuku(w);
+                log.AppendLine("== „Popraw łuk” pod rozjazdem"); await RunPoprawLuk(w);
                 log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);
             }
