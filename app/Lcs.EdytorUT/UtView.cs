@@ -214,6 +214,7 @@ public partial class UtView : FrameworkElement
         else if ((boxFrom != null || ctrlClick != null) && buttonDown) DragMulti(p);
         else if (painting && buttonDown) { Paint?.Invoke(hover.Value, false); InvalidateVisual(); }
         else if (vDrag != null && buttonDown) { DragVertex(p); }
+        else if (hDrag != null && buttonDown) { DragHandle(p); }
         else if (rzFrom != null && buttonDown) { rzTo = hover.Value; InvalidateVisual(); }
         else if ((devFrom != null || objFrom != null) && buttonDown) { InvalidateVisual(); }
         else if (objDrag != null && buttonDown) { if (downAt is Point d3 && (p - d3).Length > ClickTol) dragging = true; if (dragging) DragObj(p); }
@@ -227,7 +228,7 @@ public partial class UtView : FrameworkElement
             else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
-        if (tool != UtTool.Wskaz || vDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
+        if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
     }
 
     public bool Release(Point p, MouseButton b)
@@ -252,6 +253,7 @@ public partial class UtView : FrameworkElement
         if (panFrom != null) { EndPan(); downAt = null; return true; }
         if (painting) { painting = false; downAt = null; PaintEnd?.Invoke(); InvalidateVisual(); return true; }
         if (vDrag != null) { downAt = null; EndVertexDrag(p); return true; }
+        if (hDrag != null) { downAt = null; EndHandleDrag(); return true; }
         if (rzFrom != null) { downAt = null; RzRelease(p); return true; }
         if (rzDrag != null) { downAt = null; EndTurnoutDrag(p); return true; }
         if (tDrag != null) { downAt = null; EndTrackMove(); return true; }
@@ -376,6 +378,8 @@ public partial class UtView : FrameworkElement
 
         if (!PrintMode) DrawSelection(dc);
         DrawMulti(dc);
+        if (MarkS is var (mt, ms) && Track(mt) is UtTrack mtr && !PrintMode)
+        { var g = Geometry(Dragged(mtr)); if (g.Elements.Count > 0) { var q = ToScreen(g.At(Math.Clamp(ms, 0, g.Length)).P); dc.DrawEllipse(null, new Pen(Brushes.OrangeRed, 2), q, 7, 7); } }
         DrawLevelCrossings(dc, dpi);
         DrawPlatforms(dc, dpi);
         DrawSections(dc, dpi);

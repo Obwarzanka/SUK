@@ -52,7 +52,7 @@ public partial class UtView
         if (Track(SelectedTrack) is UtTrack tr)
         {
             var u = WorldDir(v); double step = (shift ? 0.5 : 0.05) * KAt(tr.Vertices[0].P);
-            if (SelectedVertex >= 0 && SelectedVertex < tr.Vertices.Count)
+            if (SelectedVertex >= 0 && SelectedVertex < tr.Vertices.Count && tr.Align == null)
             {
                 if (Locked(tr.Id, SelectedVertex)) { DraftInfo?.Invoke("Ten wierzchołek ustawia rozjazd – przesuń rozjazd"); return true; }
                 VertexMoved?.Invoke(tr.Id, SelectedVertex, tr.Vertices[SelectedVertex].P + u * step);

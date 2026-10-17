@@ -43,6 +43,7 @@ public partial class UtView
         if (arcFrom == null)
         {
             arcFrom = ArcPoint(s);
+            if (arcFrom is var (aid, _) && IsAlign(aid)) { arcFrom = null; DraftInfo?.Invoke(AlignInfo); return; }
             DraftInfo?.Invoke(arcFrom != null ? "Łuk od–do: kliknij koniec łuku (na prostej za załamaniem)" : "Łuk od–do: kliknij na torze w miejscu początku łuku");
             InvalidateVisual(); return;
         }

@@ -33,7 +33,8 @@ public partial class UtView
 
     // ---- geometria torów (pamięć podręczna wg wierzchołków)
     readonly Dictionary<string, (string Sig, TrasaResult Res, List<(XY P, double Az)> Pts)> geo = new();
-    static string Sig(UtTrack t) => string.Join(";", t.Vertices.Select(v => FormattableString.Invariant($"{v.X:R},{v.Y:R},{v.R:R},{v.L:R}")));
+    static string Sig(UtTrack t) => string.Join(";", t.Vertices.Select(v => FormattableString.Invariant($"{v.X:R},{v.Y:R},{v.R:R},{v.L:R},{v.L2:R}")))
+        + (t.Align is UtAlign a ? FormattableString.Invariant($"|{a.X:R},{a.Y:R},{a.Az:R}|") + string.Join(";", a.Els.Select(e => FormattableString.Invariant($"{e.Len:R},{e.R0:R},{e.R1:R}"))) : "");
 
     public TrasaResult Geometry(UtTrack t) => Cached(t).Res;
     (string Sig, TrasaResult Res, List<(XY P, double Az)> Pts) Cached(UtTrack t)
@@ -245,6 +246,7 @@ public partial class UtView
         // start na końcu istniejącego toru – przedłużenie stycznie
         if (sn.Kind == SnapKind.Koniec && Track(sn.Track) is UtTrack t && t.Vertices.Count >= 2 && !Locked(t.Id, sn.Vertex))
         {
+            if (t.Align != null) { DraftInfo?.Invoke(AlignInfo); return; }
             extendId = t.Id; extendAtStart = sn.Vertex == 0;
             dv.AddRange(Clone(t.Vertices)); if (extendAtStart) dv.Reverse();
             baseCount = dv.Count; keepFrom = baseCount - 1;
@@ -330,6 +332,7 @@ public partial class UtView
         if (tool == UtTool.Tor) { FinishDraft(); return true; }
         if (tool == UtTool.Wskaz && Track(SelectedTrack) is UtTrack t)
         {
+            if (t.Align != null) { DraftInfo?.Invoke(AlignInfo); return true; }
             var w = ToWorld(p);
             // dwuklik na łuku (na osi, w części kołowej) – podział łuku w tym miejscu: nowy wierzchołek bez zmiany kształtu, a nie
             // załamanie R 0 na boku wieloboku (przesunięcie takiego wierzchołka robiło ostre załamanie i psuło sąsiedni łuk)
@@ -426,6 +429,8 @@ public partial class UtView
     bool PressVertex(Point s)
     {
         if (Track(SelectedTrack) is not UtTrack t) return false;
+        if (t.Align != null) return false;
+        if (PressHandles(t, s)) return true;
         foreach (var (ai, m) in ArcHandles(t))
             if ((ToScreen(m) - s).Length <= HandlePx)
             {
@@ -513,11 +518,27 @@ public partial class UtView
         dc.DrawText(ft, o);
     }
 
+    /// <summary>Podgląd trasy z elementów w trakcie przeciągania na wykresie krzywizny.</summary>
+    public (string Id, UtAlign A)? AlignPreview;
+    /// <summary>Miejsce na torze wskazane na wykresie krzywizny (kółko na mapie).</summary>
+    public (string Track, double S)? MarkS;
+
+    static UtAlign Moved(UtAlign a, XY v) { var c = a.Clone(); c.X += v.X; c.Y += v.Y; return c; }
+
+    /// <summary>Tor z elementów – narzędzia wierzchołków go nie zmieniają (edycja na wykresie krzywizny).</summary>
+    public bool IsAlign(string id) => Track(id)?.Align != null;
+    public const string AlignInfo = "To tor z elementów – edytuj go na wykresie krzywizny pod mapą albo zamień na wielobok (panel toru)";
+
     /// <summary>Tor w trakcie przeciągania wierzchołka albo uchwytu łuku (podgląd) albo sam tor.</summary>
     UtTrack Dragged(UtTrack t)
     {
+        if (hDrag is var (hid, _, _) && hid == t.Id && hPreview != null)
+            return new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = hPreview };
+        if (AlignPreview is var (pid, pa) && pid == t.Id)
+        { var c = new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => v.Clone()).ToList(), Align = pa }; TrasaElem.SyncEnds(c); return c; }
         if (tDrag is var (tid, _) && tid == t.Id && dragging)
-            return new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => new UtVertex { X = v.X + tDragVec.X, Y = v.Y + tDragVec.Y, R = v.R, L = v.L }).ToList() };
+            return new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => { var c = v.Clone(); c.X += tDragVec.X; c.Y += tDragVec.Y; return c; }).ToList(),
+                Align = t.Align is UtAlign al ? Moved(al, tDragVec) : null };
         if (vDrag is not var (vid, vi) || vid != t.Id || !vDragMoved) return t;
         var src = new UtTrack { Id = t.Id + "~", Cat = t.Cat, Elec = t.Elec, Number = t.Number, Vertices = t.Vertices.Select(v => v.Clone()).ToList() };
         if (vArc) src.Vertices[vi].R = vArcR; else { src.Vertices[vi].X = vDragTo.X; src.Vertices[vi].Y = vDragTo.Y; }
@@ -612,6 +633,7 @@ public partial class UtView
             var s = ToScreen(v[i].P);
             dc.DrawRectangle(i == SelectedVertex ? HandleSel : HandleFill, HandlePen, new Rect(s.X - 4.5, s.Y - 4.5, 9, 9));
         }
+        DrawHandles(dc, src);
         // uchwyty łuków (kółko w środku łuku) z promieniem
         foreach (var (i, m) in ArcHandles(src))
         {

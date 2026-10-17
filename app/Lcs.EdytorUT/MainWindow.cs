@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         root.Children.Add(Dock(BuildToolbar(), System.Windows.Controls.Dock.Top));
         root.Children.Add(Dock(BuildStatus(), System.Windows.Controls.Dock.Bottom));
         root.Children.Add(Dock(BuildPanel(), System.Windows.Controls.Dock.Right));
+        root.Children.Add(Dock(BuildKrzywizna(), System.Windows.Controls.Dock.Bottom));
         View.ToolChanged += ToolShown;
         View.MeasureChanged += ShowMeasure;
         root.Children.Add(View);
@@ -101,6 +102,7 @@ public partial class MainWindow : Window
         BgBox.Click += (s, e) => { Doc.P.View.ShowBg = BgBox.IsChecked == true; ApplyMode(false); };
         tb.Items.Add(BgBox);
         tb.Items.Add(gridBox);
+        tb.Items.Add(KrzywBtn);
         tb.Items.Add(new Separator());
         tb.Items.Add(Btn("✔ Sprawdź", (s, e) => RunCheck(true), "Kontrola układu (Ig-10, etap 7): otwarte końce, rozjazdy bez numeru, urządzenia poza torem, nakładające się tory, odcinki, kilometraż, profil (F7)"));
         tb.Items.Add(Btn("Profil…", (s, e) => OpenProfile(), "Profil podłużny zaznaczonego toru: niweleta, pochylenia, teren z NMT GUGiK, nasyp / przekop"));
@@ -165,7 +167,7 @@ public partial class MainWindow : Window
             UtTool.Urzadzenie => $"{UtDevice.KindInfo(View.DevKind).Name}: " + (UtDevice.KindInfo(View.DevKind).Directed && View.DevKind != UtDevice.Koziol
                 ? "wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi"
                 : View.DevKind == UtDevice.Koziol ? "kliknij przy końcu toru (przyciąga się do końca)" : "kliknij na torze w miejscu urządzenia"),
-            UtTool.LukPunkty => "Łuk z punktów: kliknij łuk toru (albo przy załamaniu), potem punkty na osi toru na zdjęciu – na łuku i kawałek na prostych przed nim i za nim; wierzchołek (kierunki prostych), promień i (Tab) krzywe przejściowe L dobiorą się do punktów, przy każdym widać odchyłkę; W – proste stałe (tylko R / L); Backspace – usuń punkt; Enter / PPM – zastosuj; Esc – od nowa",
+            UtTool.LukPunkty => "Łuk z punktów: kliknij łuk toru (albo przy załamaniu), potem punkty na osi toru na zdjęciu – na łuku i kawałek na prostych przed nim i za nim; wierzchołek (kierunki prostych), promień i (Tab) krzywe przejściowe L dobiorą się do punktów, przy każdym widać odchyłkę; W – proste stałe (tylko R / L); O – dodaj punkty z OpenStreetMap (osie torów w widoku, do 8 m od toru); na torze z elementów dopasują się długości i promienie elementów; Backspace – usuń punkt; Enter / PPM – zastosuj; Esc – od nowa",
             UtTool.LukOdDo => "Łuk od–do: kliknij na torze w miejscu początku łuku (np. gdzie na zdjęciu kończy się prosta), potem w miejscu końca łuku – wierzchołek i promień dobiorą się same; wierzchołki pośrednie znikną; PPM / Esc – od nowa",
             UtTool.Odcinek => "Odcinek: kliknij na torze – nazwa odcinka kontroli niezajętości dla całego kawałka między granicami (liczniki osi, złącza izolowane, końce torów); kolor = odcinek, czerwone kreski – kawałek bez odcinka",
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
@@ -303,6 +305,7 @@ public partial class MainWindow : Window
             ScaleBox.SelectedIndex = Array.IndexOf(UtProject.DrawingScales, Doc.P.DrawingScale);
         }
         finally { refreshing = false; }
+        UpdateKrzyw();
         Title = $"{(Doc.Dirty ? "* " : "")}{Doc.P.Name} – {(Doc.Path != null ? Path.GetFileName(Doc.Path) : "(nie zapisano)")} – Edytor układu torowego";
         UndoBtn.IsEnabled = Doc.UndoName != null; UndoBtn.ToolTip = Doc.UndoName != null ? $"Cofnij: {Doc.UndoName} (Ctrl+Z)" : "Nic do cofnięcia";
         RedoBtn.IsEnabled = Doc.RedoName != null; RedoBtn.ToolTip = Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";

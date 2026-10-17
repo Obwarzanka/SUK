@@ -24,8 +24,10 @@ public static class Kontrola
         {
             var rt = r[t.Id];
             foreach (var n in rt.Notes)
-                res.Add(new Uwaga(n.Error, $"tor {Nr(t)}, W{n.Vertex + 1}: {n.Text}", n.Vertex < t.Vertices.Count ? t.Vertices[n.Vertex].P : null, KTor, t.Id));
+                res.Add(new Uwaga(n.Error, $"tor {Nr(t)}, {(t.Align != null ? "element " : "W")}{n.Vertex + 1}: {n.Text}", t.Align == null && n.Vertex < t.Vertices.Count ? t.Vertices[n.Vertex].P : null, KTor, t.Id));
             if (rt.Elements.Count == 0) continue;
+            // łuki: skok krzywizny, prosta między łukami, promień i przejściowa wobec prędkości (ostrzeżenia)
+            foreach (var u in Krzywizna.Check(t, rt)) res.Add(new Uwaga(false, $"tor {Nr(t)}: {u.Text}", At(t.Id, u.S), KTor, t.Id));
             // otwarte końce: bez połączenia, bez kozła oporowego i nie na granicy obszaru
             foreach (var atStart in new[] { true, false })
             {

@@ -136,6 +136,30 @@ Zakres z prośby właściciela: odcinki kontroli niezajętości, W4 / W5, perony
 5. **Kontrola:** otwarty koniec toru jest w porządku przy koźle albo po zaznaczeniu „granica obszaru” w panelu toru (tor biegnie dalej poza projektem).
 6. **Wydruk:** to samo płótno co na ekranie, w trybie wydruku. PDF bez zewnętrznych bibliotek – obraz planu 150–300 dpi na stronie w wymiarze kartki (nie wektor). Podkłady nie są drukowane.
 
+## 5g. Metody budowy łuku – całość (decyzja właściciela 2026-10-17: „wykonaj według planu, ważne, żeby była całość”)
+
+**Stan: zrobione (2026-10-17) – wszystkie punkty 1–7; szczegóły i wyniki testu w `HISTORIA_EDYTOR_UT.md`.**
+
+Ograniczenia dotychczasowego modelu (wielobok stycznych: wierzchołek + R + L): przejściowe zawsze równe po obu stronach, brak przejściowej
+między łukami o różnych R (łuk koszowy ze skokiem krzywizny), wierzchołek (przecięcie prostych) poza torem – niewidoczny na zdjęciu.
+
+1. **B – wielobok:** osobna przejściowa na wyjściu (`UtVertex.L2`, puste – jak L), styczne T₁ = m₁ + (R+p₂ − (R+p₁)·cos α)/sin α;
+   blokada R w wierzchołku (`LockR` – dopasowania jej nie zmieniają); z klawiatury długość łuku i styczna T → R.
+2. **A – trasa z elementów:** tor może mieć postać ciągu elementów (`UtTrack.Align`): prosta, przejściowa (klotoida – krzywizna
+   liniowo od 1/R₀ do 1/R₁), łuk; początek i azymut. Daje L₁ ≠ L₂, przejściową między łukami, łuk koszowy. Zamiana wielobok ↔ elementy
+   (w stronę wieloboku – przybliżenie z podaną odchyłką). Narzędzia wieloboku (wierzchołki) na torze z elementów – z komunikatem.
+3. **E – wykres krzywizny** pod mapą dla zaznaczonego toru (krzywizna 1000/R od km), ostrzeżenia: skok krzywizny bez przejściowej
+   (tory główne albo V > 40), za krótka prosta między łukami (warunki techniczne § 36: tory główne V/2,5, nie mniej niż 20 m; pozostałe 10 m),
+   R za mały dla Vmax, przejściowa krótsza niż z prędkości; te same uwagi w „Sprawdź”.
+4. **A – edycja na wykresie:** przeciąganie granic elementów (długości) i poziomu łuku (R), tabela elementów (długość, R₀, R₁),
+   podział elementu, wstawienie przejściowej na granicy, usunięcie elementu; „Łuk z punktów” (J) na torze z elementów dopasowuje
+   długości i promienie elementów do punktów.
+5. **D – uchwyty na torze (wielobok):** prosta przesuwana równolegle (sąsiednie proste zachowują kierunek), początek łuku przesuwany
+   wzdłuż prostej (zmienia się R).
+6. **C – szybkie:** łuk styczny do prostych przez punkt = „Łuk z punktów” z W (jeden punkt); łuk z R i długości / stycznej z klawiatury (p. 1).
+7. **F – punkty z OpenRailwayMap / OSM** jako punkty do dopasowania (tylko źródło punktów; rysuje projektant – zgodnie z decyzją z 2026-10-16
+   o rezygnacji z generatora z OSM).
+
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).

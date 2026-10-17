@@ -124,6 +124,26 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Łuk z punktów (J):** dokładny łuk ze zdjęcia. Kliknij łuk toru (albo przy załamaniu), potem punkty na osi toru na zdjęciu: na łuku i kawałek na prostych przed nim i za nim (razem co najmniej 4, im więcej i szerzej, tym dokładniej). Program sam dobiera położenie wierzchołka (czyli kierunki obu prostych), promień i po Tab krzywe przejściowe L tak, żeby tor przechodził jak najbliżej wszystkich punktów. Końce toru zostają na miejscu. Przy każdym punkcie widać odchyłkę w cm, a kropkowana linia pokazuje, gdzie przesunie się wierzchołek. Klawisz W przełącza na proste stałe (dobiera się tylko R i L). Backspace usuwa ostatni punkt, Enter albo PPM zatwierdza, Esc zaczyna od nowa.
 - **Łuk o zmiennym promieniu (łuk koszowy):** PPM na łuku – „Podziel łuk tutaj” (albo dwuklik na łuku we Wskaż) dzieli go w tym miejscu na dwa łuki, a „Podziel łuk na części” na 2, 3, 4 albo 6 równych części. Każda część ma swój wierzchołek i ten sam R, kształt toru się nie zmienia. Potem każdą część dostosujesz osobno: przeciągnij wierzchołek albo wpisz R w panelu. Możesz też użyć „Łuku z punktów” (J): klik na którejkolwiek części i punkty wzdłuż całego łuku, a program dopasuje wszystkie części naraz, każdą z własnym promieniem.
 - **Wygładź łuk** (PPM na łuku z kilku części): cała grupa łuków skręcających w tę samą stronę (z prostymi między nimi do 30 m) zamienia się na jeden łuk z krzywymi przejściowymi, jeden łuk bez nich albo dwa łuki. Skrajne proste zostają, a R i L dobierają się tak, żeby nowy łuk leżał jak najbliżej dotychczasowego kształtu. Komunikat podaje, o ile najwyżej się odsunął. Ctrl+Z cofa.
+- **Wykres krzywizny** (przycisk „Krzywizna” na pasku): pod mapą krzywizna zaznaczonego toru wzdłuż km. Prosta to 0, łuk to poziomy odcinek (łuk w prawo w górę), przejściowa to ukośny odcinek, skok to pionowa kreska. Widać etykiety R i L, a czerwone trójkąty pokazują uwagi. Kółko myszy przybliża wykres, przeciąganie pustego miejsca go przesuwa. Kursor na mapie pokazuje km na wykresie i odwrotnie.
+- **Trasa z elementów** (panel toru „Zamień na trasę z elementów” albo PPM na wykresie): tor jako ciąg elementów – prosta, przejściowa (klotoida), łuk. Pozwala na różne przejściowe na wejściu i wyjściu oraz przejściową między łukami (łuk koszowy bez skoku krzywizny). Edycja:
+  - na wykresie: przeciągnięcie granicy (■) zmienia długości dwóch sąsiednich elementów, przeciągnięcie poziomu łuku (●) zmienia R przy tym samym kącie zwrotu;
+  - PPM na wykresie: „Podziel element tutaj”, „Wstaw przejściową na granicy”, „Zamień na prostą / łuk”, „Usuń element”;
+  - w panelu: tabela elementów z długością i R (+ w prawo, − w lewo; promienie przejściowej wynikają z sąsiadów);
+  - „Łuk z punktów” (J) na takim torze dopasowuje długości i promienie elementów w miejscu klikniętych punktów.
+
+  „Zamień na wielobok” wraca do wierzchołków. To przybliżenie: łuk koszowy z przejściową między łukami dostanie jeden R, a komunikat poda odchyłkę.
+- **Łuk w wierzchołku (wielobok)**, po zaznaczeniu wierzchołka z łukiem: przejściowa na wyjściu L2 (inna niż L na wejściu), długość łuku albo styczna T z klawiatury (program dobierze R), kąt zwrotu, „zablokuj R” (dopasowania i uchwyt łuku go nie zmieniają).
+- **Uchwyty na torze** (Wskaż, zaznaczony tor):
+  - kwadracik w środku prostej przesuwa ją równolegle, a sąsiednie proste zachowują kierunek;
+  - romb na początku albo końcu łuku przesuwa się wzdłuż prostej, a R dobiera się tak, żeby łuk zaczynał się albo kończył w tym miejscu.
+
+  Wierzchołka nie trzeba widzieć.
+- **Punkty z OpenStreetMap** (w „Łuku z punktów” klawisz O): program pobiera osie torów w widoku z OSM (Overpass) i dodaje jako punkty dopasowania węzły leżące do 8 m od toru. Rysujesz nadal ty, OSM daje tylko punkty.
+- **Uwagi do łuków** (na wykresie i w „Sprawdź”):
+  - skok krzywizny bez krzywej przejściowej (tory główne albo V > 40 km/h);
+  - za krótka prosta między łukami (§ 36: tor główny V/2,5, nie mniej niż 20 m; pozostałe 10 m);
+  - promień za mały dla Vmax;
+  - przejściowa krótsza niż wynika z prędkości.
 - **Przejściowe z prędkości** (przycisk w panelu toru): dla każdego łuku program liczy przechyłkę h i długość krzywej przejściowej L ze wzorów kalkulatora przechyłki (Vmax toru, R łuku, rozstaw szyn 1435 mm) i wpisuje je. Wierzchołek odsuwa się tak, żeby środek łuku został na miejscu, czyli na zdjęciu. Ostrzega, gdy promień jest za mały dla tej prędkości albo gdy L się nie mieści. Wartości dopuszczalne są przykładowe, jak w kalkulatorze. Najpierw wpisz Vmax toru.
 - **Usunięcie kawałka toru:** PPM na torze we Wskaż otwiera menu: „Usuń ten kawałek” usuwa prostą albo cały łuk pod kursorem, a tor rozcina się na dwa (albo skraca, gdy to koniec). „Rozetnij tor tutaj” (tylko na prostej) daje dwa tory stykające się w tym miejscu. Wszystko, co leży za cięciem (rozjazdy, urządzenia, odcinki, perony, przejazdy, punkty km, profil), przechodzi na nowy tor z kilometrażem od jego początku. Co leżało w usuniętym kawałku, znika. Program nie tnie w obrębie rozjazdu ani toru łączącego łącznika.
 - **Zaznaczanie kilku elementów (Wskaż):** Ctrl + klik dodaje element do zaznaczenia albo go zdejmuje: tor, rozjazd, skrzyżowanie, urządzenie, odcinek, peron, przejazd, punkt km. Shift + przeciągnięcie od pustego miejsca zaznacza prostokątem wszystko, co leży w nim w całości. Panel pokazuje listę zaznaczonych. Del albo „Usuń zaznaczone” usuwa wszystkie naraz, a jedno Ctrl+Z je przywraca. Esc albo zwykły klik kończy zaznaczenie.
@@ -162,7 +182,7 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 | U | Urządzenie (rodzaj z listy na pasku) |
 | P | Równoległy |
 | K | Łuk od–do |
-| J | Łuk z punktów; w nim Tab – także krzywe przejściowe L, W – proste stałe / wierzchołek swobodny, Enter – zastosuj |
+| J | Łuk z punktów; w nim Tab – także krzywe przejściowe L, W – proste stałe / wierzchołek swobodny, O – punkty z OpenStreetMap, Enter – zastosuj |
 | O | Odcinek |
 | M | Miarka |
 | S | widok Schemat / Teren |

@@ -292,6 +292,7 @@ public static class Rozjazdy
 
     public static void Sync(UtProject p)
     {
+        foreach (var tr in p.Tracks.Where(x => x.Align != null)) TrasaElem.SyncEnds(tr);
         p.Turnouts.RemoveAll(t => Tr(p, t.Track) == null || Tr(p, t.Branch) == null);
         foreach (var t in p.Turnouts.Where(t => t.Partner != null && p.Turnouts.All(o => o.Id != t.Partner)).ToList()) { t.Partner = null; t.BranchAtEnd = false; }
         // najpierw rozjazdy ustawiające początek odgałęzienia, potem drugie rozjazdy łączników

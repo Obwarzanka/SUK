@@ -55,7 +55,7 @@ public partial class MainWindow
         View.TrackMoved += (id, v) =>
         {
             if (Doc.P.Turnouts.Any(r => r.Branch == id)) { Message("To odgałęzienie rozjazdu – przesuń rozjazd albo jego wierzchołki"); return; }
-            ChTrack(id, "Przesunięcie toru", t => { foreach (var x in t.Vertices) { x.X += v.X; x.Y += v.Y; } });
+            ChTrack(id, "Przesunięcie toru", t => { foreach (var x in t.Vertices) { x.X += v.X; x.Y += v.Y; } if (t.Align != null) { t.Align.X += v.X; t.Align.Y += v.Y; } });
             var t0 = Doc.P.Tracks.First(x => x.Id == id);
             Message($"Tor {t0.Number} przesunięty o {UtView.Len3(v.Length / Trasa.KFor(t0))}" + (Doc.P.Turnouts.Any(r => r.Track == id) ? " – rozjazdy na nim przesunęły się razem" : ""));
         };
@@ -77,6 +77,7 @@ public partial class MainWindow
             Message(info);
         };
         View.SelectionChanged += RefreshTrackPanel;
+        View.SelectionChanged += UpdateKrzyw;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()
         {
@@ -124,6 +125,7 @@ public partial class MainWindow
         if (DeleteObj() || DeleteDevice() || DeleteTurnoutOrCrossing()) return true;
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
+        if (i >= 0 && t.Align != null) i = -1;     // tor z elementów: Del usuwa tor (wierzchołki to tylko końce)
         if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }
         if (i >= 0 && View.SkewTurnout(id, i) != null) { Message("Ten wierzchołek leży na skosie rozjazdu – można go tylko przesuwać wzdłuż skosu"); return true; }
         if (Doc.P.Turnouts.Any(r => r.Branch == id) && (i < 0 || t.Vertices.Count <= 3)) { Message("To odgałęzienie rozjazdu – usuń rozjazd (zaznacz go i Del)"); return true; }
@@ -195,6 +197,7 @@ public partial class MainWindow
             els.Add(e.Kind switch
             {
                 ElKind.Prosta => $"prosta {F(len)} m",
+                ElKind.Przejsciowa when e.Clo => $"przejściowa R {(e.K0 == 0 ? "∞" : F(1 / Math.Abs(e.K0 * r.K), "0"))} → {(e.K1 == 0 ? "∞" : F(1 / Math.Abs(e.K1 * r.K), "0"))}: {F(len)} m",
                 ElKind.Przejsciowa => $"przejściowa L = {F(e.Lx / r.K)} m ({F(len)} m)",
                 _ => $"łuk {(e.R > 0 ? "w prawo" : "w lewo")} R = {F(Math.Abs(e.R) / r.K)} m: {F(len)} m ({F(e.Len / Math.Abs(e.R) * 180 / Math.PI, "0.###")}°)",
             });
@@ -203,55 +206,61 @@ public partial class MainWindow
         foreach (var (v, text, err) in r.Notes)
             TrackPanel.Children.Add(new TextBlock { Text = $"W{v + 1}: {text}", Foreground = err ? Brushes.Firebrick : Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(0, 0, 0, 2) });
 
-        // wierzchołki: R i L
-        TrackPanel.Children.Add(Label("Wierzchołki – w terenie [m]"));
-        var grid = new Grid { Margin = new Thickness(0, 2, 0, 6) };
-        foreach (var w in new[] { 46.0, 70, 60, 70 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        foreach (var (txt, col) in new[] { ("promień R", 1), ("przejściowa L", 3) })
+        if (t.Align != null) BuildAlignTable(t);
+        else
         {
-            var h = new TextBlock { Text = txt, FontSize = 11, Foreground = Brushes.DimGray };
-            Grid.SetColumn(h, col); if (col == 3) { Grid.SetColumn(h, 2); Grid.SetColumnSpan(h, 2); h.Margin = new Thickness(18, 0, 0, 0); }
-            grid.Children.Add(h);
-        }
-        for (int i = 0; i < t.Vertices.Count; i++)
-        {
+            // wierzchołki: R i L
+            TrackPanel.Children.Add(Label("Wierzchołki – w terenie [m]"));
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 6) };
+            foreach (var w in new[] { 46.0, 70, 60, 70 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            int vi = i, gr = i + 1; var v = t.Vertices[i];
-            var lbl = new TextBlock { Text = $"W{i + 1}", VerticalAlignment = VerticalAlignment.Center, FontWeight = i == View.SelectedVertex ? FontWeights.Bold : FontWeights.Normal, Cursor = Cursors.Hand };
-            lbl.MouseLeftButtonUp += (s, e) => { View.Select(id, vi); View.SetView(v.P, View.Mpp); };
-            Grid.SetRow(lbl, gr); grid.Children.Add(lbl);
-            if (i == 0 || i == t.Vertices.Count - 1)
+            foreach (var (txt, col) in new[] { ("promień R", 1), ("przejściowa L", 3) })
             {
-                var end = new TextBlock { Text = i == 0 ? "początek" : "koniec", Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetRow(end, gr); Grid.SetColumn(end, 1); Grid.SetColumnSpan(end, 3); grid.Children.Add(end);
-                continue;
+                var h = new TextBlock { Text = txt, FontSize = 11, Foreground = Brushes.DimGray };
+                Grid.SetColumn(h, col); if (col == 3) { Grid.SetColumn(h, 2); Grid.SetColumnSpan(h, 2); h.Margin = new Thickness(18, 0, 0, 0); }
+                grid.Children.Add(h);
             }
-            TextBox Field(double val, int col, string tip, Action<UtVertex, double> set)
+            for (int i = 0; i < t.Vertices.Count; i++)
             {
-                var tb = new TextBox { Text = val > 0 ? F(val, "0.###") : "0", Margin = new Thickness(0, 1, 4, 1), ToolTip = tip };
-                void Commit() { if (Num(tb.Text) is double x && x >= 0 && Math.Abs(x - (col == 1 ? t.Vertices[vi].R : t.Vertices[vi].L)) > 1e-9) ChTrack(id, col == 1 ? "Promień łuku" : "Krzywa przejściowa", tr => set(tr.Vertices[vi], x)); }
-                tb.LostFocus += (s, e) => Commit(); tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
-                Grid.SetRow(tb, vi + 1); Grid.SetColumn(tb, col); grid.Children.Add(tb); return tb;
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                int vi = i, gr = i + 1; var v = t.Vertices[i];
+                var lbl = new TextBlock { Text = $"W{i + 1}", VerticalAlignment = VerticalAlignment.Center, FontWeight = i == View.SelectedVertex ? FontWeights.Bold : FontWeights.Normal, Cursor = Cursors.Hand };
+                lbl.MouseLeftButtonUp += (s, e) => { View.Select(id, vi); View.SetView(v.P, View.Mpp); };
+                Grid.SetRow(lbl, gr); grid.Children.Add(lbl);
+                if (i == 0 || i == t.Vertices.Count - 1)
+                {
+                    var end = new TextBlock { Text = i == 0 ? "początek" : "koniec", Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetRow(end, gr); Grid.SetColumn(end, 1); Grid.SetColumnSpan(end, 3); grid.Children.Add(end);
+                    continue;
+                }
+                TextBox Field(double val, int col, string tip, Action<UtVertex, double> set)
+                {
+                    var tb = new TextBox { Text = val > 0 ? F(val, "0.###") : "0", Margin = new Thickness(0, 1, 4, 1), ToolTip = tip };
+                    void Commit() { if (Num(tb.Text) is double x && x >= 0 && Math.Abs(x - (col == 1 ? t.Vertices[vi].R : t.Vertices[vi].L)) > 1e-9) ChTrack(id, col == 1 ? "Promień łuku" : "Krzywa przejściowa", tr => set(tr.Vertices[vi], x)); }
+                    tb.LostFocus += (s, e) => Commit(); tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
+                    Grid.SetRow(tb, vi + 1); Grid.SetColumn(tb, col); grid.Children.Add(tb); return tb;
+                }
+                Field(v.R, 1, $"W{i + 1}: promień łuku [m]", (x, val) => x.R = val);
+                Field(v.L, 3, $"W{i + 1}: długość krzywych przejściowych [m]", (x, val) => x.L = val);
+                var lt = new TextBlock { Text = "L", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 6, 0) };
+                Grid.SetRow(lt, gr); Grid.SetColumn(lt, 2); grid.Children.Add(lt);
             }
-            Field(v.R, 1, $"W{i + 1}: promień łuku [m]", (x, val) => x.R = val);
-            Field(v.L, 3, $"W{i + 1}: długość krzywych przejściowych [m]", (x, val) => x.L = val);
-            var lt = new TextBlock { Text = "L", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 6, 0) };
-            Grid.SetRow(lt, gr); Grid.SetColumn(lt, 2); grid.Children.Add(lt);
-        }
-        TrackPanel.Children.Add(grid);
+            TrackPanel.Children.Add(grid);
 
-        // położenie zaznaczonego wierzchołka
-        if (View.SelectedVertex >= 0 && View.SelectedVertex < t.Vertices.Count)
-        {
-            int vi = View.SelectedVertex; var v = t.Vertices[vi];
-            TrackPanel.Children.Add(Label($"Wierzchołek W{vi + 1}: X (północ), Y (wschód) [m]"));
-            var xy = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
-            var xb = new TextBox { Text = v.X.ToString("0.000", CultureInfo.InvariantCulture), Width = 110, Margin = new Thickness(0, 0, 4, 0) };
-            var yb = new TextBox { Text = v.Y.ToString("0.000", CultureInfo.InvariantCulture), Width = 110 };
-            void CommitXY() { if (Num(xb.Text) is double x && Num(yb.Text) is double y && (Math.Abs(x - v.X) > 1e-6 || Math.Abs(y - v.Y) > 1e-6)) ChTrack(id, "Położenie wierzchołka", tr => { tr.Vertices[vi].X = x; tr.Vertices[vi].Y = y; }); }
-            xb.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitXY(); }; yb.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitXY(); };
-            xy.Children.Add(xb); xy.Children.Add(yb); TrackPanel.Children.Add(xy);
+            // położenie zaznaczonego wierzchołka
+            if (View.SelectedVertex >= 0 && View.SelectedVertex < t.Vertices.Count)
+            {
+                int vi = View.SelectedVertex; var v = t.Vertices[vi];
+                TrackPanel.Children.Add(Label($"Wierzchołek W{vi + 1}: X (północ), Y (wschód) [m]"));
+                var xy = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+                var xb = new TextBox { Text = v.X.ToString("0.000", CultureInfo.InvariantCulture), Width = 110, Margin = new Thickness(0, 0, 4, 0) };
+                var yb = new TextBox { Text = v.Y.ToString("0.000", CultureInfo.InvariantCulture), Width = 110 };
+                void CommitXY() { if (Num(xb.Text) is double x && Num(yb.Text) is double y && (Math.Abs(x - v.X) > 1e-6 || Math.Abs(y - v.Y) > 1e-6)) ChTrack(id, "Położenie wierzchołka", tr => { tr.Vertices[vi].X = x; tr.Vertices[vi].Y = y; }); }
+                xb.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitXY(); }; yb.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitXY(); };
+                xy.Children.Add(xb); xy.Children.Add(yb); TrackPanel.Children.Add(xy);
+            }
+            BuildArcDetails(t, r);
+            TrackPanel.Children.Add(SmallBtn("Zamień na trasę z elementów", () => ToAlignTrack(id), "Tor jako ciąg elementów (prosta, przejściowa – klotoida, łuk): różne przejściowe, przejściowa między łukami; edycja na wykresie krzywizny pod mapą"));
         }
 
         // tor równoległy
@@ -281,6 +290,7 @@ public partial class MainWindow
     public void TransitionsFromSpeed(string id)
     {
         var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        if (t.Align != null) { Message(UtView.AlignInfo); return; }
         if (t.Vmax <= 0) { Message("Przejściowe z prędkości: wpisz najpierw Vmax toru (pole obok „zelektryfikowany”)"); return; }
         var (nv, rows) = Budowa.TransitionsFromSpeed(t.Vertices, Trasa.KFor(t), t.Vmax, new Dopuszczalne());
         if (rows.All(x => x.Note != null && x.L <= 0)) { Message("Przejściowe z prędkości: " + string.Join("; ", rows.Select(x => $"W{x.Vi + 1}: {x.Note}"))); return; }
@@ -304,7 +314,10 @@ public partial class MainWindow
     public UtTrack Parallel(string id, double d)
     {
         var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null || Math.Abs(d) < 0.01) return null;
-        var n = new UtTrack { Vertices = Trasa.Offset(t, d), Cat = "", Elec = t.Elec, Vmax = 0 };
+        var n = t.Align != null
+            ? new UtTrack { Align = TrasaElem.Offset(t.Align, Trasa.KFor(t), d), Vertices = new() { new(), new() }, Cat = "", Elec = t.Elec, Vmax = 0 }
+            : new UtTrack { Vertices = Trasa.Offset(t, d), Cat = "", Elec = t.Elec, Vmax = 0 };
+        if (n.Align != null) TrasaElem.SyncEnds(n);
         Doc.Change("Tor równoległy", p => p.Tracks.Add(n));
         View.Select(n.Id);
         Message($"Tor równoległy w odległości {F(Math.Abs(d))} m po {(d > 0 ? "prawej" : "lewej")}");

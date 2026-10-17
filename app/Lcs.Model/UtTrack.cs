@@ -18,6 +18,8 @@ public class UtTrack
     /// <summary>Prędkość największa [km/h], 0 – nie ustalona.</summary>
     public int Vmax { get; set; }
     public List<UtVertex> Vertices { get; set; } = new();
+    /// <summary>Trasa z elementów (prosta / przejściowa / łuk) – gdy jest, geometria toru liczy się z niej, a <see cref="Vertices"/> to tylko początek i koniec.</summary>
+    public UtAlign Align { get; set; }
     /// <summary>Początek / koniec toru na granicy obszaru (tor biegnie dalej poza projektem) – „Sprawdź” nie zgłasza otwartego końca.</summary>
     public bool OpenStart { get; set; }
     public bool OpenEnd { get; set; }
@@ -40,8 +42,14 @@ public class UtVertex
     public double L { get; set; }
     /// <summary>Przechyłka toru w łuku h [mm] (0 – bez); z „Przejściowe z prędkości” albo wpisana.</summary>
     public double H { get; set; }
+    /// <summary>Krzywa przejściowa na wyjściu z łuku [m]; puste – taka sama jak <see cref="L"/> (na wejściu).</summary>
+    public double? L2 { get; set; }
+    /// <summary>Promień zablokowany – dopasowania („Łuk z punktów”, „Dopasuj promienie”, „Wygładź łuk”) i uchwyt łuku go nie zmieniają.</summary>
+    public bool LockR { get; set; }
+    /// <summary>Przejściowa na wyjściu (L2 albo L).</summary>
+    public double LOut => L2 ?? L;
     public XY P => new(X, Y);
-    public UtVertex Clone() => new() { X = X, Y = Y, R = R, L = L, H = H };
+    public UtVertex Clone() => new() { X = X, Y = Y, R = R, L = L, H = H, L2 = L2, LockR = LockR };
 }
 
 public enum ElKind { Prosta, Przejsciowa, Luk }
@@ -50,7 +58,8 @@ public enum ElKind { Prosta, Przejsciowa, Luk }
 /// Element trasy w układzie (PUWG 1992). Azymut w radianach od północy w prawo. R ze znakiem: + łuk w prawo, − w lewo.
 /// Przejściowa: <see cref="Lx"/> – długość rzutu na styczną, <see cref="Out"/> – z łuku na prostą (wtedy <see cref="Anchor"/> to koniec na prostej).
 /// </summary>
-public record Element(ElKind Kind, XY Start, double Az0, double Len, double R, double Lx, bool Out, XY Anchor, double AnchorAz, int Vertex)
+public record Element(ElKind Kind, XY Start, double Az0, double Len, double R, double Lx, bool Out, XY Anchor, double AnchorAz, int Vertex,
+    double K0 = 0, double K1 = 0, bool Clo = false)
 {
     public static XY Dir(double az) => new(Math.Cos(az), Math.Sin(az));
     /// <summary>Normalna w prawo od kierunku.</summary>
@@ -70,6 +79,7 @@ public record Element(ElKind Kind, XY Start, double Az0, double Len, double R, d
             }
             default:
             {
+                if (Clo) return (TrasaElem.ClothoidAt(this, s), TrasaElem.ClothoidAz(this, s));    // klotoida trasy z elementów
                 double rr = Math.Abs(R), sg = Math.Sign(R);
                 if (!Out)
                 {
@@ -99,6 +109,8 @@ public class TrasaResult
     public bool Ok => Notes.All(n => !n.Error);
     /// <summary>Styczne w wierzchołkach: T (od wierzchołka do początku przejściowej / łuku) [m w układzie].</summary>
     public Dictionary<int, double> Tangent { get; } = new();
+    /// <summary>Styczne na wyjściu (od wierzchołka do końca łuku / przejściowej) [m w układzie].</summary>
+    public Dictionary<int, double> Tangent2 { get; } = new();
 
     /// <summary>Punkt i azymut toru w kilometrażu s [m w terenie od początku toru].</summary>
     public (XY P, double Az) At(double s)
@@ -189,7 +201,7 @@ public static class Trasa
         return Geo.InPoland(m) ? Geo.ScaleFactor(m) : 1;
     }
 
-    public static TrasaResult Compute(UtTrack t) => Compute(t.Vertices, KFor(t));
+    public static TrasaResult Compute(UtTrack t) => t.Align != null ? TrasaElem.Compute(t.Align, KFor(t)) : Compute(t.Vertices, KFor(t));
 
     public static TrasaResult Compute(IReadOnlyList<UtVertex> v, double k)
     {
@@ -213,16 +225,20 @@ public static class Trasa
                 double alpha = Norm(azOut - azIn), aa = Math.Abs(alpha), sg = Math.Sign(alpha);
                 if (aa > 1e-9 && vj.R > 0)
                 {
-                    double R = vj.R * k, L = vj.L * k;
-                    double tau = L > 0 ? Math.Atan(L / (2 * R)) : 0;
-                    if (aa < 2 * tau - 1e-12)
-                        res.Notes.Add((vi, $"krzywe przejściowe L = {vj.L:0.##} m za długie dla kąta zwrotu {aa * 180 / Math.PI:0.###}° przy R = {vj.R:0.##} m", true));
+                    // przejściowe na wejściu L1 i na wyjściu L2 (L2 puste – jak L1): środek okręgu w odległości q1 od prostej wejściowej
+                    // i q2 od wyjściowej; styczne T1 = m1 + (q2 − q1·cos α) / sin α, T2 = m2 + (q1 − q2·cos α) / sin α (przy L1 = L2: m + q·tg(α/2))
+                    double R = vj.R * k, L = vj.L * k, L2 = vj.LOut * k;
+                    double tau = L > 0 ? Math.Atan(L / (2 * R)) : 0, tau2 = L2 > 0 ? Math.Atan(L2 / (2 * R)) : 0;
+                    if (aa < tau + tau2 - 1e-12)
+                        res.Notes.Add((vi, $"krzywe przejściowe L = {vj.L:0.##}" + (vj.L2 != null ? $" / {vj.LOut:0.##}" : "") + $" m za długie dla kąta zwrotu {aa * 180 / Math.PI:0.###}° przy R = {vj.R:0.##} m", true));
                     else
                     {
-                        double p = L > 0 ? L - R * Math.Sin(tau) : 0, q = L > 0 ? L * L / (6 * R) + R * Math.Cos(tau) : R;
-                        double T = p + q * Math.Tan(aa / 2);
-                        res.Tangent[vi] = T;
-                        tsPoint = vj.P - Element.Dir(azIn) * T; stPoint = vj.P + Element.Dir(azOut) * T;
+                        double m1 = L > 0 ? L - R * Math.Sin(tau) : 0, q1 = L > 0 ? L * L / (6 * R) + R * Math.Cos(tau) : R;
+                        double m2 = L2 > 0 ? L2 - R * Math.Sin(tau2) : 0, q2 = L2 > 0 ? L2 * L2 / (6 * R) + R * Math.Cos(tau2) : R;
+                        double sa = Math.Sin(aa), ca = Math.Cos(aa);
+                        double T = m1 + (q2 - q1 * ca) / sa, T2 = m2 + (q1 - q2 * ca) / sa;
+                        res.Tangent[vi] = T; res.Tangent2[vi] = T2;
+                        tsPoint = vj.P - Element.Dir(azIn) * T; stPoint = vj.P + Element.Dir(azOut) * T2;
                         curve = new();
                         var at = tsPoint; double az = azIn;
                         if (L > 0)
@@ -230,9 +246,9 @@ public static class Trasa
                             var e1 = new Element(ElKind.Przejsciowa, at, az, SofX(L, R, L), sg * R, L, false, default, 0, vi);
                             curve.Add(e1); (at, az) = e1.At(e1.Len);
                         }
-                        double arcAng = aa - 2 * tau;
+                        double arcAng = aa - tau - tau2;
                         if (arcAng > 1e-12) { var e2 = new Element(ElKind.Luk, at, az, R * arcAng, sg * R, 0, false, default, 0, vi); curve.Add(e2); (at, az) = e2.At(e2.Len); }
-                        if (L > 0) curve.Add(new Element(ElKind.Przejsciowa, at, az, SofX(L, R, L), sg * R, L, true, stPoint, azOut, vi));
+                        if (L2 > 0) curve.Add(new Element(ElKind.Przejsciowa, at, az, SofX(L2, R, L2), sg * R, L2, true, stPoint, azOut, vi));
                     }
                 }
                 else if (aa > 0.1 * Math.PI / 180)

@@ -289,7 +289,7 @@ public static class Budowa
             foreach (var bi in bad)
                 // błąd przypisany wierzchołkowi i dotyczy prostej przed nim – zmniejsza się łuk w nim i w poprzednim
                 foreach (var j in new[] { bi, bi - 1 })
-                    if (j > 0 && j < res.Count - 1 && res[j].R > minR && locked?.Invoke(j) != true) { res[j].R = Math.Max(minR, Math.Floor(res[j].R * 0.95)); changed = true; }
+                    if (j > 0 && j < res.Count - 1 && res[j].R > minR && locked?.Invoke(j) != true && !res[j].LockR) { res[j].R = Math.Max(minR, Math.Floor(res[j].R * 0.95)); changed = true; }
             if (!changed) break;
         }
         var ch = new List<(int, double, double)>();
@@ -306,7 +306,8 @@ public static class Budowa
         if (vi <= 0 || vi >= v.Count - 1) return new ArcFit(0, 0, 0, 0, new(), "łuk z punktów – wskaż łuk (wierzchołek) w środku toru");
         if (pts.Count == 0) return new ArcFit(v[vi].R, v[vi].L, 0, 0, new(), "kliknij punkty na osi łuku");
         bool Bad(TrasaResult r) => r.Notes.Any(n => n.Error && (n.Vertex == vi || n.Vertex == vi + 1));
-        TrasaResult Make(double R, double L) { var c = v.Select(x => x.Clone()).ToList(); c[vi].R = R; c[vi].L = L; return Trasa.Compute(c, k); }
+        bool lockR = v[vi].LockR;
+        TrasaResult Make(double R, double L) { var c = v.Select(x => x.Clone()).ToList(); c[vi].R = lockR ? v[vi].R : R; c[vi].L = L; if (fitL) c[vi].L2 = null; return Trasa.Compute(c, k); }
         double Sse(double R, double L)
         {
             var r = Make(R, L); if (Bad(r)) return double.PositiveInfinity;
@@ -347,8 +348,8 @@ public static class Budowa
                 if (round > 0 && Math.Abs(R - r0) < 0.05 && Math.Abs(L - l0) < 0.05) break;
             }
         }
-        R = Math.Max(1, Math.Round(R)); L = Math.Max(0, Math.Round(L));
-        while (R > 1 && Bad(Make(R, L))) R -= 1;
+        R = lockR ? v[vi].R : Math.Max(1, Math.Round(R)); L = Math.Max(0, Math.Round(L));
+        while (!lockR && R > 1 && Bad(Make(R, L))) R -= 1;
         var res = Make(R, L);
         var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
         return new ArcFit(R, L, Math.Sqrt(dev.Sum(x => x * x) / dev.Count), dev.Max(), dev, null);
@@ -369,7 +370,8 @@ public static class Budowa
         List<UtVertex> Make(double[] x)
         {
             var c = v.Select(q => q.Clone()).ToList();
-            c[vi].X = p0.X + x[0] * k; c[vi].Y = p0.Y + x[1] * k; c[vi].R = Math.Exp(x[2]); c[vi].L = fitL ? Math.Max(0, x[3]) : v[vi].L;
+            c[vi].X = p0.X + x[0] * k; c[vi].Y = p0.Y + x[1] * k; c[vi].R = v[vi].LockR ? v[vi].R : Math.Exp(x[2]); c[vi].L = fitL ? Math.Max(0, x[3]) : v[vi].L;
+            if (fitL) c[vi].L2 = null;
             return c;
         }
         double F(double[] x)
@@ -386,6 +388,7 @@ public static class Budowa
         var fv = Make(best);
         // zaokrąglenie R i L do 1 m (wierzchołek – co 1 mm) i kontrola, czy się mieści
         double R = Math.Max(1, Math.Round(fv[vi].R)), L = Math.Max(0, Math.Round(fv[vi].L));
+        if (v[vi].LockR) R = v[vi].R;
         fv[vi].X = Math.Round(fv[vi].X, 3); fv[vi].Y = Math.Round(fv[vi].Y, 3); fv[vi].R = R; fv[vi].L = L;
         while (fv[vi].R > 1 && Bad(Trasa.Compute(fv, k))) fv[vi].R -= 1;
         var res = Trasa.Compute(fv, k);
@@ -458,7 +461,8 @@ public static class Budowa
             {
                 int o = j * per, i = vis[j];
                 if (free) { c[i].X = v[i].X + x[o] * k; c[i].Y = v[i].Y + x[o + 1] * k; o += 2; }
-                c[i].R = Math.Exp(x[o]); c[i].L = fitL ? Math.Max(0, x[o + 1]) : v[i].L;
+                c[i].R = v[i].LockR ? v[i].R : Math.Exp(x[o]); c[i].L = fitL ? Math.Max(0, x[o + 1]) : v[i].L;
+                if (fitL) c[i].L2 = null;
             }
             return c;
         }
@@ -480,7 +484,7 @@ public static class Budowa
         var best = NelderMead(F, x0, st1, n, 300 * n);
         best = NelderMead(F, best, st2, n, 300 * n);
         var fv = Make(best);
-        foreach (var i in vis) { fv[i].R = Math.Max(1, Math.Round(fv[i].R)); fv[i].L = Math.Max(0, Math.Round(fv[i].L)); fv[i].X = Math.Round(fv[i].X, 3); fv[i].Y = Math.Round(fv[i].Y, 3); }
+        foreach (var i in vis) { fv[i].R = v[i].LockR ? v[i].R : Math.Max(1, Math.Round(fv[i].R)); fv[i].L = Math.Max(0, Math.Round(fv[i].L)); fv[i].X = Math.Round(fv[i].X, 3); fv[i].Y = Math.Round(fv[i].Y, 3); }
         for (int g = 0; g < 50 && Bad(Trasa.Compute(fv, k)); g++) foreach (var i in vis) fv[i].R = Math.Max(1, fv[i].R - 1);
         var res = Trasa.Compute(fv, k); if (Bad(res)) return new ArcFit(0, 0, 0, 0, new(), "nie udało się dopasować – dodaj punkty albo popraw wierzchołki");
         var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
@@ -511,9 +515,13 @@ public static class Budowa
     /// Odległość punktu od osi toru [m w układzie] – szybko, ze wzorów: prosta – rzut na odcinek, łuk – |odległość od środka − R|
     /// (w zakresie kąta łuku), krzywa przejściowa – próbki co 2 m. Do dopasowań (tysiące wywołań); dokładnie jak <see cref="TrasaResult.Nearest"/>.
     /// </summary>
-    public static double Dist(TrasaResult r, XY p)
+    public static double Dist(TrasaResult r, XY p) => Math.Abs(SignedDist(r, p));
+
+    /// <summary>Odległość ze znakiem [m w układzie]: + punkt po prawej stronie osi (patrząc w kierunku toru), − po lewej.</summary>
+    public static double SignedDist(TrasaResult r, XY p)
     {
-        double best = double.MaxValue;
+        double best = double.MaxValue, sgn = 1;
+        void Take(double dd, XY q, XY dir) { if (dd < best) { best = dd; var w = p - q; var rr = Element.Right(Math.Atan2(dir.Y, dir.X)); sgn = (w.X * rr.X + w.Y * rr.Y) >= 0 ? 1 : -1; } }
         foreach (var e in r.Elements)
         {
             switch (e.Kind)
@@ -521,7 +529,7 @@ public static class Budowa
                 case ElKind.Prosta:
                 {
                     var d = Element.Dir(e.Az0); var w = p - e.Start; double t = Math.Clamp(w.X * d.X + w.Y * d.Y, 0, e.Len);
-                    best = Math.Min(best, XY.Dist(p, e.Start + d * t));
+                    var q = e.Start + d * t; Take(XY.Dist(p, q), q, d);
                     break;
                 }
                 case ElKind.Luk:
@@ -529,24 +537,77 @@ public static class Budowa
                     var c = e.Start + Element.Right(e.Az0) * e.R; var v = p - c;
                     double az = e.R > 0 ? Math.Atan2(v.X, -v.Y) : Math.Atan2(-v.X, v.Y);
                     double sArc = Math.IEEERemainder(az - e.Az0, 2 * Math.PI) * e.R;
-                    if (sArc >= 0 && sArc <= e.Len) best = Math.Min(best, Math.Abs(Math.Sqrt(v.X * v.X + v.Y * v.Y) - Math.Abs(e.R)));
-                    else best = Math.Min(best, Math.Min(XY.Dist(p, e.Start), XY.Dist(p, e.End)));
+                    if (sArc >= 0 && sArc <= e.Len)
+                    {
+                        double rad = Math.Sqrt(v.X * v.X + v.Y * v.Y), dd = Math.Abs(rad - Math.Abs(e.R));
+                        if (dd < best) { best = dd; sgn = (rad < Math.Abs(e.R)) == (e.R > 0) ? 1 : -1; }      // łuk w prawo: środek po prawej
+                    }
+                    else { Take(XY.Dist(p, e.Start), e.Start, Element.Dir(e.Az0)); var (pe, ae) = e.At(e.Len); Take(XY.Dist(p, pe), pe, Element.Dir(ae)); }
                     break;
                 }
                 default:
                 {
-                    int n = Math.Max(2, (int)Math.Ceiling(e.Len / 2)); var prev = e.At(0).P;
+                    var poly = e.Clo ? TrasaElem.Polyline(e) : null;
+                    int n = poly != null ? poly.Length - 1 : Math.Max(2, (int)Math.Ceiling(e.Len / 2)); var prev = poly != null ? poly[0] : e.At(0).P;
                     for (int i = 1; i <= n; i++)
                     {
-                        var cur = e.At(e.Len * i / n).P; var d = cur - prev; double l2 = d.X * d.X + d.Y * d.Y;
+                        var cur = poly != null ? poly[i] : e.At(e.Len * i / n).P; var d = cur - prev; double l2 = d.X * d.X + d.Y * d.Y;
                         double t = l2 > 0 ? Math.Clamp(((p.X - prev.X) * d.X + (p.Y - prev.Y) * d.Y) / l2, 0, 1) : 0;
-                        best = Math.Min(best, XY.Dist(p, prev + d * t)); prev = cur;
+                        var q = prev + d * t; double dd = XY.Dist(p, q);
+                        if (dd < best && l2 > 0) Take(dd, q, d * (1 / Math.Sqrt(l2))); prev = cur;
                     }
                     break;
                 }
             }
         }
-        return best;
+        return best * sgn;
+    }
+
+    /// <summary>
+    /// Metoda Levenberga–Marquardta (najmniejsze kwadraty reszt <paramref name="resid"/>), jakobian liczony różnicami; pierwsze
+    /// <paramref name="n"/> współrzędnych zmienne. Szybciej niż simpleks przy wielu parametrach (dopasowanie trasy z elementów).
+    /// </summary>
+    public static double[] LevMar(Func<double[], double[]> resid, double[] x0, int n, int maxIt = 60)
+    {
+        var x = (double[])x0.Clone(); var r = resid(x); double cost = r.Sum(q => q * q), lambda = 1e-3;
+        for (int it = 0; it < maxIt; it++)
+        {
+            int m = r.Length; var J = new double[m, n];
+            for (int j = 0; j < n; j++)
+            {
+                double h = 1e-6 * Math.Max(1, Math.Abs(x[j])); var xh = (double[])x.Clone(); xh[j] += h; var rh = resid(xh);
+                for (int i = 0; i < m; i++) J[i, j] = (rh[i] - r[i]) / h;
+            }
+            var A = new double[n, n]; var g = new double[n];
+            for (int a = 0; a < n; a++) { for (int b = 0; b < n; b++) { double s = 0; for (int i = 0; i < m; i++) s += J[i, a] * J[i, b]; A[a, b] = s; } double sg = 0; for (int i = 0; i < m; i++) sg += J[i, a] * r[i]; g[a] = sg; }
+            bool improved = false;
+            for (int tries = 0; tries < 12; tries++)
+            {
+                var M = (double[,])A.Clone(); for (int a = 0; a < n; a++) M[a, a] += lambda * (A[a, a] + 1e-12);
+                var dx = Solve(M, g.Select(q => -q).ToArray()); if (dx == null) { lambda *= 10; continue; }
+                var xn = (double[])x.Clone(); for (int a = 0; a < n; a++) xn[a] += dx[a];
+                var rn = resid(xn); double cn = rn.Sum(q => q * q);
+                if (cn < cost) { x = xn; r = rn; double rel = (cost - cn) / Math.Max(cost, 1e-30); cost = cn; lambda = Math.Max(1e-9, lambda / 3); improved = true; if (rel < 1e-10) return x; break; }
+                lambda *= 10;
+            }
+            if (!improved) break;
+        }
+        return x;
+    }
+
+    static double[] Solve(double[,] A, double[] b)
+    {
+        int n = b.Length; var M = (double[,])A.Clone(); var v = (double[])b.Clone();
+        for (int c = 0; c < n; c++)
+        {
+            int p = c; for (int i = c + 1; i < n; i++) if (Math.Abs(M[i, c]) > Math.Abs(M[p, c])) p = i;
+            if (Math.Abs(M[p, c]) < 1e-30) return null;
+            if (p != c) { for (int j = 0; j < n; j++) (M[c, j], M[p, j]) = (M[p, j], M[c, j]); (v[c], v[p]) = (v[p], v[c]); }
+            for (int i = c + 1; i < n; i++) { double f = M[i, c] / M[c, c]; for (int j = c; j < n; j++) M[i, j] -= f * M[c, j]; v[i] -= f * v[c]; }
+        }
+        var xr = new double[n];
+        for (int i = n - 1; i >= 0; i--) { double s = v[i]; for (int j = i + 1; j < n; j++) s -= M[i, j] * xr[j]; xr[i] = s / M[i, i]; }
+        return xr;
     }
 
     /// <summary>
@@ -562,6 +623,7 @@ public static class Budowa
     {
         var grp = ArcGroup(v, vi, k, SmoothStraight, true); int lo = grp.Min(), hi = grp.Max();
         if (lo <= 0 || hi >= v.Count - 1) return (null, 0, "to nie łuk w środku toru");
+        if (grp.Any(i => v[i].LockR)) return (null, 0, "w łuku jest zablokowany promień – odblokuj go w panelu toru");
         var r = Trasa.Compute(v, k);
         double acc = 0, s0 = -1, s1 = -1;
         foreach (var e in r.Elements) { if (e.Vertex >= lo && e.Vertex <= hi && e.Kind != ElKind.Prosta) { if (s0 < 0) s0 = acc; s1 = acc + e.Len; } acc += e.Len; }
@@ -618,7 +680,7 @@ public static class Budowa
             var old = nv[i].Clone();
             // środek łuku przed zmianą (punkt osi najbliżej wierzchołka) – po dodaniu L ma zostać na miejscu
             var r0 = Trasa.Compute(nv, k); var (sm, _) = r0.Nearest(old.P, 0.25); var mid = r0.At(sm).P;
-            nv[i].L = L; nv[i].H = h;
+            nv[i].L = L; nv[i].L2 = null; nv[i].H = h;
             if (bl > 1e-12)
             {
                 var outw = bis * (-1 / bl);
@@ -640,8 +702,48 @@ public static class Budowa
         return (nv, rows);
     }
 
+    /// <summary>
+    /// Prosta między wierzchołkami seg−1 i seg przesunięta równolegle o d [m w terenie, + w prawo]: nowe wierzchołki w przecięciu
+    /// przesuniętej prostej z sąsiednimi prostymi (te zachowują kierunek); na końcu toru – wierzchołek przesunięty prostopadle.
+    /// </summary>
+    public static List<UtVertex> ShiftStraight(IReadOnlyList<UtVertex> v, int seg, double k, double d)
+    {
+        var res = v.Select(x => x.Clone()).ToList();
+        var a = v[seg - 1].P; var b = v[seg].P; var dir = Element.Dir(Trasa.Az(a, b)); var o = Element.Right(Trasa.Az(a, b)) * (d * k);
+        var a2 = a + o;
+        XY Hit(XY p, XY q)
+        {
+            var u = q - p; double den = u.X * dir.Y - u.Y * dir.X; if (Math.Abs(den) < 1e-12) return q + o;
+            var w = a2 - p; double t = (w.X * dir.Y - w.Y * dir.X) / den; return p + u * t;
+        }
+        var na = seg - 1 == 0 ? a + o : Hit(v[seg - 2].P, a);
+        var nb = seg == v.Count - 1 ? b + o : Hit(v[seg + 1].P, b);
+        res[seg - 1].X = na.X; res[seg - 1].Y = na.Y; res[seg].X = nb.X; res[seg].Y = nb.Y;
+        return res;
+    }
+
+    /// <summary>R w wierzchołku vi dobrany (połowienie) tak, żeby miara łuku (styczna, długość łuku…) miała zadaną wartość; null – nie da się.</summary>
+    public static List<UtVertex> RadiusFor(IReadOnlyList<UtVertex> v, int vi, double k, Func<TrasaResult, double> measure, double target)
+    {
+        var c = v.Select(x => x.Clone()).ToList();
+        double M(double R) { c[vi].R = R; var rr = Trasa.Compute(c, k); return rr.Notes.Any(n => n.Error && (n.Vertex == vi || n.Vertex == vi + 1)) ? double.NaN : measure(rr); }
+        // od obecnego (mieszczącego się) R w górę albo w dół; miara rośnie z R, poza zakresem (NaN) – za daleko w tę stronę
+        double r0 = v[vi].R > 0 ? v[vi].R : 500, m0 = M(r0);
+        if (double.IsNaN(m0)) return null;
+        bool up = target > m0; double lo = up ? r0 : 1, hi = up ? 1e6 : r0;
+        for (int i = 0; i < 80; i++)
+        {
+            double m = Math.Sqrt(lo * hi), val = M(m);
+            if (double.IsNaN(val)) { if (up) hi = m; else lo = m; }
+            else if (val < target) lo = m; else hi = m;
+        }
+        double R = Math.Round(Math.Sqrt(lo * hi), 1), got = M(R);
+        if (double.IsNaN(got) || Math.Abs(got - target) > 0.1) return null;
+        c[vi].R = R; return c;
+    }
+
     /// <summary>Simpleks Neldera–Meada (minimum f) w pierwszych <paramref name="n"/> współrzędnych; pozostałe stałe.</summary>
-    static double[] NelderMead(Func<double[], double> f, double[] x0, double[] step, int n, int maxIt)
+    internal static double[] NelderMead(Func<double[], double> f, double[] x0, double[] step, int n, int maxIt)
     {
         var pts = new List<double[]> { (double[])x0.Clone() };
         for (int i = 0; i < n; i++) { var p = (double[])x0.Clone(); p[i] += step[i]; pts.Add(p); }

@@ -24,11 +24,16 @@ public partial class UtView
     public event Action<string, int, ArcFit, string> ArcFitDone;
     /// <summary>Wierzchołki łuku złożonego (łuki bez prostej między sobą), do którego należy wybrany łuk; jeden – zwykły łuk.</summary>
     public List<int> FitGroup { get; private set; } = new();
+    /// <summary>Tor z elementów: dopasowana trasa (podgląd), zastosowanie – <see cref="AlignFitDone"/>.</summary>
+    public UtAlign FitAlign { get; private set; }
+    public event Action<string, UtAlign, string> AlignFitDone;
 
     /// <summary>Wierzchołek łuku pod kursorem: element osi najbliżej kliknięcia (łuk / przejściowa – jego wierzchołek, prosta – bliższy wierzchołek).</summary>
     (string Track, int Vi)? FitVertexAt(Point s)
     {
-        var id = HitTrack(s); if (id == null || Track(id) is not UtTrack t || t.Vertices.Count < 3) return null;
+        var id = HitTrack(s); if (id == null || Track(id) is not UtTrack t) return null;
+        if (t.Align != null) return (id, -1);                 // tor z elementów – dopasowanie elementów
+        if (t.Vertices.Count < 3) return null;
         var r = Geometry(t); var w = ToWorld(s);
         var (sNear, _) = r.Nearest(w, 0.5); double acc = 0; int vi = -1;
         foreach (var e in r.Elements)
@@ -49,6 +54,12 @@ public partial class UtView
         if (fitArc == null)
         {
             if (FitVertexAt(s) is not var (id, vi)) { DraftInfo?.Invoke("Łuk z punktów: kliknij łuk toru (albo przy załamaniu)"); return; }
+            if (vi < 0)
+            {
+                fitArc = (id, -1); FitPts.Clear(); FitResult = null; FitAlign = null; Select(id); FitGroup = new();
+                DraftInfo?.Invoke("Łuk z punktów (tor z elementów): klikaj punkty na osi toru na zdjęciu – dopasują się długości i promienie elementów w tym miejscu; Enter – zastosuj");
+                InvalidateVisual(); return;
+            }
             if (Locked(id, vi) || SkewTurnout(id, vi) != null) { DraftInfo?.Invoke("Łuk z punktów: ten łuk ustawia rozjazd – wybierz inny"); return; }
             fitArc = (id, vi); FitPts.Clear(); FitResult = null; Select(id, vi);
             FitGroup = Budowa.ArcGroup(Track(id).Vertices, vi, Trasa.KFor(Track(id)));
@@ -62,6 +73,12 @@ public partial class UtView
     {
         if (fitArc is not var (id, vi) || Track(id) is not UtTrack t) { FitResult = null; return; }
         var kk = Trasa.KFor(t);
+        if (vi < 0 && t.Align != null)
+        {
+            var (fa, rms, max, dev, err) = FitPts.Count == 0 ? (null, 0, 0, null, null) : TrasaElem.Fit(t.Align, kk, FitPts);
+            FitAlign = fa; FitResult = FitPts.Count == 0 ? null : new ArcFit(0, 0, rms, max, dev ?? new(), err);
+            DraftInfo?.Invoke(FitInfo()); InvalidateVisual(); return;
+        }
         FitResult = FitPts.Count == 0 ? null : FitGroup.Count > 1 ? Budowa.FitArcGroup(t.Vertices, FitGroup, FitPts, kk, FitWithL, FitFreeVertex)
             : FitFreeVertex ? Budowa.FitArcFree(t.Vertices, vi, FitPts, Trasa.KFor(t), FitWithL) : Budowa.FitArc(t.Vertices, vi, FitPts, Trasa.KFor(t), FitWithL);
         DraftInfo?.Invoke(FitInfo());
@@ -72,6 +89,8 @@ public partial class UtView
     {
         if (FitResult == null) return "Łuk z punktów: kliknij punkty na osi łuku";
         if (FitResult.Error != null) return "Łuk z punktów: " + FitResult.Error;
+        if (FitAlign != null && fitArc is (_, -1))
+            return $"Łuk z punktów (tor z elementów): {string.Join(" | ", FitAlign.Els.Where(e => !e.Prosta).Select(e => e.Luk ? $"R {Math.Abs(e.R0):0}" : $"L {e.Len:0}"))} – {FitPts.Count} pkt, odchyłka średnia {FitResult.Rms * 100:0.#} cm, największa {FitResult.Max * 100:0.#} cm · Enter – zastosuj";
         string vx = FitFreeVertex ? (FitResult.Vertex is XY nv && fitArc is var (fid, fvi) && Track(fid) is UtTrack ft ? $", wierzchołek przesunięty o {XY.Dist(nv, ft.Vertices[fvi].P) / Trasa.KFor(ft):0.00} m" : FitPts.Count < 4 ? " (wierzchołek – od 4 punktów)" : "") : " (proste stałe – W)";
         if (FitResult.Parts != null)
             return $"Łuk złożony z punktów ({FitResult.Parts.Count} łuki): R {string.Join(" / ", FitResult.Parts.Select(q => q.R.ToString("0")))} m" +
@@ -85,8 +104,9 @@ public partial class UtView
     public bool FitApply()
     {
         if (fitArc is not var (id, vi) || FitResult == null || FitResult.Error != null) return false;
-        var r = FitResult; string info = FitInfo().Replace(" · Enter – zastosuj", "");
-        fitArc = null; FitPts.Clear(); FitResult = null; InvalidateVisual();
+        var r = FitResult; string info = FitInfo().Replace(" · Enter – zastosuj", ""); var fa = FitAlign;
+        fitArc = null; FitPts.Clear(); FitResult = null; FitAlign = null; InvalidateVisual();
+        if (vi < 0) { if (fa == null) return false; AlignFitDone?.Invoke(id, fa, info); return true; }
         ArcFitDone?.Invoke(id, vi, r, info);
         return true;
     }
@@ -99,8 +119,28 @@ public partial class UtView
         if (fitArc == null) return false;
         if (k == Key.Escape) { fitArc = null; FitPts.Clear(); FitResult = null; DraftInfo?.Invoke("Łuk z punktów: kliknij łuk toru"); InvalidateVisual(); return true; }
         if (k == Key.Back) { if (FitPts.Count > 0) { FitPts.RemoveAt(FitPts.Count - 1); Refit(); } return true; }
+        if (k == Key.O) { _ = AddOsmPoints(); return true; }
         if (k == Key.Enter) { if (!FitApply()) DraftInfo?.Invoke("Łuk z punktów: najpierw kliknij punkty na osi łuku"); return true; }
         return false;
+    }
+
+    /// <summary>Punkty z OpenStreetMap (osie torów w widoku, do 8 m od wybranego toru) dodane do punktów dopasowania (klawisz O).</summary>
+    public async Task<int> AddOsmPoints()
+    {
+        if (fitArc is not var (id, _) || Track(id) is not UtTrack t) return 0;
+        DraftInfo?.Invoke("Łuk z punktów: pobieranie osi torów z OpenStreetMap…");
+        try
+        {
+            var a = ToWorld(new Point(0, 0)); var b = ToWorld(new Point(ActualWidth, ActualHeight));
+            var nodes = await OsmPunkty.Nodes(a, b, CancellationToken.None);
+            var r = Geometry(t);
+            var near = OsmPunkty.NearTrack(nodes, r).Where(p => FitPts.All(q => XY.Dist(q, p) / r.K > 1)).ToList();
+            if (near.Count == 0) { DraftInfo?.Invoke($"Łuk z punktów: OpenStreetMap – w widoku {nodes.Count} węzłów torów, żaden nie leży do 8 m od tego toru"); return 0; }
+            FitPts.AddRange(near); Refit();
+            DraftInfo?.Invoke($"Łuk z punktów: dodano {near.Count} punktów z OpenStreetMap ({OsmPunkty.Attribution}) – " + FitInfo().Replace("Łuk z punktów: ", ""));
+            return near.Count;
+        }
+        catch (Exception ex) { DraftInfo?.Invoke("Łuk z punktów: OpenStreetMap – " + Pobieranie.Reason(ex)); return -1; }
     }
 
     void DrawArcFit(DrawingContext dc, double dpi)
@@ -108,13 +148,17 @@ public partial class UtView
         if (tool != UtTool.LukPunkty) return;
         if (fitArc is not var (id, vi) || Track(id) is not UtTrack t)
         {
-            if (hover is XY h && FitVertexAt(ToScreen(h)) is var (hid, hvi) && Track(hid) is UtTrack ht)
+            if (hover is XY h && FitVertexAt(ToScreen(h)) is var (hid, hvi) && Track(hid) is UtTrack ht && hvi >= 0)
             { dc.DrawEllipse(null, SnapPen, ToScreen(ht.Vertices[hvi].P), 7, 7); Label(dc, $"łuk W{hvi + 1} – kliknij", ToScreen(h) + new Vector(12, 8), DraftInk, dpi); }
             return;
         }
-        dc.DrawEllipse(null, SnapPen, ToScreen(t.Vertices[vi].P), 7, 7);
         var pen = new Pen(DraftInk, 2) { DashStyle = new DashStyle(new double[] { 4, 2 }, 0) };
-        if (FitResult is { Error: null } fr)
+        if (vi < 0)
+        {
+            if (FitAlign != null) dc.DrawGeometry(null, pen, Line(TrasaElem.Compute(FitAlign, Trasa.KFor(t)).Sample(0.5), 0));
+        }
+        else dc.DrawEllipse(null, SnapPen, ToScreen(t.Vertices[vi].P), 7, 7);
+        if (vi >= 0 && FitResult is { Error: null } fr)
         {
             var c = t.Vertices.Select(x => x.Clone()).ToList(); c[vi].R = fr.R; c[vi].L = fr.L;
             if (fr.Vertex is XY nv) { c[vi].X = nv.X; c[vi].Y = nv.Y; dc.DrawLine(new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[vi].P), ToScreen(nv)); }

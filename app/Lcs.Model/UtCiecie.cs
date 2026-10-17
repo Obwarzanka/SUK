@@ -75,24 +75,27 @@ public static class Ciecie
             if (!double.IsNaN(cs) && cs > sa - 5 && cs < sb + 5) return new($"cięcie trafia w skrzyżowanie / rozjazd krzyżowy {c.Number} – usuń je albo tnij obok", null, false, null);
         }
 
-        // nowe wierzchołki obu części
-        var va = keepA ? Budowa.Trim(t.Vertices, k, 0, sa) : null;
-        var vb = keepB ? Budowa.Trim(t.Vertices, k, sb, L) : null;
+        // nowe wierzchołki obu części (tor z elementów – przycięte elementy)
+        UtAlign aa = null, ab = null;
+        if (t.Align != null) { if (keepA) aa = TrasaElem.Trim(t.Align, k, 0, sa); if (keepB) ab = TrasaElem.Trim(t.Align, k, sb, L); }
+        var va = keepA ? (aa != null ? new List<UtVertex> { new(), new() } : Budowa.Trim(t.Vertices, k, 0, sa)) : null;
+        var vb = keepB ? (ab != null ? new List<UtVertex> { new(), new() } : Budowa.Trim(t.Vertices, k, sb, L)) : null;
         if ((va != null && va.Count < 2) || (vb != null && vb.Count < 2)) return new("za krótki kawałek po cięciu", null, false, null);
 
-        var nb = keepB ? new UtTrack { Number = keepA ? "" : t.Number, Cat = t.Cat, Elec = t.Elec, Vmax = t.Vmax, Vertices = vb, OpenEnd = t.OpenEnd } : null;
+        var nb = keepB ? new UtTrack { Number = keepA ? "" : t.Number, Cat = t.Cat, Elec = t.Elec, Vmax = t.Vmax, Vertices = vb, OpenEnd = t.OpenEnd, Align = ab } : null;
+        if (nb?.Align != null) TrasaElem.SyncEnds(nb);
         int removed = 0;
         if (!keepA)
         {
             // usuwany początek: tor zostaje tym samym torem (numer, odgałęzienia), obiekty za cięciem – km − sb
-            t.Vertices = vb; t.OpenStart = false;
+            t.Vertices = vb; t.Align = ab; TrasaElem.SyncEnds(t); t.OpenStart = false;
             Drop(p, trackId, s => s < sb - E, ref removed);
             Move(p, trackId, trackId, sb);
             t.Profile = t.Profile.Where(q => q.S >= sb - E).Select(q => new UtProfilePoint { S = q.S - sb, Z = q.Z, Rv = q.Rv }).ToList();
             t.Terrain = t.Terrain.Where(q => q.S >= sb - E).Select(q => new UtProfilePoint { S = q.S - sb, Z = q.Z, Rv = q.Rv }).ToList();
             return new(null, null, false, $"usunięto początek toru ({sb:0.##} m)" + (removed > 0 ? $"; usunięte z nim obiekty: {removed}" : ""));
         }
-        t.Vertices = va;
+        t.Vertices = va; if (aa != null) { t.Align = aa; TrasaElem.SyncEnds(t); }
         if (!keepB) { t.OpenEnd = false; Drop(p, trackId, s => s > sa + E, ref removed); return new(null, null, false, $"usunięto koniec toru ({L - sa:0.##} m)" + (removed > 0 ? $"; usunięte z nim obiekty: {removed}" : "")); }
         p.Tracks.Insert(p.Tracks.IndexOf(t) + 1, nb);
         t.OpenEnd = false;
