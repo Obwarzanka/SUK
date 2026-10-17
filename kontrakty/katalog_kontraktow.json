@@ -1,0 +1,684 @@
+{
+  "kontrakt": "katalog.kontraktow",
+  "wersja": 1,
+  "status": "wstepny",
+  "utworzono": "2026-10-18 (S00.03, HEAD przed 0d39583)",
+  "zasady": [
+    "Katalog jest rejestrem: pozycja 'planowany'/'nie_istnieje' niczego nie zalicza – istnienie potwierdza plik z sumą i raport zadania.",
+    "Pliki kontraktów są neutralne: dane, schematy, kody i wersje; bez kodu algorytmów zależności, bez zobrazowań i bez sekretów.",
+    "Zmiana pliku wymaga aktualizacji sha256_lf (suma po zamianie CRLF→LF) i przejścia kontrakty/testy/sprawdz_kontrakty.py.",
+    "Wersjonowanie: zmiana znaczenia pola = nowa wersja główna (nowy plik *_v2); nowe opcjonalne pole = zgodna zmiana w tej samej wersji.",
+    "Autor Kz_A/Kz_B dostaje wyłącznie zatwierdzony neutralny pakiet (S02A1.04); ten katalog może do niego należeć, app/ i kod drugiego wariantu – nie.",
+    "Statusy: wstepny (jest plik, do potwierdzenia przez konsumenta), zamrozony (punkt wyjścia; zmiana osobnym zadaniem), kandydat (wybór w etapie), planowany (opis bez pliku), nie_istnieje (wskazany w planie, brak decyzji o kształcie)."
+  ],
+  "kontrakty": [
+    {
+      "id": "log.rekord",
+      "nazwa": "Schemat rekordu logu JSONL",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S00.03",
+      "zamraza": "S01.01",
+      "konsumenci": [
+        "S01.01",
+        "S01.02",
+        "S02.01",
+        "S02A1.02",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "25 §4",
+        "25 §7"
+      ],
+      "opis": "JSON Schema Draft-07 rekordu diagnostyki (Serilog Compact + pola SUK): kontekst świata/KZ/grupy/kanału, korelacja, limity, zakazane nazwy pól.",
+      "pliki": [
+        {
+          "plik": "kontrakty/logi/rekord_logu_v1.schema.json",
+          "sha256_lf": "f3d487295b83c5507d96168583590a7712c53b41ce16733f0f2bbefac337abce"
+        }
+      ],
+      "granice": [
+        "groupId 1|2, channelId A|B – kontekst nadaje host z uchwytu, nie tekst Ada",
+        "identyfikatory klienta nieufne: ASCII ≤64, bez CR/LF"
+      ]
+    },
+    {
+      "id": "log.zdarzenia",
+      "nazwa": "Katalog eventId/eventCode",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S00.03",
+      "zamraza": "S01.01",
+      "konsumenci": [
+        "S01.01",
+        "S01.02",
+        "S02.01",
+        "S02A1.02"
+      ],
+      "rozdzialy": [
+        "25 §3",
+        "25 §8"
+      ],
+      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B.",
+      "pliki": [
+        {
+          "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
+          "sha256_lf": "8eb1e77732f59ac0972deed02697d1bd731dd60e307b88b3dbf3f8eb231206e3"
+        }
+      ]
+    },
+    {
+      "id": "log.budzety",
+      "nazwa": "Budżety logowania do pomiaru",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S00.03",
+      "zamraza": "S13.02",
+      "konsumenci": [
+        "S01.01",
+        "S02A1.02",
+        "S06.02",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "25 §5",
+        "25 §6",
+        "25 §7"
+      ],
+      "opis": "Limity rekordu, kolejek, flush, kosztu w ticku, plików, miejsca, DiagnosticBatch Ada i retencji – propozycje z polem wynik_pomiaru.",
+      "pliki": [
+        {
+          "plik": "kontrakty/logi/budzety_logow_v1.json",
+          "sha256_lf": "e7806999e28b2d625b96bc432de0979ed5eafc5d2ac9edc76cfed0c449d2e94e"
+        }
+      ]
+    },
+    {
+      "id": "stos.wersje",
+      "nazwa": "Wersje stosu .NET/NuGet/DB",
+      "wersja": 1,
+      "status": "zamrozony",
+      "tworzy": "S00.03",
+      "zamraza": "S00.03",
+      "konsumenci": [
+        "S01.01",
+        "S01.03",
+        "S03.01",
+        "S04.01",
+        "S12.01",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "20"
+      ],
+      "opis": "SDK 10.0.402 (global.json), CPM z 29 wersjami pakietów (w tym 3 przypięte przechodnie dla poprawek bezpieczeństwa), źródło nuget.org z mapowaniem, PostgreSQL 18, kandydaci S10/S12/S13.",
+      "pliki": [
+        {
+          "plik": "kontrakty/stos/wersje_stosu.json",
+          "sha256_lf": "ff45f4b17264510c4e1584fe10e9cdb8e07a3d00fb5ac0100bf2f2ceb915e727"
+        },
+        {
+          "plik": "app/global.json",
+          "sha256_lf": "71e8cdb6d581b3ddcb6c6737c319820058eba6674b4905e3cbcd9f42ab217db6"
+        },
+        {
+          "plik": "app/Directory.Packages.props",
+          "sha256_lf": "5991dc9f9a7365429fbb9524b11d9c0c10c34eb0ec19dd5db02438aded94ca87"
+        },
+        {
+          "plik": "app/nuget.config",
+          "sha256_lf": "f90f7c39a006e496a30ca7e3765f72793cc8c81c8203fbafd5d71fd81b16e140"
+        }
+      ]
+    },
+    {
+      "id": "stos.toolchain_ada",
+      "nazwa": "Toolchain Ada (Alire/GNAT/gprbuild)",
+      "wersja": 1,
+      "status": "kandydat",
+      "tworzy": "S00.03",
+      "zamraza": "S02A1.02",
+      "konsumenci": [
+        "S02A1.02",
+        "S02A1.04",
+        "S02A2.01",
+        "S02A3.01"
+      ],
+      "rozdzialy": [
+        "20",
+        "23"
+      ],
+      "opis": "Alire 2.1.1, gnat_native 16.1.0, gprbuild 26.0.1 z sumami archiwów Windows x64/Linux; dowód na Windows – S02A1.02.",
+      "pliki": [
+        {
+          "plik": "kontrakty/stos/toolchain_ada.json",
+          "sha256_lf": "96931ba10cfd541dd4874af66414879e6e83b4a66401ffc463aa113a6a03deb2"
+        }
+      ]
+    },
+    {
+      "id": "profil.pomiaru",
+      "nazwa": "Profil pomiaru i odniesienia",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S00.03",
+      "zamraza": "S13.01",
+      "konsumenci": [
+        "S01.01",
+        "S01.03",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "11",
+        "13 D09",
+        "25 §9"
+      ],
+      "opis": "Host pomiaru (Windows właściciela), host budowania (VM), czasy i hashe wyników S00.02, stan D09.",
+      "pliki": [
+        {
+          "plik": "kontrakty/profile/profil_pomiaru_v1.json",
+          "sha256_lf": "0be83caad2e4eba7fa186b591212e4f804afeb58ab4ef5b25e8ab93b4681509e"
+        }
+      ]
+    },
+    {
+      "id": "profil.wdrozenia",
+      "nazwa": "Profil wdrożenia klienta i serwera",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S00.03",
+      "zamraza": "S01.03",
+      "konsumenci": [
+        "S01.03",
+        "S02.03",
+        "S12.02",
+        "S13.03"
+      ],
+      "rozdzialy": [
+        "20"
+      ],
+      "opis": "Stan net8 framework-dependent; docelowo klient self-contained win-x64 (testy po net10 bez runtime u właściciela – decyzja S01.03), serwer jako usługi Windows.",
+      "pliki": [
+        {
+          "plik": "kontrakty/profile/profil_wdrozenia_v1.json",
+          "sha256_lf": "c4921a6fd4bd712157063d05dd15bf4f96d074fd5c47b3cc8d86ebb2572ecee1"
+        }
+      ]
+    },
+    {
+      "id": "rdzen.typy",
+      "nazwa": "Neutralne typy rdzenia (SUK.Contracts)",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S01.02",
+      "zamraza": "S01.02",
+      "konsumenci": [
+        "S02.01",
+        "S04.02"
+      ],
+      "rozdzialy": [
+        "03",
+        "20"
+      ],
+      "opis": "DTO i kody bez WPF/EF/GNAT; host bez okien. Brak pliku – do utworzenia.",
+      "pliki": []
+    },
+    {
+      "id": "swiat.host",
+      "nazwa": "Kontrakt hosta świata (tick, harmonogram, tryb usługi)",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02.01",
+      "zamraza": "S02.03",
+      "konsumenci": [
+        "S02.02",
+        "S02A.02"
+      ],
+      "rozdzialy": [
+        "03",
+        "10"
+      ],
+      "opis": "Jeden zegar świata, kolejność cyklu z Simulator.Tick, bez czekania na sieć/DB w ticku.",
+      "pliki": []
+    },
+    {
+      "id": "swiat.wejscie_cyklu",
+      "nazwa": "Zamrożone wejście cyklu",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A.02",
+      "zamraza": "S02A.02",
+      "konsumenci": [
+        "S02A.03",
+        "S02A1.02"
+      ],
+      "rozdzialy": [
+        "18",
+        "23"
+      ],
+      "opis": "Uporządkowany strumień wejść dla KZ (te same dla obu grup/kanałów).",
+      "pliki": []
+    },
+    {
+      "id": "swiat.skutek",
+      "nazwa": "Bierny plan, effectId i pojedyncze wyjście",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A.03",
+      "zamraza": "S02A.03",
+      "konsumenci": [
+        "S02B.03",
+        "S02C.03",
+        "S06.02"
+      ],
+      "rozdzialy": [
+        "16",
+        "18",
+        "23"
+      ],
+      "opis": "OutputPlan → selektor → jeden zatwierdzony skutek; effectState Proposed/Committed/Rejected/DeviceConfirmed/Unknown (wstępnie w log.rekord).",
+      "pliki": [],
+      "granice": [
+        "obliczenia grup nie mutują terenu",
+        "jeden effectId = jeden skutek"
+      ]
+    },
+    {
+      "id": "swiat.kontekst_operatora",
+      "nazwa": "Kontekst operatora i adapter ruchu",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A.04",
+      "zamraza": "S02A.04",
+      "konsumenci": [
+        "S05.01",
+        "S14.01"
+      ],
+      "rozdzialy": [
+        "06",
+        "17"
+      ],
+      "opis": "requestId, tożsamość, lease i epoki zamiast globalnego User/CurDesk.",
+      "pliki": []
+    },
+    {
+      "id": "kz.specyfikacja",
+      "nazwa": "Neutralna specyfikacja KZ ze źródłami",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A1.01",
+      "zamraza": "S02A1.04",
+      "konsumenci": [
+        "S02A2.01",
+        "S02A3.01",
+        "S02A4.01"
+      ],
+      "rozdzialy": [
+        "19",
+        "23",
+        "27"
+      ],
+      "opis": "Zaakceptowane reguły z konkretnymi źródłami; brak PDF Ie-1 blokuje odpowiednie reguły (bramka źródłowa).",
+      "pliki": []
+    },
+    {
+      "id": "kz.abi",
+      "nazwa": "Kontrakt danych i C ABI .NET–Ada (z DiagnosticBatch)",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A1.02",
+      "zamraza": "S02A1.04",
+      "konsumenci": [
+        "S02A2.01",
+        "S02A3.01",
+        "S02A4.02",
+        "S02B.01"
+      ],
+      "rozdzialy": [
+        "20",
+        "23",
+        "25 §5"
+      ],
+      "opis": "abiMajor/minor, jawne szerokości pól, bufory, uchwyty SafeHandle, kody błędów; DiagnosticBatch ≤8 rekordów i ≤4 KiB na kontekst i wywołanie (log.budzety B10).",
+      "pliki": [],
+      "granice": [
+        "Evaluate bez I/O",
+        "wyjątki Ada nie przechodzą przez ABI",
+        "cztery prywatne konteksty: grupa1/2 × kanał A/B"
+      ]
+    },
+    {
+      "id": "kz.przypadki",
+      "nazwa": "Katalog przypadków (golden)",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A1.03",
+      "zamraza": "S02A1.04",
+      "konsumenci": [
+        "S02A2.05",
+        "S02A3.05",
+        "S02A4.02"
+      ],
+      "rozdzialy": [
+        "23",
+        "15"
+      ],
+      "opis": "Scenariusze wejść/oczekiwanych wyników wobec specyfikacji, nie wobec drugiego wariantu.",
+      "pliki": []
+    },
+    {
+      "id": "kz.pakiet_neutralny",
+      "nazwa": "Stub i zamrożony pakiet dla autorów A/B",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02A1.04",
+      "zamraza": "S02A1.04",
+      "konsumenci": [
+        "S02A2.01",
+        "S02A3.01"
+      ],
+      "rozdzialy": [
+        "26",
+        "27"
+      ],
+      "opis": "Jeden hash pakietu dla obu linii; bez kodu C# KZ i bez drugiego wariantu.",
+      "pliki": []
+    },
+    {
+      "id": "kz.grupy",
+      "nazwa": "Konteksty grup, kwalifikacja i dystrybucja",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02B.01",
+      "zamraza": "S02B.03",
+      "konsumenci": [
+        "S02C.01"
+      ],
+      "rozdzialy": [
+        "18"
+      ],
+      "opis": "Qualification/Role, ten sam strumień wejść dla grup 1/2.",
+      "pliki": []
+    },
+    {
+      "id": "kz.startup_selection",
+      "nazwa": "StartupSelection, selektor i fencing",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02C.02",
+      "zamraza": "S02C.03",
+      "konsumenci": [
+        "S06.02",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "18",
+        "20",
+        "11 N40"
+      ],
+      "opis": "Losowanie grupy zasadniczej per KZ po Ready (RandomNumberGenerator.GetInt32(2)+1) jako zapisane wejście; replay bez ponownego losowania.",
+      "pliki": []
+    },
+    {
+      "id": "kz.profil_transmisji",
+      "nazwa": "Ręczny profil transmisji pulpit–KZ–karty",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S02D.01",
+      "zamraza": "S02D.03",
+      "konsumenci": [
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "18",
+        "19"
+      ],
+      "opis": "Topologia projektowana przez człowieka; bez automatycznego generowania.",
+      "pliki": []
+    },
+    {
+      "id": "konta.model",
+      "nazwa": "Model kont, tożsamości i ról",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S03.01",
+      "zamraza": "S03.01",
+      "konsumenci": [
+        "S03.02",
+        "S05.01",
+        "S08.01"
+      ],
+      "rozdzialy": [
+        "08",
+        "21"
+      ],
+      "opis": "Bez sekretów w logach, bez domyślnego admina; actorRef pseudonimowy.",
+      "pliki": []
+    },
+    {
+      "id": "admin.klucz",
+      "nazwa": "Enrollment klucza administratora",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S03.03",
+      "zamraza": "S03.03",
+      "konsumenci": [
+        "S08.02",
+        "S18.02"
+      ],
+      "rozdzialy": [
+        "21",
+        "11 N41"
+      ],
+      "opis": "Prywatny klucz generowany lokalnie (CNG/TPM), serwer dostaje klucz publiczny i wydaje certyfikat.",
+      "pliki": []
+    },
+    {
+      "id": "protokol.sesja",
+      "nazwa": "Sesja TLS i negocjacja wersji",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S04.01",
+      "zamraza": "S04.01",
+      "konsumenci": [
+        "S04.02",
+        "S12.01"
+      ],
+      "rozdzialy": [
+        "04",
+        "05"
+      ],
+      "opis": "HTTPS/WSS, wersja protokołu/klienta, odrzucenie niezgodnej wersji.",
+      "pliki": []
+    },
+    {
+      "id": "protokol.komendy",
+      "nazwa": "Typowane komendy i wyniki",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S04.02",
+      "zamraza": "S04.02",
+      "konsumenci": [
+        "S05.01",
+        "S06.01"
+      ],
+      "rozdzialy": [
+        "04"
+      ],
+      "opis": "requestId, Queued/Executed/Rejected/AwaitingOperatorConfirmation, confirmationId, correlationId.",
+      "pliki": []
+    },
+    {
+      "id": "protokol.migawki",
+      "nazwa": "Pełne migawki i delty",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S04.03",
+      "zamraza": "S07.02",
+      "konsumenci": [
+        "S07.01",
+        "S07.03"
+      ],
+      "rozdzialy": [
+        "04",
+        "17"
+      ],
+      "opis": "Epoki, resync po luce, filtrowanie po ViewGrant.",
+      "pliki": []
+    },
+    {
+      "id": "prawa.zakresy",
+      "nazwa": "ViewGrant/ControlLease i zakresy",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S05.01",
+      "zamraza": "S05.03",
+      "konsumenci": [
+        "S05.02",
+        "S06.01"
+      ],
+      "rozdzialy": [
+        "06",
+        "17"
+      ],
+      "opis": "Podgląd po oddaniu bez sterowania; stara epoka nie wykonuje komend.",
+      "pliki": []
+    },
+    {
+      "id": "trwalosc.dziennik",
+      "nazwa": "Dziennik świata, audyt i granica trwałości",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S06.02",
+      "zamraza": "S06.03",
+      "konsumenci": [
+        "S08.03",
+        "S13.02"
+      ],
+      "rozdzialy": [
+        "25 §6",
+        "04"
+      ],
+      "opis": "Trwały audyt/commit journal bez odrzucania; brak Applied przed trwałością.",
+      "pliki": []
+    },
+    {
+      "id": "sankcje",
+      "nazwa": "Sankcje, Saved/Applied",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S08.01",
+      "zamraza": "S08.03",
+      "konsumenci": [
+        "S11.02",
+        "S18.01"
+      ],
+      "rozdzialy": [
+        "08",
+        "21"
+      ],
+      "opis": "Zakres sankcji, projekcja audytu.",
+      "pliki": []
+    },
+    {
+      "id": "lacznosc.urzadzenia",
+      "nazwa": "Model urządzeń łączności",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S09.01",
+      "zamraza": "S11.03",
+      "konsumenci": [
+        "S10.02",
+        "S14.02"
+      ],
+      "rozdzialy": [
+        "07"
+      ],
+      "opis": "Prywatne kanały i prawa rozmowy; bez nagrań i treści w logach.",
+      "pliki": []
+    },
+    {
+      "id": "aktualizacje.metadane",
+      "nazwa": "Metadane i zaufanie aktualizacji",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S12.01",
+      "zamraza": "S12.03",
+      "konsumenci": [
+        "S12.02"
+      ],
+      "rozdzialy": [
+        "09"
+      ],
+      "opis": "Uwierzytelnione metadane, hash/długość, rollback/freeze, rotacja kluczy.",
+      "pliki": []
+    },
+    {
+      "id": "ruch.dane_operatora",
+      "nazwa": "Dane algorytmu ruchowego bez LLM",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S14.01",
+      "zamraza": "S16.03",
+      "konsumenci": [
+        "S14.02",
+        "S15.02",
+        "S16.02"
+      ],
+      "rozdzialy": [
+        "07",
+        "11 N35"
+      ],
+      "opis": "Wersjonowane reguły, wejścia i przyczyny decyzji do odtworzenia; bez LLM.",
+      "pliki": []
+    },
+    {
+      "id": "admin.api",
+      "nazwa": "Prywatne AdminApi i kontrakty panelu",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S18.01",
+      "zamraza": "S18.03",
+      "konsumenci": [
+        "S18.02"
+      ],
+      "rozdzialy": [
+        "21",
+        "11 N38"
+      ],
+      "opis": "Konto ORAZ klucz ORAZ kompetencja; mTLS/token binding.",
+      "pliki": []
+    },
+    {
+      "id": "dyspozytor.model",
+      "nazwa": "Model nadzoru okręgu",
+      "wersja": null,
+      "status": "planowany",
+      "tworzy": "S19.01",
+      "zamraza": "S19.03",
+      "konsumenci": [
+        "S19.02"
+      ],
+      "rozdzialy": [
+        "22",
+        "11 N39"
+      ],
+      "opis": "Projekcje i dyspozycje do człowieka/algorytmu; brak dziedziczenia ról.",
+      "pliki": []
+    }
+  ],
+  "narzedzia": [
+    {
+      "plik": "kontrakty/testy/sprawdz_kontrakty.py",
+      "sha256_lf": "30679db01e210888f586a39c8d7c104636cdc77d7f11f1e86d780234d0763def"
+    },
+    {
+      "plik": "kontrakty/testy/rekordy_poprawne.jsonl",
+      "sha256_lf": "9bf396c7f74c07a2fd5f2e9c1d464e241ff1b500f3e692e20d0756d620649729"
+    },
+    {
+      "plik": "kontrakty/testy/przypadki_bledne.json",
+      "sha256_lf": "ea20745295256e561b4bf2175e33c7cc3abfd38e1cc73529c59ffc6c79a3fc3f"
+    }
+  ]
+}

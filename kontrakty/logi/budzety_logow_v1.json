@@ -1,0 +1,240 @@
+{
+  "kontrakt": "log.budzety",
+  "wersja": 1,
+  "status": "wstepny",
+  "utworzono": "2026-10-18 (S00.03)",
+  "zrodlo": "SUK_plan_multiplayer/25_LOGOWANIE_I_DIAGNOSTYKA.md §5, §6, §7",
+  "zasada": "Wartości są proponowanymi profilami do pomiaru, nie wynikiem testów ani obietnicą wydajności. Pole wynik_pomiaru wypełnia zadanie, które wykona próbę (z odnośnikiem do logu). Zmiana wartości = nowa wersja pliku z uzasadnieniem pomiarem.",
+  "jednostki": {
+    "B": "bajty",
+    "KiB": "1024 B",
+    "MiB": "1024 KiB",
+    "GiB": "1024 MiB",
+    "us": "mikrosekundy",
+    "ms": "milisekundy",
+    "s": "sekundy",
+    "d": "dni",
+    "%": "procent"
+  },
+  "budzety": [
+    {
+      "id": "B01",
+      "nazwa": "Rekord diagnostyczny",
+      "wartosci": {
+        "maxRecordBytesUtf8": 8192,
+        "maxStringChars": 512,
+        "maxExceptionCharsPoRedakcji": 4096,
+        "maxProperties": 64,
+        "maxExternalIdChars": 64
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L01",
+        "L05",
+        "N43"
+      ],
+      "etap_pomiaru": [
+        "S01.01"
+      ],
+      "wynik_pomiaru": null,
+      "uwaga": "maxProperties i maxExternalIdChars to propozycja S00.03 (25 §6 mówi o „ograniczonej liczbie właściwości” i limitach identyfikatorów klienta); egzekwowane przez schemat rekord_logu_v1 i narzędzie sprawdzające."
+    },
+    {
+      "id": "B02",
+      "nazwa": "Kolejka diagnostyczna procesu świata/bramy",
+      "wartosci": {
+        "maxRecords": 4096,
+        "maxBytes": 8388608,
+        "regula": "obowiązuje wcześniejszy limit; brak kolejek per obiekt/kanał; TryWrite bez czekania"
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L02",
+        "L10"
+      ],
+      "etap_pomiaru": [
+        "S01.01",
+        "S13.02"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B03",
+      "nazwa": "Kolejka klienta/edytora",
+      "wartosci": {
+        "maxRecords": 1024,
+        "maxBytes": 2097152
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L02"
+      ],
+      "etap_pomiaru": [
+        "S01.01"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B04",
+      "nazwa": "Opróżnianie diagnostyki",
+      "wartosci": {
+        "maxGroupingMs": 1000,
+        "maxShutdownFlushMs": 5000
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L02",
+        "L03"
+      ],
+      "etap_pomiaru": [
+        "S01.01"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B05",
+      "nazwa": "Koszt emisji w ticku",
+      "wartosci": {
+        "p99EmitUsTypowe": 100,
+        "maxNarzutCzasuTickuProcent": 1,
+        "pomiar": "alokacje i ogon opóźnień"
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L02",
+        "L10"
+      ],
+      "etap_pomiaru": [
+        "S01.01",
+        "S13.02"
+      ],
+      "wynik_pomiaru": null,
+      "uwaga": "S01.01 mierzy na hoście z profil_pomiaru_v1 (bez ticku sieciowego); docelowy pomiar przy 40 klientach – S13.02."
+    },
+    {
+      "id": "B06",
+      "nazwa": "Logi techniczne serwera",
+      "wartosci": {
+        "maxPlikMiB": 64,
+        "maxPlikowNaProces": 16,
+        "maxWiekDni": 7,
+        "maxLacznieNaHostGiB": 2,
+        "katalog": "%ProgramData%\\SUK\\Logs",
+        "rollOnFileSizeLimit": true
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L03"
+      ],
+      "etap_pomiaru": [
+        "S02.03",
+        "S13.02"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B07",
+      "nazwa": "Logi lokalnej aplikacji",
+      "wartosci": {
+        "maxPlikMiB": 32,
+        "maxPlikow": 8,
+        "maxWiekDni": 7,
+        "katalog": "%LocalAppData%\\SUK\\<aplikacja>\\Logs",
+        "rollOnFileSizeLimit": true
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L01",
+        "L03"
+      ],
+      "etap_pomiaru": [
+        "S01.01"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B08",
+      "nazwa": "Progi wolnego miejsca",
+      "wartosci": {
+        "ostrzezenieProcentWolnego": 15,
+        "ograniczenieDiagnostykiProcentWolnego": 10,
+        "rezerwaBezwzglednaAudytu": null
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L03",
+        "L04"
+      ],
+      "etap_pomiaru": [
+        "S01.01",
+        "S06.02"
+      ],
+      "wynik_pomiaru": null,
+      "uwaga": "Bezwzględną rezerwę dla audytu ustala S06.02 z modelu zdarzeń (nie sam procent)."
+    },
+    {
+      "id": "B09",
+      "nazwa": "Audyt i dziennik świata",
+      "wartosci": {
+        "kwota": null,
+        "regula": "odrębna kwota i rezerwa, monitorowany backlog; rotator diagnostyki nie kasuje wymaganej historii; brak odrzucania"
+      },
+      "zrodlo": "25 §6",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L04",
+        "L08"
+      ],
+      "etap_pomiaru": [
+        "S06.02"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B10",
+      "nazwa": "DiagnosticBatch Ada",
+      "wartosci": {
+        "maxRekordowNaKontekstIWywolanie": 8,
+        "maxBajtowNaKontekstIWywolanie": 4096,
+        "regula": "przekroczenie daje licznik; kwalifikacja, błąd krytyczny i powód odrzucenia są obowiązkowymi polami rezultatu poza diagnostyką; Evaluate bez I/O"
+      },
+      "zrodlo": "25 §5",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "N36",
+        "L06"
+      ],
+      "etap_pomiaru": [
+        "S02A1.02",
+        "S02A4.02"
+      ],
+      "wynik_pomiaru": null
+    },
+    {
+      "id": "B11",
+      "nazwa": "Retencja organizacyjna",
+      "wartosci": {
+        "diagnostykaDni": 7,
+        "audytOperacyjnyDni": 30
+      },
+      "zrodlo": "25 §7",
+      "status": "proponowany_do_pomiaru",
+      "proby": [
+        "L03"
+      ],
+      "etap_pomiaru": [
+        "S13.01"
+      ],
+      "wynik_pomiaru": null,
+      "uwaga": "Propozycja organizacyjna do zatwierdzenia przed pilotem; „30 dni” nie jest twierdzeniem o wymaganiu prawnym."
+    }
+  ]
+}

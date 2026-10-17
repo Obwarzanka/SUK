@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK - rekord logu v1 (jedna linia JSONL)",
+  "description": "Rekord diagnostyki technicznej SUK: format Serilog CompactJsonFormatter (@t, @mt, @l, @x) wzbogacony o pola SUK z rozdzialu 25 par. 4. Odbiorca toleruje nieznane opcjonalne pola, zachowuje schemaVersion i odrzuca bledny typ. Zmiana znaczenia pola = nowa wersja glowna; nowe opcjonalne pole = zmiana zgodna. Limit 8 KiB calego rekordu sprawdza narzedzie (JSON Schema nie mierzy bajtow). Lista dozwolonych pol obowiazuje w adapterze przed kolejka; schemat dodatkowo odrzuca typowe nazwy pol z sekretami.",
+  "x-suk-kontrakt": "log.rekord",
+  "x-suk-wersja": 1,
+  "x-suk-status": "wstepny",
+  "x-suk-zrodlo": "SUK_plan_multiplayer/25_LOGOWANIE_I_DIAGNOSTYKA.md par. 4, 6, 7",
+  "x-suk-limity": {
+    "maxRecordBytesUtf8": 8192,
+    "maxStringChars": 512,
+    "maxExceptionChars": 4096,
+    "maxProperties": 64,
+    "maxExternalIdChars": 64
+  },
+  "type": "object",
+  "maxProperties": 64,
+  "required": [
+    "@t", "@mt", "schemaVersion", "stream", "eventCode", "eventId", "severity",
+    "moduleId", "moduleVersion", "processRunId", "recordSeq", "monoElapsedUs"
+  ],
+  "propertyNames": {
+    "allOf": [
+      { "maxLength": 64, "pattern": "^(@[a-z]{1,2}|[A-Za-z][A-Za-z0-9_]{0,63})$" },
+      { "not": { "$ref": "#/definitions/zakazaneNazwyPol" } }
+    ]
+  },
+  "properties": {
+    "@t": {
+      "description": "Czas UTC (ISO 8601, sufiks Z) z formatu Compact; sluzy korelacji maszyn, nie wyznacza wieku polecen ani kolejnosci swiata.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,7})?Z$"
+    },
+    "@mt": { "description": "Staly szablon komunikatu (po polsku), bez wartosci od uzytkownika i bez znakow sterujacych.", "$ref": "#/definitions/szablon" },
+    "@l": { "description": "Poziom Serilog; brak @l oznacza Information. Musi odpowiadac severity.", "type": "string", "enum": ["Verbose", "Debug", "Information", "Warning", "Error", "Fatal"] },
+    "@x": { "description": "Wyjatek po redakcji (bez sekretow i pelnej konfiguracji), do 4 KiB.", "type": "string", "maxLength": 4096 },
+    "@i": { "type": "string", "pattern": "^[0-9a-f]{8}$" },
+    "@r": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 512 } },
+    "@tr": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "@sp": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "stream": {
+      "description": "Zamknieta kategoria strumienia nadawana w miejscu emisji, nigdy przez klienta: diagnostic (diagnostyka techniczna), domain (kopia dziennika domenowego), audit (kopia audytu - nie zrodlo prawdy), replay (kopia wpisu dziennika odtworzenia - nie zrodlo prawdy).",
+      "type": "string",
+      "enum": ["diagnostic", "domain", "audit", "replay"]
+    },
+    "monoElapsedUs": { "description": "Czas monotoniczny od startu procesu [us]; porownywalny tylko w tym samym processRunId.", "$ref": "#/definitions/nieujemna" },
+    "processRunId": { "$ref": "#/definitions/uuid" },
+    "recordSeq": { "description": "Rosnacy licznik producenta w obrebie processRunId.", "$ref": "#/definitions/nieujemna" },
+    "eventCode": {
+      "description": "Stabilny kod zdarzenia OBSZAR.NAZWA; prefiks zgodny z zakresem eventId w kontrakty/logi/katalog_zdarzen_v1.json.",
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[A-Z][A-Z0-9]{1,15}(\\.[A-Z][A-Z0-9_]{0,47})+$"
+    },
+    "eventId": { "description": "EventId z katalogu zdarzen (1000-9999).", "type": "integer", "minimum": 1000, "maximum": 9999 },
+    "severity": { "description": "Poziom MEL (Microsoft.Extensions.Logging).", "type": "string", "enum": ["Trace", "Debug", "Information", "Warning", "Error", "Critical"] },
+    "moduleId": { "type": "string", "maxLength": 64, "pattern": "^[A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*)*$" },
+    "moduleVersion": { "$ref": "#/definitions/tokenWersji" },
+    "worldId": { "$ref": "#/definitions/identyfikator" },
+    "worldRunId": { "$ref": "#/definitions/uuid" },
+    "serverTick": { "$ref": "#/definitions/nieujemna" },
+    "simulationTimeMs": { "$ref": "#/definitions/nieujemna" },
+    "postId": { "$ref": "#/definitions/identyfikator" },
+    "kzId": { "$ref": "#/definitions/identyfikator" },
+    "kzEpoch": { "$ref": "#/definitions/nieujemna" },
+    "groupId": { "description": "Grupa obliczeniowa KZ: 1 albo 2. Brak pola = nie dotyczy (nie oznacza grupy zasadniczej).", "type": "integer", "enum": [1, 2] },
+    "channelId": { "description": "Kanal (implementacja) w grupie: A albo B.", "type": "string", "enum": ["A", "B"] },
+    "groupRunId": { "$ref": "#/definitions/uuid" },
+    "selectionEpoch": { "$ref": "#/definitions/nieujemna" },
+    "requestId": { "$ref": "#/definitions/identyfikatorZewnetrzny" },
+    "correlationId": { "$ref": "#/definitions/identyfikatorZewnetrzny" },
+    "effectId": { "$ref": "#/definitions/identyfikator" },
+    "effectState": {
+      "description": "Stan skutku; plan, decyzja i potwierdzenie z urzadzen to rozne stany. Wartosci znane w v1: Proposed, Committed, Rejected, DeviceConfirmed, Unknown (doprecyzowuje S02A.03).",
+      "$ref": "#/definitions/nazwaTypowana"
+    },
+    "controlLeaseId": { "$ref": "#/definitions/identyfikator" },
+    "controlEpoch": { "$ref": "#/definitions/nieujemna" },
+    "authorizationVersion": { "$ref": "#/definitions/nieujemna" },
+    "actorRef": { "description": "Pseudonimowy identyfikator konta nadany przez serwer; nie nazwa konta ani adres IP.", "$ref": "#/definitions/identyfikator" },
+    "targetId": { "$ref": "#/definitions/identyfikator" },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+    "outcome": {
+      "description": "Typowany wynik. Wartosci znane w v1: Accepted, Rejected, Queued, Executed, AwaitingOperatorConfirmation, Committed, Applied, Degraded, Failed, Started, Stopped, Unknown.",
+      "$ref": "#/definitions/nazwaTypowana"
+    },
+    "durationUs": { "$ref": "#/definitions/nieujemna" },
+    "counters": {
+      "type": "object",
+      "maxProperties": 16,
+      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]{0,47}$" },
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "droppedCount": { "$ref": "#/definitions/nieujemna" },
+    "windowMs": { "$ref": "#/definitions/nieujemna" }
+  },
+  "additionalProperties": { "$ref": "#/definitions/wartoscDodatkowa" },
+  "dependencies": {
+    "channelId": ["groupId", "kzId"],
+    "groupId": ["kzId"],
+    "groupRunId": ["groupId", "kzId"],
+    "kzEpoch": ["kzId"],
+    "selectionEpoch": ["kzId"],
+    "effectState": ["effectId"],
+    "worldRunId": ["worldId"],
+    "serverTick": ["worldId", "worldRunId"],
+    "simulationTimeMs": ["worldId", "worldRunId"],
+    "controlEpoch": ["controlLeaseId"]
+  },
+  "allOf": [
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Information" } } }, "then": { "properties": { "@l": { "const": "Information" } } } },
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Trace" } } }, "then": { "required": ["@l"], "properties": { "@l": { "const": "Verbose" } } } },
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Debug" } } }, "then": { "required": ["@l"], "properties": { "@l": { "const": "Debug" } } } },
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Warning" } } }, "then": { "required": ["@l"], "properties": { "@l": { "const": "Warning" } } } },
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Error" } } }, "then": { "required": ["@l"], "properties": { "@l": { "const": "Error" } } } },
+    { "if": { "required": ["severity"], "properties": { "severity": { "const": "Critical" } } }, "then": { "required": ["@l"], "properties": { "@l": { "const": "Fatal" } } } }
+  ],
+  "definitions": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "nieujemna": { "type": "integer", "minimum": 0 },
+    "identyfikator": {
+      "description": "Identyfikator nadany przez serwer lub dane SUK: 1-128 znakow, bez spacji i znakow sterujacych (C0, DEL, C1, U+2028/2029); litery narodowe dozwolone.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\u0000-\\u0020\\u007F-\\u009F\\u2028\\u2029]+$"
+    },
+    "identyfikatorZewnetrzny": {
+      "description": "Identyfikator mogacy pochodzic od nieufnego klienta (requestId, correlationId): ASCII, 1-64 znaki, bez CR/LF.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"
+    },
+    "tokenWersji": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$" },
+    "nazwaTypowana": { "type": "string", "pattern": "^[A-Z][A-Za-z]{1,39}$" },
+    "szablon": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$"
+    },
+    "tekst": { "type": "string", "maxLength": 512 },
+    "skalar": {
+      "anyOf": [
+        { "$ref": "#/definitions/tekst" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "wartoscDodatkowa": {
+      "description": "Nieznane pole opcjonalne (np. SourceContext, EventId z mostu MEL-Serilog): skalar albo jeden poziom obiektu/tablicy skalarow.",
+      "anyOf": [
+        { "$ref": "#/definitions/skalar" },
+        { "type": "object", "maxProperties": 16, "propertyNames": { "maxLength": 64 }, "additionalProperties": { "$ref": "#/definitions/skalar" } },
+        { "type": "array", "maxItems": 16, "items": { "$ref": "#/definitions/skalar" } }
+      ]
+    },
+    "zakazaneNazwyPol": {
+      "description": "Nazwy pol, ktore nigdy nie trafiaja do logu (25 par. 7). Ochrona dodatkowa; podstawa jest lista dozwolonych pol w adapterze.",
+      "enum": [
+        "password", "Password", "passwd", "haslo", "Haslo",
+        "token", "Token", "accessToken", "AccessToken", "refreshToken", "RefreshToken", "idToken", "IdToken", "jwt", "Jwt",
+        "authorization", "Authorization", "cookie", "Cookie", "setCookie", "SetCookie",
+        "secret", "Secret", "clientSecret", "ClientSecret", "sekret", "Sekret",
+        "privateKey", "PrivateKey", "apiKey", "ApiKey",
+        "recoveryCode", "RecoveryCode", "enrollmentCode", "EnrollmentCode",
+        "connectionString", "ConnectionString", "smtpPassword", "SmtpPassword"
+      ]
+    }
+  }
+}

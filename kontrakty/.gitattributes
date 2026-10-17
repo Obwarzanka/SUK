@@ -1,0 +1,2 @@
+# Kontrakty maja stale konce linii LF, zeby sumy sha256 byly takie same w kazdym checkoucie.
+* text eol=lf

@@ -1,0 +1,173 @@
+{
+  "kontrakt": "profil.pomiaru",
+  "wersja": 1,
+  "status": "wstepny",
+  "utworzono": "2026-10-18 (S00.03)",
+  "zrodlo": "raporty/S00.02.md; runner/wyniki/S00.02/przebieg1 (status.txt, diagnostyka.txt, SHA256SUMS.txt)",
+  "zasada": "Profil odniesienia do porównań wydajności i regresji. Czasy pochodzą z jednego przebiegu (selftest z dwóch) – są informacją, nie bramką, dopóki nie ma ≥3 przebiegów i jawnej tolerancji. Wyniki funkcjonalne (25/26, 4/4, błędów 0) są bramką regresji wg 11.",
+  "baza_kodu": {
+    "head_pomiaru": "592e25c45271e5df395422d625fb057d06318adf",
+    "kod_rowny": "5eddb5c (app/, tools/, Zrodla/ bez zmian)",
+    "dane": {
+      "station_test.json": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+      "rozklad.json": "671df2ddcbe41fc9a84b19b8d86d5afa3ae7ef8c441affca3995472f7f98dd56",
+      "rozklad_ic.json": "65f079d80821a71968d82f4a82c5d9eb635e4eaf5b4865dcc096b40b6f42158e"
+    }
+  },
+  "host_pomiaru": {
+    "rola": "Windows właściciela – uruchamianie testów WPF/regresji (bez nazwy komputera i użytkownika)",
+    "cpu": "Intel Core i7-9700K 3,6 GHz, 8 rdzeni / 8 wątków",
+    "ram_gb": 63.8,
+    "os": "Windows 11 Pro 10.0.26200 (build 26200.9711), 64-bit",
+    "plan_zasilania": "Najwyższa wydajność",
+    "gpu": "NVIDIA RTX 2070 (2560×1440@144) + Intel UHD 630 + 2 monitory wirtualne",
+    "kultura": "pl-PL",
+    "strefa": "Central European Standard Time",
+    "dotnet_runtime": [
+      "Microsoft.NETCore.App 8.0.32",
+      "Microsoft.WindowsDesktop.App 8.0.32",
+      "Microsoft.NETCore.App 9.0.21",
+      "Microsoft.WindowsDesktop.App 9.0.21"
+    ],
+    "dotnet_sdk": null,
+    "gnat": null,
+    "dowod": "D:\\Projects\\SUK - Dokumetacja nie gitowa\\runner\\wyniki\\S00.02\\przebieg1\\diagnostyka.txt",
+    "dowod_sha256": "e68f90c937f4ee583aa806aa150d3320fe8033298afc7fd1f4e18b09c02f6f0c"
+  },
+  "host_budowania": {
+    "rola": "Linux VM na komputerze właściciela – build (build_win.sh), testy bez WPF, toolchain Ada",
+    "vcpu": 2,
+    "ram_gib": 3.8,
+    "dotnet_sdk": "10.0.402",
+    "dotnet_runtime": [
+      "8.0.32",
+      "10.0.13"
+    ],
+    "alire": "2.1.1",
+    "gnat": "16.1.0",
+    "gprbuild": "26.0.1 (binarnie 26.0.0)"
+  },
+  "referencja_D09": {
+    "opis": "Windows 4 vCPU / 8 GiB jako próba, nie wymóg końcowy (13_DECYZJE D09)",
+    "stan": "niedostępna – nie zmierzono",
+    "decyzja": "otwarta; do S13 (właściciel)"
+  },
+  "czasy_odniesienia_s": {
+    "zrodlo": "D:\\Projects\\SUK - Dokumetacja nie gitowa\\runner\\wyniki\\S00.02\\przebieg1\\status.txt",
+    "zrodlo_sha256": "7223851f69fe6860fc1f0e6e2aedfae4eaa9b99510f83a68a91706153cccc309",
+    "metoda": "różnica znaczników start/koniec w status.txt (rozdzielczość 10 ms), program uruchamiany przez start /wait",
+    "kroki": [
+      {
+        "krok": "selftest",
+        "s": 1.99,
+        "dodatkowo": {
+          "selftest_powtorka": 1.82
+        }
+      },
+      {
+        "krok": "trasy",
+        "s": 0.35
+      },
+      {
+        "krok": "scen_podstawowy",
+        "s": 5.13
+      },
+      {
+        "krok": "scen_usterki",
+        "s": 6.64
+      },
+      {
+        "krok": "scen_zima",
+        "s": 8.88
+      },
+      {
+        "krok": "scen_manewry",
+        "s": 4.92
+      },
+      {
+        "krok": "scen_ic_05",
+        "s": 15.1
+      },
+      {
+        "krok": "scen_ic_08",
+        "s": 12.26
+      },
+      {
+        "krok": "scen_ic_15",
+        "s": 10.88
+      },
+      {
+        "krok": "scen_ic_18",
+        "s": 13.82
+      },
+      {
+        "krok": "zrzut_pulpitu",
+        "s": 1.63
+      },
+      {
+        "krok": "komputerownia_test",
+        "s": 8.25
+      },
+      {
+        "krok": "edytor_test",
+        "s": 70.19,
+        "uwaga": "zależy od sieci i cache kafelków ORM"
+      },
+      {
+        "krok": "przechylka_test",
+        "s": 1.06
+      },
+      {
+        "krok": "wzorce_ic_05",
+        "s": 48.2
+      }
+    ],
+    "caly_przebieg_s": 240.7
+  },
+  "wyniki_funkcjonalne_odniesienia": [
+    {
+      "test": "selftest",
+      "oczekiwane": "WYNIK: nastawione 25 z 26 przebiegów; kontrola zależności 4 z 4",
+      "plik_sha256": {
+        "selftest.txt": "6cc78d68523fa32783012da02a6e71777ab2fc9397c4e4e32ac00b1cdd8619ec",
+        "selftest.txt.zdarzenia": "65b7a9f2636f67925200757b2f8d299bcb0123cb1de5b4649ee6e6b535d50b47"
+      },
+      "deterministyczny": "tak – 3 identyczne przebiegi (baseline 5aaaaed + 2× S00.02)"
+    },
+    {
+      "test": "edytor_test",
+      "oczekiwane": "błędów: 0",
+      "porownanie": "po odfiltrowaniu czasów ms i liczników kafelków"
+    },
+    {
+      "test": "przechylka_test",
+      "oczekiwane": "błędów: 0",
+      "plik_sha256": {
+        "przechylka_test.txt": "77be4823e2a7297ee73164129cc1b9a4ba6b5c202408e6cb9cd34c0479a2d199"
+      }
+    },
+    {
+      "test": "komputerownia_test",
+      "oczekiwane": "błędów: 0",
+      "plik_sha256": {
+        "komputerownia_test.txt": "7137fa1c7c6bc23f7bb2c7eab62802b82b96b5813dfc5df442ff4b750804264e"
+      }
+    },
+    {
+      "test": "scenariusze",
+      "oczekiwane": "bez zatwierdzonego wzorca liczbowego – pierwsze odniesienie S00.02; decyzja właściciela otwarta (S00.02, decyzja 1)",
+      "plik_sha256": {
+        "scen_podstawowy.txt": "3c5930fbd00467b893d8640e05919f1f80e73108b4293918d632043b6ee764df",
+        "scen_usterki.txt": "5dc98ce67682e46582801d483b9d3b9fca7eb11269c711e954d8ffc85b40adf8",
+        "scen_zima.txt": "34fc895fb31de7cb3a98445b99b05790534bf3fa494550dd93c8245550be802d",
+        "scen_manewry.txt": "ad9e1c045521ca198ea4286f4bed283b46df9eb10329c978ce8c7e8669c96755",
+        "scen_ic_05.txt": "692aedf394ce7b0e43e070eafaab4623f538f87f03a69eea1c7f6f46255c011f",
+        "scen_ic_08.txt": "97ac48228db7ef220a0ff9151c4473da2b92f4ac10252ba9f765b2d1cb6d545b",
+        "scen_ic_15.txt": "99d16d403e6e4354ea9654a5ba38b6284b01752ad602f7ce2c798ebec4345623",
+        "scen_ic_18.txt": "9d2b6c228ce216f604935e292a4e8f1bda52b6b7ef696cfbdce47aaf733a25bf"
+      }
+    }
+  ],
+  "budzety_do_pomiaru": "kontrakty/logi/budzety_logow_v1.json",
+  "cele_infrastruktury": "10_ZASOBY_I_SKALOWANIE.md / S13 (40 klientów, 8 h, zapas 80) – nie mierzone w S00"
+}

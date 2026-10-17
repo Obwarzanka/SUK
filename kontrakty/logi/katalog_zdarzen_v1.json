@@ -1,0 +1,410 @@
+{
+  "kontrakt": "log.zdarzenia",
+  "wersja": 1,
+  "status": "wstepny",
+  "utworzono": "2026-10-18 (S00.03)",
+  "zrodlo": "SUK_plan_multiplayer/25_LOGOWANIE_I_DIAGNOSTYKA.md §3, §4, §8",
+  "zasady": [
+    "eventId to liczba 1000–9999: tysiące = obszar, setki = moduł/podsystem, dwie ostatnie cyfry = zdarzenie.",
+    "eventCode ma postać PREFIKS.NAZWA; PREFIKS musi być prefiksem podzakresu, do którego należy eventId.",
+    "Raz nadany eventId/eventCode nie zmienia znaczenia ani nie jest używany ponownie; wycofany kod zostaje w katalogu ze statusem 'wycofany'.",
+    "Nowy moduł dopisuje swoje kody w przydzielonym podzakresie razem z testem limitów i redakcji (F24). Podzakres 'rezerwa' przydziela zadanie, które tworzy moduł, przez zmianę tego pliku.",
+    "Kody kontraktowe diagnostyki Ada (DiagnosticBatch, podzakresy 42xx–49xx) przydziela S02A1.02 i są wspólne dla Kz_A i Kz_B; katalog nie zawiera algorytmu ani stanu.",
+    "Tekst komunikatu (@mt) jest po polsku, ale znaczenie wynika z eventId/eventCode, nie z tłumaczenia.",
+    "DiagnosticCandidate (obliczenie kanału) i EffectCommitted (jeden logiczny skutek OutputGate) mają różne kody (25 §5)."
+  ],
+  "obszary": [
+    {
+      "od": 1000,
+      "do": 1999,
+      "obszar": "Proces i konfiguracja (wspólne dla każdej aplikacji)",
+      "podzakresy": [
+        {
+          "od": 1000,
+          "do": 1099,
+          "prefiks": "PROC",
+          "opis": "start/stop, wersje i hashe, gotowość procesu"
+        },
+        {
+          "od": 1100,
+          "do": 1199,
+          "prefiks": "CFG",
+          "opis": "konfiguracja, pakiety danych, walidacja wejścia"
+        },
+        {
+          "od": 1200,
+          "do": 1999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 2000,
+      "do": 2999,
+      "obszar": "Brama, protokół, IPC, konta i autoryzacja",
+      "podzakresy": [
+        {
+          "od": 2000,
+          "do": 2099,
+          "prefiks": "GATE",
+          "opis": "połączenia, limity, wolny klient"
+        },
+        {
+          "od": 2100,
+          "do": 2199,
+          "prefiks": "AUTH",
+          "opis": "autoryzacja, prawa, odmowy komend"
+        },
+        {
+          "od": 2200,
+          "do": 2299,
+          "prefiks": "PROTO",
+          "opis": "handshake, wersje protokołu, resync"
+        },
+        {
+          "od": 2300,
+          "do": 2399,
+          "prefiks": "IPC",
+          "opis": "lokalny IPC brama–świat (Named Pipes)"
+        },
+        {
+          "od": 2400,
+          "do": 2499,
+          "prefiks": "ACCT",
+          "opis": "konta, sesje, OIDC"
+        },
+        {
+          "od": 2500,
+          "do": 2599,
+          "prefiks": "SANCT",
+          "opis": "sankcje i ich zastosowanie"
+        },
+        {
+          "od": 2600,
+          "do": 2999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 3000,
+      "do": 3999,
+      "obszar": "WorldHost",
+      "podzakresy": [
+        {
+          "od": 3000,
+          "do": 3099,
+          "prefiks": "WORLD",
+          "opis": "cykl świata, tick, harmonogram"
+        },
+        {
+          "od": 3100,
+          "do": 3199,
+          "prefiks": "WORLD",
+          "opis": "OutputGate, effectId, decyzje Committed/Rejected"
+        },
+        {
+          "od": 3200,
+          "do": 3299,
+          "prefiks": "CKPT",
+          "opis": "checkpoint, dziennik odtworzenia, restore"
+        },
+        {
+          "od": 3300,
+          "do": 3399,
+          "prefiks": "GROUP",
+          "opis": "StartupSelection, kwalifikacja grup, selectionEpoch (strona hosta)"
+        },
+        {
+          "od": 3400,
+          "do": 3499,
+          "prefiks": "DEV",
+          "opis": "karty sterowników, urządzenia, zasilanie"
+        },
+        {
+          "od": 3500,
+          "do": 3599,
+          "prefiks": "INSTR",
+          "opis": "instruktor i usterki"
+        },
+        {
+          "od": 3600,
+          "do": 3999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 4000,
+      "do": 4999,
+      "obszar": "Komputery zależności (strona hosta) i most Ada",
+      "podzakresy": [
+        {
+          "od": 4000,
+          "do": 4099,
+          "prefiks": "ABI",
+          "opis": "most .NET–Ada: wersja ABI, ładowanie DLL, BufferTooSmall, błędy natywne"
+        },
+        {
+          "od": 4100,
+          "do": 4199,
+          "prefiks": "KZ",
+          "opis": "koordynator/selektor po stronie hosta, niezgodność A/B, rebuild"
+        },
+        {
+          "od": 4200,
+          "do": 4999,
+          "prefiks": "KZDIAG",
+          "opis": "kody kontraktowe DiagnosticBatch Ada – przydziela S02A1.02 (wspólne dla A/B)"
+        }
+      ]
+    },
+    {
+      "od": 5000,
+      "do": 5999,
+      "obszar": "Ruch, rozkład i algorytm ruchowy bez LLM",
+      "podzakresy": [
+        {
+          "od": 5000,
+          "do": 5099,
+          "prefiks": "TRAFFIC",
+          "opis": "ruch pociągów, zajętości"
+        },
+        {
+          "od": 5100,
+          "do": 5199,
+          "prefiks": "TT",
+          "opis": "rozkład jazdy, import"
+        },
+        {
+          "od": 5200,
+          "do": 5299,
+          "prefiks": "AIOP",
+          "opis": "algorytm ruchowy: wersja reguł, decyzja, reasonCode, wyczerpanie planowania"
+        },
+        {
+          "od": 5300,
+          "do": 5399,
+          "prefiks": "NBR",
+          "opis": "posterunki styczne (Otoczenie)"
+        },
+        {
+          "od": 5400,
+          "do": 5999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 6000,
+      "do": 6999,
+      "obszar": "Pulpit klienta i singleplayer",
+      "podzakresy": [
+        {
+          "od": 6000,
+          "do": 6099,
+          "prefiks": "DESK",
+          "opis": "pulpit: start, utrata świeżości, nieznany wynik komendy, reconnect"
+        },
+        {
+          "od": 6100,
+          "do": 6199,
+          "prefiks": "SP",
+          "opis": "lokalny świat singleplayer"
+        },
+        {
+          "od": 6200,
+          "do": 6299,
+          "prefiks": "VIEW",
+          "opis": "podgląd, zobrazowanie, błędy renderowania i zasobów"
+        },
+        {
+          "od": 6300,
+          "do": 6999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 7000,
+      "do": 7999,
+      "obszar": "Łączność",
+      "podzakresy": [
+        {
+          "od": 7000,
+          "do": 7099,
+          "prefiks": "COMM",
+          "opis": "urządzenia łączności, tekst, prawa rozmowy"
+        },
+        {
+          "od": 7100,
+          "do": 7199,
+          "prefiks": "MEDIA",
+          "opis": "adapter mediów/głosu – tylko metadane, bez treści i nagrań"
+        },
+        {
+          "od": 7200,
+          "do": 7999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 8000,
+      "do": 8999,
+      "obszar": "Narzędzia, aktualizacja i administracja",
+      "podzakresy": [
+        {
+          "od": 8000,
+          "do": 8099,
+          "prefiks": "UPD",
+          "opis": "aktualizator: kanał, wersja, hash/podpis/metadane, rollback/freeze"
+        },
+        {
+          "od": 8100,
+          "do": 8199,
+          "prefiks": "EDUT",
+          "opis": "Edytor UT: wczytanie, walidacja, zapis, import"
+        },
+        {
+          "od": 8200,
+          "do": 8299,
+          "prefiks": "IMG",
+          "opis": "zobrazowania i konwersja"
+        },
+        {
+          "od": 8300,
+          "do": 8399,
+          "prefiks": "CALC",
+          "opis": "kalkulator przechyłki"
+        },
+        {
+          "od": 8400,
+          "do": 8499,
+          "prefiks": "KOMP",
+          "opis": "Komputerownia, dostęp serwisowy"
+        },
+        {
+          "od": 8500,
+          "do": 8599,
+          "prefiks": "ADMIN",
+          "opis": "SUK.Admin (klient WPF)"
+        },
+        {
+          "od": 8600,
+          "do": 8699,
+          "prefiks": "ADMAPI",
+          "opis": "prywatne AdminApi"
+        },
+        {
+          "od": 8700,
+          "do": 8799,
+          "prefiks": "DISP",
+          "opis": "tryb dyspozytora (S19)"
+        },
+        {
+          "od": 8800,
+          "do": 8999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    },
+    {
+      "od": 9000,
+      "do": 9999,
+      "obszar": "Infrastruktura logowania",
+      "podzakresy": [
+        {
+          "od": 9000,
+          "do": 9099,
+          "prefiks": "LOG",
+          "opis": "adapter, redakcja, ograniczona kolejka"
+        },
+        {
+          "od": 9100,
+          "do": 9199,
+          "prefiks": "LOG",
+          "opis": "writer, sink plikowy, rotacja, utrata rekordów"
+        },
+        {
+          "od": 9200,
+          "do": 9299,
+          "prefiks": "LOG",
+          "opis": "miejsce na dysku, retencja, stan zdrowia logowania"
+        },
+        {
+          "od": 9300,
+          "do": 9999,
+          "prefiks": "REZERWA",
+          "opis": "rezerwa"
+        }
+      ]
+    }
+  ],
+  "kody": [
+    {
+      "eventId": 2101,
+      "eventCode": "AUTH.COMMAND_REJECTED",
+      "severity": "Warning",
+      "moduleId": "WorldHost.Authorization",
+      "stream": "diagnostic",
+      "pola": [
+        "requestId",
+        "correlationId",
+        "actorRef",
+        "controlLeaseId",
+        "controlEpoch",
+        "authorizationVersion",
+        "targetId",
+        "outcome",
+        "reasonCode"
+      ],
+      "status": "wstepny",
+      "zrodlo": "25 §4, przykład 1",
+      "uwaga": "Odmowa uwierzytelnionej komendy wymaga też trwałego audytu (S06/S08); ten rekord jest kopią diagnostyczną."
+    },
+    {
+      "eventId": 3101,
+      "eventCode": "WORLD.EFFECT_COMMITTED",
+      "severity": "Information",
+      "moduleId": "WorldHost.OutputGate",
+      "stream": "diagnostic",
+      "pola": [
+        "kzId",
+        "groupId",
+        "selectionEpoch",
+        "requestId",
+        "correlationId",
+        "effectId",
+        "effectState",
+        "outcome"
+      ],
+      "status": "wstepny",
+      "zrodlo": "25 §4, przykład 2",
+      "uwaga": "Powstaje z istniejącego rozstrzygnięcia; nie zmienia stanu, nie zastępuje rekordu commit i nie dowodzi statusu z karty."
+    },
+    {
+      "eventId": 9101,
+      "eventCode": "LOG.DIAGNOSTICS_DROPPED",
+      "severity": "Warning",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "droppedCount",
+        "windowMs",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wstepny",
+      "zrodlo": "25 §4, przykład 3, §6",
+      "uwaga": "Zbiorczy licznik odrzuceń po przepełnieniu kolejki; worker nie loguje rekurencyjnie do własnej pełnej kolejki."
+    }
+  ]
+}

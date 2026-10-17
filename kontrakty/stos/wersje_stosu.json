@@ -1,0 +1,411 @@
+{
+  "kontrakt": "stos.wersje",
+  "wersja": 1,
+  "status": "zamrozony",
+  "data_weryfikacji": "2026-10-18",
+  "znaczenie_statusow": {
+    "zamrozony": "punkt wyjścia dla kolejnych zadań; zmiana tylko osobnym zadaniem z testami zgodności/ABI/migracji",
+    "kandydat": "wersja zaobserwowana, wybór należy do wskazanego etapu",
+    "odrzucony": "nie przypinać bez decyzji"
+  },
+  "metoda_weryfikacji": [
+    "NuGet: api.nuget.org v3-flatcontainer (lista wersji) i registration5-gz-semver2 (data, licencja, podatności, deprecjacja); tylko wersje stabilne",
+    ".NET: builds.dotnet.microsoft.com/dotnet/release-metadata/{10.0,8.0}/releases.json",
+    "PostgreSQL: www.postgresql.org/versions.json",
+    "Ada: indeks Alire (commit niżej) i GitHub releases alire-project/alire, sumy sha256 z indeksu/API",
+    "Restore/build próbny w kopii (poza repo): zestaw logów na net8.0, zestaw serwerowy na net10.0, xunit.v3 – dotnet list package --vulnerable/--deprecated"
+  ],
+  "aktywne_pliki": {
+    "sdk": "app/global.json",
+    "nuget": "app/Directory.Packages.props",
+    "zrodla_nuget": "app/nuget.config"
+  },
+  "dotnet": {
+    "sdk": {
+      "wersja": "10.0.402",
+      "rollForward": "latestFeature",
+      "allowPrerelease": false,
+      "wydanie": "2026-10-13",
+      "poprawka_bezpieczenstwa": true,
+      "znaczenie": "minimum 10.0.402; dozwolone nowsze pasma 10.0.x; SDK 10 buduje też obecne projekty net8.0-windows",
+      "test_runner": "Microsoft.Testing.Platform (global.json: test.runner) – wymagane przez xunit.v3 4.x przy dotnet test na SDK 10"
+    },
+    "runtime_docelowy": {
+      "Microsoft.NETCore.App": "10.0.13",
+      "Microsoft.AspNetCore.App": "10.0.13",
+      "Microsoft.WindowsDesktop.App": "10.0.13",
+      "typ": "LTS",
+      "wsparcie_do": "2028-11-14",
+      "wydanie": "2026-10-13"
+    },
+    "runtime_obecny": {
+      "wersja": "8.0.32",
+      "tfm": "net8.0-windows / net8.0",
+      "wsparcie_do": "2026-11-10",
+      "migracja": "S01.03"
+    },
+    "csharp": {
+      "docelowo": "C# 14 – domyślny dla net10.0; nie ustawiamy LangVersion=latest",
+      "obecnie": "C# 12 – domyślny dla net8.0; bez zmian w S00.03"
+    }
+  },
+  "nuget": {
+    "polityka": [
+      "Central Package Management (ManagePackageVersionsCentrally) z przypinaniem zależności przechodnich (CentralPackageTransitivePinningEnabled).",
+      "PackageReference w projekcie bez atrybutu Version (NU1008 przy próbie nadpisania – sprawdzone).",
+      "Tylko źródło nuget.org z mapowaniem wzorca * (app/nuget.config).",
+      "Pierwsze zadanie dodające PackageReference (S01.01) włącza RestorePackagesWithLockFile i commituje packages.lock.json; build kontrolny/CI używa restore --locked-mode.",
+      "Bez prerelease; aktualizacje bezpieczeństwa jako osobne zadanie z testami (20)."
+    ],
+    "pakiety": [
+      {
+        "id": "Microsoft.Extensions.Logging",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S01.01",
+        "cel": "MEL – kontrakt logowania modułów",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.Extensions.Logging.Abstractions",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S01.01",
+        "cel": "ILogger w bibliotekach/rdzeniu",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.Extensions.Hosting",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S01.01/S02.01",
+        "cel": "Generic Host",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Serilog",
+        "wersja": "4.4.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-07-10",
+        "etap": "S01.01",
+        "cel": "silnik sinku za adapterem",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Serilog.Extensions.Hosting",
+        "wersja": "10.0.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2025-11-28",
+        "etap": "S01.01",
+        "cel": "integracja Serilog z hostem (25 §3)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Serilog.Extensions.Logging",
+        "wersja": "10.0.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2025-11-21",
+        "etap": "S01.01",
+        "cel": "most MEL→Serilog dla aplikacji bez Generic Host (WPF)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Serilog.Sinks.File",
+        "wersja": "7.0.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2025-04-28",
+        "etap": "S01.01",
+        "cel": "rotowany plik JSONL (rollOnFileSizeLimit jawnie)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Serilog.Formatting.Compact",
+        "wersja": "3.0.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2024-06-09",
+        "etap": "S01.01",
+        "cel": "CompactJsonFormatter – format rekord_logu_v1",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.Extensions.Hosting.WindowsServices",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S02.03",
+        "cel": "usługi Windows",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.AspNetCore.SignalR.Client",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S04",
+        "cel": "klient pulpitu",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.AspNetCore.Identity.EntityFrameworkCore",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S03.01",
+        "cel": "konta",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenIddict.AspNetCore",
+        "wersja": "7.7.2",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-10",
+        "etap": "S03.02",
+        "cel": "OIDC serwer",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenIddict.EntityFrameworkCore",
+        "wersja": "7.7.2",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-10",
+        "etap": "S03.02",
+        "cel": "magazyn OIDC",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenIddict.Client.SystemIntegration",
+        "wersja": "7.7.2",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-10",
+        "etap": "S03.02",
+        "cel": "logowanie desktopowe PKCE",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.EntityFrameworkCore",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S03.01",
+        "cel": "EF Core 10",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Microsoft.EntityFrameworkCore.Design",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S03.01",
+        "cel": "migracje (narzędzie dotnet-ef)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Npgsql.EntityFrameworkCore.PostgreSQL",
+        "wersja": "10.0.3",
+        "licencja": "PostgreSQL",
+        "opublikowano": "2026-07-10",
+        "etap": "S03.01",
+        "cel": "dostawca EF dla PostgreSQL 18",
+        "status": "zamrozony"
+      },
+      {
+        "id": "Npgsql",
+        "wersja": "10.0.3",
+        "licencja": "PostgreSQL",
+        "opublikowano": "2026-05-27",
+        "etap": "S03.01",
+        "cel": "sterownik PostgreSQL",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenTelemetry.Extensions.Hosting",
+        "wersja": "1.20.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-15",
+        "etap": "S13",
+        "cel": "metryki/ślady",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenTelemetry.Instrumentation.AspNetCore",
+        "wersja": "1.20.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-15",
+        "etap": "S13",
+        "cel": "instrumentacja bramy",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenTelemetry.Instrumentation.Http",
+        "wersja": "1.20.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-15",
+        "etap": "S13",
+        "cel": "instrumentacja HttpClient",
+        "status": "zamrozony"
+      },
+      {
+        "id": "OpenTelemetry.Exporter.OpenTelemetryProtocol",
+        "wersja": "1.20.0",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-15",
+        "etap": "S13",
+        "cel": "eksport OTLP (stabilny; Prometheus.AspNetCore jest prerelease – nie używamy)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "xunit.v3",
+        "wersja": "4.0.2",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-09",
+        "etap": "S01.01",
+        "cel": "testy .NET (xUnit.net v3; pakiet linii 4.x)",
+        "status": "zamrozony"
+      },
+      {
+        "id": "xunit.runner.visualstudio",
+        "wersja": "4.0.1",
+        "licencja": "Apache-2.0",
+        "opublikowano": "2026-10-09",
+        "etap": "S01.01",
+        "cel": "adapter VSTest tylko dla IDE",
+        "status": "zamrozony",
+        "uwaga": "opcjonalny; dotnet test działa przez MTP bez niego (sprawdzone)"
+      },
+      {
+        "id": "Microsoft.NET.Test.Sdk",
+        "wersja": "18.11.0",
+        "licencja": "MIT",
+        "opublikowano": "2026-10-13",
+        "etap": "S01.01",
+        "cel": "host VSTest tylko dla IDE",
+        "status": "zamrozony",
+        "uwaga": "opcjonalny jw."
+      },
+      {
+        "id": "Velopack",
+        "wersja": "1.2.161",
+        "licencja": "MIT",
+        "opublikowano": "2026-09-29",
+        "etap": "S12",
+        "cel": "aktualizator klienta",
+        "status": "kandydat",
+        "uwaga": "bramka 09 (uwierzytelnione metadane, rollback/freeze) nadal obowiązuje"
+      }
+    ],
+    "przypiete_przechodnie": [
+      {
+        "id": "Microsoft.AspNetCore.DataProtection",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "powod": "OpenIddict 7.7.2 → Microsoft.AspNetCore.DataProtection 10.0.11 → System.Security.Cryptography.Xml/Pkcs 10.0.11: NU1902/NU1903 (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83); po przypięciu 10.0.13 brak podatności (dotnet list package --vulnerable)"
+      },
+      {
+        "id": "System.Security.Cryptography.Xml",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "powod": "OpenIddict 7.7.2 → Microsoft.AspNetCore.DataProtection 10.0.11 → System.Security.Cryptography.Xml/Pkcs 10.0.11: NU1902/NU1903 (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83); po przypięciu 10.0.13 brak podatności (dotnet list package --vulnerable)"
+      },
+      {
+        "id": "System.Security.Cryptography.Pkcs",
+        "wersja": "10.0.13",
+        "licencja": "MIT",
+        "powod": "OpenIddict 7.7.2 → Microsoft.AspNetCore.DataProtection 10.0.11 → System.Security.Cryptography.Xml/Pkcs 10.0.11: NU1902/NU1903 (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx, GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83); po przypięciu 10.0.13 brak podatności (dotnet list package --vulnerable)"
+      }
+    ],
+    "znane_uwagi": [
+      "Polly.Extensions.Http 3.0.0 (przechodnio: OpenIddict → OpenIddict.Client.SystemNetHttp → Microsoft.Extensions.Http.Polly 10.0.11) oznaczony jako Legacy (deprecated, bez podatności). Do obserwacji w S03.02."
+    ]
+  },
+  "w_frameworku_bez_pakietu": [
+    "System.Text.Json",
+    "System.Threading.Channels",
+    "System.IO.Pipes i NamedPipeServerStreamAcl (System.IO.Pipes.AccessControl)",
+    "System.Diagnostics.Metrics.Meter i ActivitySource",
+    "System.Runtime.InteropServices (LibraryImport, SafeHandle)",
+    "System.Security.Cryptography.RandomNumberGenerator",
+    "ASP.NET Core/Kestrel (FrameworkReference Microsoft.AspNetCore.App)"
+  ],
+  "narzedzia_dotnet": [
+    {
+      "id": "dotnet-ef",
+      "wersja": "10.0.13",
+      "licencja": "MIT",
+      "etap": "S03.01",
+      "status": "zamrozony",
+      "uwaga": "lokalny manifest .config/dotnet-tools.json tworzy pierwsze zadanie, które go używa"
+    },
+    {
+      "id": "vpk",
+      "wersja": "1.2.161",
+      "licencja": "MIT",
+      "etap": "S12",
+      "status": "kandydat"
+    }
+  ],
+  "baza_danych": {
+    "PostgreSQL": {
+      "major": 18,
+      "minor_minimalny": "18.6",
+      "wydanie_minor": "2026-08-13",
+      "wsparcie_do": "2030-11-14",
+      "status": "zamrozony major; minor = najnowszy z poprawkami w chwili instalacji (S03.01)"
+    }
+  },
+  "ada": {
+    "plik": "kontrakty/stos/toolchain_ada.json",
+    "status": "kandydat – toolchain ustala S02A1.02 (etapy/S00: „toolchain Ada ustala S02A1”)"
+  },
+  "kandydaci_poza_nuget": [
+    {
+      "id": "Mumble Server",
+      "wersja": "1.5.939",
+      "wydanie": "2026-10-11",
+      "etap": "S10",
+      "status": "kandydat",
+      "uwaga": "licencja z Qt/kodekami do rejestru licencji (20)"
+    },
+    {
+      "id": "Prometheus (Windows)",
+      "wersja": "3.15.0",
+      "wydanie": "2026-09-25",
+      "etap": "S13",
+      "status": "kandydat",
+      "plik": "prometheus-3.15.0.windows-amd64.zip",
+      "sha256": "5d333b385557d9adc2ff015d13da9809baccc52fb800a82d1e5c94b79258f87e"
+    }
+  ],
+  "odrzucone": [
+    {
+      "id": "JsonSchema.Net",
+      "wersja": "9.4.1",
+      "powod": "licencja pakietu NuGet to plik OSMFEULA.txt (nie SPDX MIT/Apache) – wymaga przeglądu licencji; walidator schematu dla testów .NET wybiera S01.01 (schemat jest w Draft-07, więc pasuje do wielu walidatorów)"
+    }
+  ],
+  "rejestr_licencji_wstepny": {
+    "MIT": [
+      ".NET/ASP.NET Core/EF Core/Microsoft.Extensions.*",
+      "Velopack/vpk",
+      "dotnet-ef",
+      "Microsoft.NET.Test.Sdk"
+    ],
+    "Apache-2.0": [
+      "Serilog.*",
+      "OpenIddict.*",
+      "OpenTelemetry.*",
+      "xunit.v3",
+      "xunit.runner.visualstudio"
+    ],
+    "PostgreSQL": [
+      "Npgsql",
+      "Npgsql.EntityFrameworkCore.PostgreSQL"
+    ],
+    "GPL-3.0-or-later WITH GCC-exception-3.1": [
+      "GNAT (gnat_native) – warunki runtime przy dystrybucji SukKz.dll do przeglądu w S02A1"
+    ],
+    "uwaga": "Rejestr obejmuje pakiety bezpośrednie; zależności przechodnie wydania rejestruje etap wydania (20)."
+  }
+}
