@@ -130,6 +130,7 @@ public partial class UtView
             var notes = Urzadzenia.Check(Doc.P, d0);
             if (notes.Count > 0) { dc.DrawEllipse(null, ErrP, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
         }
+        DrawGantries(dc);
         // podgląd wstawiania
         if (tool == UtTool.Urzadzenie && hover is XY h && Doc != null)
         {
@@ -144,6 +145,126 @@ public partial class UtView
                     DrawDevice(dc, g, ToScreen(gp), ScreenDir(gaz), DevK, Red, dpi, true);
                 if (devFrom == null && UtDevice.KindInfo(DevKind).Directed && DevKind != UtDevice.Koziol)
                     Label(dc, "wciśnij i przeciągnij w stronę jazdy, po stronie urządzenia", hs + new Vector(12, 10), Red, dpi);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Semafor wiszący na bramce: komory od górnej (przy belce) do dolnej, pod nimi (dalej od belki) W21 i pasy świetlne – jak na planach
+    /// schematycznych (Semaforek, Łódź Widzew); nazwa za ostatnim elementem.
+    /// </summary>
+    static void DrawHangingHeads(DrawingContext dc, UtDevice dv, Func<double, double, Point> P, Action<double, double, double, double, Pen> L, Pen pen, Pen thick, Brush ink,
+        List<(char C, bool Pulse)> lamps, char lit, double x, double Y, double R, double k, double dpi, bool labels, Action<string, double, double, double> T)
+    {
+        double yy = Y; bool litDone = false;
+        // komora świecąca – pierwsza od dołu o kolorze stanu zasadniczego (jak na maszcie)
+        int litIdx = -1; for (int i = 0; i < lamps.Count && !litDone; i++) if (lamps[i].C == lit) { litIdx = i; litDone = true; }
+        for (int i = lamps.Count - 1; i >= 0; i--)
+        {
+            var (col, pulse) = lamps[i];
+            double cx = x + R; x += 2 * R;
+            dc.DrawEllipse(Brushes.White, pen, P(cx, yy), R * k, R * k);
+            var mp = i == litIdx ? thick : pen; double a = R * 0.7;
+            switch (col)
+            {
+                case 'C': L(cx, yy - R, cx, yy + R, mp); break;
+                case 'Z': L(cx - R, yy, cx + R, yy, mp); break;
+                case 'P': L(cx - a, yy + a, cx + a, yy - a, mp); break;
+                case 'N': L(cx - a, yy + a, cx + a, yy - a, mp); L(cx - a, yy - a, cx + a, yy + a, mp); break;
+                case 'B': if (i == litIdx) dc.DrawEllipse(null, thick, P(cx, yy), R * 0.55 * k, R * 0.55 * k); break;
+            }
+            if (pulse)
+                foreach (var an in new[] { 45.0, 135, 225, 315 })
+                {
+                    double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
+                    L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35, pen);
+                }
+        }
+        if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
+        {
+            dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1.6, yy + 1)));
+            if (labels && k >= 2)
+            {
+                var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), 1.5 * k, ink, dpi);
+                var cc = P(x + 0.8, yy); var up = P(0, 0) - P(1, 0); up.Normalize();
+                double ang = Math.Atan2(up.Y, up.X) * 180 / Math.PI + 90;      // wiszący: góra cyfry w stronę belki
+                dc.PushTransform(new RotateTransform(ang, cc.X, cc.Y));
+                dc.DrawText(ft, new Point(cc.X - ft.Width / 2, cc.Y - ft.Height / 2));
+                dc.Pop();
+            }
+            x += 1.6;
+        }
+        foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
+        {
+            if (!on) continue;
+            dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1, yy + 1)));
+            if (c == 'Z') L(x, yy, x + 1, yy, pen); else L(x + 0.1, yy + 0.9, x + 0.9, yy - 0.9, pen);
+            x += 1;
+        }
+        T(dv.Name, x + 0.6, Y, 1);
+    }
+
+    /// <summary>Długość znaku semafora na bramce od belki [mm arkusza] (do słupów bramki).</summary>
+    static double HangingLen(UtDevice dv) => 1.2 + 2 * UtDevice.ParseLights(dv.LightsOrDefault).Count + (!string.IsNullOrEmpty(dv.W21) ? 1.6 : 0) + (dv.StripeP ? 1 : 0) + (dv.StripeZ ? 1 : 0);
+
+    /// <summary>Bramki: grupy semaforów „na bramce” w tym samym miejscu (do 8 m wzdłuż toru, do 40 m w poprzek, ten sam kierunek).</summary>
+    public List<List<UtDevice>> GantryGroups()
+    {
+        var res = new List<List<UtDevice>>(); if (Doc == null) return res;
+        var g = Doc.P.Devices.Where(d => d.MastOrDefault == UtDevice.MastBramka && d.Kind is UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan)
+            .Select(d => (D: d, Pos: Urzadzenia.Pos(Doc.P, d))).Where(x => x.Pos != null).ToList();
+        var used = new HashSet<string>();
+        foreach (var a in g)
+        {
+            if (used.Contains(a.D.Id)) continue;
+            var grp = new List<UtDevice> { a.D }; used.Add(a.D.Id);
+            var (pa, aza, _) = a.Pos.Value; var da = Element.Dir(aza + (a.D.Dir < 0 ? Math.PI : 0)); double ka = KAt(pa);
+            foreach (var b in g)
+            {
+                if (used.Contains(b.D.Id)) continue;
+                var (pb, azb, _) = b.Pos.Value; var db = Element.Dir(azb + (b.D.Dir < 0 ? Math.PI : 0));
+                var w = pb - pa; double along = Math.Abs(w.X * da.X + w.Y * da.Y) / ka, across = Math.Abs(w.X * da.Y - w.Y * da.X) / ka;
+                if (da.X * db.X + da.Y * db.Y > 0.98 && along < 8 && across < 40) { grp.Add(b.D); used.Add(b.D.Id); }
+            }
+            res.Add(grp);
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Belki i słupy bramek (Semaforek, Łódź Widzew): belka w poprzek torów w miejscu semaforów, poza skrajne tory; na obu końcach
+    /// słup – odcinek równoległy do torów w stronę komór, długi jak najdłuższy znak, zakończony kreską stopy.
+    /// </summary>
+    void DrawGantries(DrawingContext dc)
+    {
+        if (Doc == null || !Shown(LayerOf(UtDevice.Semafor))) return;
+        double k = DevK; var pen = new Pen(DevInk, Math.Max(1, 0.18 * k));
+        foreach (var grp in GantryGroups())
+        {
+            // położenie członków: punkt na osi toru, kierunek komór (ekran), normalna, strona
+            var m = new List<(Point B, Vector D, UtDevice Dv)>();
+            foreach (var dv in grp)
+            {
+                var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = new UtDevice { Id = dv.Id, Kind = dv.Kind, Track = dv.Track, S = ds, Dir = dv.Dir, Side = dv.Side }; }
+                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, _)) m.Add((ToScreen(p), ScreenDir(az), dv));
+            }
+            if (m.Count == 0) continue;
+            var dir = m[0].D; var nrm = new Vector(-dir.Y, dir.X); var o = m[0].B;
+            double along = m.Average(q => (q.B - o) * dir);
+            // zasięg w poprzek: tory i semafory członków (oś toru ± 1,5 mm, semafor po swojej stronie do 2,4 + 1 + 1,5 mm)
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (var (b, _, dv) in m)
+            {
+                double c = (b - o) * nrm, sy = dv.Side * (2.4 + 1 + 1.5) * k;
+                lo = Math.Min(lo, Math.Min(c - 1.5 * k, c + sy)); hi = Math.Max(hi, Math.Max(c + 1.5 * k, c + sy));
+            }
+            double len = m.Max(q => HangingLen(q.Dv)) * k + 1 * k;
+            Point Q(double a, double c) => o + dir * a + nrm * c;
+            dc.DrawLine(pen, Q(along, lo), Q(along, hi));                                       // belka
+            foreach (var c in new[] { lo, hi })
+            {
+                dc.DrawLine(pen, Q(along, c), Q(along + len, c));                               // słup (w stronę komór)
+                dc.DrawLine(pen, Q(along + len, c - 0.8 * k), Q(along + len, c + 0.8 * k));    // stopa
             }
         }
     }
@@ -185,22 +306,26 @@ public partial class UtView
                 // zasadniczym – gruba kreska; mogąca pulsować – ząbki na obwodzie.
                 var lamps = UtDevice.ParseLights(dv.LightsOrDefault); char lit = dv.LitOrDefault; string mast = dv.MastOrDefault;
                 double x = 0, yy = Y;
-                L(0, Y - 1, 0, Y + 1);                             // stopa
+                bool gantry = mast == UtDevice.MastBramka;
+                if (!gantry) L(0, Y - 1, 0, Y + 1);                // stopa (na bramce – bez: semafor wisi na belce)
                 if (mast == UtDevice.MastWysiegnik)
                 {
                     L(0, Y, 3, Y); L(3, Y, 3, Y - 0.8); L(3, Y - 0.8, 4, Y - 0.8);
                     x = 4; yy = Y - 0.8;
                 }
                 else if (mast == UtDevice.MastProsty) { L(0, Y, 5, Y); x = 5; }
-                else if (mast == UtDevice.MastBramka)
+                else if (gantry)
                 {
-                    // bramka sygnałowa: belka w poprzek toru ze słupkami na końcach, sygnalizator zawieszony na belce (do sprawdzenia przez właściciela)
-                    L(0, -3, 0, Y + 1.4);
-                    dc.DrawRectangle(ink, null, new Rect(P(-0.4, -3.4), P(0.4, -2.6)));
-                    dc.DrawRectangle(ink, null, new Rect(P(-0.4, Y + 1.0), P(0.4, Y + 1.8)));
-                    L(0, Y, 2.8, Y); x = 2.8;
+                    // bramka (Semaforek, plan Łódź Widzew: L3 / L5, S1 / S3, D / E): semafor wisi na belce – krótki łącznik od belki
+                    // (belkę i słupy rysuje DrawGantries, wspólne dla semaforów w tym samym miejscu)
+                    L(0, Y, 1.2, Y); x = 1.2;
                 }
-                if (dv.W24 && dv.Kind == UtDevice.Semafor && mast != UtDevice.MastKarzel) L(1.7, Y + 0.9, 2.3, Y - 0.9);   // W24 – kreska ukośna na maszcie
+                if (dv.W24 && dv.Kind == UtDevice.Semafor && mast != UtDevice.MastKarzel)
+                {
+                    if (gantry) L(0.3, Y + 0.9, 0.9, Y - 0.9);                     // W24 – kreska ukośna na łączniku przy belce
+                    else L(1.7, Y + 0.9, 2.3, Y - 0.9);                                 // W24 – kreska ukośna na maszcie
+                }
+                if (gantry) { DrawHangingHeads(dc, dv, P, L, pen, thick, ink, lamps, lit, x, Y, R, k, dpi, labels, T); break; }
                 // pasy świetlne pod komorami (BSK ss5): od masztu pomarańczowy, potem zielony; tylko semafor
                 foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
                 {
