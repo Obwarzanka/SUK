@@ -160,6 +160,7 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Urządzenie (U):** rodzaj wybierasz z listy na pasku: semafor świetlny, tarcza ostrzegawcza, tarcza manewrowa, wykolejnica, kozioł oporowy, licznik osi, złącze izolowane, ukres. Wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi. Kozioł przyciąga się do końca toru. Licznik, złącze i ukres stawiasz kliknięciem. Program podpowiada nazwę (A, B…, Tm1, Wk1, lo1). We Wskaż urządzenie przeciągasz wzdłuż toru albo przesuwasz strzałkami. PPM daje menu (strona, kierunek, usuń), a w panelu są nazwa i km.
 - **Konfiguracja semafora i tarczy** (panel, znaki wg BSK ISDR „Oznaczenia urządzeń srk”): układ gotowy (2-, 3-, 4- i 5-komorowy, tarcza ostrzegawcza, tarcza manewrowa karzełkowa albo wysoka) albo komory po kolei od masztu. Każda komora ma kolor (czerwona, zielona, pomarańczowa, biała, niebieska) i znacznik „pulsuje”, kolejność zmieniasz ↑ ↓, jest też ✕ i „+ komora”. Komory można też wpisać tekstem, np. `B*PCZ*`. Ustawiasz ponadto, która komora świeci w stanie zasadniczym, oraz mocowanie: na maszcie (słup), na wysięgniku, na bramce albo karzełkowy. Semafor może też mieć pas pomarańczowy, pas zielony, W24 i W21 z cyfrą prędkości (np. 6 = 60 km/h). Wszystko to jest w polu „Konfiguracja semafora”.
 - **Semafory na bramce** (mocowanie „na bramce”): rysunek jak na planach schematycznych (Semaforek, Łódź Widzew – L3 / L5, S1 / S3, D / E). Semafory na bramce w tym samym miejscu (do 8 m wzdłuż toru, ten sam kierunek) tworzą jedną bramkę: belkę w poprzek wszystkich ich torów, na obu końcach słup w stronę komór zakończony kreską stopy. Semafor na bramce nie ma własnej stopy, tylko wisi na belce. Przy belce jest komora górna i kreska W24, a na drugim końcu W21, pasy świetlne i nazwa.
+- **Światło komory** (panel semafora, lista przy każdej komorze): stałe (bez kresek), stałe lub pulsujące (2 kreski na obwodzie), tylko pulsujące (4 kreski). W zapisie tekstem „*” po literze oznacza stałe lub pulsujące, a „**” tylko pulsujące, np. „B**PCZ*”.
 - **Znaki Ig-10:** rozjazd ma kreskę początku, numer i czarny klin w kącie między torami, po stronie kierunku zamkniętego, jak w Ig-10 zał. 8 i na planach schematycznych. Klin liczony jest z geometrii rozjazdu. Rozjazd krzyżowy ma dwa kliny w kątach ostrych przy punkcie matematycznym. Wzory znaków są w bazie `Dane/symbole_ig10.json`. Przycisk „Symbole Ig-10…” pokazuje wszystkie znaki. Po poprawkach w pliku użyj „Wczytaj ponownie”.
 - **W4 i W5:** na liście urządzeń (wskaźnik zatrzymania się czoła pociągu W4, wskaźnik granicy przetaczania W5, znaki wg Ig-10 s. 33 i 30). Stawiasz je jak semafor: wciśnij na torze i przeciągnij w stronę jazdy, po stronie wskaźnika.
 - **Odcinek (O):** odcinki kontroli niezajętości. Najpierw stawiasz granice: liczniki osi albo złącza izolowane (narzędzie Urządzenie). Program sam wyznacza kawałki torów między granicami, także przez rozjazdy i łączniki. Kliknięcie narzędziem Odcinek na torze nadaje nazwę całemu kawałkowi. Podpowiedź to numer toru albo „z” i numery rozjazdów (np. z1/2), wpisać można dowolną. Kolor na planie oznacza odcinek, czerwone kreski – kawałek bez odcinka. Kliknięcie w kawałek, który ma już nazwę, zaznacza ten odcinek. Panel: nazwa, rodzaj (liczniki osi / obwód torowy), długość, kawałki torów z km, granice, czy to odcinek zwrotnicowy. Nazwę odcinka (pod torem) przeciągasz we Wskaż.
@@ -285,6 +286,19 @@ symulator/
     └── MainWindow.xaml(.cs)   ← okno pulpitu
 ```
 
+## Komputerownia (podgląd kart sterowników)
+
+Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Release/net8.0-windows/Komputerownia.exe`. Pokazuje karty sterowników obiektowych działającego symulatora – dla każdej karty (odcinek: licznik osi / obwód torowy, zwrotnica, wykolejnica):
+
+- **rozkaz od KZ** – ostatni rozkaz komputera zależności i kiedy przyszedł (np. „przestaw do „-””, „zerowanie licznika osi”);
+- **status do KZ** – to, co karta melduje (np. „kontrola „+””, „przekładanie → „-”, 3,2 s”, „BRAK KONTROLI”);
+- **teren** – stan rzeczywisty przy torze (iglice, osie pojazdu, wykolejnica na szynie);
+- **usterki** – po wybraniu karty w panelu po prawej można je wprowadzać i usuwać (jak instruktor).
+
+Wiersze żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli. Filtry: rodzaj karty, posterunek, obiekt, „tylko stany nietypowe”. Karty sygnalizatorów dojdą razem z sygnałami wg Ie-1.
+
+Połączenie przez sieć: symulator (gra jednoosobowa albo serwer) zawsze nasłuchuje dla Komputerowni na **127.0.0.1:47121** (tylko ten komputer) – wystarczy „Połącz”. Do serwera stanowisk na innym komputerze (np. przez Radmin) – jego adres i port **47120**. `Komputerownia.exe --connect host:port` łączy od razu.
+
 ## Testy (bez okna)
 
 Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
@@ -304,6 +318,8 @@ Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 | `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
 
 Kalkulator przechyłki (z `app/Lcs.Przechylka/bin/Release/net8.0-windows/`): `Przechylka.exe --test wynik.txt [zrzut.png]`.
+
+Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --station Testy/station_test.json --screenshot s.png 40 "#serwis=47131" "#fault=swNoCtrl:LW:57" "@35" "#hold=30"` (w tle), potem `Komputerownia.exe --test wynik.txt [zrzut.png] 127.0.0.1:47131` – ostatnia linia `błędów: 0`.
 
 
 ## Stacja testowa

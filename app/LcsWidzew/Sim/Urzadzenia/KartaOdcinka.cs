@@ -22,6 +22,8 @@ public class KartaOdcinka
     public bool PrevOcc;
     /// <summary>Po zerowaniu: przejazd kontrolny już się zaczął.</summary>
     public bool SawTrain;
+    /// <summary>Ostatni rozkaz KZ (podgląd w programie Komputerownia) i czas jego odebrania.</summary>
+    public string OstRozkaz; public double? OstRozkazT;
 
     public KartaOdcinka(Simulator s, string id)
     {
@@ -52,7 +54,7 @@ public class KartaOdcinka
     }
 
     /// <summary>Rozkaz komputera zależności: zerowanie licznika osi (ZeroLO po potwierdzeniu).</summary>
-    public void Zeruj() { Stan = "await"; Publikuj(); }
+    public void Zeruj() { Stan = "await"; OstRozkaz = "zerowanie licznika osi"; OstRozkazT = S.T; Publikuj(); }
 
     /// <summary>Usterka instruktora: „secOcc” – zajętość bez pojazdu, „loMiscount” – błąd zliczenia osi. Zwraca false, gdy usterka nie dotyczy odcinka.</summary>
     public bool Usterka(string rodzaj, bool usun)

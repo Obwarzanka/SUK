@@ -24,6 +24,9 @@ public partial class MainWindow : Window
     /// <summary>Komputer zależności – tylko gdy działa w tym programie.</summary>
     Simulator sim => ses?.Sim;
     LcsServer server;
+    /// <summary>Port serwisowy tylko na tym komputerze (127.0.0.1) – program Komputerownia (podgląd kart).</summary>
+    LcsServer serwis;
+    public const int SerwisPort = 47121;
     readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     DateTime last = DateTime.Now;
     double speed = 2, acc;
@@ -60,7 +63,7 @@ public partial class MainWindow : Window
         };
         BuildTabs();
         Loaded += (s, e) => { Start(scenario, null); Dispatcher.BeginInvoke(() => { ShowPage(station.Pages.Count - 1); if (ShotPath == null) ShowLogin(); else Demo(); }, DispatcherPriority.Loaded); };
-        Closed += (s, e) => { server?.Dispose(); (ses as RemoteSession)?.Dispose(); };
+        Closed += (s, e) => { server?.Dispose(); serwis?.Dispose(); (ses as RemoteSession)?.Dispose(); };
         SizeChanged += (s, e) => Panel.FitPage();
         timer.Tick += OnTimer;
         timer.Start();
@@ -170,8 +173,9 @@ public partial class MainWindow : Window
         {
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (sim != null) while (sim.T < until) { sim.Tick(0.1); server?.Push(); } else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
-            if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':'); sim.Instruktor.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
+            if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':', 2); sim.Instruktor.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
             if (c.StartsWith("#page=")) { ShowPage(int.Parse(c[6..])); continue; }
+            if (c.StartsWith("#serwis=")) { var er = StartSerwis(int.Parse(c[8..]), sim); File.AppendAllText(ShotPath + ".txt", $"serwis: {er ?? "OK"}{(char)10}"); continue; }
             if (c.StartsWith("#serve=")) { var er = Serve(int.Parse(c[7..]), true); File.AppendAllText(ShotPath + ".txt", $"serwer: {er ?? "OK"}{(char)10}"); continue; }
             if (c.StartsWith("#hold=")) { ShotHold = double.Parse(c[6..], System.Globalization.CultureInfo.InvariantCulture); continue; }
             if (c.StartsWith("#sleep=")) { var end = DateTime.Now.AddSeconds(double.Parse(c[7..], System.Globalization.CultureInfo.InvariantCulture)); while (DateTime.Now < end) { Dispatcher.Invoke(() => { }, DispatcherPriority.Background); Thread.Sleep(50); } continue; }
@@ -248,6 +252,8 @@ public partial class MainWindow : Window
         desk.Page = s.Page; desk.User = user; s.User = user;
         Bind(new LocalSession(s, desk));
         server?.Attach(s);
+        if (serwis != null) serwis.Attach(s);
+        else if (ShotPath == null) StartSerwis(SerwisPort, s);
         s.Log("Zdarzenie", "Start symulacji – scenariusz: " + Rozklad.Scenarios.First(x => x.Key == sc).Name + (user != null ? ", zalogowany: " + user.Name : ""), "System", "");
     }
 
@@ -272,6 +278,14 @@ public partial class MainWindow : Window
         Panel.Sim = x; ClearSel();
         BtnNet.Background = x.IsHost ? (server != null ? new SolidColorBrush(Color.FromRgb(0x2f, 0x5a, 0x2a)) : new SolidColorBrush(Color.FromRgb(0x3a, 0x2a, 0x5a))) : new SolidColorBrush(Color.FromRgb(0x1f, 0x4a, 0x7a));
         UpdateTop();
+    }
+
+    /// <summary>Port serwisowy dla programu Komputerownia (tylko 127.0.0.1); zajęty (drugi symulator) – bez portu.</summary>
+    string StartSerwis(int port, Simulator s)
+    {
+        if (s == null) return "brak komputera zależności";
+        try { serwis = new LcsServer(Dispatcher, s, () => ""); serwis.Start(port, true); return null; }
+        catch (Exception ex) { serwis = null; return ex.Message; }
     }
 
     /// <summary>Uruchomienie serwera stanowisk na tym komputerze.</summary>

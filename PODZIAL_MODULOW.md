@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), krok 5 (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), krok 5 i 6a bez sygnalizatorów (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 
@@ -222,3 +222,17 @@ Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decy
 - **Podgląd kart – osobny program** (`Komputerownia.exe`; właściciel: „musi być jako osobna apka”): łączy się przez sieć z działającym
   symulatorem (jak stanowisko, port 47120 – wybór agenta, właściciel nie rozstrzygnął) i dla każdej karty pokazuje rozkaz od KZ,
   status do KZ, świecące komory semafora, czasy; może też wprowadzać usterki kart.
+
+## 10. Krok 6a – program Komputerownia (zrobione 2026-10-17, bez kart sygnalizatorów)
+
+- Osobny program `app/Lcs.Komputerownia` (`Komputerownia.exe`, `uruchom_komputerownia.bat`), bez odwołań do kodu symulatora – tylko protokół sieciowy.
+- Protokół (`Net/LcsNet.cs`): klient „serwis” zamiast „hello” – bez stanowiska dyżurnego; żądania `karty` (odpowiedź `KomputerowniaStan`:
+  zegar, posterunki, wiersze kart, usterki do wprowadzenia) i `usterka` (key, target, clear → `Instruktor.ApplyFault`, nieznana – odrzucona).
+- Symulator zawsze otwiera port serwisowy **127.0.0.1:47121** (osobny `LcsServer` tylko na tym komputerze; zajęty – bez portu); serwer stanowisk (47120)
+  też przyjmuje Komputerownię. Tryb zrzutu: `#serwis=PORT`.
+- Wiersz karty (`Sim/Urzadzenia/Komputerownia.cs`): rozkaz od KZ (ostatni + czas – nowe pola `OstRozkaz`, `OstRozkazT` w kartach), status do KZ,
+  teren, usterki, „nietypowa”. Okno: filtry, tabela odświeżana co 0,5 s w miejscu, panel karty z przyciskami usterek.
+- Test `Komputerownia.exe --test` z symulatorem w tle: połączenie, 194 odcinki / 72 zwrotnice / 5 wykolejnic, brak kontroli LW:57 z usterką,
+  wprowadzenie i usunięcie usterki z programu, odrzucenie nieznanej, panel karty – **błędów: 0**. Poprawka przy okazji: `#fault=rodzaj:POST:obiekt`
+  dzielony tylko na pierwszym dwukropku.
+- Do zrobienia z krokiem 6: karty sygnalizatorów (rozkaz z sygnałem S1…S13, świecące komory, sygnał wyświetlany) – po Ie-1.

@@ -26,6 +26,8 @@ public class KartaZwrotnicy
     public bool UszkKontroli;
     /// <summary>Iglice uszkodzone mechanicznie (rozprucie przez pojazd) – brak kontroli do naprawy.</summary>
     public bool Uszkodzona;
+    /// <summary>Ostatni rozkaz KZ (podgląd w programie Komputerownia) i czas jego odebrania.</summary>
+    public string OstRozkaz; public double? OstRozkazT;
 
     public KartaZwrotnicy(Simulator s, string id)
     {
@@ -39,7 +41,9 @@ public class KartaZwrotnicy
     public bool PrzekroczonyCzas => Ruch != null && S.T - Ruch.Started > Simulator.Cfg.SwTimeout;
 
     /// <summary>Rozkaz komputera zależności: przestaw do położenia „+” / „-” (wykonanie w następnym cyklu).</summary>
-    public void Rozkaz(string pol) => rozkaz = pol;
+    public void Rozkaz(string pol) { rozkaz = pol; OstRozkaz = pol; OstRozkazT = S.T; }
+    /// <summary>Rozkaz odebrany, jeszcze niewykonany (czeka na cykl karty).</summary>
+    public bool RozkazWToku => rozkaz != null;
 
     /// <summary>Cykl karty: przyjęcie rozkazu, przekładanie (napięcie nastawcze), dojście iglic.</summary>
     public void Tick()
@@ -106,11 +110,13 @@ public class KartaWykolejnicy
     /// <summary>Przekładanie: cel i czas zakończenia.</summary>
     public bool? Cel; public double Until;
     bool? rozkaz;
+    /// <summary>Ostatni rozkaz KZ (podgląd) i czas jego odebrania.</summary>
+    public bool? OstRozkaz; public double? OstRozkazT;
 
     public KartaWykolejnicy(Simulator s, string id) { S = s; Id = id; }
 
     /// <summary>Rozkaz KZ: założyć (true) / zdjąć (false); wykonanie w następnym cyklu.</summary>
-    public void Rozkaz(bool zaloz) => rozkaz = zaloz;
+    public void Rozkaz(bool zaloz) { rozkaz = zaloz; OstRozkaz = zaloz; OstRozkazT = S.T; }
 
     public void Tick()
     {

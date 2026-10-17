@@ -5,7 +5,7 @@ namespace LcsWidzew.Sim;
 /// Między komputerem zależności (rozkazy → / ← statusy) a terenem, w którym jeżdżą pociągi.
 /// Karty kontroli niezajętości odcinków (krok 4), zwrotnic i wykolejnic (krok 5); sygnalizatory, zasilanie – kolejne kroki.
 /// </summary>
-public class Urzadzenia
+public partial class Urzadzenia
 {
     readonly Simulator S;
     /// <summary>Karty odcinków (kolejność jak w układzie).</summary>

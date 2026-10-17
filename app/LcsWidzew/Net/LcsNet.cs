@@ -16,6 +16,7 @@ namespace LcsWidzew.Net;
 // Protokół: jedna wiadomość JSON w linii, pole "t" – rodzaj. Stanowisko → serwer: hello, cmd, confirm, cancel, ack, login,
 // page, reqctl, relctl, ansctl, phone, get (plan / score / book), book. Serwer → stanowisko: welcome / reset (układ, tablica
 // przebiegów, rejestrator), ind (meldunki), ev, al, alupd, res, special, pendexp, beep.
+// Program serwisowy Komputerownia: serwis (zamiast hello – bez stanowiska), karty (→ res: KomputerowniaStan), usterka (key, target, clear).
 // ---------------------------------------------------------------------------------------------------------------------------
 
 public static class Wire
@@ -40,6 +41,8 @@ public class LcsServer : IDisposable
         public TcpClient Tcp; public StreamWriter W; public Desk Desk; public readonly object Lk = new();
         public Dictionary<long, (bool Ack, bool Active)> AlSent = new(); public bool Alive = true;
         public long Bytes;
+        /// <summary>Program serwisowy (Komputerownia): bez stanowiska, tylko podgląd kart i usterki.</summary>
+        public bool Serwis;
         public void Send(string line) { if (!Alive) return; try { lock (Lk) { W.WriteLine(line); W.Flush(); } Bytes += line.Length + 1; } catch { Alive = false; } }
     }
 
@@ -128,6 +131,26 @@ public class LcsServer : IDisposable
             var name = ((string)m["name"] ?? "").Trim(); if (name == "") name = "Stanowisko " + (deskSeq + 2);
             c.Desk = sim.AddDesk("S" + (++deskSeq), name, false);
             c.Send(Welcome("welcome", c.Desk));
+            return;
+        }
+        if (t == "serwis")
+        {
+            c.Serwis = true;
+            c.Send(Wire.Msg("serwis", ("stacja", sim.L.Name), ("wersja", 1)));
+            return;
+        }
+        if (c.Serwis)
+        {
+            switch (t)
+            {
+                case "karty": Res(sim.Urzadzenia.Stan()); break;
+                case "usterka":
+                {
+                    var key = (string)m["key"]; var target = (string)m["target"]; var clear = m["clear"]?.GetValue<bool>() ?? false;
+                    if (!Instruktor.Faults.Any(f => f.Key == key)) { Res("nieznana usterka"); break; }
+                    sim.Instruktor.ApplyFault(key, target, clear); Res("OK"); break;
+                }
+            }
             return;
         }
         var d = c.Desk; if (d == null) return;
