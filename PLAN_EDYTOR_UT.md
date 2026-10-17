@@ -180,4 +180,5 @@ między łukami o różnych R (łuk koszowy ze skokiem krzywizny), wierzchołek 
    (`PODZIAL_MODULOW.md`, karty).
 4. **Funkcja semafora** (wjazdowy, wyjazdowy, drogowskazowy, odstępowy, powtarzacz, PK) – pole w UT, panel urządzenia.
 5. **Posterunki** – obszary w UT: tory przypisane do posterunku, urządzenia dziedziczą posterunek z toru.
-6. **Kolejność: najpierw karty** w symulatorze (na obecnym `station.json`, `PODZIAL_MODULOW.md` kroki 5–6a), potem edytor zobrazowania.
+6. **PIP (numery pociągów na pulpicie) nie zawsze jest** – opcja w danych zobrazowania, dla posterunku (dziś `display.pip` w `station.json`; edytor zobrazowania ma mieć to ustawienie).
+7. **Kolejność: najpierw karty** w symulatorze (na obecnym `station.json`, `PODZIAL_MODULOW.md` kroki 5–6a), potem edytor zobrazowania.

@@ -243,6 +243,8 @@ Podział jak w rzeczywistym LCS:
 - **Zobrazowanie** (`UI/PanelView.cs`) rysuje wyłącznie z **meldunków**: telegramu stanu (`Sim/Meldunki.cs`, klasa `Indication`) odbieranego przez łącze `KzLink`. Do tego zna tylko układ torowy. Nie widzi przebiegów od środka, liczników czasu ani pociągów.
 - **Utrata łączności** to usterka instruktora „Utrata łączności stanowiska z komputerem zależności”. Wszystkie obiekty przechodzą w stan „brak danych” (biały), polecenia nie są przyjmowane, a w ALARMACH pojawia się wpis.
 
+- **PIP – numery pociągów na pulpicie** (Ie-104 § 8 pkt 26) to opcja zobrazowania. W `station.json`, w sekcji `display`, pole `"pip"`: brak albo `true` – numery na wszystkich posterunkach, `false` – na żadnym, lista, np. `["LF", "LN"]` – tylko na tych posterunkach. Bez PIP na torze widać symbol odcinka (zajęty – czerwony) i numer toru. Pociągi jeżdżą tak samo.
+
 - **Sesja stanowiska** (`Sim/Session.cs`, `ILcsSession`): okno pulpitu korzysta z komputera zależności tylko przez sesję. W grze jednoosobowej i na serwerze jest to sesja lokalna, a na stanowisku przyłączonym przez sieć – sesja sieciowa (`Net/LcsNet.cs`).
 
 ## Gra wieloosobowa (Radmin VPN)

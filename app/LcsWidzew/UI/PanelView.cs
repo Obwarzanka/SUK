@@ -466,7 +466,8 @@ public class PanelView : FrameworkElement
             var a = e.Pts[0]; var b = e.Pts[^1];
             var mx = (a.X + b.X) / 2; var my = e.Pts.Count > 2 ? e.Pts[e.Pts.Count / 2].Y : (a.Y + b.Y) / 2;
             if (!OnPage(mx)) continue;
-            if (winTrains.TryGetValue(sec, out var trs))
+            // posterunek bez PIP – symbol odcinka i numer toru, bez numerów pociągów
+            if (L.Pip(sec) && winTrains.TryGetValue(sec, out var trs))
             {
                 int ti = trs.Count == 1 ? 0 : (int)(Environment.TickCount64 / 1000 % trs.Count);
                 var txt = trs.Count > 1 ? (ti == 0 ? trs[ti] + "*" : "*" + trs[ti]) : trs[0];

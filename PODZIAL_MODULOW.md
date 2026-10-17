@@ -154,7 +154,7 @@ Każdy krok to osobny commit. Warunek przyjęcia każdego kroku:
 | **6a** | Okno **„Komputerownia / karty”** (zakładka w podglądzie KZ albo osobne okno): każde urządzenie ze swoją kartą i stanami (rozkaz, status, czas, usterki). Zrzut do akceptacji. | tylko nowe okno |
 | **7** | **Zasilanie** jako urządzenie (sieć, UPS, agregat, NN) – wpływa na karty (NN0 → brak przekładania). | nie |
 | **8** | Ruch bez przecieków: manewry wg tarcz i końców przebiegu widzianych w terenie zamiast `LockType`, prędkość z sygnału (S10/S13…) zamiast `Route.VSet`. | **tak** – osobna decyzja |
-| **9** | **System nadrzędny**: parser poleceń, dwuetapowość, stanowiska, PIP → `SystemNadrzedny`; KZ dostaje `PolecenieSystemowe`. PIP śledzi numery po zajętościach, nie z listy pociągów. | nie (pulpit ten sam) |
+| **9** | **System nadrzędny**: parser poleceń, dwuetapowość, stanowiska, PIP → `SystemNadrzedny`; KZ dostaje `PolecenieSystemowe`. PIP śledzi numery po zajętościach, nie z listy pociągów. PIP tylko na posterunkach z `display.pip` (opcja zobrazowania, 2026-10-17). | nie (pulpit ten sam) |
 | **10** | `Simulator` jako cienka fasada; KZ w `Sim/Kz/`. Przygotowanie pod transmisję (pętle) i rezerwę komputera (P1) – osobny etap. | nie |
 
 Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decyduje – tam mogą się zmienić drobne zachowania i wtedy mówię wprost, co.

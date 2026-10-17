@@ -6,7 +6,7 @@ Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-17 (karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
+Ostatnia aktualizacja: 2026-10-17 (PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
 
 ---
 
@@ -94,7 +94,7 @@ Model danych `station.json`:
 - `blocks` (szlaki: `type` sbl/sbl1/pol/pol1/tel, `ends` z `label`), `boundaries`, `farEnds`, `trackEnds`, `bumpers`, `ports`;
 - `pages` (obrazy), `posts`, `labels`, `platforms`, `crossings`, `routeRules`;
 - `sections` (rodzaj kontroli niezajętości `lo` licznik osi / `ot` obwód torowy), `detection` (domyślny);
-- `display` – zobrazowanie (patrz Etap 1): `nodes`, `edges` oraz własne `labels`, `platforms`, `crossings` pulpitu (te w korzeniu należą do planu schematycznego);
+- `display` – zobrazowanie (patrz Etap 1): `nodes`, `edges` oraz własne `labels`, `platforms`, `crossings` pulpitu (te w korzeniu należą do planu schematycznego), `hiddenSyms`, `pip` – posterunki z wyświetlaczami numerów pociągów (brak / `true` – wszystkie, `false` – żaden, lista kodów; decyzja właściciela 2026-10-17: PIP nie zawsze jest, opcja w danych zobrazowania; `Station.PipPosts`, `Station.Pip(sec)`);
 - zwrotnice: `kind` (typ rozjazdu, np. „Rz 1:9 R190”), `radius`, `ratio`, `vbok` (puste – z typu, tabela `SwitchDef.Types`), `vprosto`, `manual`;
 - tory: `radius` (łuk [m]), `cant` (przechyłka [mm]), `nasyp` (wysokość toru nad terenem [m], ujemna – przekop) – na razie tylko dane, bez wpływu na prędkość;
 - tory (Ig-10): `cat` – `gz` główny zasadniczy / `gd` główny dodatkowy / brak = boczny (grubość osi na planie), `elec: true` – zelektryfikowany (niebieski); wypełnia właściciel (panel toru albo panel grupy po zaznaczeniu toru);
@@ -163,6 +163,7 @@ Edycja przebiegu w edytorze:
 Walidacja sprzeczności. Testy każdego przebiegu.
 
 ### Etap 4 – Numery pociągów (PIP)
+PIP jest opcją zobrazowania (`display.pip`, ZROBIONE 2026-10-17 – bez PIP pulpit nie pokazuje numerów); dalej – w edytorze zobrazowania jako ustawienie posterunku.
 Nadanie i usunięcie numeru, przesunięcie między torami (tryb awaryjny), notatki przy pociągu, kolumna numerów na szlaku jak w EbiScreen.
 
 ### Etap 5 – Styl EbiScreen jako drugi wygląd pulpitu

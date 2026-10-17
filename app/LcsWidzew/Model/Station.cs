@@ -218,6 +218,13 @@ public class Station
     public Station Display;
     /// <summary>Zobrazowanie: symbole (sygnalizatory, wykolejnice, kozły – identyfikatory) ukryte na pulpicie, choć ich węzeł leży na torze obrazu.</summary>
     public HashSet<string> HiddenSyms = new();
+    /// <summary>
+    /// Zobrazowanie: posterunki z PIP – wyświetlaczami numerów pociągów (Ie-104 § 8 pkt 26). Pole „pip” w sekcji „display”:
+    /// true / brak – wszystkie, false – żaden, lista kodów posterunków – tylko te. Null – wszystkie.
+    /// Bez PIP pulpit pokazuje symbol odcinka i numer toru, bez numerów pociągów.
+    /// </summary>
+    public HashSet<string> PipPosts;
+    public bool Pip(string sec) => PipPosts == null || PipPosts.Contains(PostOf(sec));
     /// <summary>Współrzędna elementu nieumieszczonego na zobrazowaniu.</summary>
     public const double Hidden = -1e7;
     /// <summary>Geometria dla pulpitu: zobrazowanie, jeśli istnieje, inaczej rysunek układu.</summary>
@@ -278,6 +285,8 @@ public class Station
             }
             var d = ParseCore(root.ToJsonString(), true);
             if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
+            if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
+            else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
             // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
             foreach (var (k, sw) in st.Switches)
             {
