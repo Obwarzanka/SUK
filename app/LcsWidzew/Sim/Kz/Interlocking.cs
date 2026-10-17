@@ -1,7 +1,9 @@
 using LcsWidzew.Model;
+using Cfg = LcsWidzew.Sim.Simulator.Cfg;
+
 namespace LcsWidzew.Sim;
 
-public partial class Simulator
+public partial class KomputerZaleznosci
 {
     List<string> RouteObstacles(Route rt, bool forSetting)
     {
@@ -153,7 +155,7 @@ public partial class Simulator
         if (reason != null) Log("Zdarzenie", $"Zwolniono przebieg {r.Id} ({reason})", "Przebieg", r.Id);
     }
 
-    void UpdateRoutes()
+    internal void UpdateRoutes()
     {
         foreach (var uid in Routes.Keys.ToList())
         {

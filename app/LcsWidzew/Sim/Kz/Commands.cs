@@ -1,12 +1,14 @@
 using LcsWidzew.Model;
 
+using Cfg = LcsWidzew.Sim.Simulator.Cfg;
+
 namespace LcsWidzew.Sim;
 
 /// <summary>
 /// Komputer zależności – wykonanie poleceń systemowych (adresy rozwiązał system nadrzędny, Sim/Pulpit/SystemNadrzedny.cs):
 /// warunki zależności i skutki poleceń Ie-104 § 12.
 /// </summary>
-public partial class Simulator
+public partial class KomputerZaleznosci
 {
     /// <summary>Polecenie specjalne – warunki wstępne przed potwierdzeniem (pierwszy etap): błąd albo adres i obiekty do wyróżnienia.</summary>
     public (string Err, string Target, List<string> Targets) SprawdzSpecjalne(string code, string key)

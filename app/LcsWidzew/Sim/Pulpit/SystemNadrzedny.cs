@@ -141,7 +141,7 @@ public class SystemNadrzedny
         // szlak wewnętrzny z obu końcami na obrazie – strona musi być wskazana
         var pg = L.Pages.FirstOrDefault(p => p.Id == Page);
         if (b.Internal && b.Ends.Count == 2 && pg != null && b.Ends.All(x => pg.Posts.Contains(x.Post))) return -1;
-        return S.EndIdx(b, Page);
+        return S.Kz.EndIdx(b, Page);
     }
 
     // ------------------------------------------------------------------ adresy
@@ -311,7 +311,7 @@ public class SystemNadrzedny
         if (orig == "BK") code = "WBL";
         if (orig == "STW")
         {
-            var all = S.WszystkieStoj();
+            var all = S.Kz.WszystkieStoj();
             S.Log("Polecenie", line + " – wszystkie semafory „Stój”", "Polecenie", "", "PC");
             return all;
         }
@@ -328,7 +328,7 @@ public class SystemNadrzedny
         }
         S.Stats.Cmds++;
         var (p, adrErr) = Adresy(code, args);
-        var r = adrErr != null ? new CmdResult(false, adrErr) : S.Wykonaj(p);
+        var r = adrErr != null ? new CmdResult(false, adrErr) : S.Kz.Wykonaj(p);
         if (r.Ok)
         {
             S.Log("Polecenie", line + (r.Msg != "" ? " – " + r.Msg : ""), "Polecenie", args.FirstOrDefault() ?? "", "PC");
@@ -381,7 +381,7 @@ public class SystemNadrzedny
             default:
                 return (null, a0, new());
         }
-        return S.SprawdzSpecjalne(code, key);
+        return S.Kz.SprawdzSpecjalne(code, key);
     }
 
     static List<string> SpecialNotes(string code) => code switch

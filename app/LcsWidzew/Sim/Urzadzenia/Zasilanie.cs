@@ -41,7 +41,7 @@ public class Zasilanie
         }
     }
 
-    public void Publikuj() => S.StatusZasilania(Siec, Ups, Agregat, NN, !Siec && !Agregat && AgregatUszkodzony);
+    public void Publikuj() => S.Kz.StatusZasilania(Siec, Ups, Agregat, NN, !Siec && !Agregat && AgregatUszkodzony);
 
     /// <summary>Rozkaz KZ: załącz (true) / odłącz (false) napięcie nastawcze.</summary>
     public void RozkazNN(bool zal) { OstRozkaz = zal ? "załącz napięcie nastawcze" : "odłącz napięcie nastawcze"; OstRozkazT = S.T; NN = zal; Publikuj(); }

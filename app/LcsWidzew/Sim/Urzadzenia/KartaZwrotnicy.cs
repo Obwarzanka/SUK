@@ -71,7 +71,7 @@ public class KartaZwrotnicy
     }
 
     /// <summary>Status dla komputera zależności (kopia w <see cref="SwState"/>).</summary>
-    public void Publikuj() => S.StatusZwrotnicy(Id, Kontrola ? Iglice : null, Ruch != null || rozkaz != null, PrzekroczonyCzas);
+    public void Publikuj() => S.Kz.StatusZwrotnicy(Id, Kontrola ? Iglice : null, Ruch != null || rozkaz != null, PrzekroczonyCzas);
 
     /// <summary>
     /// Teren: pojazd najeżdża zwrotnicę od strony gałęzi <paramref name="pol"/>. Iglice w innym położeniu albo w ruchu – rozprucie:
@@ -128,5 +128,5 @@ public class KartaWykolejnicy
         if (Cel is bool c && S.T >= Until) { Zalozona = c; Cel = null; }
     }
 
-    public void Publikuj() => S.StatusWykolejnicy(Id, Cel == null && rozkaz == null ? Zalozona : null);
+    public void Publikuj() => S.Kz.StatusWykolejnicy(Id, Cel == null && rozkaz == null ? Zalozona : null);
 }

@@ -1,5 +1,7 @@
 using LcsWidzew.Model;
 
+using Cfg = LcsWidzew.Sim.Simulator.Cfg;
+
 namespace LcsWidzew.Sim;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace LcsWidzew.Sim;
 /// Polecenia: Wbl (żądanie kierunku WYJAZD), oWbl, Pzk (pozwolenie – kierunek PRZYJAZD), Zwbl (zwolnienie kierunku),
 /// Stop / oStop (zamknięcie wyjazdu na szlak), AZK (awaryjna zmiana kierunku – polecenie specjalne).
 /// </summary>
-public partial class Simulator
+public partial class KomputerZaleznosci
 {
     /// <summary>Koniec blokady obsługiwany z danego obrazu (dla szlaków wewnętrznych – ten po stronie wyświetlanego posterunku).</summary>
     public int EndIdx(BlockDef b, string page)
@@ -90,7 +92,7 @@ public partial class Simulator
         return L.Signals.Values.Where(s => s.Szlak == b.Id && s.Type == "odstepowy" && s.Dir == bs.Dir).All(s => Sigs[s.Name].Aspect == Aspect.Train);
     }
 
-    void UpdateBlocks()
+    internal void UpdateBlocks()
     {
         foreach (var (id, bs) in Blocks)
         {
@@ -142,7 +144,7 @@ public partial class Simulator
 
     CmdResult BlockCmd(string code, string id, int e)
     {
-        if (e < 0) { var bb = L.Blocks[id]; return new(false, $"Szlak {id} wewnętrzny – podaj, z którego posterunku wyjazd: " + string.Join(" albo ", bb.Ends.Select(x => $"„{id} {Codes[code].Code} {x.Post}”")) + " (albo E / W – w prawo / w lewo na obrazie)"); }
+        if (e < 0) { var bb = L.Blocks[id]; return new(false, $"Szlak {id} wewnętrzny – podaj, z którego posterunku wyjazd: " + string.Join(" albo ", bb.Ends.Select(x => $"„{id} {SystemNadrzedny.Codes[code].Code} {x.Post}”")) + " (albo E / W – w prawo / w lewo na obrazie)"); }
         var b = L.Blocks[id]; var bs = Blocks[id]; var my = b.Ends[e];
         if (code is "WBL" or "OWBL" or "PZK" or "ZWBL" or "AZK" && !b.Permission)
             return new(false, b.NoBlock ? $"Szlak {id}: telefoniczne zapowiadanie – brak blokady liniowej i kierunku"

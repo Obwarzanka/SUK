@@ -45,7 +45,7 @@ public class KartaSygnalizatora
         Wyswietlany = NieZapalil ? Stoj : cel;
     }
 
-    public void Publikuj() => S.StatusSygnalizatora(Id, Wyswietlany, UszkZezwalajacego, BrakLacznosci);
+    public void Publikuj() => S.Kz.StatusSygnalizatora(Id, Wyswietlany, UszkZezwalajacego, BrakLacznosci);
 
     /// <summary>Usterki instruktora: „sigLamp” – nie wyświetla sygnału zezwalającego, „sigNodata” – brak komunikacji z obiektem.</summary>
     public bool Usterka(string rodzaj, bool usun)

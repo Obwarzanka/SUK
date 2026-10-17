@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), kroki 5, 6, 6a, 7 i 9 (2026-10-17); krok 8 odłożony (decyzja właściciela 2026-10-17). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), kroki 5, 6, 6a, 7, 9 i 10 (2026-10-17); krok 8 odłożony (decyzja właściciela 2026-10-17). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 
@@ -334,3 +334,19 @@ Decyzja właściciela 2026-10-17: krok 8 (ruch wg sygnałów, prędkość z sygn
   (`zrzuty/PIP_stanowisko_sieciowe.png`). Komputerownia `--test`: błędów 0.
 - Nie zrobione (etap 4 w `ROZWOJ.md`): ręczne nadanie, usunięcie i przesunięcie numeru przez dyżurnego, miganie numeru
   nieprzesuniętego automatycznie i czerwony numer wpisany na wolny tor (Ie-104 § 8 pkt 26 ust. 4), dodatkowe informacje przy numerze.
+
+## 15. Krok 10 – cienka fasada, komputer zależności w `Sim/Kz/` (zrobione 2026-10-17)
+
+- **`KomputerZaleznosci`** (`Sim/Kz/`): `KomputerZaleznosci.cs` (stan – `Secs`, `Sws`, `Sigs`, `Ders`, `Blocks`, `Routes`,
+  `RouteTable`, `Power`; tablica przebiegów, ochrona boczna, predykaty, statusy kart, sygnały wg Ie-1), `Interlocking.cs`
+  (nastawianie, utwierdzenia, zwalnianie), `Blocks.cs` (blokada liniowa, SBL), `Commands.cs` (wykonanie `PolecenieSystemowe`).
+  Usługi bierze z fasady: czas, rejestrator, topologia (`Forward`, `Next`), urządzenia, otoczenie.
+- **`Simulator`** (`Sim/Simulator.cs`, 130 linii zamiast 538): czas i zegar, rejestrator, topologia układu, moduły (`Kz`,
+  `Nadrzedny`, `Urzadzenia`, `Trains`, `Rozklad`, `Otoczenie`, `Instruktor`) i cykl `Tick`. Przekierowania dla okien, sieci,
+  ruchu i testów: `Sim/Kz/Fasada.cs` (stan i zapytania KZ), `Sim/Desk.cs` (system nadrzędny), `Sim/Meldunki.cs` (telegram stanu).
+- Moduły rozmawiają z KZ wprost: karty → `S.Kz.Status…`, system nadrzędny → `S.Kz.Wykonaj`, `SprawdzSpecjalne`, `WszystkieStoj`.
+- Zachowanie bez zmian: dziennik selftestu i scenariusze usterki / zima / manewry / ic_05 / ic_15 / ic_18 identyczne, sieć
+  (`#serve` / `#join`) i Komputerownia `--test` (0 błędów) jak przed zmianą.
+- Zostaje do zrobienia (poza krokami): ruch pociągów czyta jeszcze stan KZ (`Sigs[].Aspect` przy braku karty, `Secs[].LockType`,
+  `Routes` – krok 8, odłożony); KZ pyta `Trains != null` w warunkach blokady i `Otoczenie` o szlak u sąsiada; telegram stanu
+  (`Publish`) składa fasada z KZ i systemu nadrzędnego; przygotowanie pod transmisję (pętle) i rezerwę komputera (P1) – osobny etap.

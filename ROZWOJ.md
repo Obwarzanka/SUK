@@ -6,7 +6,7 @@ Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-17 (krok 9 – system nadrzędny i PIP po zajętościach; krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
+Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako fasada; krok 9 – system nadrzędny i PIP po zajętościach; krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
 
 ---
 
@@ -61,7 +61,7 @@ Trzy warstwy, jak w rzeczywistości (KOMPUTERY.pdf, Tabela 23):
 1. **Zobrazowanie / stanowisko**
    - `UI/PanelView.cs` (rysowanie), `MainWindow.xaml(.cs)` (okno pulpitu), `UI/Dialogs.cs`, `UI/NetWindow.cs`, `UI/KzWindow.cs` (podgląd komputera zależności).
    - Korzysta **wyłącznie** z sesji `ILcsSession` (`Sim/Session.cs`) i meldunków `Indication` (`Sim/Meldunki.cs`). Nie sięga do wnętrza symulatora.
-2. **Komputer zależności (EBILock):** `Sim/Simulator.cs`, `Interlocking.cs` (przebiegi), `Blocks.cs` (blokady liniowe), `Commands.cs` (polecenia Ie-104), `Desk.cs` (stanowiska, obszary sterowania).
+2. **Komputer zależności (EBILock):** `Sim/Kz/` – `KomputerZaleznosci.cs` (stan, tablica przebiegów, statusy kart, sygnały), `Interlocking.cs` (przebiegi), `Blocks.cs` (blokady liniowe), `Commands.cs` (wykonanie poleceń). System nadrzędny (parser poleceń Ie-104, dwuetapowość, stanowiska, obszary sterowania, PIP): `Sim/Pulpit/`. `Sim/Simulator.cs` – fasada (czas, rejestrator, topologia, moduły, cykl `Tick`).
 3. **Teren:** `Sim/Trains.cs` (ruch pociągów).
 
 Moduły wydzielone z `Simulator` (etap 7, kroki 1–3; `Simulator` tworzy je w konstruktorze i jest dla UI fasadą):
@@ -132,7 +132,7 @@ Szczegółowe opisy zrobionych prac (etapy 0–7 i poprawki po uwagach właścic
 - **Usuwanie kawałka toru i zaznaczanie kilku:** PPM na torze – „Usuń ten kawałek” (prosta / łuk, tor rozcina się na dwa) i „Rozetnij tor tutaj”; Ctrl + klik i Shift + prostokąt zaznaczają kilka elementów, Del usuwa naraz (jedno Ctrl+Z).
 - Obok edytora: **kalkulator przechyłki** `app/Lcs.Przechylka` (`Przechylka.exe`) – wartości dopuszczalne domyślne są przykładowe, do potwierdzenia przez właściciela; później wpięcie do edytora UT (pole L przy łuku).
 
-**Następny krok** (decyzja właściciela 2026-10-17, `PLAN_EDYTOR_UT.md` § 7): najpierw karty urządzeń w symulatorze (kroki 5, 6, 6a, 7, 9 zrobione 2026-10-17; dalej krok 10 – cienka fasada, KZ w `Sim/Kz/`; krok 8 – ruch wg sygnałów w terenie – odłożony przez właściciela), potem etap 8 – edytor zobrazowania.
+**Następny krok** (decyzja właściciela 2026-10-17, `PLAN_EDYTOR_UT.md` § 7): najpierw karty urządzeń w symulatorze (kroki 5, 6, 6a, 7, 9, 10 zrobione 2026-10-17; krok 8 – ruch wg sygnałów w terenie – odłożony przez właściciela), potem: w UT funkcja semafora i posterunki (§ 7 pkt 4–5), plan edytora zobrazowania (etap 8) do akceptacji, przekazanie UT do symulatora (etap 9), potem etap 8 – edytor zobrazowania.
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.
@@ -192,6 +192,7 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
 - **ZROBIONE 2026-10-17: krok 7** – zasilanie jako urządzenie (`Sim/Urzadzenia/Zasilanie.cs`): sieć, UPS, agregat, napięcie nastawcze w terenie, status do KZ (`StatusZasilania`, `Power` – kopia), rozkazy NN / oNN / AGR, karta zasilania w Komputerowni. Zachowanie bez zmian (dziennik selftestu i scenariusze identyczne) + `ZASILANIE: kontrola 8 z 8`. Szczegóły: `PODZIAL_MODULOW.md` § 13. Bez rozładowania UPS – do ustalenia z właścicielem.
 - Pytania do właściciela przed krokami 5, 6, 8: rozprucie a brak kontroli (kto rozstrzyga, usterka „sygnalizacja rozprucia” bez pojazdu), przepalenie włókna czerwonego / zezwalającego, sygnalizator bez łączności (ciemny czy czerwony), manewry wg tarcz zamiast utwierdzeń, opóźnienie jednego cyklu rozkaz → meldunek.
 - **ZROBIONE 2026-10-17: krok 9** – system nadrzędny (`Sim/Pulpit/SystemNadrzedny.cs`): parser poleceń, dwuetapowość, stanowiska i obszary sterowania, książka E-1758; KZ dostaje `PolecenieSystemowe` z rozwiązanymi adresami. **PIP** (`Sim/Pulpit/Pip.cs`) śledzi numery po zajętościach odcinków (nie z listy pociągów), numery z zapowiedzi sąsiada i z rozkładu; selftest `PIP: numer w oknie pociągu 1526 z 1526`. Krok 8 odłożony (decyzja właściciela). Szczegóły: `PODZIAL_MODULOW.md` § 14.
+- **ZROBIONE 2026-10-17: krok 10** – komputer zależności jako osobna klasa `KomputerZaleznosci` w `Sim/Kz/` (stan, przebiegi, blokady, sygnały, statusy kart, polecenia), `Simulator` jako fasada (czas, rejestrator, topologia, moduły, `Tick`; przekierowania w `Sim/Kz/Fasada.cs`). Zachowanie bez zmian (dziennik i scenariusze identyczne). Szczegóły: `PODZIAL_MODULOW.md` § 15.
 - Pozostałe przecieki (do kroków 8 i 10): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`).
 
 ### Etap 8 – Dydaktyka i sieć
