@@ -41,7 +41,7 @@ public class Instruktor
         ("loMiscount", "Licznik osi – błąd zliczenia osi przy przejeździe (odcinek zostaje zajęty)", "sec"),
         ("swNoCtrl", "Zwrotnica – niespodziewany brak kontroli położenia", "sw"),
         ("swFrozen", "Zwrotnica – nie przestawia się (zamarznięcie)", "sw"),
-        ("swRozpr", "Zwrotnica – sygnalizacja rozprucia", "sw"),
+        ("swRozpr", "Zwrotnica – uszkodzenie iglic (brak kontroli; przy zajętym odcinku – rozprucie)", "sw"),
         ("sigLamp", "Semafor – nie wyświetla sygnału zezwalającego", "sig"),
         ("sigNodata", "Semafor – brak komunikacji z obiektem", "sig"),
         ("mains", "Zanik zasilania sieciowego (agregat samoczynny)", ""),
@@ -58,16 +58,15 @@ public class Instruktor
             case "loMiscount":
                 if (!S.Urzadzenia.Odcinki[target].Usterka(type, clear)) return;
                 break;
-            case "swNoCtrl": S.Sws[target].NoCtrl = !clear; if (!clear) S.Alarm($"Zwrotnica {target}: niespodziewany brak kontroli położenia", "Zwrotnica", target, stillActive: () => S.Sws[target].NoCtrl); break;
-            case "swFrozen": S.Sws[target].Frozen = !clear; break;
+            case "swNoCtrl":
+            case "swFrozen":
+            case "swRozpr":
+                S.Urzadzenia.Zwrotnice[target].Usterka(type, clear);
+                break;
             case "kzLink":
                 S.LinkDown = !clear;
                 if (!clear) S.Alarm("Utrata łączności stanowiska z komputerem zależności – stan obiektów nieznany, polecenia nie są przyjmowane", "System", "", "kzlink", () => S.LinkDown);
                 else S.Log("Zdarzenie", "Przywrócono łączność stanowiska z komputerem zależności", "System", "");
-                break;
-            case "swRozpr":
-                if (!clear) { S.Sws[target].Rozpr = true; S.Alarm($"Zwrotnica {target}: sygnalizacja rozprucia", "Zwrotnica", target, stillActive: () => S.Sws[target].Rozpr); }
-                else { var w = S.Sws[target]; w.Rozpr = false; w.Damaged = false; w.NoCtrl = false; }
                 break;
             case "sigLamp": S.Sigs[target].LampFault = !clear; if (clear) S.Sigs[target].FailAlarm = false; break;
             case "sigNodata": S.Sigs[target].NoData = !clear; if (!clear) S.Alarm($"Sygnalizator {target}: brak komunikacji z obiektem", "Semafor", target, stillActive: () => S.Sigs[target].NoData); break;

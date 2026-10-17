@@ -126,6 +126,46 @@ public static class SelfTest
             }
             sb.AppendLine($"OCHRONA BOCZNA: przebiegi z ochroną {withFlank} z {all.Count}; kontrola {fOk} z {fTot}");
         }
+        // karty zwrotnic (PODZIAL_MODULOW krok 5): brak kontroli, rozprucie przy zajętości, KSR, nadzór czasu – osobny symulator bez pociągów
+        {
+            var ks = new Simulator(st) { User = sim.User };
+            int kOk = 0, kTot = 0;
+            void K(bool c, string m) { kTot++; if (c) kOk++; sb.AppendLine($"karty: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            void Run(double s) { for (double t = 0; t < s; t += 0.25) ks.Tick(0.25); }
+            var sws = st.Switches.Values.Where(x => !x.Manual).Take(2).Select(x => x.Num).ToList();
+            // trzecia (zamarznięcie) – w innym odcinku niż druga (jej odcinek test zajmuje)
+            var swc = st.Switches.Values.FirstOrDefault(x => !x.Manual && sws.Count == 2 && !sws.Contains(x.Num) && x.Sec != st.Switches[sws[1]].Sec);
+            if (swc != null) sws.Add(swc.Num);
+            if (sws.Count == 3)
+            {
+                string a = sws[0], b = sws[1], c = sws[2]; var wa = ks.Sws[a]; var wb = ks.Sws[b]; var wc = ks.Sws[c];
+                // brak kontroli przy wolnym odcinku
+                ks.Instruktor.ApplyFault("swRozpr", a, false); Run(0.5);
+                K(wa.NoCtrl && !wa.Rozpr, $"zwr. {Station.Lbl(a)}: uszkodzenie iglic przy wolnym odcinku – brak kontroli, bez rozprucia");
+                ks.Instruktor.ApplyFault("swRozpr", a, true); Run(0.5);
+                K(!wa.NoCtrl && !wa.Rozpr, $"zwr. {Station.Lbl(a)}: po naprawie kontrola położenia „{wa.Pos}”");
+                // najechanie od gałęzi przy iglicach w drugim położeniu i zajętym odcinku – rozprucie, KSR, brak kontroli
+                var sec = st.Switches[b].Sec; var other = wb.Pos == "+" ? "-" : "+";
+                ks.Instruktor.ApplyFault("secOcc", sec, false); ks.Urzadzenia.Najazd(b, other); Run(0.5);
+                K(wb.Rozpr && !wb.NoCtrl, $"zwr. {Station.Lbl(b)}: najechanie od gałęzi „{other}” przy zajętym odcinku – rozprucie");
+                ks.Page = PageOf(b); var ksr = ks.Exec($"{b} KSR", true); Run(0.5);
+                K(ksr.Ok && !wb.Rozpr && wb.NoCtrl, $"zwr. {Station.Lbl(b)}: po KSR – brak kontroli (iglice uszkodzone), nie rozprucie");
+                ks.Instruktor.ApplyFault("swRozpr", b, true); Run(0.5);
+                K(!wb.NoCtrl && wb.Pos == other && ks.Urzadzenia.Iglice(b) == other, $"zwr. {Station.Lbl(b)}: po naprawie kontrola w położeniu „{other}”, w którym zostały iglice");
+                // zamarznięcie: przekroczony czas, powrót do położenia wyjściowego
+                var p0 = wc.Pos; var p1 = p0 == "+" ? "-" : "+";
+                ks.Instruktor.ApplyFault("swFrozen", c, false); ks.Page = PageOf(c);
+                var mv = ks.Exec($"{c} {(p1 == "+" ? "Plus" : "Minus")}"); Run(Simulator.Cfg.SwTimeout + 2);
+                K(mv.Ok && wc.Moving != null && wc.Frozen && ks.Alarms.Any(x => x.Obiekt == Station.Lbl(c) && x.Zdarzenie.Contains("zbyt długo")), $"zwr. {Station.Lbl(c)}: zamarznięta – przekroczony czas przekładania, alarm{(mv.Ok ? "" : " (" + mv.Msg + ")")}");
+                ks.Exec($"{c} {(p0 == "+" ? "Plus" : "Minus")}"); Run(Simulator.Cfg.SwTime + 1);
+                K(wc.Moving == null && wc.Pos == p0 && !wc.NoCtrl, $"zwr. {Station.Lbl(c)}: powrót do położenia wyjściowego „{p0}” z kontrolą");
+                // zwykłe przestawienie: kontrola dopiero po czasie przekładania (meldunek karty)
+                ks.Instruktor.ApplyFault("swFrozen", c, true); ks.Exec($"{c} {(p1 == "+" ? "Plus" : "Minus")}"); Run(Simulator.Cfg.SwTime - 1);
+                bool during = wc.Moving != null && wc.Pos == p0; Run(2);
+                K(during && wc.Moving == null && wc.Pos == p1, $"zwr. {Station.Lbl(c)}: przestawienie do „{p1}” – kontrola po czasie przekładania");
+            }
+            sb.AppendLine($"KARTY ZWROTNIC: kontrola {kOk} z {kTot}");
+        }
         foreach (var r in todo.Where(r => !ok.Contains(r.Id))) sb.AppendLine($"NIE NASTAWIONO {r.Id} ({Cmd(r)}): " + (failed.TryGetValue(r, out var why) ? why : done.Contains(r) ? "przyjęty, ale nie doszedł do sygnału zezwalającego" : string.Join(", ", sim.WhyNot(r).Take(3))));
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pociągi: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.State} wait={t.WaitingAt}")));

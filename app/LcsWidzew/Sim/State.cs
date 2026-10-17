@@ -20,8 +20,12 @@ public class SwState
     public string Num, Pos = "+", Lock;
     /// <summary>Przebiegi, których ochronę boczną zapewnia zwrotnica (utwierdzona w położeniu ochronnym).</summary>
     public HashSet<string> Flank = new();
+    /// <summary>Przestawianie zlecone karcie zwrotnicy (do meldunku o kontroli w położeniu docelowym albo o braku kontroli).</summary>
     public MoveInfo Moving;
-    public bool Stopped, Rozpr, NoCtrl, Frozen, Damaged, NoData, Local;
+    /// <summary>Frozen – karta melduje przekroczony czas przekładania (nadzór czasu, np. zamarznięcie).</summary>
+    public bool Stopped, Rozpr, NoCtrl, Frozen, NoData, Local;
+    /// <summary>Rozprucie skasowane (KSR) w trwającym braku kontroli – dalszy brak kontroli to już nie rozprucie.</summary>
+    public bool KsrDone;
 }
 
 public class SigState

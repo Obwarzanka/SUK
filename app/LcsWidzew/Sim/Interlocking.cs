@@ -111,11 +111,11 @@ public partial class Simulator
             var w = Sws[num]; w.Lock = r.Uid;
             if (w.Pos != pos || (w.Moving != null && w.Moving.Target != pos)) MoveSwitch(num, pos, true);
         }
-        foreach (var d in r.Ders) { Ders[d].Lock = r.Uid; Ders[d].On = false; }
+        foreach (var d in r.Ders) { Ders[d].Lock = r.Uid; DerCmd(d, false); }
         foreach (var (kind, id, fpos, _) in r.Flank)
         {
             if (kind == "sw") { var w = Sws[id]; w.Flank.Add(r.Uid); if ((w.Moving?.Target ?? w.Pos) != fpos) MoveSwitch(id, fpos, true); }
-            else if (kind == "der") { var d = Ders[id]; d.Flank.Add(r.Uid); if (!(d.MovingTo ?? d.On)) { d.MovingTo = true; d.MoveUntil = T + Cfg.SwTime; } }
+            else if (kind == "der") { var d = Ders[id]; d.Flank.Add(r.Uid); if (!(d.MovingTo ?? d.On)) DerCmd(id, true); }
             else Sigs[id].Flank.Add(r.Uid);
         }
         Routes[r.Uid] = r;
@@ -143,7 +143,7 @@ public partial class Simulator
         foreach (var sc in r.Secs) { var s = Secs[sc]; if (s.Lock == uid) { s.Lock = null; s.LockType = null; s.TimeRel = null; } }
         if (r.Overlap != null && Secs[r.Overlap].Lock == uid) { Secs[r.Overlap].Lock = null; Secs[r.Overlap].LockType = null; }
         foreach (var (num, _) in r.Sw) if (Sws[num].Lock == uid) Sws[num].Lock = null;
-        foreach (var d in r.Ders) if (Ders[d].Lock == uid) { Ders[d].Lock = null; Ders[d].On = true; }
+        foreach (var d in r.Ders) if (Ders[d].Lock == uid) { Ders[d].Lock = null; DerCmd(d, true); }
         foreach (var f in r.Flank) ReleaseFlank(f, uid);
         var sg = Sigs[r.Start];
         if (sg.Route == uid) { sg.Route = null; if (sg.Aspect != Aspect.Sz) sg.Aspect = Aspect.Stop; }
@@ -205,7 +205,7 @@ public partial class Simulator
                     {
                         if (s.Lock == uid) { s.Lock = null; s.LockType = null; }
                         foreach (var (num, _) in r.Sw) if (L.Switches[num].Sec == sc && Sws[num].Lock == uid) Sws[num].Lock = null;
-                        foreach (var d in r.Ders) if (L.Derailers[d].Sec == sc && Ders[d].Lock == uid) { Ders[d].Lock = null; Ders[d].On = true; }
+                        foreach (var d in r.Ders) if (L.Derailers[d].Sec == sc && Ders[d].Lock == uid) { Ders[d].Lock = null; DerCmd(d, true); }
                         foreach (var f in r.Flank) if (L.Switches[f.For].Sec == sc) ReleaseFlank(f, uid);
                         r.Rel++;
                     }
@@ -235,6 +235,7 @@ public partial class Simulator
         var w = Sws[num];
         double time = L.Switches[num].Manual ? Cfg.SwTime * 4 : Cfg.SwTime;
         w.Moving = new MoveInfo { Target = pos, From = w.Pos, Until = T + time, Started = T };
+        Urzadzenia.Przestaw(num, pos);
         Log("Zdarzenie", $"Przestawianie do „{pos}”" + (byRoute ? " (przebiegowo)" : ""), "Zwrotnica", num);
     }
 

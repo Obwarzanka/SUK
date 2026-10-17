@@ -106,12 +106,17 @@ public partial class Simulator
         return res;
     }
 
-    public Fwd NextByState(string nid, int dir, string fromEdge)
+    /// <summary>Następny tor wg położenia zwrotnic znanego komputerowi zależności.</summary>
+    public Fwd NextByState(string nid, int dir, string fromEdge) => Next(nid, dir, fromEdge, n => Sws[n].Pos);
+    /// <summary>Następny tor wg położenia iglic w terenie (ruch pociągów).</summary>
+    public Fwd NextInTerrain(string nid, int dir, string fromEdge) => Next(nid, dir, fromEdge, Urzadzenia.Iglice);
+
+    Fwd Next(string nid, int dir, string fromEdge, Func<string, string> posOf)
     {
         var n = L.Nodes[nid];
         if (n.Switch != null && L.Switches[n.Switch].TipDir != dir)
         {
-            var sw = L.Switches[n.Switch]; var pos = Sws[n.Switch].Pos; var e = pos == "+" ? sw.Plus : sw.Minus;
+            var sw = L.Switches[n.Switch]; var pos = posOf(n.Switch); var e = pos == "+" ? sw.Plus : sw.Minus;
             return L.Edges[e].Dismantled ? null : new Fwd(e, sw.Num, pos);
         }
         var o = Forward(nid, dir, fromEdge);
@@ -319,7 +324,7 @@ public partial class Simulator
     {
         T += dt;
         if (Pending != null && T > Pending.Until) { Log("Odrzucone", "Upłynął czas potwierdzenia polecenia " + Pending.Line, "Polecenie"); Pending = null; PendingExpired?.Invoke(); }
-        UpdatePower(); UpdateSwitches(); UpdateBlocks();
+        UpdatePower(); Urzadzenia.Tick(); UpdateBlocks();
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
         UpdateSignals(); UpdateRoutes();
@@ -332,21 +337,53 @@ public partial class Simulator
         if (!p.Mains && !p.Gen && p.GenAuto && !p.GenFail && p.OutageAt is double o && T - o > 15) { p.Gen = true; Log("Zdarzenie", "Agregat prądotwórczy uruchomiony samoczynnie", "Zasilanie", "AGR"); }
     }
 
-    void UpdateSwitches()
+    /// <summary>
+    /// Status karty zwrotnicy: położenie z kontrolą (null – brak kontroli), przekładanie, przekroczony czas przekładania.
+    /// Brak kontroli bez przekładania: przy zajętym odcinku zwrotnicowym – rozprucie, przy wolnym – brak kontroli
+    /// (decyzja właściciela 2026-10-16, PODZIAL_MODULOW.md § 7 pkt 1).
+    /// </summary>
+    public void StatusZwrotnicy(string num, string pol, bool przekladanie, bool przekroczonyCzas)
     {
-        foreach (var (n, w) in Sws)
+        var w = Sws[num];
+        w.Frozen = przekroczonyCzas;
+        if (przekroczonyCzas && w.Moving != null && !w.Moving.Alarmed) { w.Moving.Alarmed = true; Alarm($"Zwrotnica {num}: przestawianie trwa zbyt długo – przestaw do położenia pierwotnego (§24 ust. 6)", "Zwrotnica", num, stillActive: () => w.Moving != null); }
+        if (pol != null)
         {
-            if (w.Moving == null) continue;
-            if (!Power.NN && !w.Frozen) continue;
-            if (w.Frozen)
-            {
-                if (T - w.Moving.Started > Cfg.SwTimeout && !w.Moving.Alarmed) { w.Moving.Alarmed = true; Alarm($"Zwrotnica {n}: przestawianie trwa zbyt długo – przestaw do położenia pierwotnego (§24 ust. 6)", "Zwrotnica", n, stillActive: () => w.Moving != null); }
-                if (w.Moving.Target == w.Moving.From && T >= w.Moving.Until) { w.Pos = w.Moving.Target; w.Moving = null; }
-                continue;
-            }
-            if (T >= w.Moving.Until) { w.Pos = w.Moving.Target; w.Moving = null; Log("Zdarzenie", $"Kontrola położenia „{w.Pos}”", "Zwrotnica", n); }
+            w.Pos = pol; w.KsrDone = false;
+            if (w.NoCtrl) { w.NoCtrl = false; Log("Zdarzenie", $"Przywrócona kontrola położenia „{pol}”", "Zwrotnica", num); }
+            if (w.Moving != null && !przekladanie) { if (pol == w.Moving.Target) Log("Zdarzenie", $"Kontrola położenia „{pol}”", "Zwrotnica", num); w.Moving = null; }
+            return;
         }
-        foreach (var d in Ders.Values) if (d.MovingTo is bool m && T >= d.MoveUntil) { d.On = m; d.MovingTo = null; }
+        if (przekladanie) return;
+        w.Moving = null;
+        if (w.Rozpr) return;
+        if (!w.KsrDone && SecOcc(L.Switches[num].Sec))
+        {
+            w.Rozpr = true; w.NoCtrl = false;
+            Alarm($"ROZPRUCIE zwrotnicy {num} – zamknij rozjazd dla ruchu (§22 ust. 2)", "Zwrotnica", num, stillActive: () => w.Rozpr);
+        }
+        else if (!w.NoCtrl)
+        {
+            w.NoCtrl = true;
+            Alarm(w.KsrDone ? $"Zwrotnica {num}: brak kontroli po skasowaniu rozprucia – postępuj wg §22 ust. 2" : $"Zwrotnica {num}: niespodziewany brak kontroli położenia", "Zwrotnica", num, stillActive: () => w.NoCtrl);
+        }
+    }
+
+    /// <summary>Status karty wykolejnicy: założona / zdjęta (null – przekładanie).</summary>
+    public void StatusWykolejnicy(string name, bool? zalozona)
+    {
+        if (zalozona is not bool z) return;
+        var d = Ders[name]; d.On = z;
+        if (d.MovingTo == z) d.MovingTo = null;
+    }
+
+    /// <summary>Rozkaz dla karty wykolejnicy (stan „w ruchu” do meldunku karty).</summary>
+    void DerCmd(string name, bool zaloz)
+    {
+        var d = Ders[name];
+        if (d.MovingTo == null && d.On == zaloz) return;
+        d.MovingTo = zaloz; d.MoveUntil = T + Cfg.SwTime;
+        Urzadzenia.Wykolejnica(name, zaloz);
     }
 
     void UpdateSignals()

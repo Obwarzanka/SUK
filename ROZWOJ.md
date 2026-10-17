@@ -6,7 +6,7 @@ Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-17 (porządki w dokumentacji: historia edytora UT w `HISTORIA_EDYTOR_UT.md`, `PLAN.md` w `archiwum/`; edytor UT – etapy 0–7, „Łuk z punktów”).
+Ostatnia aktualizacja: 2026-10-17 (karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
 
 ---
 
@@ -86,7 +86,7 @@ Pozostałe elementy:
   - edytor UT: `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe --test wynik.txt [zrzut.png]`, oczekiwane „błędów: 0”.
   - Selftest uruchamiaj na stałej kopii testowej: `--station app/LcsWidzew/Testy/station_test.json` (kopia układu z 2026-10-15; `Data/kopie/` rotuje się – trzyma 30 ostatnich zapisów).
   - Scenariusz selftestu (`SelfTest.Run`) nie zna nazw stacji: z tablicy przebiegów bierze po jednym przebiegu wyjazdowym na każdy szlak (z Wbl i Pzk), po jednym wjeździe z każdego semafora wjazdowego i jeden manewr. Każdy przebieg czeka na sygnał zezwalający, potem jest zwalniany (ZDP/ZDM). Do tego kontrola zależności: drugi przebieg z zajętego sygnalizatora musi zostać odrzucony. Wynik w linii `WYNIK:`, braki w liniach `NIE NASTAWIONO` z przyczyną.
-  - Na kopii testowej oczekiwane: **`nastawione 25 z 26`, `kontrola zależności 4 z 4`**. Jedyny brak – 2A: odstęp 2A-1 zajęty przez pociąg z rozkładu (prawidłowe odrzucenie Wbl).
+  - Na kopii testowej oczekiwane: **`nastawione 25 z 26`, `kontrola zależności 4 z 4`**, `OCHRONA BOCZNA … kontrola 4 z 4`, `KARTY ZWROTNIC: kontrola 8 z 8`. Jedyny brak – 2A: odstęp 2A-1 zajęty przez pociąg z rozkładu (prawidłowe odrzucenie Wbl).
 
 Model danych `station.json`:
 - `nodes`, `edges` (`sec` = odcinek kontroli niezajętości `POST:nazwa`, `track`, `len` [m], `vmax`), `switches`, `signals` (wjazdowy, wyjazdowy z `shunt`, tm, to, sp, pk, odstepowy);
@@ -129,7 +129,7 @@ Szczegółowe opisy zrobionych prac (etapy 0–7 i poprawki po uwagach właścic
 - **Usuwanie kawałka toru i zaznaczanie kilku:** PPM na torze – „Usuń ten kawałek” (prosta / łuk, tor rozcina się na dwa) i „Rozetnij tor tutaj”; Ctrl + klik i Shift + prostokąt zaznaczają kilka elementów, Del usuwa naraz (jedno Ctrl+Z).
 - Obok edytora: **kalkulator przechyłki** `app/Lcs.Przechylka` (`Przechylka.exe`) – wartości dopuszczalne domyślne są przykładowe, do potwierdzenia przez właściciela; później wpięcie do edytora UT (pole L przy łuku).
 
-**Następny krok:** decyzje właściciela z `PLAN_EDYTOR_UT.md` § 6 (pytania 11–15), potem etap 8 – edytor zobrazowania (osobny plan).
+**Następny krok** (decyzja właściciela 2026-10-17, `PLAN_EDYTOR_UT.md` § 7): najpierw karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` krok 6 – karta sygnalizatora z sygnałami wg Ie-1, czeka na Ie-1 w `Zrodla/`; 6a – osobny program `Komputerownia.exe`), potem etap 8 – edytor zobrazowania.
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.
@@ -181,6 +181,7 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
 - kroki: 0 pomiar odniesienia; 1 Rejestrator; 2 Instruktor; 3 Rozkład + Otoczenie; 4 karta odcinka; 5 karta zwrotnicy i wykolejnicy; 6 karta sygnalizatora; 6a okno „Komputerownia / karty”; 7 zasilanie; 8 ruch bez przecieków (manewry wg tarcz, prędkość z sygnału); 9 system nadrzędny (parser, dwuetapowość, stanowiska, PIP); 10 cienka fasada;
 - warunek każdego kroku: build, selftest 25 z 26 / 4 z 4, test edytora UT (`EdytorUT.exe --test`, 0 błędów); w krokach przenosin dodatkowo identyczny dziennik selftestu (`--selftest out.txt` zapisuje pełny dziennik do `out.txt.zdarzenia`) i identyczne wyniki scenariuszy `--selftest out.txt usterki|zima|manewry|ic_05`. (Do 2026-10-16 także `--edtest`, `fuzz` / `dfuzz`, `testowo`, `mijanka` – usunięte razem ze starym edytorem.)
 - **ZROBIONE 2026-10-16: kroki 0–4** (przenosiny i karta odcinka; zachowanie bez zmian – dziennik selftestu i scenariusze usterki/zima/manewry/ic_05/ic_15/ic_18 identyczne).
+- **ZROBIONE 2026-10-17: krok 5** – karta zwrotnicy i wykolejnicy (`Sim/Urzadzenia/KartaZwrotnicy.cs`): rozkaz → przekładanie → status do KZ; rozprucie rozstrzyga KZ (brak kontroli + zajęty odcinek); ruch jedzie po iglicach. Selftest bez zmian wyniku + `KARTY ZWROTNIC: kontrola 8 z 8`. Szczegóły i zmiany zachowania: `PODZIAL_MODULOW.md` § 8. Krok 6 (sygnały z prędkości przebiegu i następnego semafora) czeka na Ie-1 (§ 9).
 - Pytania do właściciela przed krokami 5, 6, 8: rozprucie a brak kontroli (kto rozstrzyga, usterka „sygnalizacja rozprucia” bez pojazdu), przepalenie włókna czerwonego / zezwalającego, sygnalizator bez łączności (ciemny czy czerwony), manewry wg tarcz zamiast utwierdzeń, opóźnienie jednego cyklu rozkaz → meldunek.
 - Pozostałe przecieki (do kroków 4–9): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`); pulpit bierze numery pociągów z listy pociągów.
 

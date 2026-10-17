@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), krok 5 (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 
@@ -187,3 +187,38 @@ Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decy
 3. **Brak łączności ze sterownikiem:** na pulpicie biały migający – brak kontroli wg Ie-20.
 4. **Manewry wg tarcz (krok 8):** później.
 5. **Opóźnienie jednego cyklu** rozkaz → meldunek: akceptowalne.
+
+---
+
+## 8. Krok 5 – karta zwrotnicy i wykolejnicy (zrobione 2026-10-17)
+
+- `Sim/Urzadzenia/KartaZwrotnicy.cs`: `KartaZwrotnicy` – teren (iglice, przekładanie, zamarznięcie, uszkodzenie układu kontroli,
+  uszkodzenie iglic po rozpruciu), rozkaz `Rozkaz(„+”/„-”)` wykonywany w następnym cyklu (opóźnienie zaakceptowane, § 7 pkt 5),
+  status `Simulator.StatusZwrotnicy(num, położenie z kontrolą | null, przekładanie, przekroczony czas)`; `KartaWykolejnicy` – rozkaz
+  założenia / zdjęcia z czasem `Cfg.SwTime`, status `StatusWykolejnicy`.
+- Cykl: `UpdatePower` → **`Urzadzenia.Tick`** (karty: rozkazy, przekładanie, statusy) → blokady → ruch → sygnały → przebiegi.
+- KZ: `SwState` to kopia statusu; `Moving` – przestawienie zlecone karcie (do meldunku), `Frozen` – przekroczony czas przekładania
+  (alarm §24 ust. 6). **Rozprucie rozstrzyga KZ** (§ 7 pkt 1): brak kontroli bez przekładania przy zajętym odcinku zwrotnicowym →
+  rozprucie, przy wolnym → „niespodziewany brak kontroli”. KSR kasuje rozprucie; jeśli iglice dalej bez kontroli – brak kontroli
+  („po skasowaniu rozprucia”), nie ponowne rozprucie (`SwState.KsrDone`).
+- Ruch jedzie po iglicach (`Simulator.NextInTerrain` → `Urzadzenia.Iglice`), najechanie od gałęzi – `Urzadzenia.Najazd`
+  (karta: iglice dociśnięte, uszkodzone); wykolejnica w terenie – `Urzadzenia.WykolejnicaNaTorze`.
+- Usterki instruktora `swNoCtrl`, `swFrozen`, `swRozpr` idą do karty. **Zmiana:** `swRozpr` to teraz „uszkodzenie iglic” – przy wolnym
+  odcinku brak kontroli, przy zajętym rozprucie; usunięcie usterki przywraca kontrolę, ale sygnalizację rozprucia kasuje dopiero KSR.
+- **Zmiana zachowania:** wykolejnica w przebiegu zdejmuje się w czasie przekładania (dotąd natychmiast); kontrola zwrotnicy
+  przychodzi jeden cykl później. Selftest: część sygnałów zezwalających o 5 s później (krok sprawdzania 5 s), wynik bez zmian.
+- Testy: `WYNIK: nastawione 25 z 26; kontrola zależności 4 z 4`, `OCHRONA BOCZNA … 4 z 4`, nowa linia **`KARTY ZWROTNIC: kontrola 8 z 8`**
+  (brak kontroli przy wolnym odcinku, najechanie przy zajętym → rozprucie, KSR → brak kontroli, naprawa, zamarznięcie z alarmem
+  i powrotem, kontrola po czasie przekładania). Scenariusze manewry / ic_05 identyczne; usterki / zima – te same alarmy, postój
+  pociągu 18100 o 1 s później.
+
+## 9. Krok 6 i 6a – ustalenia (2026-10-17)
+
+- **Sygnał przy przebiegu** (właściciel): z prędkości przebiegu (zwrotnice na bok, tor) i sygnału **następnego semafora** – np. wjazdowy A
+  przy B na „Stój” – S5; gdy B poda sygnał zezwalający, A zmienia się samoczynnie. Ręczne nadpisanie w tablicy przebiegów.
+  Dokładna tabela S1–S13 (komory, miganie, pasy 60 / 100, prędkość tu / przy następnym) – **z Ie-1, którą właściciel doda do `Zrodla/`**;
+  do tego czasu krok 6 czeka (bez zgadywania sygnałów).
+- KZ wysyła karcie sygnalizatora rozkaz z konkretnym sygnałem (S1…S13, Ms1 / Ms2, Sz); karta zapala komory i melduje sygnał wyświetlany.
+- **Podgląd kart – osobny program** (`Komputerownia.exe`; właściciel: „musi być jako osobna apka”): łączy się przez sieć z działającym
+  symulatorem (jak stanowisko, port 47120 – wybór agenta, właściciel nie rozstrzygnął) i dla każdej karty pokazuje rozkaz od KZ,
+  status do KZ, świecące komory semafora, czasy; może też wprowadzać usterki kart.

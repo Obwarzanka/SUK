@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Następny: odpowiedzi właściciela na pytania 11–15, potem etap 8 – edytor zobrazowania.
+**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–6a, decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7).
 
 ---
 
@@ -166,8 +166,18 @@ między łukami o różnych R (łuk koszowy ze skokiem krzywizny), wierzchołek 
 8. Wymiary a / b rozjazdów katalogowe (np. z Id-4 albo kart katalogowych) – jeśli masz, wpiszemy do tabeli typów.
 9. Istniejące `Data/station.json` (Widzew, Fabryczna): zostaje tylko dla symulatora, a w nowym edytorze rysujesz od nowa – czy coś trzeba z niego przenieść (np. numery torów i zwrotnic)?
 10. Rozjazdy łukowe: czy wystarczy przybliżenie z § 5e (jeden łuk toru zwrotnego), czy potrzebne są dokładne wymiary z kart katalogowych Rłj / Rłd? Wstawka – czy liczyć ją między KR (styki), jak teraz?
-11. Odcinki: czy skrzyżowanie / rozjazd krzyżowy ma być zawsze jednym odcinkiem (tak jest teraz)? Czy nazwy odcinków mają mieć stały wzór (np. z5/7, 2-3)?
-12. Kilometraż: czy wystarczą wskaźniki niestabilizowane (kreska + km), czy rysować też stabilizowane (kółko) z międzytorzem?
-13. Peron: domyślna odległość krawędzi od osi 1,725 m i wysokość 0,76 m – czy inne wartości domyślne?
-14. Przejazd: czy na planie potrzebne są też krzyże św. Andrzeja i sygnalizatory drogowe (Ig-10 s. 59–60), czy wystarczy droga, kategoria, rogatki i km?
-15. Wydruk: czy potrzebny PDF wektorowy / DWG (Ig-10 § 1 ust. 15) i tabele z lewej strony arkusza (zał. 2–5), czy wystarczy obraz w skali z opisem?
+11.–15. Rozstrzygnięte 2026-10-17 – zostaje jak jest (§ 7).
+
+## 7. Decyzje właściciela (2026-10-17)
+
+1. Pytania 11–15 – **zostaje obecny stan**: skrzyżowanie i rozjazd krzyżowy to jeden odcinek; nazwy odcinków dowolne (bez wzoru);
+   kilometraż – wskaźniki niestabilizowane; peron domyślnie 1,725 m od osi, 0,76 m wysokości; przejazd – droga, kategoria, rogatki, km;
+   wydruk – obraz w skali z opisem.
+2. **Edytor zobrazowania (etap 8):** czyta UT (tylko do odczytu), każdy element obrazu przypięty do obiektu UT; rysuje **człowiek**
+   (bez propozycji z UT); skosy i symbole **jak w poprzedniej wersji** (siatka 8, łącznik „ukos 45° – pion – ukos 45°”, symbole
+   z `PanelView` – zgodne z Ie-104 / Ie-20 i wzorami).
+3. Z każdego urządzenia UT (semafor, licznik osi, zwrotnica…) powstaje **wirtualna karta** jak w rzeczywistości, która daje meldunki
+   (`PODZIAL_MODULOW.md`, karty).
+4. **Funkcja semafora** (wjazdowy, wyjazdowy, drogowskazowy, odstępowy, powtarzacz, PK) – pole w UT, panel urządzenia.
+5. **Posterunki** – obszary w UT: tory przypisane do posterunku, urządzenia dziedziczą posterunek z toru.
+6. **Kolejność: najpierw karty** w symulatorze (na obecnym `station.json`, `PODZIAL_MODULOW.md` kroki 5–6a), potem edytor zobrazowania.

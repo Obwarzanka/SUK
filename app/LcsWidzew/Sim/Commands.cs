@@ -387,7 +387,7 @@ public partial class Simulator
                     var d = Ders[k]; if (d.Lock != null) return new(false, "Wykolejnica utwierdzona w przebiegu");
                     if (d.Flank.Count > 0) return new(false, $"Wykolejnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(d.Flank, null)}");
                     if (SecOcc(L.Derailers[k].Sec)) return new(false, "Odcinek zajęty");
-                    d.MovingTo = code == "PLUS"; d.MoveUntil = T + Cfg.SwTime; return new(true, code == "PLUS" ? "zakładanie wykolejnicy" : "zdejmowanie wykolejnicy");
+                    DerCmd(k, code == "PLUS"); return new(true, code == "PLUS" ? "zakładanie wykolejnicy" : "zdejmowanie wykolejnicy");
                 }
                 var w = Sws[k]; var pos = code == "PLUS" ? "+" : "-";
                 if (w.NoData) return new(false, "Brak danych o zwrotnicy");
@@ -455,8 +455,8 @@ public partial class Simulator
             }
             case "KSR":
             {
-                var k = Resolve(a0, "sw"); var w = Sws[k]; w.Rozpr = false;
-                if (w.Damaged) { w.NoCtrl = true; Alarm($"Zwrotnica {k}: brak kontroli po skasowaniu rozprucia – postępuj wg §22 ust. 2", "Zwrotnica", k, stillActive: () => w.NoCtrl); }
+                // brak kontroli trwa dalej (iglice uszkodzone) – KZ zgłosi go w następnym cyklu jako brak kontroli, nie rozprucie
+                var k = Resolve(a0, "sw"); var w = Sws[k]; w.Rozpr = false; w.KsrDone = true;
                 return new(true, "skasowano sygnalizację rozprucia");
             }
             case "ZEROLO":

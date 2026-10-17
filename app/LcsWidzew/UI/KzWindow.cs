@@ -79,7 +79,7 @@ public class KzWindow : DarkWindow
                 {
                     Zwrotnica = L(w.Num), Polozenie = w.Pos, Utwierdzona = RouteName(w.Lock) + (w.Flank.Count > 0 ? (w.Lock != null ? "; " : "") + "ochrona boczna: " + string.Join(", ", w.Flank.Select(RouteName)) : ""),
                     Przestawianie = w.Moving == null ? "" : $"→ „{w.Moving.Target}”, {Math.Max(0, w.Moving.Until - sim.T):0.0} s" + (w.Frozen ? " (nie przestawia się!)" : ""),
-                    Stan = string.Join(", ", new[] { w.Stopped ? "zastopowana" : null, w.Rozpr ? "ROZPRUCIE" : null, w.NoCtrl ? "brak kontroli" : null, w.Frozen ? "zamarznięta" : null, w.Local ? "sterowanie miejscowe" : null, w.NoData ? "brak danych" : null }.Where(x => x != null))
+                    Stan = string.Join(", ", new[] { w.Stopped ? "zastopowana" : null, w.Rozpr ? "ROZPRUCIE" : null, w.NoCtrl ? "brak kontroli" : null, w.Frozen ? "przekroczony czas przekładania" : null, w.Local ? "sterowanie miejscowe" : null, w.NoData ? "brak danych" : null }.Where(x => x != null))
                 }).ToList();
                 break;
             case 2:

@@ -148,11 +148,11 @@ public partial class Trains
             foreach (var s in sg) if (!Permits(s, t)) return (dist - 8, s, false, false);
             if (t.Shunt && S.L.TrackEnds.ContainsKey(node)) return (dist - 10, null, false, true);
             // PK – punkt końcowy przebiegu: dalej tylko w nastawionym przebiegu pociągowym (np. od semafora sąsiedniego posterunku)
-            if (!t.Shunt && SigsAt(node, dir).Any(x => S.L.Signals[x].PkTrain) && S.NextByState(node, dir, from) is { } pkn && S.Secs[S.L.Edges[pkn.Edge].Sec].LockType != "train")
+            if (!t.Shunt && SigsAt(node, dir).Any(x => S.L.Signals[x].PkTrain) && S.NextInTerrain(node, dir, from) is { } pkn && S.Secs[S.L.Edges[pkn.Edge].Sec].LockType != "train")
                 return (dist - 8, null, false, true);
             if (t.Shunt && k > 0 && !InShuntRoute(prevE) && prevE != null) return (dist - S.L.Edges[prevE].Len - 6, null, false, true);
             if (S.L.FarEnds.TryGetValue(node, out var fe) && dir == S.L.Blocks[fe.Szlak].Ends[0].Outward) return (double.PositiveInfinity, null, false, false);
-            var nx = S.NextByState(node, dir, from);
+            var nx = S.NextInTerrain(node, dir, from);
             if (nx == null) return (dist - 5, null, false, true);
             dist += S.L.Edges[nx.Edge].Len; from = nx.Edge; prevE = nx.Edge; node = S.L.Other(nx.Edge, node);
             if (dist > 2500) break;
@@ -185,20 +185,15 @@ public partial class Trains
             t.Segs.Add(new Seg { E = null, From = node, To = null, Len = 1e6, Dir = dir, Sink = true, Szlak = fe.Szlak });
             return true;
         }
-        var nx = S.NextByState(node, dir, last.E);
+        var nx = S.NextInTerrain(node, dir, last.E);
         if (nx == null) return false;
         if (nx.Num != null)
         {
-            var w = S.Sws[nx.Num];
-            bool trailing = S.L.Switches[nx.Num].TipDir == dir;
-            if (trailing && (w.Pos != nx.Pos || w.Moving != null))
-            {
-                w.Rozpr = true; w.Damaged = true; w.Pos = nx.Pos; w.Moving = null;
-                S.Alarm($"ROZPRUCIE zwrotnicy {nx.Num} przez {t.Num} – zamknij rozjazd dla ruchu (§22 ust. 2)", "Zwrotnica", nx.Num, stillActive: () => w.Rozpr);
-            }
+            // najechanie od gałęzi: przy iglicach w innym położeniu karta melduje brak kontroli, KZ rozstrzyga o rozpruciu
+            if (S.L.Switches[nx.Num].TipDir == dir) S.Urzadzenia.Najazd(nx.Num, nx.Pos);
         }
         var der = S.L.Derailers.Values.FirstOrDefault(d => d.Node == node);
-        if (der != null && S.Ders[der.Name].On) { S.Alarm($"WYKOLEJENIE {t.Num} na wykolejnicy {der.Name}!", "Wykolejnica", der.Name); t.Derailed = true; }
+        if (der != null && S.Urzadzenia.WykolejnicaNaTorze(der.Name)) { S.Alarm($"WYKOLEJENIE {t.Num} na wykolejnicy {der.Name}!", "Wykolejnica", der.Name); t.Derailed = true; }
         t.Segs.Add(new Seg { E = nx.Edge, From = node, To = S.L.Other(nx.Edge, node), Len = S.L.Edges[nx.Edge].Len, Dir = dir });
         return true;
     }
@@ -378,7 +373,7 @@ public partial class Trains
         double dist = Total(t) - t.Head; string node = last.To, from = last.E; int dir = last.Dir;
         for (int k = 0; k < 40 && dist < 2500; k++)
         {
-            var nx = S.NextByState(node, dir, from); if (nx == null) break;
+            var nx = S.NextInTerrain(node, dir, from); if (nx == null) break;
             var l = EdgeLimit(nx.Edge);
             if (l < 1e3) lim = Math.Min(lim, Math.Sqrt(l * l + 2 * Brake * Math.Max(0, dist)));
             dist += S.L.Edges[nx.Edge].Len; from = nx.Edge; node = S.L.Other(nx.Edge, node);
