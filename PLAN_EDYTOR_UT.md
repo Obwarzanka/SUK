@@ -98,7 +98,7 @@ Właściciel: „łączenie torów trzeba ogarnąć i to, jak łuki powstają”
 2. **Łączenie:** zakończenie na końcu innego toru (przyciąganie) łączy stycznie – jednym łukiem, gdy styczne się przecinają (R z pola albo największy, jaki się mieści), inaczej łukami odwrotnymi (esowanie, zmiana rozstawu). Tory scalają się w jeden, jeśli drugi nie jest związany z rozjazdem ani skrzyżowaniem. Start na końcu toru A i klik na końcu toru B łączy dwa istniejące tory.
 3. **Edycja łuku myszą:** zaznaczony tor ma uchwyt w środku każdego łuku. Przeciągnięcie zmienia R (środek łuku idzie za kursorem po dwusiecznej), a R widać na żywo. Wierzchołek dalej przeciąga się jak dotąd.
 4. Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje.
-5. **Łuk z punktów (J)** (2026-10-17, właściciel: „kilka punktów, żeby zrobić precyzyjniejszy łuk”): klik łuku toru, potem dowolnie wiele punktów na osi łuku ze zdjęcia; R (i L) metodą najmniejszych kwadratów, styczny do prostych toru (`Budowa.FitArc`).
+5. **Łuk z punktów (J)** (2026-10-17, właściciel: „kilka punktów, żeby zrobić precyzyjniejszy łuk”, potem „ciężko jest”): klik łuku toru, potem punkty na osi toru ze zdjęcia (łuk i proste obok); wierzchołek, R i L metodą najmniejszych kwadratów (`Budowa.FitArcFree`); W – proste stałe, tylko R / L (`Budowa.FitArc`).
 6. **Usuwanie kawałka toru i zaznaczanie kilku** (2026-10-17): PPM na torze – usuń kawałek (prosta / łuk) z rozcięciem toru, rozetnij tor (`Ciecie`); Ctrl + klik i Shift + prostokąt we Wskaż, Del usuwa naraz.
 
 ## 5d. Etap 5, część 1 – urządzenia na torze (2026-10-16)

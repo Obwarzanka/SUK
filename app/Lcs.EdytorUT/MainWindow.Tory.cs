@@ -65,9 +65,9 @@ public partial class MainWindow
             Message($"Łuk od–do: R {F(r)} m" + (note != null ? " – " + note : ""));
         };
         View.TrackMenu += (id, s) => { var cm = BuildTrackMenu(id, s); cm.PlacementTarget = View; cm.IsOpen = true; };
-        View.ArcFitDone += (id, vi, r, l, info) =>
+        View.ArcFitDone += (id, vi, r, l, vx, info) =>
         {
-            ChTrack(id, "Łuk z punktów", t => { t.Vertices[vi].R = r; t.Vertices[vi].L = l; });
+            ChTrack(id, "Łuk z punktów", t => { t.Vertices[vi].R = r; t.Vertices[vi].L = l; if (vx is XY p) { t.Vertices[vi].X = p.X; t.Vertices[vi].Y = p.Y; } });
             View.Select(id, vi);
             Message(info);
         };

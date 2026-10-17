@@ -17,9 +17,11 @@ public partial class UtView
     public readonly List<XY> FitPts = new();
     /// <summary>Dopasowanie także krzywych przejściowych L (Tab).</summary>
     public bool FitWithL { get; private set; }
+    /// <summary>Wierzchołek (kierunki prostych) też dopasowywany do punktów – domyślnie; W – stałe proste.</summary>
+    public bool FitFreeVertex { get; private set; } = true;
     public ArcFit FitResult { get; private set; }
     /// <summary>Łuk z punktów gotowy: tor, wierzchołek, R, L, opis.</summary>
-    public event Action<string, int, double, double, string> ArcFitDone;
+    public event Action<string, int, double, double, XY?, string> ArcFitDone;
 
     /// <summary>Wierzchołek łuku pod kursorem: element osi najbliżej kliknięcia (łuk / przejściowa – jego wierzchołek, prosta – bliższy wierzchołek).</summary>
     (string Track, int Vi)? FitVertexAt(Point s)
@@ -56,7 +58,7 @@ public partial class UtView
     void Refit()
     {
         if (fitArc is not var (id, vi) || Track(id) is not UtTrack t) { FitResult = null; return; }
-        FitResult = FitPts.Count == 0 ? null : Budowa.FitArc(t.Vertices, vi, FitPts, Trasa.KFor(t), FitWithL);
+        FitResult = FitPts.Count == 0 ? null : FitFreeVertex ? Budowa.FitArcFree(t.Vertices, vi, FitPts, Trasa.KFor(t), FitWithL) : Budowa.FitArc(t.Vertices, vi, FitPts, Trasa.KFor(t), FitWithL);
         DraftInfo?.Invoke(FitInfo());
         InvalidateVisual();
     }
@@ -65,7 +67,8 @@ public partial class UtView
     {
         if (FitResult == null) return "Łuk z punktów: kliknij punkty na osi łuku";
         if (FitResult.Error != null) return "Łuk z punktów: " + FitResult.Error;
-        return $"Łuk z punktów: R {FitResult.R:0} m" + (FitWithL || FitResult.L > 0 ? $", L {FitResult.L:0} m" : "") +
+        string vx = FitFreeVertex ? (FitResult.Vertex is XY nv && fitArc is var (fid, fvi) && Track(fid) is UtTrack ft ? $", wierzchołek przesunięty o {XY.Dist(nv, ft.Vertices[fvi].P) / Trasa.KFor(ft):0.00} m" : FitPts.Count < 4 ? " (wierzchołek – od 4 punktów)" : "") : " (proste stałe – W)";
+        return $"Łuk z punktów: R {FitResult.R:0} m" + (FitWithL || FitResult.L > 0 ? $", L {FitResult.L:0} m" : "") + vx +
                $" – {FitPts.Count} pkt, odchyłka średnia {FitResult.Rms * 100:0.#} cm, największa {FitResult.Max * 100:0.#} cm · Enter – zastosuj";
     }
 
@@ -75,7 +78,7 @@ public partial class UtView
         if (fitArc is not var (id, vi) || FitResult == null || FitResult.Error != null) return false;
         var r = FitResult; string info = FitInfo().Replace(" · Enter – zastosuj", "");
         fitArc = null; FitPts.Clear(); FitResult = null; InvalidateVisual();
-        ArcFitDone?.Invoke(id, vi, r.R, r.L, info);
+        ArcFitDone?.Invoke(id, vi, r.R, r.L, r.Vertex, info);
         return true;
     }
 
@@ -83,6 +86,7 @@ public partial class UtView
     {
         if (tool != UtTool.LukPunkty) return false;
         if (k == Key.Tab) { FitWithL = !FitWithL; if (fitArc != null) Refit(); else DraftInfo?.Invoke(FitWithL ? "Łuk z punktów: dopasowanie R i krzywych przejściowych L" : "Łuk z punktów: dopasowanie samego R"); return true; }
+        if (k == Key.W) { FitFreeVertex = !FitFreeVertex; if (fitArc != null) Refit(); else DraftInfo?.Invoke(FitFreeVertex ? "Łuk z punktów: wierzchołek (proste) też dopasowywany" : "Łuk z punktów: proste stałe, tylko R / L"); return true; }
         if (fitArc == null) return false;
         if (k == Key.Escape) { fitArc = null; FitPts.Clear(); FitResult = null; DraftInfo?.Invoke("Łuk z punktów: kliknij łuk toru"); InvalidateVisual(); return true; }
         if (k == Key.Back) { if (FitPts.Count > 0) { FitPts.RemoveAt(FitPts.Count - 1); Refit(); } return true; }
@@ -104,6 +108,7 @@ public partial class UtView
         if (FitResult is { Error: null } fr)
         {
             var c = t.Vertices.Select(x => x.Clone()).ToList(); c[vi].R = fr.R; c[vi].L = fr.L;
+            if (fr.Vertex is XY nv) { c[vi].X = nv.X; c[vi].Y = nv.Y; dc.DrawLine(new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[vi].P), ToScreen(nv)); }
             dc.DrawGeometry(null, pen, Line(Trasa.Compute(c, Trasa.KFor(t)).Sample(0.5), 0));
         }
         var red = new Pen(Red, 1.6);

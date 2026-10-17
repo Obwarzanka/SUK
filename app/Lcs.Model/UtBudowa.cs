@@ -353,7 +353,77 @@ public static class Budowa
         var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
         return new ArcFit(R, L, Math.Sqrt(dev.Sum(x => x * x) / dev.Count), dev.Max(), dev, null);
     }
+
+    /// <summary>
+    /// Łuk z punktów ze swobodnym wierzchołkiem: położenie wierzchołka <paramref name="vi"/> (czyli kierunki obu prostych do sąsiednich
+    /// wierzchołków), R i (gdy <paramref name="fitL"/>) L dobrane do punktów metodą najmniejszych kwadratów (simpleks Neldera–Meada,
+    /// start z dopasowania przy stałych prostych). Sąsiednie wierzchołki zostają. Punkty najlepiej na łuku i na prostych przed nim i za nim.
+    /// </summary>
+    public static ArcFit FitArcFree(IReadOnlyList<UtVertex> v, int vi, IReadOnlyList<XY> pts, double k, bool fitL)
+    {
+        var fixedFit = FitArc(v, vi, pts, k, fitL);
+        if (pts.Count < 4 || vi <= 0 || vi >= v.Count - 1) return fixedFit;
+        var p0 = v[vi].P;
+        double r0 = fixedFit.Error == null ? fixedFit.R : Math.Max(v[vi].R, 300), l0 = fixedFit.Error == null ? fixedFit.L : (fitL ? 0 : v[vi].L);
+        bool Bad(TrasaResult r) => r.Notes.Any(n => n.Error && n.Vertex >= vi - 1 && n.Vertex <= vi + 2);
+        List<UtVertex> Make(double[] x)
+        {
+            var c = v.Select(q => q.Clone()).ToList();
+            c[vi].X = p0.X + x[0] * k; c[vi].Y = p0.Y + x[1] * k; c[vi].R = Math.Exp(x[2]); c[vi].L = fitL ? Math.Max(0, x[3]) : v[vi].L;
+            return c;
+        }
+        double F(double[] x)
+        {
+            var r = Trasa.Compute(Make(x), k); if (Bad(r)) return 1e18;
+            double s = 0; foreach (var q in pts) { var d = r.Nearest(q, 1).Dist; s += d * d; }
+            return s;
+        }
+        int n = fitL ? 4 : 3;
+        var best = new double[] { 0, 0, Math.Log(r0), l0 };
+        // dwa przebiegi simpleksu (drugi od najlepszego punktu) – mniej utknięć
+        foreach (var step in new[] { new double[] { 5, 5, 0.2, 10 }, new double[] { 1, 1, 0.05, 3 } })
+            best = NelderMead(F, best, step, n, 400);
+        var fv = Make(best);
+        // zaokrąglenie R i L do 1 m (wierzchołek – co 1 mm) i kontrola, czy się mieści
+        double R = Math.Max(1, Math.Round(fv[vi].R)), L = Math.Max(0, Math.Round(fv[vi].L));
+        fv[vi].X = Math.Round(fv[vi].X, 3); fv[vi].Y = Math.Round(fv[vi].Y, 3); fv[vi].R = R; fv[vi].L = L;
+        while (fv[vi].R > 1 && Bad(Trasa.Compute(fv, k))) fv[vi].R -= 1;
+        var res = Trasa.Compute(fv, k);
+        if (Bad(res)) return fixedFit;
+        var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
+        double rms = Math.Sqrt(dev.Sum(x => x * x) / dev.Count);
+        if (fixedFit.Error == null && rms > fixedFit.Rms) return fixedFit;      // nie gorzej niż przy stałych prostych
+        return new ArcFit(fv[vi].R, fv[vi].L, rms, dev.Max(), dev, null, fv[vi].P);
+    }
+
+    /// <summary>Simpleks Neldera–Meada (minimum f) w pierwszych <paramref name="n"/> współrzędnych; pozostałe stałe.</summary>
+    static double[] NelderMead(Func<double[], double> f, double[] x0, double[] step, int n, int maxIt)
+    {
+        var pts = new List<double[]> { (double[])x0.Clone() };
+        for (int i = 0; i < n; i++) { var p = (double[])x0.Clone(); p[i] += step[i]; pts.Add(p); }
+        var fs = pts.Select(f).ToList();
+        for (int it = 0; it < maxIt; it++)
+        {
+            var ord = Enumerable.Range(0, n + 1).OrderBy(i => fs[i]).ToList();
+            pts = ord.Select(i => pts[i]).ToList(); fs = ord.Select(i => fs[i]).ToList();
+            if (Math.Abs(fs[n] - fs[0]) <= 1e-10 * (Math.Abs(fs[0]) + 1e-12)) break;
+            var c = new double[x0.Length]; Array.Copy(x0, c, x0.Length);
+            for (int j = 0; j < n; j++) c[j] = pts.Take(n).Average(p => p[j]);
+            double[] At(double t) { var q = (double[])pts[n].Clone(); for (int j = 0; j < n; j++) q[j] = c[j] + t * (pts[n][j] - c[j]); return q; }
+            var xr = At(-1); double fr = f(xr);
+            if (fr < fs[0]) { var xe = At(-2); double fe = f(xe); if (fe < fr) { pts[n] = xe; fs[n] = fe; } else { pts[n] = xr; fs[n] = fr; } continue; }
+            if (fr < fs[n - 1]) { pts[n] = xr; fs[n] = fr; continue; }
+            var xc = fr < fs[n] ? At(-0.5) : At(0.5); double fc = f(xc);
+            if (fc < Math.Min(fr, fs[n])) { pts[n] = xc; fs[n] = fc; continue; }
+            for (int i = 1; i <= n; i++) { for (int j = 0; j < n; j++) pts[i][j] = pts[0][j] + 0.5 * (pts[i][j] - pts[0][j]); fs[i] = f(pts[i]); }
+        }
+        int bi = Enumerable.Range(0, n + 1).OrderBy(i => fs[i]).First();
+        return pts[bi];
+    }
 }
 
-/// <summary>Wynik dopasowania łuku do punktów: R, L [m], odchyłka średnia kwadratowa i największa [m], odchyłki punktów, błąd.</summary>
-public record ArcFit(double R, double L, double Rms, double Max, List<double> Dev, string Error);
+/// <summary>
+/// Wynik dopasowania łuku do punktów: R, L [m], odchyłka średnia kwadratowa i największa [m], odchyłki punktów, błąd;
+/// <see cref="Vertex"/> – nowe położenie wierzchołka (dopasowanie ze swobodnym wierzchołkiem), null – bez zmiany.
+/// </summary>
+public record ArcFit(double R, double L, double Rms, double Max, List<double> Dev, string Error, XY? Vertex = null);
