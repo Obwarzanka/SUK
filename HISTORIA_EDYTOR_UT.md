@@ -168,6 +168,7 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 ## Edytor UT – licznik osi po stronie kliknięcia
 
 **ZROBIONE 2026-10-17** (właściciel: „licznik osi jest z prawej strony toru!!!”; wybrał „po stronie, gdzie kliknę”): urządzenia bez kierunku (licznik osi, złącze izolowane, ukres) dostawały zawsze stronę +1 (prawa względem rosnącego km toru), niezależnie od miejsca kliknięcia. `UtView.DevFromDrag` – strona z położenia kliknięcia względem osi toru (także tuż przy torze); PPM „Zmień stronę” bez zmian. Test (`Test.Bramka.cs`): klik 0,35 m po prawej – strona +1, po lewej – −1.
+- Poprawka (zrzut właściciela: licznik osi w miejscu semafora L2, po tej samej stronie – kropki wchodziły na komory, nazwa chowała się pod nimi): kropki bliżej toru i mniejsze (oś 0,75 mm, promień 0,4 mm – do 1,15 mm od osi; komory zaczynają się 1,4 mm od osi), nazwa licznika po drugiej stronie toru. Zrzut: `zrzuty/EdytorUT_licznik_przy_semaforze.png`.
 
 ## Edytor UT – światło stałe / pulsujące
 

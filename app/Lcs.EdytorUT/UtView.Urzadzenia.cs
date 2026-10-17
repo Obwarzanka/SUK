@@ -401,10 +401,11 @@ public partial class UtView
                 L(0, 0, 1, 0);                                     // b = 1 mm za belką
                 break;
             case UtDevice.LicznikOsi:
-                // BSK o9: czujnik licznika osi – dwie połączone kropki obok toru
-                L(-1.3, 1.1, 1.3, 1.1);
-                dc.DrawEllipse(ink, null, P(-0.6, 1.1), 0.5 * k, 0.5 * k); dc.DrawEllipse(ink, null, P(0.6, 1.1), 0.5 * k, 0.5 * k);
-                T(dv.Name, 0, 2.8);
+                // BSK o9: czujnik licznika osi – dwie połączone kropki tuż przy torze (do 1,15 mm od osi – nie wchodzi na komory semafora,
+                // które zaczynają się 1,4 mm od osi); nazwa po drugiej stronie toru – nie chowa się pod sygnalizatorem w tym samym miejscu
+                L(-1.0, 0.75, 1.0, 0.75);
+                dc.DrawEllipse(ink, null, P(-0.5, 0.75), 0.4 * k, 0.4 * k); dc.DrawEllipse(ink, null, P(0.5, 0.75), 0.4 * k, 0.4 * k);
+                T(dv.Name, 0, -1.6);
                 break;
             case UtDevice.Zlacze:
                 // BSK o4: złącze izolowane na styku dwóch odcinków izolowanych – „I”

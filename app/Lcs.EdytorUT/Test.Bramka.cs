@@ -67,6 +67,14 @@ public static partial class Test
             var lo = d.P.Devices.Count > n0 ? d.P.Devices[^1] : null;
             Ok(lo != null && lo.Kind == UtDevice.LicznikOsi && lo.Side == want, $"licznik osi kliknięty {(off > 0 ? "po prawej" : "po lewej")} stronie toru – strona {lo?.Side}");
         }
+        // licznik osi w miejscu semafora L2, po tej samej stronie (zrzut właściciela) – kropki nie wchodzą na komory, nazwa po drugiej stronie
+        var loL2 = new UtDevice { Kind = UtDevice.LicznikOsi, Name = "lo9", Track = t3.Id, S = 148, Dir = 1, Side = 1 };
+        d.Change("lo9", p => p.Devices.Add(loL2));
+        if (shotRails != null)
+        {
+            w.SetTool(UtTool.Wskaz); w.View.Select(null); w.SetSchemat(false);
+            var pl = Urzadzenia.Pos(d.P, loL2).Value.P; w.View.SetView(Go(pl, lineAz + 180, 3), 0.025); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_licznik_przy_semaforze.png"));
+        }
         w.SetTool(UtTool.Wskaz); w.View.Select(null); w.SetSchemat(true);
         var c = Go(o, lineAz, 0); w.View.SetView(Go(c, lineAz + 90, 2.5), 0.12);
         if (shotRails != null) { await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka_widzew.png")); }
