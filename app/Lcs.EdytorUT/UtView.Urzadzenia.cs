@@ -50,9 +50,11 @@ public partial class UtView
         }
         var (p, az) = r.At(s);
         var pa = ToScreen(p);
-        if ((at - pa).Length < 8 || !UtDevice.KindInfo(DevKind).Directed) return (s, 1, 1);
         var v = ToWorld(at) - p; var d = Element.Dir(az);
         double along = v.X * d.X + v.Y * d.Y, across = d.X * v.Y - d.Y * v.X;
+        // bez kierunku (licznik osi, złącze, ukres): po tej stronie toru, po której kliknięto (właściciel 2026-10-17)
+        if (!UtDevice.KindInfo(DevKind).Directed) return (s, 1, across < 0 ? -1 : 1);
+        if ((at - pa).Length < 8) return (s, 1, 1);
         int dir = along >= 0 ? 1 : -1;
         int side = Math.Sign(across) * dir; if (side == 0) side = 1;
         return (s, dir, side);
@@ -154,7 +156,7 @@ public partial class UtView
     /// schematycznych (Semaforek, Łódź Widzew); nazwa za ostatnim elementem.
     /// </summary>
     static void DrawHangingHeads(DrawingContext dc, UtDevice dv, Func<double, double, Point> P, Action<double, double, double, double, Pen> L, Pen pen, Pen thick, Brush ink,
-        List<(char C, bool Pulse)> lamps, char lit, double x, double Y, double R, double k, double dpi, bool labels, Action<string, double, double, double> T)
+        List<(char C, int Pulse)> lamps, char lit, double x, double Y, double R, double k, double dpi, bool labels, Action<string, double, double, double> T)
     {
         double yy = Y; bool litDone = false;
         // komora świecąca – pierwsza od dołu o kolorze stanu zasadniczego (jak na maszcie)
@@ -173,12 +175,11 @@ public partial class UtView
                 case 'N': L(cx - a, yy + a, cx + a, yy - a, mp); L(cx - a, yy - a, cx + a, yy + a, mp); break;
                 case 'B': if (i == litIdx) dc.DrawEllipse(null, thick, P(cx, yy), R * 0.55 * k, R * 0.55 * k); break;
             }
-            if (pulse)
-                foreach (var an in new[] { 45.0, 135, 225, 315 })
-                {
-                    double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
-                    L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35, pen);
-                }
+            foreach (var an in PulseTicks(pulse))
+            {
+                double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
+                L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35, pen);
+            }
         }
         if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
         {
@@ -203,6 +204,17 @@ public partial class UtView
         }
         T(dv.Name, x + 0.6, Y, 1);
     }
+
+    /// <summary>
+    /// Kreski na obwodzie komory: światło stałe lub pulsujące – 2 (ukośnie, na przeciwnych stronach), tylko pulsujące – 4
+    /// (uwaga właściciela 2026-10-17, plan Łódź Widzew – L2).
+    /// </summary>
+    static double[] PulseTicks(int mode) => mode switch
+    {
+        UtDevice.StaleLubPulsujace => new[] { 45.0, 225 },
+        UtDevice.TylkoPulsujace => new[] { 45.0, 135, 225, 315 },
+        _ => Array.Empty<double>(),
+    };
 
     /// <summary>Długość znaku semafora na bramce od belki [mm arkusza] (do słupów bramki).</summary>
     static double HangingLen(UtDevice dv) => 1.2 + 2 * UtDevice.ParseLights(dv.LightsOrDefault).Count + (!string.IsNullOrEmpty(dv.W21) ? 1.6 : 0) + (dv.StripeP ? 1 : 0) + (dv.StripeZ ? 1 : 0);
@@ -303,7 +315,7 @@ public partial class UtView
                 // BSK ISDR „Oznaczenia urządzeń srk” ss3–ss9 (i Ig-10 zał. 8 s. 27): nazwa, stopa (wysokość komory), maszt ok. 2,5 komory
                 // (z wysięgnikiem – z odsadzeniem w stronę toru; karzełkowy – bez), W24 na maszcie, pasy świetlne, W21, komory od masztu
                 // w stronę jazdy. Kolory: C – kreska w poprzek masztu, Z – wzdłuż, P – ukośna, B – pusta, N – krzyż; świecąca w stanie
-                // zasadniczym – gruba kreska; mogąca pulsować – ząbki na obwodzie.
+                // zasadniczym – gruba kreska; światło stałe lub pulsujące – 2 kreski na obwodzie, tylko pulsujące – 4 (PulseTicks).
                 var lamps = UtDevice.ParseLights(dv.LightsOrDefault); char lit = dv.LitOrDefault; string mast = dv.MastOrDefault;
                 double x = 0, yy = Y;
                 bool gantry = mast == UtDevice.MastBramka;
@@ -364,12 +376,11 @@ public partial class UtView
                         case 'N': L(cx - a, yy + a, cx + a, yy - a, mp); L(cx - a, yy - a, cx + a, yy + a, mp); break;
                         case 'B': if (isLit) dc.DrawEllipse(null, thick, P(cx, yy), R * 0.55 * k, R * 0.55 * k); break;
                     }
-                    if (pulse)
-                        foreach (var an in new[] { 45.0, 135, 225, 315 })
-                        {
-                            double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
-                            L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35);
-                        }
+                    foreach (var an in PulseTicks(pulse))
+                    {
+                        double ca = Math.Cos(an * Math.PI / 180), sa = Math.Sin(an * Math.PI / 180);
+                        L(cx + ca * R, yy + sa * R, cx + ca * R * 1.35, yy + sa * R * 1.35);
+                    }
                 }
                 T(dv.Name, -0.6, Y, -1);
                 break;

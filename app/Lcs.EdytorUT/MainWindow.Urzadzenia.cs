@@ -131,7 +131,7 @@ public partial class MainWindow
         var P = new StackPanel { Margin = new Thickness(4) };
         P0.Children.Add(new GroupBox { Header = d.Kind == UtDevice.Semafor ? "Konfiguracja semafora" : "Konfiguracja tarczy", Content = P, Margin = new Thickness(0, 4, 0, 8), Padding = new Thickness(2) });
         var lamps = UtDevice.ParseLights(d.LightsOrDefault);
-        void SetLamps(List<(char C, bool Pulse)> l, string what = "Komory sygnalizatora") =>
+        void SetLamps(List<(char C, int Pulse)> l, string what = "Komory sygnalizatora") =>
             ChDevice(d.Id, what, x => { x.Lights = UtDevice.FormatLights(l); x.Heads = l.Count; if (!string.IsNullOrEmpty(x.Lit) && l.All(q => q.C != x.Lit[0])) x.Lit = null; });
 
         P.Children.Add(Label("Układ gotowy"));
@@ -147,9 +147,9 @@ public partial class MainWindow
         };
         P.Children.Add(pre);
 
-        P.Children.Add(Label("Komory od masztu (kolor, pulsuje)"));
+        P.Children.Add(Label("Komory od masztu (kolor, światło)"));
         var grid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
-        foreach (var w in new[] { 18.0, 100, 64, 24, 24, 24 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        foreach (var w in new[] { 18.0, 92, 118, 24, 24, 24 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         for (int i = 0; i < lamps.Count; i++)
         {
             int ii = i; grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -160,18 +160,20 @@ public partial class MainWindow
             cb.SelectedIndex = Array.FindIndex(UtDevice.Colors, c => c.Key == lamps[i].C);
             cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex < 0) return; var l = lamps.ToList(); l[ii] = (UtDevice.Colors[cb.SelectedIndex].Key, l[ii].Pulse); SetLamps(l); };
             Put(cb, 1);
-            var pu = new CheckBox { Content = "pulsuje", IsChecked = lamps[i].Pulse, VerticalAlignment = VerticalAlignment.Center };
-            pu.Click += (s, e) => { var l = lamps.ToList(); l[ii] = (l[ii].C, pu.IsChecked == true); SetLamps(l); };
+            var pu = new ComboBox { Margin = new Thickness(0, 1, 4, 1), ToolTip = "Światło: stałe; stałe lub pulsujące (na planie 2 kreski); tylko pulsujące (4 kreski)" };
+            foreach (var m in UtDevice.PulseModes) pu.Items.Add(m.Name);
+            pu.SelectedIndex = Math.Clamp(lamps[i].Pulse, 0, 2);
+            pu.SelectionChanged += (s, e) => { if (pu.SelectedIndex < 0) return; var l = lamps.ToList(); l[ii] = (l[ii].C, pu.SelectedIndex); SetLamps(l); };
             Put(pu, 2);
             Put(SmallBtn("↑", () => { if (ii == 0) return; var l = lamps.ToList(); (l[ii - 1], l[ii]) = (l[ii], l[ii - 1]); SetLamps(l); }, "Komora bliżej masztu"), 3);
             Put(SmallBtn("↓", () => { if (ii == lamps.Count - 1) return; var l = lamps.ToList(); (l[ii + 1], l[ii]) = (l[ii], l[ii + 1]); SetLamps(l); }, "Komora dalej od masztu"), 4);
             Put(SmallBtn("✕", () => { if (lamps.Count <= 1) return; var l = lamps.ToList(); l.RemoveAt(ii); SetLamps(l); }, "Usuń komorę"), 5);
         }
         P.Children.Add(grid);
-        P.Children.Add(SmallBtn("+ komora", () => { if (lamps.Count >= 7) return; var l = lamps.ToList(); l.Add(('B', false)); SetLamps(l); }, "Nowa komora na końcu (najdalej od masztu), biała"));
+        P.Children.Add(SmallBtn("+ komora", () => { if (lamps.Count >= 7) return; var l = lamps.ToList(); l.Add(('B', UtDevice.Stale)); SetLamps(l); }, "Nowa komora na końcu (najdalej od masztu), biała"));
 
-        P.Children.Add(Label("Komory tekstem (C Z P B N, * – pulsuje)"));
-        var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B*PCZ* – od masztu: biała pulsująca, pomarańczowa, czerwona, zielona pulsująca; Enter – zastosuj" };
+        P.Children.Add(Label("Komory tekstem (C Z P B N; * – stałe lub pulsujące, ** – tylko pulsujące)"));
+        var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B**PCZ* – od masztu: biała tylko pulsująca, pomarańczowa, czerwona, zielona stała lub pulsująca; Enter – zastosuj" };
         txt.KeyDown += (s, e) =>
         {
             if (e.Key != Key.Enter) return;

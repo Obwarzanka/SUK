@@ -53,18 +53,25 @@ public class UtDevice
     /// <summary>Kolory komór: litera i nazwa.</summary>
     public static readonly (char Key, string Name)[] Colors = { ('C', "czerwona"), ('Z', "zielona"), ('P', "pomarańczowa"), ('B', "biała"), ('N', "niebieska") };
 
-    /// <summary>Komory: litera koloru i czy może świecić pulsująco (w zapisie „*” po literze, np. „B*PCZ*”).</summary>
-    public static List<(char C, bool Pulse)> ParseLights(string s)
+    /// <summary>Światło komory: stałe, stałe lub pulsujące (na planie 2 kreski), tylko pulsujące (4 kreski) – uwaga właściciela 2026-10-17.</summary>
+    public const int Stale = 0, StaleLubPulsujace = 1, TylkoPulsujace = 2;
+    public static readonly (int Key, string Name)[] PulseModes = { (Stale, "stałe"), (StaleLubPulsujace, "stałe lub pulsujące"), (TylkoPulsujace, "tylko pulsujące") };
+
+    /// <summary>
+    /// Komory: litera koloru i rodzaj światła (<see cref="Stale"/>, <see cref="StaleLubPulsujace"/> – „*” po literze,
+    /// <see cref="TylkoPulsujace"/> – „**”), np. „B*PCZ**”.
+    /// </summary>
+    public static List<(char C, int Pulse)> ParseLights(string s)
     {
-        var res = new List<(char, bool)>();
+        var res = new List<(char, int)>();
         foreach (var ch in s ?? "")
         {
-            if (ch == '*' && res.Count > 0) res[^1] = (res[^1].Item1, true);
-            else if ("CZPBN".Contains(ch)) res.Add((ch, false));
+            if (ch == '*' && res.Count > 0) res[^1] = (res[^1].Item1, Math.Min(TylkoPulsujace, res[^1].Item2 + 1));
+            else if ("CZPBN".Contains(ch)) res.Add((ch, Stale));
         }
         return res;
     }
-    public static string FormatLights(IEnumerable<(char C, bool Pulse)> l) => string.Concat(l.Select(x => x.C + (x.Pulse ? "*" : "")));
+    public static string FormatLights(IEnumerable<(char C, int Pulse)> l) => string.Concat(l.Select(x => x.C + new string('*', Math.Clamp(x.Pulse, 0, 2))));
     public static bool ValidLights(string s) => !string.IsNullOrEmpty(s) && s.All(c => "CZPBN*".Contains(c)) && ParseLights(s).Count is >= 1 and <= 7;
 
     /// <summary>Układy gotowe (BSK ss3–ss9): nazwa, komory, świeci zasadniczo, maszt, W24, pasy świetlne (pomarańczowy i zielony).</summary>
