@@ -100,6 +100,7 @@ Właściciel: „łączenie torów trzeba ogarnąć i to, jak łuki powstają”
 4. Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje.
 5. **Łuk z punktów (J)** (2026-10-17, właściciel: „kilka punktów, żeby zrobić precyzyjniejszy łuk”, potem „ciężko jest”): klik łuku toru, potem punkty na osi toru ze zdjęcia (łuk i proste obok); wierzchołek, R i L metodą najmniejszych kwadratów (`Budowa.FitArcFree`); W – proste stałe, tylko R / L (`Budowa.FitArc`).
 6. **Usuwanie kawałka toru i zaznaczanie kilku** (2026-10-17): PPM na torze – usuń kawałek (prosta / łuk) z rozcięciem toru, rozetnij tor (`Ciecie`); Ctrl + klik i Shift + prostokąt we Wskaż, Del usuwa naraz.
+7. **Łuk o zmiennym promieniu** (2026-10-17): PPM na łuku – „Podziel łuk tutaj” / „na części” (kształt bez zmian), „Łuk z punktów” dopasowuje wszystkie części łuku złożonego naraz (`Budowa.SplitArc`, `SplitArcN`, `ArcGroup`, `FitArcGroup`).
 
 ## 5d. Etap 5, część 1 – urządzenia na torze (2026-10-16)
 

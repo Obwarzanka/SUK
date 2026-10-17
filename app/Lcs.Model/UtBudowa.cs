@@ -310,7 +310,7 @@ public static class Budowa
         double Sse(double R, double L)
         {
             var r = Make(R, L); if (Bad(r)) return double.PositiveInfinity;
-            double s = 0; foreach (var q in pts) { var d = r.Nearest(q, 0.25).Dist; s += d * d; }
+            double s = 0; foreach (var q in pts) { var d = Dist(r, q); s += d * d; }
             return s;
         }
         // zakres R, który się mieści przy danym L (przy L > 0 za mały R też nie – przejściowe dłuższe od łuku): od mieszczącego się R w dół i w górę
@@ -375,7 +375,7 @@ public static class Budowa
         double F(double[] x)
         {
             var r = Trasa.Compute(Make(x), k); if (Bad(r)) return 1e18;
-            double s = 0; foreach (var q in pts) { var d = r.Nearest(q, 1).Dist; s += d * d; }
+            double s = 0; foreach (var q in pts) { var d = Dist(r, q); s += d * d; }
             return s;
         }
         int n = fitL ? 4 : 3;
@@ -394,6 +394,154 @@ public static class Budowa
         double rms = Math.Sqrt(dev.Sum(x => x * x) / dev.Count);
         if (fixedFit.Error == null && rms > fixedFit.Rms) return fixedFit;      // nie gorzej niż przy stałych prostych
         return new ArcFit(fv[vi].R, fv[vi].L, rms, dev.Max(), dev, null, fv[vi].P);
+    }
+
+    /// <summary>
+    /// Podział łuku w wierzchołku <paramref name="vi"/> w miejscu km <paramref name="s"/> [m w terenie] na dwa łuki o tym samym R:
+    /// styczna w tym punkcie przecina obie proste w nowych wierzchołkach, łuki stykają się bez prostej – kształt toru bez zmian.
+    /// Potem każdy łuk może mieć własny promień (łuk koszowy). Tylko łuk bez krzywych przejściowych, punkt w części kołowej.
+    /// </summary>
+    public static (List<UtVertex> V, string Error) SplitArc(IReadOnlyList<UtVertex> v, int vi, double k, double s)
+    {
+        if (vi <= 0 || vi >= v.Count - 1 || v[vi].R <= 0) return (null, "to nie łuk");
+        if (v[vi].L > 0) return (null, "łuk z krzywymi przejściowymi – podziel go przy L 0 (potem dopasuj L w „Łuku z punktów”)");
+        var r = Trasa.Compute(v, k);
+        double acc = 0, a0 = -1, a1 = -1;
+        foreach (var e in r.Elements) { if (e.Vertex == vi && e.Kind == ElKind.Luk) { a0 = acc / r.K; a1 = (acc + e.Len) / r.K; } acc += e.Len; }
+        if (a0 < 0) return (null, "łuk się nie mieści – najpierw go popraw");
+        if (s < a0 + 0.5 || s > a1 - 0.5) return (null, "punkt podziału za blisko końca łuku");
+        var (pp, az) = r.At(s); var d = Element.Dir(az);
+        XY? Hit(XY a, XY b)
+        {
+            var u = b - a; double den = u.X * d.Y - u.Y * d.X; if (Math.Abs(den) < 1e-12) return null;
+            var w = pp - a; double t = (w.X * d.Y - w.Y * d.X) / den; return a + u * t;
+        }
+        if (Hit(v[vi - 1].P, v[vi].P) is not XY v1 || Hit(v[vi].P, v[vi + 1].P) is not XY v2) return (null, "nie da się podzielić w tym miejscu");
+        var res = v.Select(x => x.Clone()).ToList();
+        res[vi] = new UtVertex { X = v1.X, Y = v1.Y, R = v[vi].R };
+        res.Insert(vi + 1, new UtVertex { X = v2.X, Y = v2.Y, R = v[vi].R });
+        return (res, null);
+    }
+
+    /// <summary>Podział łuku na <paramref name="n"/> równych części (każda z wierzchołkiem i tym samym R) – kształt bez zmian.</summary>
+    public static (List<UtVertex> V, string Error) SplitArcN(IReadOnlyList<UtVertex> v, int vi, double k, int n)
+    {
+        var r = Trasa.Compute(v, k); double acc = 0, a0 = -1, a1 = -1;
+        foreach (var e in r.Elements) { if (e.Vertex == vi && e.Kind == ElKind.Luk) { a0 = acc / r.K; a1 = (acc + e.Len) / r.K; } acc += e.Len; }
+        if (a0 < 0) return (null, "to nie łuk albo się nie mieści");
+        if ((a1 - a0) / n < 1.5) return (null, $"łuk za krótki na {n} części");
+        var cur = v.Select(x => x.Clone()).ToList(); int at = vi;
+        for (int i = 1; i < n; i++)
+        {
+            var (nv, err) = SplitArc(cur, at, k, a0 + (a1 - a0) * i / n);
+            if (err != null) return (null, err);
+            cur = nv; at++;
+        }
+        return (cur, null);
+    }
+
+    /// <summary>
+    /// Łuk złożony z punktów: wierzchołki <paramref name="vis"/> (łuki stykające się bez prostej) – położenie (gdy <paramref name="free"/>),
+    /// R i (gdy <paramref name="fitL"/>) L każdego – dobrane razem metodą najmniejszych kwadratów do punktów. Sąsiednie wierzchołki
+    /// poza grupą zostają.
+    /// </summary>
+    public static ArcFit FitArcGroup(IReadOnlyList<UtVertex> v, IReadOnlyList<int> vis, IReadOnlyList<XY> pts, double k, bool fitL, bool free)
+    {
+        int m = vis.Count, per = (free ? 2 : 0) + 1 + (fitL ? 1 : 0), n = m * per;
+        if (pts.Count < Math.Max(2, n / 2)) return new ArcFit(0, 0, 0, 0, new(), $"za mało punktów na {m} łuki – kliknij co najmniej {Math.Max(2, n / 2)}");
+        int lo = vis.Min(), hi = vis.Max();
+        bool Bad(TrasaResult r) => r.Notes.Any(x => x.Error && x.Vertex >= lo - 1 && x.Vertex <= hi + 2);
+        List<UtVertex> Make(double[] x)
+        {
+            var c = v.Select(q => q.Clone()).ToList();
+            for (int j = 0; j < m; j++)
+            {
+                int o = j * per, i = vis[j];
+                if (free) { c[i].X = v[i].X + x[o] * k; c[i].Y = v[i].Y + x[o + 1] * k; o += 2; }
+                c[i].R = Math.Exp(x[o]); c[i].L = fitL ? Math.Max(0, x[o + 1]) : v[i].L;
+            }
+            return c;
+        }
+        double F(double[] x)
+        {
+            var r = Trasa.Compute(Make(x), k); if (Bad(r)) return 1e18;
+            double sum = 0; foreach (var q in pts) { var d = Dist(r, q); sum += d * d; }
+            return sum;
+        }
+        var x0 = new double[n]; var st1 = new double[n]; var st2 = new double[n];
+        for (int j = 0; j < m; j++)
+        {
+            int o = j * per, i = vis[j];
+            if (free) { st1[o] = st1[o + 1] = 5; st2[o] = st2[o + 1] = 1; o += 2; }
+            x0[o] = Math.Log(Math.Max(v[i].R, 50)); st1[o] = 0.2; st2[o] = 0.05;
+            if (fitL) { x0[o + 1] = v[i].L; st1[o + 1] = 10; st2[o + 1] = 3; }
+        }
+        if (F(x0) >= 1e18) return new ArcFit(0, 0, 0, 0, new(), "łuk się nie mieści – najpierw go popraw");
+        var best = NelderMead(F, x0, st1, n, 300 * n);
+        best = NelderMead(F, best, st2, n, 300 * n);
+        var fv = Make(best);
+        foreach (var i in vis) { fv[i].R = Math.Max(1, Math.Round(fv[i].R)); fv[i].L = Math.Max(0, Math.Round(fv[i].L)); fv[i].X = Math.Round(fv[i].X, 3); fv[i].Y = Math.Round(fv[i].Y, 3); }
+        for (int g = 0; g < 50 && Bad(Trasa.Compute(fv, k)); g++) foreach (var i in vis) fv[i].R = Math.Max(1, fv[i].R - 1);
+        var res = Trasa.Compute(fv, k); if (Bad(res)) return new ArcFit(0, 0, 0, 0, new(), "nie udało się dopasować – dodaj punkty albo popraw wierzchołki");
+        var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
+        return new ArcFit(fv[vis[0]].R, fv[vis[0]].L, Math.Sqrt(dev.Sum(x => x * x) / dev.Count), dev.Max(), dev, null)
+            { Parts = vis.Select(i => (i, fv[i].P, fv[i].R, fv[i].L)).ToList() };
+    }
+
+    /// <summary>Wierzchołki łuku złożonego, do którego należy łuk w <paramref name="vi"/>: sąsiednie łuki stykające się bez prostej (do 0,5 m).</summary>
+    public static List<int> ArcGroup(IReadOnlyList<UtVertex> v, int vi, double k)
+    {
+        var r = Trasa.Compute(v, k);
+        // długość prostej przed każdym wierzchołkiem (element prosty z indeksem wierzchołka, do którego prowadzi)
+        var straight = new Dictionary<int, double>();
+        foreach (var e in r.Elements) if (e.Kind == ElKind.Prosta) straight[e.Vertex] = straight.GetValueOrDefault(e.Vertex) + e.Len / r.K;
+        bool Joined(int a) => a > 0 && a + 1 < v.Count - 1 && v[a].R > 0 && v[a + 1].R > 0 && straight.GetValueOrDefault(a + 1) < 0.5;
+        int s0 = vi, s1 = vi;
+        while (Joined(s0 - 1)) s0--;
+        while (Joined(s1)) s1++;
+        return Enumerable.Range(s0, s1 - s0 + 1).ToList();
+    }
+
+    /// <summary>
+    /// Odległość punktu od osi toru [m w układzie] – szybko, ze wzorów: prosta – rzut na odcinek, łuk – |odległość od środka − R|
+    /// (w zakresie kąta łuku), krzywa przejściowa – próbki co 2 m. Do dopasowań (tysiące wywołań); dokładnie jak <see cref="TrasaResult.Nearest"/>.
+    /// </summary>
+    public static double Dist(TrasaResult r, XY p)
+    {
+        double best = double.MaxValue;
+        foreach (var e in r.Elements)
+        {
+            switch (e.Kind)
+            {
+                case ElKind.Prosta:
+                {
+                    var d = Element.Dir(e.Az0); var w = p - e.Start; double t = Math.Clamp(w.X * d.X + w.Y * d.Y, 0, e.Len);
+                    best = Math.Min(best, XY.Dist(p, e.Start + d * t));
+                    break;
+                }
+                case ElKind.Luk:
+                {
+                    var c = e.Start + Element.Right(e.Az0) * e.R; var v = p - c;
+                    double az = e.R > 0 ? Math.Atan2(v.X, -v.Y) : Math.Atan2(-v.X, v.Y);
+                    double sArc = Math.IEEERemainder(az - e.Az0, 2 * Math.PI) * e.R;
+                    if (sArc >= 0 && sArc <= e.Len) best = Math.Min(best, Math.Abs(Math.Sqrt(v.X * v.X + v.Y * v.Y) - Math.Abs(e.R)));
+                    else best = Math.Min(best, Math.Min(XY.Dist(p, e.Start), XY.Dist(p, e.End)));
+                    break;
+                }
+                default:
+                {
+                    int n = Math.Max(2, (int)Math.Ceiling(e.Len / 2)); var prev = e.At(0).P;
+                    for (int i = 1; i <= n; i++)
+                    {
+                        var cur = e.At(e.Len * i / n).P; var d = cur - prev; double l2 = d.X * d.X + d.Y * d.Y;
+                        double t = l2 > 0 ? Math.Clamp(((p.X - prev.X) * d.X + (p.Y - prev.Y) * d.Y) / l2, 0, 1) : 0;
+                        best = Math.Min(best, XY.Dist(p, prev + d * t)); prev = cur;
+                    }
+                    break;
+                }
+            }
+        }
+        return best;
     }
 
     /// <summary>Simpleks Neldera–Meada (minimum f) w pierwszych <paramref name="n"/> współrzędnych; pozostałe stałe.</summary>
@@ -426,4 +574,8 @@ public static class Budowa
 /// Wynik dopasowania łuku do punktów: R, L [m], odchyłka średnia kwadratowa i największa [m], odchyłki punktów, błąd;
 /// <see cref="Vertex"/> – nowe położenie wierzchołka (dopasowanie ze swobodnym wierzchołkiem), null – bez zmiany.
 /// </summary>
-public record ArcFit(double R, double L, double Rms, double Max, List<double> Dev, string Error, XY? Vertex = null);
+public record ArcFit(double R, double L, double Rms, double Max, List<double> Dev, string Error, XY? Vertex = null)
+{
+    /// <summary>Łuk złożony (kilka łuków jeden za drugim): każdy wierzchołek – położenie, R, L; null – jeden łuk.</summary>
+    public List<(int Vi, XY P, double R, double L)> Parts { get; init; }
+}

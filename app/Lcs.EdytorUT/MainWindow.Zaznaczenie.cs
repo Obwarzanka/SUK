@@ -86,10 +86,48 @@ public partial class MainWindow
             Item($"Usuń ten kawałek – {what}, km {F(k.S0)}–{F(k.S1)} ({F(k.Len)} m)", () => CutTrack(id, k.S0, k.S1, "Usunięcie kawałka toru"),
                 tip: "Tor zostaje rozcięty na dwa (albo skrócony, gdy to koniec); co leży na usuniętym kawałku – znika");
         }
+        if (Ciecie.KawalekAt(r, s) is { Luk: true } kl)
+            Item($"Podziel łuk W{kl.Vertex + 1} tutaj (dwa łuki – potem każdy może mieć inny promień)", () => SplitArc(id, kl.Vertex, s),
+                tip: "Łuk dzieli się w tym miejscu na dwa o tym samym promieniu (kształt bez zmian); „Łuk z punktów” (J) dopasuje potem promienie wszystkich części naraz");
+        if (Ciecie.KawalekAt(r, s) is { Luk: true } kn)
+        {
+            var sub = new MenuItem { Header = $"Podziel łuk W{kn.Vertex + 1} na części", ToolTip = "Więcej wierzchołków na łuku – każdą część dostosujesz osobno (przeciągnięcie wierzchołka, R w panelu albo „Łuk z punktów” na całość)" };
+            foreach (var nn in new[] { 2, 3, 4, 6 })
+            {
+                var it = new MenuItem { Header = $"{nn} części" }; int cnt = nn;
+                it.Click += (o, e) => SplitArcN(id, kn.Vertex, cnt);
+                sub.Items.Add(it);
+            }
+            cm.Items.Add(sub);
+        }
         Item("Rozetnij tor tutaj", () => CutTrack(id, s, s, "Rozcięcie toru"), Ciecie.KawalekAt(r, s) is { Luk: false }, "Dwa tory stykające się w tym miejscu (tylko na prostej)");
         cm.Items.Add(new Separator());
         Item("Usuń cały tor", () => { View.Select(id); DeleteSelection(); });
         return cm;
+    }
+
+    /// <summary>Podział łuku na dwa w miejscu km s (<see cref="Budowa.SplitArc"/>).</summary>
+    public void SplitArc(string id, int vi, double s)
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        if (View.Locked(id, vi)) { Message("Ten łuk ustawia rozjazd – nie da się go podzielić"); return; }
+        var (nv, err) = Budowa.SplitArc(t.Vertices, vi, Trasa.KFor(t), s);
+        if (err != null) { Message("Nie da się podzielić: " + err); return; }
+        ChTrack(id, "Podział łuku", x => x.Vertices = nv);
+        View.Select(id, vi);
+        Message($"Łuk W{vi + 1} podzielony na dwa (W{vi + 1} i W{vi + 2}, oba R {F(nv[vi].R, "0")} m) – „Łuk z punktów” (J) dopasuje promienie obu części naraz (Ctrl+Z przywraca)");
+    }
+
+    /// <summary>Podział łuku na n równych części (<see cref="Budowa.SplitArcN"/>).</summary>
+    public void SplitArcN(string id, int vi, int n)
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        if (View.Locked(id, vi)) { Message("Ten łuk ustawia rozjazd – nie da się go podzielić"); return; }
+        var (nv, err) = Budowa.SplitArcN(t.Vertices, vi, Trasa.KFor(t), n);
+        if (err != null) { Message("Nie da się podzielić: " + err); return; }
+        ChTrack(id, "Podział łuku", x => x.Vertices = nv);
+        View.Select(id, vi);
+        Message($"Łuk W{vi + 1} podzielony na {n} części (W{vi + 1}–W{vi + n}, R {F(nv[vi].R, "0")} m) – przeciągaj wierzchołki, zmieniaj R w panelu albo „Łuk z punktów” (J) na całość (Ctrl+Z przywraca)");
     }
 
     /// <summary>Usunięcie kawałka / rozcięcie – najpierw na kopii (komunikat o przeszkodzie), potem jedna zmiana z cofaniem.</summary>

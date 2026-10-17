@@ -156,6 +156,14 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 - Wskazówka: punkty od początku do końca łuku, także na krzywych przejściowych; przy samym R wystarczą 3–5 punktów w części kołowej.
 - **Poprawka 2026-10-17 – wierzchołek swobodny** (zrzut właściciela: łuk R 863 odjeżdżał od torów na zdjęciu, bo wierzchołek – przecięcie prostych, niewidoczne na zdjęciu – był w złym miejscu; przy stałych prostych żaden R tego nie naprawi; „ciężko jest”): `Budowa.FitArcFree` – położenie wierzchołka (kierunki obu prostych do sąsiednich wierzchołków), R i L razem metodą najmniejszych kwadratów (simpleks Neldera–Meada w dwóch przebiegach, start z dopasowania przy stałych prostych; wynik nie gorszy od niego; od 4 punktów). Domyślnie w narzędziu, klawisz W – proste stałe. Podgląd: kropkowana linia stary → nowy wierzchołek, na pasku „wierzchołek przesunięty o x m”; Enter zmienia wierzchołek, R i L jedną zmianą. Test: wierzchołek narysowany 8 m obok, R 700; 21 punktów (4 na prostej przed łukiem, 13 na łuku, 4 za nim, rozrzut ±3 cm) → wierzchołek 0,06 m od prawdziwego, R 999 m (1000), odchyłki średnio 1,8 cm; Enter, Ctrl+Z. Cały `--test`: 0 błędów.
 
+## Edytor UT – łuk o zmiennym promieniu
+
+**ZROBIONE 2026-10-17 – podział łuku i łuk złożony z punktów** (właściciel: „jak podzielić tor? jeden długi łuk ma trochę inny promień na różnych odcinkach”, potem „dodać więcej wierzchołków, żeby dostosować”):
+- `Budowa.SplitArc` – podział łuku w punkcie: styczna w tym punkcie przecina obie proste w nowych wierzchołkach, oba łuki z tym samym R stykają się bez prostej, kształt bez zmian (tylko łuk bez L, punkt w części kołowej). `Budowa.SplitArcN` – na n równych części. Menu PPM na łuku: „Podziel łuk Wn tutaj”, „Podziel łuk Wn na części → 2 / 3 / 4 / 6”.
+- `Budowa.ArcGroup` – łuki stykające się bez prostej (do 0,5 m) to jeden łuk złożony; `Budowa.FitArcGroup` – wierzchołki (gdy swobodne), R i L wszystkich części razem (simpleks Neldera–Meada, `ArcFit.Parts`). „Łuk z punktów” (J) po kliknięciu części łuku złożonego dopasowuje całą grupę; na pasku „R 600 / 899 m”, Enter stosuje wszystko jedną zmianą.
+- Przyspieszenie: `Budowa.Dist` – odległość punktu od osi ze wzorów (prosta – rzut, łuk – |odległość od środka − R| w zakresie kąta, przejściowa – próbki co 2 m) zamiast próbkowania całego toru co 1 m; dopasowanie dwóch łuków do 52 punktów 63 s → 94 ms.
+- Test `Test.LukKoszowy.cs`: „zdjęcie” R 600 (20°) + R 900 (20°), narysowane jednym łukiem R 700; „Podziel łuk tutaj” – kształt bez zmian (0,0 mm), grupa W2–W3; 52 punkty co 12 m z rozrzutem ±3 cm → R 600 / 899, odchyłki średnio 1,9 cm; Enter, Ctrl+Z; „na części → 4” – W2–W5 po 122,17 m, kształt bez zmian. Cały `--test`: 0 błędów. Zrzut: `zrzuty/EdytorUT_luk_koszowy.png`.
+
 ## Edytor UT – usuwanie kawałka toru, zaznaczanie kilku
 
 **ZROBIONE 2026-10-17 – usuwanie kawałka toru i zaznaczanie kilku elementów** (właściciel: „możliwość usunięcia jakiegoś elementu toru i zaznaczenia kilku na raz”):
