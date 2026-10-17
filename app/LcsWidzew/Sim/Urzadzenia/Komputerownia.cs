@@ -38,10 +38,11 @@ public partial class Urzadzenia
     {
         var res = new KomputerowniaStan { Stacja = S.L.Name, Zegar = S.Clock(), T = S.T };
         foreach (var (k, v) in S.L.Posts) res.Posterunki[k] = v;
-        foreach (var f in Instruktor.Faults.Where(f => f.Target is "sec" or "sw")) res.Usterki.Add(new UsterkaDef { Key = f.Key, Name = f.Name, Kind = f.Target == "sec" ? "odcinek" : "zwrotnica" });
+        foreach (var f in Instruktor.Faults.Where(f => f.Target is "sec" or "sw" or "sig")) res.Usterki.Add(new UsterkaDef { Key = f.Key, Name = f.Name, Kind = f.Target switch { "sec" => "odcinek", "sw" => "zwrotnica", _ => "sygnalizator" } });
         foreach (var k in Odcinki.Values) res.Karty.Add(Wiersz(k));
         foreach (var k in Zwrotnice.Values) res.Karty.Add(Wiersz(k));
         foreach (var k in Wykolejnice.Values) res.Karty.Add(Wiersz(k));
+        foreach (var k in Sygnalizatory.Values) res.Karty.Add(Wiersz(k));
         return res;
     }
 
@@ -85,6 +86,23 @@ public partial class Urzadzenia
         w.Status = k.Cel is bool c ? $"przekładanie → {(c ? "założona" : "zdjęta")}, {Math.Max(0, k.Until - S.T):0.0} s" : k.Zalozona ? "założona" : "zdjęta";
         w.Teren = k.Zalozona ? "na szynie" : "zdjęta z szyny";
         w.Nietypowa = k.Cel != null;
+        return w;
+    }
+
+    static string Opis(string kod) => kod == null ? "–" : Sygnaly.Def(kod) is { } d ? (kod == "" ? "ciemny" : $"{kod} „{d.Nazwa}”") : kod;
+
+    KartaWiersz Wiersz(KartaSygnalizatora k)
+    {
+        var d = S.L.Signals[k.Id];
+        var w = Nowy("sygnalizator", k.Id, d.Type switch { "wjazdowy" => "semafor wjazdowy", "wyjazdowy" => "semafor wyjazdowy", "odstepowy" => "semafor odstępowy", "tm" => "tarcza manewrowa", _ => d.Type });
+        if (string.IsNullOrEmpty(w.Post) && d.Szlak != null) w.Post = d.Szlak;
+        w.Rozkaz = k.OstRozkaz != null ? Opis(k.OstRozkaz) : null; w.RozkazT = k.OstRozkazT;
+        w.Status = $"wyświetla {(k.Wyswietlany == "" ? "– (ciemny)" : k.Wyswietlany)}" + (k.NieZapalil ? ", NIE ZAPALIŁ SYGNAŁU ZEZWALAJĄCEGO" : "") + (k.BrakLacznosci ? ", BRAK ŁĄCZNOŚCI" : "");
+        w.Teren = Sygnaly.Def(k.Wyswietlany)?.OpisSwiatel() ?? k.Wyswietlany;
+        if (k.UszkZezwalajacego) w.Usterki.Add("sigLamp");
+        if (k.BrakLacznosci) w.Usterki.Add("sigNodata");
+        w.UsterkiOpis = string.Join(", ", new[] { k.UszkZezwalajacego ? "uszkodzone światło zezwalające" : null, k.BrakLacznosci ? "brak łączności z kartą" : null }.Where(x => x != null));
+        w.Nietypowa = w.Usterki.Count > 0 || (k.OstRozkaz != null && k.OstRozkaz != k.Wyswietlany);
         return w;
     }
 }

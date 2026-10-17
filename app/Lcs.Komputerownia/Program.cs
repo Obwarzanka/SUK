@@ -64,8 +64,11 @@ static class Test
         {
             await w.Odswiez();
             int od = w.Karty.Count(k => k.Rodzaj == "odcinek"), zw = w.Karty.Count(k => k.Rodzaj == "zwrotnica"), wk = w.Karty.Count(k => k.Rodzaj == "wykolejnica");
-            Ok(od > 0 && zw > 0 && wk > 0, $"karty: odcinki {od}, zwrotnice {zw}, wykolejnice {wk}");
-            var bk = w.Karty.Where(k => k.BrakKontroli).ToList();
+            int sg = w.Karty.Count(k => k.Rodzaj == "sygnalizator");
+            Ok(od > 0 && zw > 0 && wk > 0 && sg > 0, $"karty: odcinki {od}, zwrotnice {zw}, wykolejnice {wk}, sygnalizatory {sg}");
+            var zez = w.Karty.Where(k => k.Rodzaj == "sygnalizator" && k.Status.StartsWith("wyświetla S") && !k.Status.StartsWith("wyświetla S1") && !k.Status.StartsWith("wyświetla Sz")).ToList();
+            Ok(zez.Count > 0 && zez.All(k => k.Rozkaz.StartsWith(k.Status[10..].Split(',')[0])), $"sygnały zezwalające: {string.Join(", ", zez.Take(6).Select(k => $"{k.Obiekt}: {k.Status[10..]} – {k.Teren}"))}");
+            var bk = w.Karty.Where(k => k.BrakKontroli && k.Rodzaj == "zwrotnica").ToList();
             Ok(bk.Count > 0 && bk.All(k => k.UsterkiKlucze.Contains("swNoCtrl")), $"brak kontroli: {string.Join(", ", bk.Select(k => k.Post + ":" + k.Obiekt + " (" + k.Usterki + ")"))}");
             var zwr = w.Karty.First(k => k.Rodzaj == "zwrotnica" && !k.BrakKontroli);
             var r = await w.Usterka("swFrozen", zwr.Id, false);
@@ -81,6 +84,15 @@ static class Test
             Ok(w.Szczegoly.Children.OfType<Button>().Any(b => b.Tag is true && ((TextBlock)b.Content).Text.StartsWith("Usuń:")), "panel karty: przycisk „Usuń” dla wprowadzonej usterki");
         }
         if (shot != null) Program.Save(w, shot);
+        if (shot != null && w.Pol != null)
+        {
+            // drugi zrzut: same sygnalizatory, zaznaczony pierwszy z sygnałem zezwalającym
+            w.Rodzaje.SelectedIndex = 4; w.Szukaj.Text = "";
+            var z = w.Karty.Where(k => k.Rodzaj == "sygnalizator" && k.Typ.Contains("wjazdowy") && k.Status.StartsWith("wyświetla S") && !k.Status.StartsWith("wyświetla S1 ")).OrderBy(k => k.Status == "wyświetla S1").FirstOrDefault();
+            if (z != null) w.Zaznacz(z.Rodzaj, z.Id);
+            w.UpdateLayout(); await Task.Delay(200);
+            Program.Save(w, System.IO.Path.ChangeExtension(shot, null) + "_sygnaly.png");
+        }
         log.AppendLine($"błędów: {err}");
         File.WriteAllText(outPath, log.ToString());
     }

@@ -25,7 +25,7 @@ public sealed class Karta : INotifyPropertyChanged
     public string Usterki { get; set; }
     public List<string> UsterkiKlucze { get; set; } = new();
     public bool Nietypowa { get; set; }
-    public bool BrakKontroli => Status?.Contains("BRAK KONTROLI") == true;
+    public bool BrakKontroli => Status?.Contains("BRAK KONTROLI") == true || Status?.Contains("NIE ZAPALIŁ") == true || Status?.Contains("BRAK ŁĄCZNOŚCI") == true;
     public event PropertyChangedEventHandler PropertyChanged;
 
     public void Ustaw(JsonNode n, double t)
@@ -72,7 +72,7 @@ public class MainWindow : Window
     static readonly (string Key, string Name)[] RodzajeKart =
     {
         ("", "wszystkie"), ("odcinek", "odcinki (liczniki osi, obwody torowe)"), ("zwrotnica", "zwrotnice"), ("wykolejnica", "wykolejnice"),
-        ("sygnalizator", "sygnalizatory – po Ie-1 (krok 6)"),
+        ("sygnalizator", "sygnalizatory (sygnały wg Ie-1)"),
     };
 
     public MainWindow()
@@ -92,7 +92,7 @@ public class MainWindow : Window
 
         var left = new StackPanel { Width = 230, Margin = new Thickness(0, 0, 12, 0) };
         left.Children.Add(Naglowek("Rodzaj karty"));
-        foreach (var (k, n) in RodzajeKart) Rodzaje.Items.Add(new ListBoxItem { Content = n, Tag = k, IsEnabled = k != "sygnalizator" });
+        foreach (var (k, n) in RodzajeKart) Rodzaje.Items.Add(new ListBoxItem { Content = n, Tag = k });
         Rodzaje.SelectedIndex = 0;
         left.Children.Add(Rodzaje);
         left.Children.Add(Naglowek("Posterunek"));
@@ -105,7 +105,7 @@ public class MainWindow : Window
             TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, 10, 0, 0),
             Text = "Karta przyjmuje rozkaz od komputera zależności, wykonuje go w terenie (napęd, licznik osi) i melduje status. " +
                    "Kolumny: rozkaz od KZ – ostatni rozkaz i kiedy przyszedł; status do KZ – to, co widzi komputer zależności; teren – stan rzeczywisty przy torze. " +
-                   "Żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli.",
+                   "Żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli, sygnał niezapalony, brak łączności. Sygnały semaforów – kody i światła wg Ie-1 (S1…S13a, Sz, Ms1, Ms2).",
         });
         DockPanel.SetDock(left, Dock.Left); root.Children.Add(left);
 
@@ -114,7 +114,7 @@ public class MainWindow : Window
         DockPanel.SetDock(right, Dock.Right); root.Children.Add(right);
 
         Kolumna("Post.", nameof(Karta.Post), 48); Kolumna("Obiekt", nameof(Karta.Obiekt), 70); Kolumna("Karta", nameof(Karta.Rodzaj), 92); Kolumna("Typ", nameof(Karta.Typ), 95);
-        Kolumna("Rozkaz od KZ", nameof(Karta.Rozkaz), 125); Kolumna("kiedy", nameof(Karta.RozkazKiedy), 78); Kolumna("Status do KZ", nameof(Karta.Status), 1.2, true);
+        Kolumna("Rozkaz od KZ", nameof(Karta.Rozkaz), 0.9, true); Kolumna("kiedy", nameof(Karta.RozkazKiedy), 78); Kolumna("Status do KZ", nameof(Karta.Status), 1.2, true);
         Kolumna("Teren", nameof(Karta.Teren), 1, true); Kolumna("Usterki", nameof(Karta.Usterki), 0.9, true);
         var rs = new Style(typeof(DataGridRow));
         var t1 = new DataTrigger { Binding = new Binding(nameof(Karta.Nietypowa)), Value = true }; t1.Setters.Add(new Setter(BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xff, 0xf4, 0xc8)))); rs.Triggers.Add(t1);

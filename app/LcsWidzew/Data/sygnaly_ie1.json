@@ -1,0 +1,27 @@
+{
+  "zrodlo": "Ie-1 (obowiązuje od 2026-01-17), § 4 ust. 13 (semafory świetlne), § 8 ust. 4 i 6 (Ms1, Ms2), zał. 1 (zestawienie obrazów sygnałowych)",
+  "uwagi": "Światła od góry do dołu: Z zielone, P pomarańczowe, C czerwone, B białe (matowobiałe), N niebieskie; * – migające. pas: Z – świetlny pas zielony (100 km/h), P – pomarańczowy (60 km/h). v – prędkość przy tym semaforze (0 – największa dozwolona), nast – co wskazuje następny semafor: Vmax, 100, 40/60, Stoj. Zał. 1 dotyczy linii z prędkością większą niż 100 km/h.",
+  "sygnaly": [
+    { "kod": "S1",   "nazwa": "Stój",                                                        "swiatla": "C",   "pas": null, "v": null, "nast": null },
+    { "kod": "S2",   "nazwa": "Jazda z największą dozwoloną prędkością",                     "swiatla": "Z",   "pas": null, "v": 0,   "nast": "Vmax" },
+    { "kod": "S3",   "nazwa": "Jazda z największą dozwoloną prędkością – w przodzie są dwa odstępy blokowe wolne – albo przy następnym semaforze z prędkością nie większą niż 100 km/h", "swiatla": "Z*", "pas": null, "v": 0, "nast": "100" },
+    { "kod": "S4",   "nazwa": "Następny semafor wskazuje sygnał zezwalający na jazdę z prędkością zmniejszoną do 40 lub 60 km/h", "swiatla": "P*", "pas": null, "v": 0, "nast": "40/60" },
+    { "kod": "S5",   "nazwa": "Następny semafor wskazuje sygnał „Stój”",                     "swiatla": "P",   "pas": null, "v": 0,   "nast": "Stoj" },
+    { "kod": "S6",   "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a potem z największą dozwoloną prędkością", "swiatla": "ZP", "pas": "Z", "v": 100, "nast": "Vmax" },
+    { "kod": "S7",   "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h przy tym i następnym semaforze", "swiatla": "Z*P", "pas": "Z", "v": 100, "nast": "100" },
+    { "kod": "S8",   "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a przy następnym semaforze – z prędkością zmniejszoną do 40 lub 60 km/h", "swiatla": "P*P", "pas": "Z", "v": 100, "nast": "40/60" },
+    { "kod": "S9",   "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a przy następnym semaforze – Stój", "swiatla": "PP", "pas": "Z", "v": 100, "nast": "Stoj" },
+    { "kod": "S10",  "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a potem z największą dozwoloną prędkością", "swiatla": "ZP", "pas": null, "v": 40, "nast": "Vmax" },
+    { "kod": "S10a", "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a potem z największą dozwoloną prędkością", "swiatla": "ZP", "pas": "P", "v": 60, "nast": "Vmax" },
+    { "kod": "S11",  "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 100 km/h", "swiatla": "Z*P", "pas": null, "v": 40, "nast": "100" },
+    { "kod": "S11a", "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 100 km/h", "swiatla": "Z*P", "pas": "P", "v": 60, "nast": "100" },
+    { "kod": "S12",  "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 40 lub 60 km/h", "swiatla": "P*P", "pas": null, "v": 40, "nast": "40/60" },
+    { "kod": "S12a", "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – z prędkością zmniejszoną do 40 lub 60 km/h", "swiatla": "P*P", "pas": "P", "v": 60, "nast": "40/60" },
+    { "kod": "S13",  "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – Stój", "swiatla": "PP", "pas": null, "v": 40, "nast": "Stoj" },
+    { "kod": "S13a", "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – Stój", "swiatla": "PP", "pas": "P", "v": 60, "nast": "Stoj" },
+    { "kod": "Sz",   "nazwa": "Sygnał zastępczy – można przejechać obok semafora wskazującego sygnał „Stój” bez rozkazu pisemnego", "swiatla": "CB*", "pas": null, "v": null, "nast": null },
+    { "kod": "Ms1",  "nazwa": "Jazda manewrowa zabroniona",                                  "swiatla": "N",   "pas": null, "v": null, "nast": null },
+    { "kod": "Ms2",  "nazwa": "Jazda manewrowa dozwolona",                                   "swiatla": "B",   "pas": null, "v": null, "nast": null },
+    { "kod": "",     "nazwa": "Semafor ciemny (odstępowy kierunku przeciwnego)",              "swiatla": "",    "pas": null, "v": null, "nast": null }
+  ]
+}

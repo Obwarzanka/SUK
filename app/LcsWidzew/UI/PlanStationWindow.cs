@@ -274,6 +274,24 @@ public class PlanLiveView : FrameworkElement
         };
         Brush Col(char c) => c switch { 'G' => LGreen, 'O' => LOrange, 'R' => LRed, 'W' => LWhite, _ => LBlue };
         var lit = cols.Select((c, i) => !dark && Lit(c, i) ? Col(c) : LOff).ToArray();
+        // sygnalizator z kartą: komory wg sygnału wyświetlanego w terenie (Ie-1), kolejne światło tej samej barwy – kolejna komora
+        if (S.Urzadzenia.SygnalWidziany(s.Name) is string w && Sygnaly.Def(w) is { } sd)
+        {
+            lit = cols.Select(_ => LOff).ToArray();
+            var used = new bool[cols.Length];
+            foreach (var (c, mig) in sd.Lampy())
+            {
+                char k = c switch { 'Z' => 'G', 'P' => 'O', 'C' => 'R', 'B' => 'W', _ => 'B' };
+                int i = -1;
+                for (int j = 0; j < cols.Length; j++) if (cols[j] == k && !used[j]) { i = j; break; }
+                if (i < 0) continue;
+                used[i] = true;
+                if (!mig || blink) lit[i] = Col(k);
+            }
+            if (cols.Length == 1 && s.Type == "tm") lit[0] = w == "Ms2" ? LWhite : LBlue;
+            g.Signal(L, s, lit);
+            return;
+        }
         // tarcza z jedną komorą – ta komora świeci barwą bieżącego sygnału
         if (cols.Length == 1 && !dark && s.Type == "tm") lit[0] = a == Aspect.Shunt ? LWhite : LBlue;
         if (cols.Length == 1 && !dark && s.Type is "to" or "sp") lit[0] = s.Repeats != null && S.Sigs.TryGetValue(s.Repeats, out var rp) && rp.Aspect == Aspect.Train ? LGreen : LOrange;

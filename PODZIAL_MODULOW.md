@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), krok 5 i 6a bez sygnalizatorów (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), kroki 5, 6 i 6a (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 
@@ -236,3 +236,32 @@ Kroki 1–3 i 9–10 to przenosiny kodu. Kroki 4–8 zmieniają, kto o czym decy
   wprowadzenie i usunięcie usterki z programu, odrzucenie nieznanej, panel karty – **błędów: 0**. Poprawka przy okazji: `#fault=rodzaj:POST:obiekt`
   dzielony tylko na pierwszym dwukropku.
 - Do zrobienia z krokiem 6: karty sygnalizatorów (rozkaz z sygnałem S1…S13, świecące komory, sygnał wyświetlany) – po Ie-1.
+
+## 11. Krok 6 – karta sygnalizatora i sygnały wg Ie-1 (zrobione 2026-10-17)
+
+- Źródło: `Zrodla/Ie-1_obowiazuje_od_2026-01-17__uz_1041_25__WCAG.pdf` – § 4 ust. 13 (S1–S13a, Sz), § 8 ust. 4 i 6 (Ms1, Ms2 – także na semaforze
+  z literą „m”), **zał. 1** (siatka: prędkość przy semaforze Vmax / 100 / 60 / 40 × co wskazuje następny: Vmax / 100 / 40–60 / „Stój”).
+  Tabela w pliku danych **`app/LcsWidzew/Data/sygnaly_ie1.json`** (kod, nazwa, światła od góry z miganiem, pas, v, nast), `Sim/Sygnaly.cs`.
+- KZ (`Simulator.SignalCodes`, co cykl po przebiegach): Stop → S1 (tarcza Ms1), Sz, przebieg manewrowy → Ms2, przebieg pociągowy →
+  `Sygnaly.Dobierz(klasa prędkości, kolumna)`. **Prędkość sygnalizowana** (`SignalSpeed`): VSet przebiegu albo najmniejsze z ograniczeń
+  zwrotnic w drodze (SwLimit) i torów z wpisaną `vmax`; domyślne 60 km/h torów stacyjnych sygnału nie obniża (inaczej każdy przebieg dawałby
+  S10a); klasy ≤40 / ≤60 / ≤100 / więcej → S10–S13 / S10a–S13a / S6–S9 / S2–S5. **Kolumna** z sygnału następnego semafora: koniec przebiegu
+  (semafor), a na szlak – pierwszy semafor odstępowy; brak uzależnienia (szlak bez SBL) – jak „Vmax” (o następnym informuje tarcza
+  ostrzegawcza); koniec przebiegu w PK – „Stój”. Zmiana sygnału na następnym semaforze zmienia sygnał poprzedniego w tym samym cyklu.
+- SBL: odstępowy – klasa Vmax, następny odstępowy / wjazdowy; dwustawna – S2; trzystawna – S2 / S5; **czterostawna – S3, gdy następny
+  wskazuje S5** (Ie-1 § 4 ust. 13 pkt 3 lit. b: dwa odstępy wolne; to samo dla wyjazdowego na szlak 4-stawny). Poprawka: dotąd kod
+  podawał „S4 (zielone migające)” – w Ie-1 zielone migające to S3. Ostatni odstępowy przed granicą obszaru – S5 (następny semafor
+  posterunku spoza symulacji przyjęty jako „Stój”, jak dotąd).
+- `KartaSygnalizatora`: rozkaz z kodem sygnału, wykonanie w następnym cyklu, sygnał wyświetlany; usterki `sigLamp` (nie zapala
+  sygnału zezwalającego – zostaje „Stój”, bez włókien rezerwowych, § 7 pkt 2) i `sigNodata` (brak łączności – sterownik w stanie
+  bezpiecznym „Stój”, na pulpicie jak dotąd). Status: `StatusSygnalizatora` (wyświetlany, uszkodzenie światła, brak danych); KZ przy
+  zgaśnięciu sygnału zezwalającego – „Stój”, przebieg do nastawiania, alarm §26.
+- Ruch pociągów widzi **sygnał wyświetlany przez kartę** (`Urzadzenia.SygnalWidziany`), nie stan KZ; prędkość z sygnału – krok 8 (później).
+- „Plan stacji” zapala komory wg sygnału wyświetlanego (kolejne światło tej samej barwy – kolejna komora; pasów Ig-10 nie rysuje).
+- Komputerownia: karty sygnalizatorów (rozkaz z nazwą sygnału, wyświetlany, światła w terenie, usterki); odstępowe – szlak w kolumnie posterunku.
+- Testy: selftest bez zmian wyniku (25 z 26, 4 z 4, 959 z 979, karty 8 z 8), scenariusze usterki / zima / manewry / ic_05 identyczne;
+  nowa linia **`SYGNAŁY: kontrola 9 z 9`**: P A→P102 przy P102 „Stój” – A S13; po otwarciu P102→1A (S10) A samoczynnie S12; po zwolnieniu
+  A wraca do S13; uszkodzone światło – S1 i alarm §26, po naprawie S13; siatka 16 z 16; szlak 1C 3-stawny S2 → S5, 4-stawny S3 → S5,
+  odstęp zajęty S5 → S1. Komputerownia `--test` z symulatorem: błędów 0 (126 kart sygnalizatorów).
+- Do ustalenia z właścicielem: prędkość linii ≤ 100 km/h (zał. 1 dotyczy linii > 100 km/h – wtedy S6–S9 zamiast S2–S5 nie są potrzebne; dziś
+  brak danych o prędkości linii), tarcze ostrzegawcze i powtarzacze (Os, Sp) – bez karty, pulpit jak dotąd.

@@ -14,6 +14,10 @@ public partial class Urzadzenia
     public readonly Dictionary<string, KartaZwrotnicy> Zwrotnice = new();
     /// <summary>Karty wykolejnic.</summary>
     public readonly Dictionary<string, KartaWykolejnicy> Wykolejnice = new();
+    /// <summary>Karty sygnalizatorów (semafory wjazdowe, wyjazdowe, odstępowe, tarcze manewrowe).</summary>
+    public readonly Dictionary<string, KartaSygnalizatora> Sygnalizatory = new();
+    /// <summary>Sygnalizatory z kartą (świetlne, sterowane przez KZ).</summary>
+    public static bool MaKarte(Model.SignalDef d) => d.Type is "wjazdowy" or "wyjazdowy" or "odstepowy" or "tm";
 
     public Urzadzenia(Simulator s)
     {
@@ -21,6 +25,7 @@ public partial class Urzadzenia
         foreach (var id in s.Secs.Keys) Odcinki[id] = new KartaOdcinka(s, id);
         foreach (var id in s.Sws.Keys) Zwrotnice[id] = new KartaZwrotnicy(s, id);
         foreach (var id in s.Ders.Keys) Wykolejnice[id] = new KartaWykolejnicy(s, id);
+        foreach (var d in s.L.Signals.Values) if (MaKarte(d)) Sygnalizatory[d.Name] = new KartaSygnalizatora(s, d.Name);
     }
 
     /// <summary>Cykl kart (przed komputerem zależności): wykonanie rozkazów z poprzedniego cyklu, przekładanie, statusy do KZ.</summary>
@@ -28,6 +33,7 @@ public partial class Urzadzenia
     {
         foreach (var k in Zwrotnice.Values) { k.Tick(); k.Publikuj(); }
         foreach (var k in Wykolejnice.Values) { k.Tick(); k.Publikuj(); }
+        foreach (var k in Sygnalizatory.Values) { k.Tick(); k.Publikuj(); }
     }
 
     // ------------------------------------------------------------------ teren ← ruch pociągów
@@ -47,6 +53,8 @@ public partial class Urzadzenia
     public void Najazd(string sw, string zGalezi) => Zwrotnice[sw].Najazd(zGalezi);
     /// <summary>Teren: wykolejnica na szynie.</summary>
     public bool WykolejnicaNaTorze(string name) => Wykolejnice[name].Zalozona;
+    /// <summary>Teren: sygnał widziany przez maszynistę (kod Ie-1); null – sygnalizator bez karty.</summary>
+    public string SygnalWidziany(string sig) => Sygnalizatory.TryGetValue(sig, out var k) ? k.Wyswietlany : null;
 
     // ------------------------------------------------------------------ rozkazy komputera zależności
     /// <summary>Zerowanie licznika osi (ZeroLO po potwierdzeniu dyżurnego).</summary>
@@ -55,4 +63,6 @@ public partial class Urzadzenia
     public void Przestaw(string sw, string pol) => Zwrotnice[sw].Rozkaz(pol);
     /// <summary>Założenie (true) / zdjęcie (false) wykolejnicy.</summary>
     public void Wykolejnica(string name, bool zaloz) => Wykolejnice[name].Rozkaz(zaloz);
+    /// <summary>Sygnał do wyświetlenia (kod Ie-1).</summary>
+    public void Sygnal(string sig, string kod) { if (Sygnalizatory.TryGetValue(sig, out var k)) k.Rozkaz(kod); }
 }

@@ -327,7 +327,7 @@ public partial class Simulator
         UpdatePower(); Urzadzenia.Tick(); UpdateBlocks();
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
-        UpdateSignals(); UpdateRoutes();
+        UpdateSignals(); UpdateRoutes(); SignalCodes();
         Rej.UpdateAlarms();
     }
 
@@ -401,17 +401,6 @@ public partial class Simulator
                 s.Aspect = !s.Dark && free && bs.ReleaseUntil == null ? Aspect.Train : Aspect.Stop;
             }
         }
-        // sygnały wg stawności (S1 / S5 / S4 / S2) – od końca szlaku w stronę początku
-        foreach (var (n, s) in Sigs)
-        {
-            var d = L.Signals[n]; if (d.Type != "odstepowy") continue;
-            s.Sig = null;
-        }
-        foreach (var (n, s) in Sigs)
-        {
-            var d = L.Signals[n]; if (d.Type != "odstepowy" || s.Dark) continue;
-            s.Sig = OdstepSig(n, 0);
-        }
     }
 
     readonly Dictionary<string, string> nextSigCache = new();
@@ -419,27 +408,124 @@ public partial class Simulator
     string NextSignal(string sig)
     {
         if (nextSigCache.TryGetValue(sig, out var c)) return c;
-        var d = L.Signals[sig]; string node = d.Node, from = null, found = null;
-        for (int k = 0; k < 200 && found == null; k++)
-        {
-            var nx = Forward(node, d.Dir, from).FirstOrDefault(); if (nx == null) break;
-            node = L.Other(nx.Edge, node); from = nx.Edge;
-            found = L.Nodes[node].Signals.FirstOrDefault(x => L.Signals[x].Dir == d.Dir && L.Signals[x].Type is "odstepowy" or "wjazdowy");
-        }
-        return nextSigCache[sig] = found;
+        var d = L.Signals[sig];
+        return nextSigCache[sig] = NextSignalFrom(d.Node, d.Dir);
     }
 
-    /// <summary>Sygnał semafora odstępowego wg stawności blokady: S1 – „Stój”; trzystawna S5 / S2; czterostawna S5 / S4 / S2.</summary>
-    string OdstepSig(string n, int depth)
+    /// <summary>Pierwszy semafor odstępowy albo wjazdowy w kierunku dir od węzła (po torach szlaku; null – koniec obszaru).</summary>
+    string NextSignalFrom(string node, int dir)
     {
-        var s = Sigs[n]; var d = L.Signals[n];
-        if (s.Aspect != Aspect.Train) return "S1";
-        int st = L.Blocks.TryGetValue(d.Szlak ?? "", out var b) ? b.Aspects : 3;
-        if (st <= 2) return "S2";
-        var nx = NextSignal(n);
-        string next = nx == null ? "S1" : L.Signals[nx].Type == "odstepowy" ? (depth < 6 ? OdstepSig(nx, depth + 1) : "S2") : (Sigs[nx].Aspect is Aspect.Train ? "S2" : "S1");
-        if (next == "S1") return "S5";
-        if (st == 4 && next == "S5") return "S4";
-        return "S2";
+        string from = null;
+        for (int k = 0; k < 200; k++)
+        {
+            var nx = Forward(node, dir, from).FirstOrDefault(); if (nx == null) break;
+            node = L.Other(nx.Edge, node); from = nx.Edge;
+            var f = L.Nodes[node].Signals.FirstOrDefault(x => L.Signals[x].Dir == dir && L.Signals[x].Type is "odstepowy" or "wjazdowy");
+            if (f != null) return f;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Prędkość sygnalizowana przebiegu [km/h] (Ie-1 § 4 ust. 13): ograniczenia ze zwrotnic w drodze przebiegu i torów z wpisaną prędkością,
+    /// albo prędkość ustalona ręcznie (VSet); 0 – bez ograniczenia (największa dozwolona). Domyślne 60 km/h torów stacyjnych symulatora
+    /// sygnału nie obniża.
+    /// </summary>
+    public double SignalSpeed(RouteDef r)
+    {
+        if (r.VSet > 0) return r.VSet;
+        double v = 1e4;
+        foreach (var eid in r.Edges)
+        {
+            var e = L.Edges[eid]; if (e.Szlak) continue;
+            if (e.VMax > 0) v = Math.Min(v, e.VMax);
+            if (e.SwLimit > 0) v = Math.Min(v, e.SwLimit);
+        }
+        return v >= 1e4 ? 0 : v;
+    }
+
+    /// <summary>Sygnał następnego semafora za przebiegiem (koniec przebiegu, pierwszy semafor na szlaku); null – brak uzależnienia.</summary>
+    string NextAfterRoute(Route r) => r.EndKind switch
+    {
+        "sig" => r.End,
+        "szlak" => NextSignalFrom(r.EndNode, L.Signals[r.Start].Dir),
+        _ => null,
+    };
+
+    /// <summary>
+    /// Sygnały zlecane kartom (Ie-1 § 4 ust. 13, zał. 1): „Stój” / Ms1, Sz, Ms2, a przy przebiegu pociągowym – sygnał z siatki
+    /// prędkość przy semaforze × co wskazuje następny semafor. Uzależnienie: zmiana na następnym semaforze zmienia sygnał tego semafora
+    /// w tym samym cyklu (np. A: S5 przy B „Stój”, S2 po otwarciu B). SBL czterostawna: S3 – dwa odstępy wolne (następny wskazuje S5).
+    /// </summary>
+    void SignalCodes()
+    {
+        var memo = new Dictionary<string, string>();
+        foreach (var (n, d) in L.Signals)
+        {
+            if (!Urzadzenia.MaKarte(d)) continue;
+            var kod = Kod(n, memo, 0);
+            var s = Sigs[n];
+            if (kod != s.Sig) { s.Sig = kod; Urzadzenia.Sygnal(n, kod); }
+        }
+    }
+
+    string Kod(string n, Dictionary<string, string> memo, int depth)
+    {
+        if (memo.TryGetValue(n, out var m)) return m;
+        var d = L.Signals[n]; var s = Sigs[n];
+        if (!Urzadzenia.MaKarte(d)) return null;
+        string res;
+        if (d.Type == "odstepowy" && s.Dark) res = "";
+        else switch (s.Aspect)
+        {
+            case Aspect.Sz: res = "Sz"; break;
+            case Aspect.Shunt: res = "Ms2"; break;
+            case Aspect.Train:
+            {
+                int klasa = 0; string next; int stawnosc = 3;
+                if (d.Type == "odstepowy")
+                {
+                    next = NextSignal(n);
+                    if (L.Blocks.TryGetValue(d.Szlak ?? "", out var b)) stawnosc = b.Aspects;
+                }
+                else
+                {
+                    var r = s.Route != null && Routes.TryGetValue(s.Route, out var rr) ? rr : null;
+                    klasa = r != null ? Sygnaly.Klasa(SignalSpeed(r)) : 0;
+                    next = r != null ? NextAfterRoute(r) : null;
+                    if (r?.EndKind == "szlak" && L.Blocks.TryGetValue(r.End, out var b)) stawnosc = b.Aspects; else if (r?.EndKind != "szlak") stawnosc = 3;
+                }
+                string kolumna, nk = null;
+                if (stawnosc <= 2 && d.Type == "odstepowy") kolumna = "Vmax";     // dwustawna – bez zapowiadania
+                else if (next == null) kolumna = d.Type == "odstepowy" ? "Stoj" : "Vmax";   // koniec obszaru / brak uzależnienia (o następnym informuje tarcza ostrzegawcza)
+                else { memo[n] = "S1"; nk = depth < 12 ? Kod(next, memo, depth + 1) : "S1"; kolumna = Sygnaly.Kolumna(nk); }
+                res = Sygnaly.Dobierz(klasa, kolumna);
+                if (stawnosc == 4 && klasa == 0 && kolumna == "Vmax" && nk == "S5") res = "S3";
+                break;
+            }
+            default: res = d.Type == "tm" ? "Ms1" : "S1"; break;
+        }
+        return memo[n] = res;
+    }
+
+    /// <summary>Status karty sygnalizatora: sygnał wyświetlany, uszkodzenie światła zezwalającego, brak łączności.</summary>
+    public void StatusSygnalizatora(string sig, string wyswietlany, bool uszkZezwalajacego, bool brakDanych)
+    {
+        var s = Sigs[sig];
+        s.Wyswietlany = wyswietlany;
+        if (s.LampFault && !uszkZezwalajacego) s.FailAlarm = false;
+        s.LampFault = uszkZezwalajacego;
+        if (brakDanych && !s.NoData) Alarm($"Sygnalizator {sig}: brak komunikacji z obiektem", "Semafor", sig, stillActive: () => s.NoData);
+        s.NoData = brakDanych;
+        // sygnał zezwalający nie zapalił się / zgasł w terenie – „Stój” i przebieg wraca do nastawiania (§26 ust. 1)
+        if (uszkZezwalajacego && s.Aspect == Aspect.Train && Sygnaly.AspectOf(wyswietlany) == Aspect.Stop && s.Sig != null && Sygnaly.Def(s.Sig)?.V != null)
+        {
+            s.Aspect = Aspect.Stop;
+            if (s.Route != null && Routes.TryGetValue(s.Route, out var r) && !r.Passed)
+            {
+                r.State = "setting";
+                if (!s.FailAlarm) { s.FailAlarm = true; Alarm($"Semafor {sig}: nie wyświetlił sygnału zezwalającego (§26 ust. 1)", "Semafor", sig, stillActive: () => Routes.ContainsKey(r.Uid) && !r.Passed && s.Aspect == Aspect.Stop); }
+            }
+        }
     }
 }

@@ -68,8 +68,11 @@ public class Instruktor
                 if (!clear) S.Alarm("Utrata łączności stanowiska z komputerem zależności – stan obiektów nieznany, polecenia nie są przyjmowane", "System", "", "kzlink", () => S.LinkDown);
                 else S.Log("Zdarzenie", "Przywrócono łączność stanowiska z komputerem zależności", "System", "");
                 break;
-            case "sigLamp": S.Sigs[target].LampFault = !clear; if (clear) S.Sigs[target].FailAlarm = false; break;
-            case "sigNodata": S.Sigs[target].NoData = !clear; if (!clear) S.Alarm($"Sygnalizator {target}: brak komunikacji z obiektem", "Semafor", target, stillActive: () => S.Sigs[target].NoData); break;
+            case "sigLamp":
+            case "sigNodata":
+                if (!S.Urzadzenia.Sygnalizatory.TryGetValue(target, out var ks)) { S.Log("Instruktor", $"Sygnalizator {target} nie ma karty (sygnalizator bez sterowania KZ)", "Semafor", target); return; }
+                ks.Usterka(type, clear);
+                break;
             case "mains":
             case "mainsGenFail":
                 if (!clear) { S.Power.Mains = false; S.Power.OutageAt = S.T; S.Power.GenFail = type == "mainsGenFail"; S.Alarm(type == "mains" ? "Zanik zasilania sieciowego – praca z UPS (Ie-20 §23)" : "Zanik zasilania – agregat nie uruchomił się (AGR / automatyk, §23 ust. 2)", "Zasilanie", "SIEĆ", stillActive: () => !S.Power.Mains); }

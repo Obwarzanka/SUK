@@ -79,9 +79,10 @@ public partial class Trains
 
     bool Permits(string name, Train t)
     {
-        var s = S.Sigs[name];
-        if (s.NoData) return false;
-        return s.Aspect switch { Aspect.Train => true, Aspect.Sz => true, Aspect.Shunt => t.Shunt, _ => false };
+        // maszynista widzi sygnał wyświetlany przez kartę sygnalizatora (nie stan w komputerze zależności)
+        var w = S.Urzadzenia.SygnalWidziany(name);
+        var a = w != null ? Sygnaly.AspectOf(w) : S.Sigs[name].NoData ? Aspect.Stop : S.Sigs[name].Aspect;
+        return a switch { Aspect.Train => true, Aspect.Sz => true, Aspect.Shunt => t.Shunt, _ => false };
     }
     IEnumerable<string> SigsAt(string nid, int dir) => S.L.Nodes[nid].Signals.Where(n => S.L.Signals[n].Dir == dir);
     IEnumerable<string> SigsFor(string nid, int dir, Train t) => SigsAt(nid, dir).Where(n => t.Shunt ? S.L.Signals[n].StopsShunts : S.L.Signals[n].ForTrains);
@@ -177,7 +178,7 @@ public partial class Trains
         {
             if (S.L.Signals[n].Type == "odstepowy") continue;
             if (!Permits(n, t)) { S.Alarm($"{(t.Shunt ? "Skład" : "Pociąg")} {t.Num} minął sygnalizator {n} wskazujący „Stój”!", "Semafor", n, "spad" + t.Id + n); S.Stats.Spad++; }
-            t.SzLimit = S.Sigs[n].Aspect == Aspect.Sz;
+            t.SzLimit = (S.Urzadzenia.SygnalWidziany(n) ?? (S.Sigs[n].Aspect == Aspect.Sz ? "Sz" : null)) == "Sz";
             if (S.L.Signals[n].Type == "wjazdowy" && t.Entered == null) { t.Entered = S.T; S.Stats.TrainsIn++; }
         }
         if (S.L.FarEnds.TryGetValue(node, out var fe) && dir == S.L.Blocks[fe.Szlak].Ends[0].Outward)

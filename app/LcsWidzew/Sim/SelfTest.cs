@@ -166,6 +166,98 @@ public static class SelfTest
             }
             sb.AppendLine($"KARTY ZWROTNIC: kontrola {kOk} z {kTot}");
         }
+        // sygnały wg Ie-1 (krok 6): uzależnienie od następnego semafora, siatka zał. 1, karta sygnalizatora
+        {
+            var gs = new Simulator(st) { User = sim.User };
+            int sOk = 0, sTot = 0;
+            void G(bool c, string m) { sTot++; if (c) sOk++; sb.AppendLine($"sygnały: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            void Run(double s) { for (double t = 0; t < s; t += 0.25) gs.Tick(0.25); }
+            bool Set(RouteDef r) { for (int k = 0; k < 160 && !gs.Routes.Values.Any(x => x.Id == r.Id && x.State == "set"); k++) gs.Tick(0.25); Run(0.5); return gs.Routes.Values.Any(x => x.Id == r.Id && x.State == "set"); }
+            string Widz(string sg) => gs.Urzadzenia.SygnalWidziany(sg);
+            var all = gs.RouteTable.Values.SelectMany(v => v).Where(r => r.Variant == 0 && r.Type == "P").ToList();
+            // A → B (B semafor wyjazdowy z własnym przebiegiem pociągowym, który nie koliduje z A)
+            (RouteDef A, RouteDef B) para = default;
+            foreach (var a in all.Where(r => r.EndKind == "sig" && st.Signals[r.End].Type == "wyjazdowy" && gs.WhyNot(r).Count == 0))
+            {
+                var b = all.FirstOrDefault(r => r.Start == a.End && gs.WhyNot(r).Count == 0 && !r.Secs.Intersect(a.Secs).Any() && !r.Sw.Any(q => a.Sw.Any(p => p.Num == q.Num && p.Pos != q.Pos)));
+                if (b != null) { para = (a, b); break; }
+            }
+            if (para.A != null)
+            {
+                var (A, B) = para;
+                int kA = Sygnaly.Klasa(gs.SignalSpeed(A)), kB = Sygnaly.Klasa(gs.SignalSpeed(B));
+                gs.Page = PageOf(A.Start); var ra = gs.Exec(Cmd(A)); bool setA = ra.Ok && Set(A);
+                var a1 = Widz(A.Start);
+                G(setA && a1 == Sygnaly.Dobierz(kA, "Stoj") && gs.Sigs[A.Start].Sig == a1,
+                    $"{A.Id} (v {gs.SignalSpeed(A):0}), B={Station.Lbl(B.Start)} „Stój” → A wyświetla {a1} ({Sygnaly.Def(a1)?.OpisSwiatel()}), oczekiwane {Sygnaly.Dobierz(kA, "Stoj")}");
+                gs.Page = PageOf(B.Start); var rb = gs.Exec(Cmd(B)); bool setB = rb.Ok && Set(B);
+                var b1 = Widz(B.Start); var a2 = Widz(A.Start);
+                G(setB && Sygnaly.Def(b1)?.V == kB && a2 == Sygnaly.Dobierz(kA, Sygnaly.Kolumna(b1)),
+                    $"po otwarciu {B.Id}: B wyświetla {b1}, A zmienia się samoczynnie na {a2} (oczekiwane {Sygnaly.Dobierz(kA, Sygnaly.Kolumna(b1))}){(rb.Ok ? "" : " – " + rb.Msg)}");
+                gs.Page = PageOf(B.Start); gs.Exec($"{B.Start} ZDP", true); Run(0.75);
+                G(Widz(B.Start) == "S1" && Widz(A.Start) == a1, $"po zwolnieniu {B.Id}: B {Widz(B.Start)}, A wraca do {Widz(A.Start)}");
+                gs.Page = PageOf(A.Start); gs.Exec($"{A.Start} ZDP", true); Run(0.75);
+                // uszkodzenie światła zezwalającego: karta nie zapala sygnału, KZ zgłasza §26
+                gs.Instruktor.ApplyFault("sigLamp", A.Start, false); Run(0.5);
+                gs.Page = PageOf(A.Start); gs.Exec(Cmd(A)); for (int k = 0; k < 80; k++) gs.Tick(0.25);
+                G(Widz(A.Start) == "S1" && gs.Alarms.Any(x => x.Obiekt == Station.Lbl(A.Start) && x.Zdarzenie.Contains("nie wyświetlił")),
+                    $"{Station.Lbl(A.Start)} z uszkodzonym światłem zezwalającym: wyświetla {Widz(A.Start)}, alarm §26");
+                gs.Instruktor.ApplyFault("sigLamp", A.Start, true); Run(1);
+                G(Sygnaly.Def(Widz(A.Start))?.V != null, $"po naprawie {Station.Lbl(A.Start)} wyświetla {Widz(A.Start)}");
+            }
+            else sb.AppendLine("sygnały: brak pary przebiegów A → B w układzie");
+            // siatka zał. 1: każda para (prędkość, następny) ma dokładnie jeden sygnał
+            int siatka = 0; foreach (var k in new[] { 0, 100, 60, 40 }) foreach (var c in new[] { "Vmax", "100", "40/60", "Stoj" }) if (Sygnaly.Tab.Values.Count(d => d.V == k && d.Nast == c) == 1) siatka++;
+            G(siatka == 16, $"tabela Ie-1 zał. 1: {siatka} z 16 pól siatki (S2–S13a)");
+            // SBL 3- i 4-stawna: ciąg odstępowych w kierunku zasadniczym szlaku (Ie-1 § 4 ust. 13 pkt 3 lit. b – S3: dwa odstępy wolne)
+            var blk = st.Blocks.Values.Where(b => b.Type == "sbl").Select(b => (B: b, Sigs: st.Signals.Values.Where(s => s.Szlak == b.Id && s.Type == "odstepowy" && s.Dir == b.DefDir).ToList()))
+                .Where(x => x.Sigs.Count >= 2).OrderByDescending(x => x.Sigs.Count).FirstOrDefault();
+            if (blk.B != null)
+            {
+                int asp0 = blk.B.Aspects;
+                foreach (var stawn in new[] { 3, 4 })
+                {
+                    blk.B.Aspects = stawn;
+                    var ss = new Simulator(st) { User = sim.User };
+                    for (int k = 0; k < 4; k++) ss.Tick(0.25);
+                    // kolejność od początku szlaku: odstępowy, za którym jest drugi, stoi wcześniej
+                    var ciag = blk.Sigs.Select(s => s.Name).ToList();
+                    var nastepny = ciag.ToDictionary(n => n, n => ciag.FirstOrDefault(m => m != n && ss.Urzadzenia.SygnalWidziany(m) != null && IsNext(ss, n, m)));
+                    ciag = ciag.OrderByDescending(n => Depth(n, nastepny)).ToList();
+                    var w1 = string.Join(" → ", ciag.Select(n => $"{Station.Lbl(n)} {ss.Urzadzenia.SygnalWidziany(n)}"));
+                    var oczek = stawn == 4 ? ciag.Select((n, i) => i == ciag.Count - 1 ? "S5" : i == ciag.Count - 2 ? "S3" : "S2").ToList() : ciag.Select((n, i) => i == ciag.Count - 1 ? "S5" : "S2").ToList();
+                    G(ciag.Select(n => ss.Urzadzenia.SygnalWidziany(n)).SequenceEqual(oczek), $"szlak {blk.B.Id}, SBL {stawn}-stawna, odstępy wolne: {w1} (oczekiwane {string.Join(" ", oczek)})");
+                    if (stawn == 4)
+                    {
+                        // zajęty odstęp za ostatnim odstępowym: ostatni S1, przedostatni S5, wcześniejszy S3
+                        var ost = st.Signals[ciag[^1]]; var nx = ss.Forward(ost.Node, ost.Dir, null).FirstOrDefault();
+                        if (nx != null)
+                        {
+                            var sec = st.Edges[nx.Edge].Sec;
+                            ss.Instruktor.ApplyFault("secOcc", sec, false); for (int k = 0; k < 4; k++) ss.Tick(0.25);
+                            var w2 = string.Join(" → ", ciag.Select(n => $"{Station.Lbl(n)} {ss.Urzadzenia.SygnalWidziany(n)}"));
+                            var oc2 = ciag.Select((n, i) => i == ciag.Count - 1 ? "S1" : i == ciag.Count - 2 ? "S5" : i == ciag.Count - 3 ? "S3" : "S2").ToList();
+                            G(ciag.Select(n => ss.Urzadzenia.SygnalWidziany(n)).SequenceEqual(oc2), $"szlak {blk.B.Id}, SBL 4-stawna, odstęp {Station.Lbl(sec)} zajęty: {w2} (oczekiwane {string.Join(" ", oc2)})");
+                        }
+                    }
+                }
+                blk.B.Aspects = asp0;
+            }
+            static bool IsNext(Simulator s, string a, string b)
+            {
+                var d = s.L.Signals[a]; string node = d.Node, from = null;
+                for (int k = 0; k < 200; k++)
+                {
+                    var nx = s.Forward(node, d.Dir, from).FirstOrDefault(); if (nx == null) return false;
+                    node = s.L.Other(nx.Edge, node); from = nx.Edge;
+                    var f = s.L.Nodes[node].Signals.FirstOrDefault(x => s.L.Signals[x].Dir == d.Dir && s.L.Signals[x].Type is "odstepowy" or "wjazdowy");
+                    if (f != null) return f == b;
+                }
+                return false;
+            }
+            static int Depth(string n, Dictionary<string, string> nx) { int k = 0; while (nx.TryGetValue(n, out var m) && m != null && k < 50) { n = m; k++; } return k; }
+            sb.AppendLine($"SYGNAŁY: kontrola {sOk} z {sTot}");
+        }
         foreach (var r in todo.Where(r => !ok.Contains(r.Id))) sb.AppendLine($"NIE NASTAWIONO {r.Id} ({Cmd(r)}): " + (failed.TryGetValue(r, out var why) ? why : done.Contains(r) ? "przyjęty, ale nie doszedł do sygnału zezwalającego" : string.Join(", ", sim.WhyNot(r).Take(3))));
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pociągi: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.State} wait={t.WaitingAt}")));

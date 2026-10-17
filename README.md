@@ -295,7 +295,7 @@ Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Rele
 - **teren** – stan rzeczywisty przy torze (iglice, osie pojazdu, wykolejnica na szynie);
 - **usterki** – po wybraniu karty w panelu po prawej można je wprowadzać i usuwać (jak instruktor).
 
-Wiersze żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli. Filtry: rodzaj karty, posterunek, obiekt, „tylko stany nietypowe”. Karty sygnalizatorów dojdą razem z sygnałami wg Ie-1.
+Karty sygnalizatorów pokazują sygnał zlecony przez KZ i wyświetlany w terenie wg Ie-1 (S1…S13a, Sz, Ms1, Ms2) i zapalone światła. Sygnał wynika z prędkości przebiegu (zwrotnice na bok) i sygnału następnego semafora (Ie-1 zał. 1) – np. wjazdowy przy wyjazdowym na „Stój” pokazuje S13, po otwarciu wyjazdowego sam zmienia się na S12; na SBL czterostawnej S3 oznacza dwa wolne odstępy. Wiersze żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli, sygnał niezapalony, brak łączności. Filtry: rodzaj karty, posterunek (odstępowe – szlak), obiekt, „tylko stany nietypowe”.
 
 Połączenie przez sieć: symulator (gra jednoosobowa albo serwer) zawsze nasłuchuje dla Komputerowni na **127.0.0.1:47121** (tylko ten komputer) – wystarczy „Połącz”. Do serwera stanowisk na innym komputerze (np. przez Radmin) – jego adres i port **47120**. `Komputerownia.exe --connect host:port` łączy od razu.
 

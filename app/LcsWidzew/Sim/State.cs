@@ -35,8 +35,10 @@ public class SigState
     public HashSet<string> Flank = new();
     public Aspect Aspect = Aspect.Stop;
     public bool Closed, LampFault, NoData, FailAlarm, Dark;
-    /// <summary>Sygnał na semaforze odstępowym: S1, S2, S4 (zielone migające), S5 (pomarańczowe); null – inne.</summary>
+    /// <summary>Sygnał zlecany karcie wg Ie-1 (S1…S13a, Sz, Ms1, Ms2, „” – ciemny); null – sygnalizator bez karty (PK, tarcza ostrzegawcza, powtarzacz).</summary>
     public string Sig;
+    /// <summary>Status karty: sygnał wyświetlany w terenie.</summary>
+    public string Wyswietlany;
     public double SzUntil;
 }
 

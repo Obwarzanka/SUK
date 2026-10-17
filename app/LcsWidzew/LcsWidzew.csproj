@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="Data\sygnaly_ie1.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Data\station.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
