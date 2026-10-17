@@ -61,6 +61,8 @@ public static partial class Test
                 if (shot != null) { await Settle(w); Save(w, shot); }
                 log.AppendLine("== rozjazdy łukowe i wstawki międzyrozjazdowe"); await RunLukowe(w);
                 log.AppendLine("== łącznik na łuku (łuk wyrównujący)"); await RunLacznik(w);
+                log.AppendLine("== łuk z punktów"); await RunLukPunkty(w);
+                log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }

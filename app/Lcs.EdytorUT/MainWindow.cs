@@ -115,6 +115,7 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
         tb.Items.Add(ProstaBtn); tb.Items.Add(LukBtn);
         tb.Items.Add(ToolBtn(UtTool.LukOdDo, "◠ Łuk od–do", "Łuk na torze: klik w miejscu początku łuku, klik w miejscu końca – promień dobiera się sam (K)"));
+        tb.Items.Add(ToolBtn(UtTool.LukPunkty, "◠ Łuk z punktów", "Dokładny łuk: klik łuku toru, potem kilka punktów na osi łuku na zdjęciu – R (Tab: i L) dobiera się do punktów (J)"));
         tb.Items.Add(ToolBtn(UtTool.Rownolegly, "⫽ Równoległy", "Tor równoległy z podkładu: klik na torze wzorcowym, klik na osi nowego toru (początek), klik na końcu albo Enter (P)"));
         tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
         tb.Items.Add(new TextBlock { Text = " L", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewLBox);
@@ -164,6 +165,7 @@ public partial class MainWindow : Window
             UtTool.Urzadzenie => $"{UtDevice.KindInfo(View.DevKind).Name}: " + (UtDevice.KindInfo(View.DevKind).Directed && View.DevKind != UtDevice.Koziol
                 ? "wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi"
                 : View.DevKind == UtDevice.Koziol ? "kliknij przy końcu toru (przyciąga się do końca)" : "kliknij na torze w miejscu urządzenia"),
+            UtTool.LukPunkty => "Łuk z punktów: kliknij łuk toru (albo przy załamaniu), potem kilka punktów na osi prawdziwego łuku na zdjęciu (najlepiej od początku do końca łuku) – promień dobiera się do wszystkich punktów, przy każdym widać odchyłkę; Tab – także krzywe przejściowe L; Backspace – usuń punkt; Enter / PPM – zastosuj; Esc – od nowa",
             UtTool.LukOdDo => "Łuk od–do: kliknij na torze w miejscu początku łuku (np. gdzie na zdjęciu kończy się prosta), potem w miejscu końca łuku – wierzchołek i promień dobiorą się same; wierzchołki pośrednie znikną; PPM / Esc – od nowa",
             UtTool.Odcinek => "Odcinek: kliknij na torze – nazwa odcinka kontroli niezajętości dla całego kawałka między granicami (liczniki osi, złącza izolowane, końce torów); kolor = odcinek, czerwone kreski – kawałek bez odcinka",
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
@@ -432,6 +434,8 @@ public partial class MainWindow : Window
         if (!inText && !ctrl && View.TorKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.ParKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.ArcKey(e.Key)) { e.Handled = true; return; }
+        if (!inText && !ctrl && View.FitKey(e.Key)) { e.Handled = true; return; }
+        if (!inText && View.MultiKey(e.Key)) { e.Handled = true; return; }
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
@@ -449,6 +453,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.P) { SetTool(UtTool.Rownolegly); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.U) { SetTool(UtTool.Urzadzenie); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.K) { SetTool(UtTool.LukOdDo); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.J) { SetTool(UtTool.LukPunkty); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.O) { SetTool(UtTool.Odcinek); e.Handled = true; }
         else if (!inText && e.Key == Key.F7) { RunCheck(true); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;

@@ -296,4 +296,64 @@ public static class Budowa
         for (int i = 0; i < res.Count; i++) if (Math.Abs(res[i].R - orig[i]) > 1e-9) ch.Add((i, orig[i], res[i].R));
         return (res, ch);
     }
+    /// <summary>
+    /// Łuk z punktów: promień R (i, gdy <paramref name="fitL"/>, długość krzywych przejściowych L) w wierzchołku <paramref name="vi"/>
+    /// dobrany tak, żeby oś toru przechodziła jak najbliżej punktów odczytanych ze zdjęcia (najmniejsza suma kwadratów odległości).
+    /// Proste po obu stronach zostają – łuk jest do nich styczny. R i L zaokrąglone do 1 m. Odchyłki punktów w m w terenie.
+    /// </summary>
+    public static ArcFit FitArc(IReadOnlyList<UtVertex> v, int vi, IReadOnlyList<XY> pts, double k, bool fitL)
+    {
+        if (vi <= 0 || vi >= v.Count - 1) return new ArcFit(0, 0, 0, 0, new(), "łuk z punktów – wskaż łuk (wierzchołek) w środku toru");
+        if (pts.Count == 0) return new ArcFit(v[vi].R, v[vi].L, 0, 0, new(), "kliknij punkty na osi łuku");
+        bool Bad(TrasaResult r) => r.Notes.Any(n => n.Error && (n.Vertex == vi || n.Vertex == vi + 1));
+        TrasaResult Make(double R, double L) { var c = v.Select(x => x.Clone()).ToList(); c[vi].R = R; c[vi].L = L; return Trasa.Compute(c, k); }
+        double Sse(double R, double L)
+        {
+            var r = Make(R, L); if (Bad(r)) return double.PositiveInfinity;
+            double s = 0; foreach (var q in pts) { var d = r.Nearest(q, 0.25).Dist; s += d * d; }
+            return s;
+        }
+        // zakres R, który się mieści przy danym L (przy L > 0 za mały R też nie – przejściowe dłuższe od łuku): od mieszczącego się R w dół i w górę
+        (double Lo, double Hi)? RRange(double L, double near)
+        {
+            double f = near > 0 && !Bad(Make(near, L)) ? near : 0;
+            for (double c = 5; f == 0 && c <= 1e6; c *= 1.25) if (!Bad(Make(c, L))) f = c;
+            if (f == 0) return null;
+            double lo = 1, hi = f; for (int i = 0; i < 50; i++) { double m = Math.Sqrt(lo * hi); if (Bad(Make(m, L))) lo = m; else hi = m; }
+            double rLo = hi; lo = f; hi = 1e6; for (int i = 0; i < 50; i++) { double m = Math.Sqrt(lo * hi); if (Bad(Make(m, L))) hi = m; else lo = m; }
+            return (rLo, lo);
+        }
+        double Golden(Func<double, double> f, double a, double b)
+        {
+            const double g = 0.6180339887498949;
+            double c = b - g * (b - a), d = a + g * (b - a), fc = f(c), fd = f(d);
+            for (int i = 0; i < 70 && Math.Abs(b - a) > 1e-7 * Math.Max(1, Math.Abs(b)); i++)
+                if (fc < fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = f(c); } else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = f(d); }
+            return (a + b) / 2;
+        }
+        double L = fitL ? 0 : v[vi].L, R = v[vi].R;
+        for (int round = 0; round < (fitL ? 40 : 1); round++)
+        {
+            double r0 = R, l0 = L;
+            if (RRange(L, R) is not var (rlo, rhi)) return new ArcFit(0, 0, 0, 0, new(), "łuk się nie mieści – odsuń sąsiednie wierzchołki");
+            double lr = Golden(u => Sse(Math.Exp(u), L), Math.Log(Math.Max(5, rlo)), Math.Log(rhi));
+            R = Math.Exp(lr);
+            if (fitL)
+            {
+                // L najwyżej tyle, ile mieści się przy tym R (krzywe przejściowe nie dłuższe od łuku)
+                double lo = 0, hi = 2 * R;
+                for (int i = 0; i < 40; i++) { double m = (lo + hi) / 2; if (Bad(Make(R, m))) hi = m; else lo = m; }
+                L = Golden(x => Sse(R, x), 0, lo);
+                if (round > 0 && Math.Abs(R - r0) < 0.05 && Math.Abs(L - l0) < 0.05) break;
+            }
+        }
+        R = Math.Max(1, Math.Round(R)); L = Math.Max(0, Math.Round(L));
+        while (R > 1 && Bad(Make(R, L))) R -= 1;
+        var res = Make(R, L);
+        var dev = pts.Select(q => res.Nearest(q, 0.25).Dist / k).ToList();
+        return new ArcFit(R, L, Math.Sqrt(dev.Sum(x => x * x) / dev.Count), dev.Max(), dev, null);
+    }
 }
+
+/// <summary>Wynik dopasowania łuku do punktów: R, L [m], odchyłka średnia kwadratowa i największa [m], odchyłki punktów, błąd.</summary>
+public record ArcFit(double R, double L, double Rms, double Max, List<double> Dev, string Error);

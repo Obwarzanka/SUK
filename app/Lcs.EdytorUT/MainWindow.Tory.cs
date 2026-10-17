@@ -64,6 +64,13 @@ public partial class MainWindow
             View.Select(id);
             Message($"Łuk od–do: R {F(r)} m" + (note != null ? " – " + note : ""));
         };
+        View.TrackMenu += (id, s) => { var cm = BuildTrackMenu(id, s); cm.PlacementTarget = View; cm.IsOpen = true; };
+        View.ArcFitDone += (id, vi, r, l, info) =>
+        {
+            ChTrack(id, "Łuk z punktów", t => { t.Vertices[vi].R = r; t.Vertices[vi].L = l; });
+            View.Select(id, vi);
+            Message(info);
+        };
         View.SelectionChanged += RefreshTrackPanel;
         View.DraftInfo += m => { if (m.Length > 0) Message(m); };
         void Defaults()
@@ -108,6 +115,7 @@ public partial class MainWindow
     /// <summary>Del: zaznaczony wierzchołek (gdy zostają co najmniej 2) albo cały tor.</summary>
     public bool DeleteSelection()
     {
+        if (View.Multi.Count > 0) return DeleteMulti();
         if (DeleteObj() || DeleteDevice() || DeleteTurnoutOrCrossing()) return true;
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
@@ -138,6 +146,7 @@ public partial class MainWindow
     void RefreshTrackPanel()
     {
         TrackPanel.Children.Clear();
+        if (View.Multi.Count > 0) { BuildMultiPanel(); return; }
         if (BuildObjPanel()) return;
         var id = View.SelectedTrack;
         var t = Doc?.P.Tracks.FirstOrDefault(x => x.Id == id);

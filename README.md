@@ -122,6 +122,8 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Równoległy (P):** tor równoległy odrysowany z podkładu. Kliknij tor wzorcowy, potem na zdjęciu oś nowego toru w miejscu jego początku. Odstęp liczy się z kliknięcia co 1 cm, z Shift co 0,25 m. Na koniec kliknij miejsce końca albo naciśnij Enter, wtedy tor biegnie do końca toru wzorcowego. Łuki stają się współśrodkowe.
 - **Łuk od–do (K):** kliknij na torze w miejscu, gdzie zaczyna się łuk (np. na zdjęciu kończy się prosta), a potem tam, gdzie się kończy. Program wstawi łuk o pasującym promieniu, a wierzchołki pośrednie, np. z odrysowania łuku kilkoma kliknięciami, usunie. Przed drugim kliknięciem widać podgląd z R.
 - **Łuk z punktów (J):** dokładniejszy łuk ze zdjęcia. Kliknij łuk toru (albo przy załamaniu), potem kilka punktów na osi prawdziwego łuku na zdjęciu, najlepiej od początku do końca łuku. Program dobiera promień tak, żeby łuk przechodził jak najbliżej wszystkich punktów, a proste toru zostają na miejscu. Przy każdym punkcie widać odchyłkę w cm. Tab włącza dopasowanie także krzywych przejściowych L. Backspace usuwa ostatni punkt, Enter albo PPM zatwierdza, Esc zaczyna od nowa.
+- **Usunięcie kawałka toru:** PPM na torze we Wskaż otwiera menu: „Usuń ten kawałek” usuwa prostą albo cały łuk pod kursorem, a tor rozcina się na dwa (albo skraca, gdy to koniec). „Rozetnij tor tutaj” (tylko na prostej) daje dwa tory stykające się w tym miejscu. Wszystko, co leży za cięciem (rozjazdy, urządzenia, odcinki, perony, przejazdy, punkty km, profil), przechodzi na nowy tor z kilometrażem od jego początku. Co leżało w usuniętym kawałku, znika. Program nie tnie w obrębie rozjazdu ani toru łączącego łącznika.
+- **Zaznaczanie kilku elementów (Wskaż):** Ctrl + klik dodaje element do zaznaczenia albo go zdejmuje: tor, rozjazd, skrzyżowanie, urządzenie, odcinek, peron, przejazd, punkt km. Shift + przeciągnięcie od pustego miejsca zaznacza prostokątem wszystko, co leży w nim w całości. Panel pokazuje listę zaznaczonych. Del albo „Usuń zaznaczone” usuwa wszystkie naraz, a jedno Ctrl+Z je przywraca. Esc albo zwykły klik kończy zaznaczenie.
 - **Uchwyt łuku:** zaznaczony tor ma kółko w środku każdego łuku. Przeciągnięcie zmienia promień, a R widać na żywo. Przeciągnięcie do wierzchołka usuwa łuk (R 0). Załamanie bez łuku ma kreskowane kółko po wewnętrznej stronie kąta: odciągnięcie go tworzy łuk.
 - **R 0 na pasku:** w trybie Łuk łuk przechodzi przez punkt pod kursorem, a promień wynika z miejsca kliknięcia. Z Alt powstaje załamanie bez łuku.
 - **Edycja:** klik zaznacza tor i otwiera panel z numerem, kategorią, elektryfikacją, Vmax, długością w terenie, listą elementów oraz R i L każdego wierzchołka. Wierzchołki przeciąga się myszą. Dwuklik na boku dodaje wierzchołek, Del usuwa wierzchołek albo tor. W panelu jest też „Tor równoległy” (międzytorze, strona) i „Odwróć kierunek”. Błędy geometrii, np. łuk nie mieści się między wierzchołkami, widać jako czerwone kółko i opis w panelu.
@@ -162,7 +164,7 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 | M | Miarka |
 | S | widok Schemat / Teren |
 | F7 | Sprawdź |
-| Del | usuń zaznaczone (wierzchołek, tor, rozjazd, urządzenie…) |
+| Del | usuń zaznaczone (wierzchołek, tor, rozjazd, urządzenie… – także kilka naraz) |
 | strzałki (z Shift – więcej) | przesuń zaznaczony rozjazd, urządzenie, tor albo wierzchołek |
 | Enter | zatwierdź długość z klawiatury / zakończ tor |
 | Backspace | cofnij ostatni odcinek toru albo punkt miarki |
@@ -171,6 +173,9 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 | Shift (w narzędziu Tor) | łuk kończy się równolegle do osi schematu |
 | Ctrl (w narzędziu Tor) | bez przyciągania |
 | Ctrl + przeciągnięcie | przesunięcie zaznaczonego toru razem z rozjazdami |
+| Ctrl + klik (Wskaż) | dodaj element do zaznaczenia kilku / zdejmij |
+| Shift + przeciągnięcie od pustego miejsca (Wskaż) | zaznaczenie prostokątem |
+| PPM na torze (Wskaż) | menu: usuń kawałek (prostą / łuk), rozetnij tor, usuń tor |
 | Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S | nowy / otwórz / zapisz / zapisz jako |
 | Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) | cofnij / ponów |
 

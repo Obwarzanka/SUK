@@ -80,8 +80,9 @@ public partial class UtView
 
     void EndTrackMove()
     {
-        var (id, _) = tDrag.Value; tDrag = null;
+        var (id, from) = tDrag.Value; tDrag = null;
         if (dragging && tDragVec.Length > 1e-6) TrackMoved?.Invoke(id, tDragVec);
+        else if (!dragging) ToggleMulti(ToScreen(from));     // Ctrl + klik na zaznaczonym torze – zaznaczanie kilku
         InvalidateVisual();
     }
 }

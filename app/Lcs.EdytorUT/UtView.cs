@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
@@ -192,6 +192,7 @@ public partial class UtView : FrameworkElement
         if (b != MouseButton.Left) return false;
         downAt = p; downBtn = b; dragging = false;
         if (clicks >= 2 && DoubleClick(p)) { downAt = null; return true; }
+        if (tool == UtTool.Wskaz && PressMulti(p)) return true;
         if (tool == UtTool.Wskaz && (PressTrackMove(p) || PressVertex(p) || PressDevice(p) || PressObj(p) || PressTurnout(p))) return true;
         if (tool is UtTool.Peron or UtTool.Przejazd or UtTool.Km && ObjToolPress(p)) return true;
         if (tool == UtTool.Urzadzenie && DevPress(p)) return true;
@@ -210,6 +211,7 @@ public partial class UtView : FrameworkElement
             if (buttonDown) { PanBy(p - f); panFrom = p; }
             else EndPan();
         }
+        else if ((boxFrom != null || ctrlClick != null) && buttonDown) DragMulti(p);
         else if (painting && buttonDown) { Paint?.Invoke(hover.Value, false); InvalidateVisual(); }
         else if (vDrag != null && buttonDown) { DragVertex(p); }
         else if (rzFrom != null && buttonDown) { rzTo = hover.Value; InvalidateVisual(); }
@@ -222,7 +224,7 @@ public partial class UtView : FrameworkElement
         {
             if ((p - d).Length > ClickTol) dragging = true;
             if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
-            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
         if (tool != UtTool.Wskaz || vDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
@@ -240,10 +242,13 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.Wskaz && HitObj(p) is var (ok, oid)) { SelectObj(ok, oid); ObjMenu?.Invoke(ok, oid); return true; }
             if (tool == UtTool.Wskaz && HitDevice(p) is string md) { SelectDevice(md); DeviceMenu?.Invoke(md); return true; }
             if (tool == UtTool.Wskaz && HitTurnout(p) is string mt) { SelectTurnout(mt); TurnoutMenu?.Invoke(mt); return true; }
+            if (tool == UtTool.Wskaz && HitTrack(p) is string mtr && Track(mtr) is UtTrack mtt) { Multi.Clear(); Select(mtr); TrackMenu?.Invoke(mtr, Geometry(mtt).Nearest(ToWorld(p), 0.2).S); return true; }
             if (tool == UtTool.Rownolegly) { if (parD != null) parD = null; else parSrc = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
+            if (tool == UtTool.LukPunkty && fitArc != null) { if (!FitApply()) { fitArc = null; FitPts.Clear(); InvalidateVisual(); } return true; }
             return false;
         }
+        if (ReleaseMulti(p)) { downAt = null; return true; }
         if (panFrom != null) { EndPan(); downAt = null; return true; }
         if (painting) { painting = false; downAt = null; PaintEnd?.Invoke(); InvalidateVisual(); return true; }
         if (vDrag != null) { downAt = null; EndVertexDrag(p); return true; }
@@ -275,6 +280,7 @@ public partial class UtView : FrameworkElement
         else if (tool == UtTool.Tor) DraftClick(p);
         else if (tool == UtTool.Rownolegly) ParClick(p);
         else if (tool == UtTool.LukOdDo) ArcClick(p);
+        else if (tool == UtTool.LukPunkty) FitClick(p);
         else if (tool == UtTool.Odcinek) OdcClick(p);
         else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
         else if (tool == UtTool.Wskaz) SelectAt(p);
@@ -369,6 +375,7 @@ public partial class UtView : FrameworkElement
         }
 
         if (!PrintMode) DrawSelection(dc);
+        DrawMulti(dc);
         DrawLevelCrossings(dc, dpi);
         DrawPlatforms(dc, dpi);
         DrawSections(dc, dpi);
@@ -380,6 +387,7 @@ public partial class UtView : FrameworkElement
         if (PrintMode) return;
         DrawParallel(dc, dpi);
         DrawArcBetween(dc, dpi);
+        DrawArcFit(dc, dpi);
         Overlay?.Invoke(dc);
         DrawCalibration(dc, dpi);
         DrawMeasure(dc, dpi);

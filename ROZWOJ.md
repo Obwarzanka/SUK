@@ -121,6 +121,7 @@ Szczegółowe opisy zrobionych prac (etapy 0–7 i poprawki po uwagach właścic
 - **Etap 7:** „Sprawdź” (F7), warstwy wg Ig-10, eksport w skali do PDF / PNG.
 - Ostatni pełny test `--test` po zacommitowanych zmianach: **0 błędów**. Nie sprawdzono prawdziwą myszą ani na prawdziwej drukarce.
 - **Łuk z punktów (J):** promień (Tab – też krzywe przejściowe) dopasowany metodą najmniejszych kwadratów do punktów klikniętych na osi łuku na zdjęciu; test – R 1000 / L 59 przy prawdziwych 1000 / 60, średnio 2 cm.
+- **Usuwanie kawałka toru i zaznaczanie kilku:** PPM na torze – „Usuń ten kawałek” (prosta / łuk, tor rozcina się na dwa) i „Rozetnij tor tutaj”; Ctrl + klik i Shift + prostokąt zaznaczają kilka elementów, Del usuwa naraz (jedno Ctrl+Z).
 - Obok edytora: **kalkulator przechyłki** `app/Lcs.Przechylka` (`Przechylka.exe`) – wartości dopuszczalne domyślne są przykładowe, do potwierdzenia przez właściciela; później wpięcie do edytora UT (pole L przy łuku).
 
 **Następny krok:** decyzje właściciela z `PLAN_EDYTOR_UT.md` § 6 (pytania 11–15), potem etap 8 – edytor zobrazowania (osobny plan).
