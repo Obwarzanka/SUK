@@ -210,6 +210,7 @@ public partial class MainWindow
     // ------------------------------------------------------------------ panele
     bool BuildObjPanel()
     {
+        if (BuildWyposazeniePanel()) return true;
         if (View.SelectedDevice is string did && Doc.P.Devices.FirstOrDefault(x => x.Id == did) is UtDevice dv) { BuildDevicePanel(dv); return true; }
         if (View.SelectedTurnout is string id && Doc.P.Turnouts.FirstOrDefault(x => x.Id == id) is UtTurnout t) { BuildTurnoutPanel(t); return true; }
         if (View.SelectedCrossing is string cid && Doc.P.Crossings.FirstOrDefault(x => x.Id == cid) is UtCrossing c) { BuildCrossingPanel(c); return true; }

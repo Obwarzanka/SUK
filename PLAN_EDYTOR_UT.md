@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-16):** etapy 0–4 zrobione, do tego baza symboli Ig-10 (`Dane/symbole_ig10.json`, okno „Symbole Ig-10”) – szczegóły w `ROZWOJ.md`, etap 1. Zrobione: poprawka widoku (§ 5b – schemat jak w ISDR, odgałęzienia trzymają skos, tor odgałęźny równoległy) i budowa torów od nowa (§ 5c – prosta / łuk styczne, łączenie łukiem i łukami odwrotnymi, uchwyt łuku). Etap 5, część 1 (§ 5d – urządzenia na torze) zrobiona. Następny: etap 5, część 2 – odcinki kontroli niezajętości, wskaźniki, perony, przejazdy, kilometraż.
+**Stan (2026-10-17):** etapy 0–7 zrobione (szczegóły w `ROZWOJ.md`, etap 1): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Następny: odpowiedzi właściciela na pytania 11–15, potem etap 8 – edytor zobrazowania.
 
 ---
 
@@ -47,9 +47,9 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 | 2 ✔ | Podkłady (z mapką kafelków i stałą siatką): obraz z kalibracją (2 i więcej punktów, plik `.pgw` / `.jgw`), ortofotomapa Geoportalu wprost w EPSG:2180 (kafelki z mapki), OSM / Esri jako zapasowe. Kilka podkładów, krycie, kolejność. | ortofotomapa stacji leży w dobrym miejscu i skali; zmierzona odległość = rzeczywista |
 | 3 ✔ | Tory (wielobok styczny z łukami R i przejściowymi L w wierzchołkach): prosta, łuk, krzywa przejściowa. Przyciąganie (koniec, styczność, punkt na torze, podkład), wymiary z klawiatury (długość, promień, azymut), tor równoległy w zadanym międzytorzu, edycja uchwytami. | test „jak użytkownik”: tor po ortofotomapie z łukiem, długości zgodne z geometrią |
 | 4 ✔ | Rozjazdy z katalogu wstawiane na tor (odgałęzienie z prawdziwą geometrią), łącznik między torami, rozjazdy krzyżowe, skrzyżowania. Numery wpisuje projektant. | mijanka z łącznikami zbudowana klikami na skośnych torach |
-| 5 | Urządzenia na torze, symbole Ig-10 w skali rysunku, obrót / strona / kierunek, odcinki kontroli niezajętości, perony, przejazdy, kilometraż. | mijanka z semaforami, kozłami i odcinkami; „Sprawdź” bez uwag |
-| 6 | Wysokości (Z): profil podłużny, pochylenia, NMT z Geoportalu, nasyp / przekop. | profil toru zgodny z NMT w punktach kontrolnych |
-| 7 | Kontrola układu (otwarte końce, rozjazd bez numeru, urządzenie poza torem, nakładające się tory), warstwy, wydruk / eksport PNG / PDF w skali. | wydruk 1:1000 – zmierzone na kartce = skala |
+| 5 ✔ | Urządzenia na torze, symbole Ig-10 w skali rysunku, obrót / strona / kierunek, odcinki kontroli niezajętości, perony, przejazdy, kilometraż. | mijanka z semaforami, kozłami i odcinkami; „Sprawdź” bez uwag |
+| 6 ✔ | Wysokości (Z): profil podłużny, pochylenia, NMT z Geoportalu, nasyp / przekop. | profil toru zgodny z NMT w punktach kontrolnych |
+| 7 ✔ | Kontrola układu (otwarte końce, rozjazd bez numeru, urządzenie poza torem, nakładające się tory), warstwy, wydruk / eksport PNG / PDF w skali. | wydruk 1:1000 – zmierzone na kartce = skala |
 | 8 | Edytor zobrazowania jako osobna aplikacja (osobny plan, po zakończeniu UT). | – |
 | 9 | Przekazywanie danych z UT do symulatora: z UT powstaje topologia (tory, zwrotnice, odcinki, sygnalizatory, długości, pochylenia, prędkości) dla komputera zależności, kart urządzeń i ruchu pociągów; przebiegi i zależności projektuje człowiek (tablica zależności). | do ustalenia z właścicielem |
 
@@ -121,9 +121,25 @@ Właściciel: „te łączniki to wstawki międzyrozjazdowe, znajdź coś na ich
 3. **Łącznik z rozjazdem** (panel i PPM rozjazdu): z dwóch osobno postawionych rozjazdów tego samego typu, także gdy odgałęzienie dociągnięto narzędziem Tor do drugiego (przedłużenia znikają, gdy końce się stykają). **Dopasuj promienie** (panel toru z błędem „łuk nie mieści się”): R zmniejszane po 5 %, nie poniżej 140 m; łuki rozjazdu bez zmian.
 4. **Łącznik na łuku** (2026-10-17, zrzut właściciela: łącznik 41/42 – „tory łącznika nie są równoległe”, „łuk w wierzchołku nie mieści się”): tory obracają się na długości łącznika, więc skosy rozjazdów rozchodzą się o δ. We wstawce łuk wyrównujący (Kampczyk, Skoczylas 2017: „łuk kołowy wyrównujący w torach nierównoległych”) w przecięciu skosów X, w środku wstawki; R – największy, przy którym KR obu rozjazdów zostają na prostej (co 10 m). Tor łączący PR1 – ŚR1 – X – ŚR2 – PR2, wszystkie wierzchołki ustawia łącznik (`Rozjazdy.Relink`, `Equalizer`, `Sync`). Uwaga, gdy R < 140 m albo δ > 3°.
 
+## 5f. Etap 5, część 2, etap 6 i etap 7 (2026-10-17)
+
+Zakres z prośby właściciela: odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż; wysokości z NMT; kontrola układu, warstwy, wydruk w skali.
+
+1. **Odcinki** projektuje człowiek: granice (liczniki osi, złącza izolowane) i nazwy. Program tylko wyznacza zasięg z układu i sprawdza, czy każdy kawałek toru ma odcinek i czy odcinki są rozdzielone. Nazwa jest przypięta do miejsca na torze – należy do kawałka, w którym leży. Przyjęte (do potwierdzenia): skrzyżowanie i rozjazd krzyżowy leżą w jednym odcinku; granica w obrębie rozjazdu (między PR a KR) to uwaga, nie błąd.
+2. **Znaki** z Ig-10 zał. 8: W4 s. 33, W5 s. 30, peron s. 52 (krawędź – podwójna linia 0,7 mm), drogi s. 57 (kreska 2 / odstęp 1 mm), rogatki s. 53, wskaźnik km / hm s. 56 (niestabilizowany: kreska i km z jedną cyfrą), pochylenie niwelety s. 58, kilometraż s. 64. Warstwy – nazwy z kart zał. 8 (§ 4 ust. 4: schemat z warstwami).
+3. **Kilometraż:** punkty km na torach (linia, km, kierunek), między punktami liniowo – kilometr skrócony / wydłużony. Tory bez punktów – rzut prostopadły na najbliższy tor z kilometrażem (Ig-10 § 4 ust. 1 pkt 20–21: km urządzeń wg linii).
+4. **Profil:** niweleta na torze (załomy, łuki pionowe), teren z NMT GUGiK. NMT to teren – „Niweleta z terenu” jest tylko propozycją do ręcznej poprawki (wiadukty, przekopy).
+5. **Kontrola:** otwarty koniec toru jest w porządku przy koźle albo po zaznaczeniu „granica obszaru” w panelu toru (tor biegnie dalej poza projektem).
+6. **Wydruk:** to samo płótno co na ekranie, w trybie wydruku. PDF bez zewnętrznych bibliotek – obraz planu 150–300 dpi na stronie w wymiarze kartki (nie wektor). Podkłady nie są drukowane.
+
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).
 8. Wymiary a / b rozjazdów katalogowe (np. z Id-4 albo kart katalogowych) – jeśli masz, wpiszemy do tabeli typów.
 9. Istniejące `Data/station.json` (Widzew, Fabryczna): zostaje tylko dla symulatora, a w nowym edytorze rysujesz od nowa – czy coś trzeba z niego przenieść (np. numery torów i zwrotnic)?
 10. Rozjazdy łukowe: czy wystarczy przybliżenie z § 5e (jeden łuk toru zwrotnego), czy potrzebne są dokładne wymiary z kart katalogowych Rłj / Rłd? Wstawka – czy liczyć ją między KR (styki), jak teraz?
+11. Odcinki: czy skrzyżowanie / rozjazd krzyżowy ma być zawsze jednym odcinkiem (tak jest teraz)? Czy nazwy odcinków mają mieć stały wzór (np. z5/7, 2-3)?
+12. Kilometraż: czy wystarczą wskaźniki niestabilizowane (kreska + km), czy rysować też stabilizowane (kółko) z międzytorzem?
+13. Peron: domyślna odległość krawędzi od osi 1,725 m i wysokość 0,76 m – czy inne wartości domyślne?
+14. Przejazd: czy na planie potrzebne są też krzyże św. Andrzeja i sygnalizatory drogowe (Ig-10 s. 59–60), czy wystarczy droga, kategoria, rogatki i km?
+15. Wydruk: czy potrzebny PDF wektorowy / DWG (Ig-10 § 1 ust. 15) i tabele z lewej strony arkusza (zał. 2–5), czy wystarczy obraz w skali z opisem?

@@ -325,6 +325,12 @@ public static class Rozjazdy
         p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
         p.Devices ??= new();
         p.Devices.RemoveAll(d => Tr(p, d.Track) == null);           // urządzenia usuniętego toru
+        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new();
+        p.Sections.RemoveAll(d => Tr(p, d.Track) == null);
+        p.Platforms.RemoveAll(d => Tr(p, d.Track) == null);
+        foreach (var pl in p.Platforms.Where(x => x.Track2 != null && Tr(p, x.Track2) == null)) pl.Track2 = null;
+        p.LevelCrossings.RemoveAll(d => Tr(p, d.Track) == null);
+        p.KmPoints.RemoveAll(d => Tr(p, d.Track) == null);
         foreach (var c in p.Crossings)
         {
             var ra = Trasa.Compute(Tr(p, c.TrackA)); var rb = Trasa.Compute(Tr(p, c.TrackB));

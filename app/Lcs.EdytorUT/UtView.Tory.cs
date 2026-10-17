@@ -47,8 +47,8 @@ public partial class UtView
 
     public void Select(string track, int vertex = -1)
     {
-        if (SelectedTrack == track && SelectedVertex == vertex && SelectedTurnout == null && SelectedCrossing == null && SelectedDevice == null) return;
-        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex; SelectedTurnout = null; SelectedCrossing = null; SelectedDevice = null;
+        if (SelectedTrack == track && SelectedVertex == vertex && SelectedTurnout == null && SelectedCrossing == null && SelectedDevice == null && SelectedObj == null) return;
+        SelectedTrack = track; SelectedVertex = track == null ? -1 : vertex; SelectedTurnout = null; SelectedCrossing = null; SelectedDevice = null; SelectedObj = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
@@ -480,6 +480,7 @@ public partial class UtView
     void DrawTracks(DrawingContext dc, double dpi)
     {
         if (Doc == null) return;
+        if (Shown("tory"))
         foreach (var t in Doc.P.Tracks)
         {
             var src = Dragged(t);
@@ -487,14 +488,14 @@ public partial class UtView
             bool sel = t.Id == SelectedTrack;
             DrawAxis(dc, src, res, pts, sel, dpi);
         }
-        if (Track(SelectedTrack) is UtTrack st) DrawTrackEdit(dc, st, dpi);
+        if (Track(SelectedTrack) is UtTrack st && !PrintMode) DrawTrackEdit(dc, st, dpi);
         if (tool == UtTool.Tor) DrawDraft(dc, dpi);
     }
 
     /// <summary>Krótki opis błędu przy czerwonym kółku (do 60 znaków, pełny w panelu).</summary>
     void ErrLabel(DrawingContext dc, string text, Point at, double dpi)
     {
-        if (string.IsNullOrEmpty(text)) return;
+        if (string.IsNullOrEmpty(text) || PrintMode) return;
         if (text.Length > 60) text = text[..57] + "…";
         var ft = new FormattedText(text, CultureInfo.GetCultureInfo("pl-PL"), FlowDirection.LeftToRight, UiFont, 11, Red, dpi);
         var o = at + new Vector(12, 4);
@@ -522,11 +523,11 @@ public partial class UtView
         if (maxX < -20 || minX > ActualWidth + 20 || maxY < -20 || minY > ActualHeight + 20) return;
         var ink = TrackInk;
         double wpx = AxisPx(t);
-        if (sel) dc.DrawGeometry(null, new Pen(SelGlow, wpx + 7) { LineJoin = PenLineJoin.Round }, Line(pts, 0));
+        if (sel && !PrintMode) dc.DrawGeometry(null, new Pen(SelGlow, wpx + 7) { LineJoin = PenLineJoin.Round }, Line(pts, 0));
         dc.DrawGeometry(null, new Pen(ink, wpx) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, Line(pts, 0));
         // błędy geometrii – czerwone kółko w wierzchołku
         foreach (var (v, text, err) in res.Notes)
-            if (err && v < t.Vertices.Count) { var ep = ToScreen(t.Vertices[v].P); dc.DrawEllipse(null, ErrPen, ep, 9, 9); ErrLabel(dc, text, ep, dpi); }
+            if (err && v < t.Vertices.Count) { var ep = ToScreen(t.Vertices[v].P); dc.DrawEllipse(null, ErrP, ep, 9, 9); ErrLabel(dc, text, ep, dpi); }
         // numer toru: kropka i numer nad osią (jak w ISDR), w środku widocznej części toru
         if (t.Number.Length > 0 && res.Elements.Count > 0)
         {

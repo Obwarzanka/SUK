@@ -108,7 +108,7 @@ public partial class MainWindow
     /// <summary>Del: zaznaczony wierzchołek (gdy zostają co najmniej 2) albo cały tor.</summary>
     public bool DeleteSelection()
     {
-        if (DeleteDevice() || DeleteTurnoutOrCrossing()) return true;
+        if (DeleteObj() || DeleteDevice() || DeleteTurnoutOrCrossing()) return true;
         var id = View.SelectedTrack; var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return false;
         int i = View.SelectedVertex;
         if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }
@@ -171,6 +171,7 @@ public partial class MainWindow
             Text = $"Długość {UtView.Len3(r.Length)} w terenie\n(w układzie {UtView.Len3(r.LenGrid)}, skala odwzorowania {r.K.ToString("0.000000", CultureInfo.InvariantCulture)})",
             TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6),
         });
+        TrackExtras(t, r);
 
         // elementy trasy
         var els = new List<string>();
@@ -248,9 +249,10 @@ public partial class MainWindow
         par.Children.Add(SmallBtn("po prawej →", () => Parallel(id, Num(dist.Text) ?? 4.75), "Nowy tor po prawej stronie (patrząc w kierunku toru)"));
         TrackPanel.Children.Add(par);
 
-        var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        var act = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
         act.Children.Add(SmallBtn("Odwróć kierunek", () => ChTrack(id, "Odwrócenie kierunku toru", x => x.Vertices.Reverse()), "Początek toru na drugim końcu (kilometraż toru od drugiej strony)"));
         act.Children.Add(SmallBtn("Pokaż", () => FitTrack(t), "Cały tor w oknie"));
+        act.Children.Add(SmallBtn("Profil…", () => OpenProfile(), "Profil podłużny toru: niweleta, pochylenia, NMT"));
         if (Trasa.Compute(t).Notes.Any(n => n.Error && n.Text.Contains("nie mieści")))
             act.Children.Add(SmallBtn("Dopasuj promienie", () => FitRadii(id), "Zmniejsz R tylko w łukach, które się nie mieszczą (po 5 %, do pełnych metrów, nie poniżej 140 m); łuki ustawiane przez rozjazd bez zmian"));
         act.Children.Add(SmallBtn("Usuń tor", () => { View.Select(id); DeleteSelection(); }, "Usuń tor (Del)"));

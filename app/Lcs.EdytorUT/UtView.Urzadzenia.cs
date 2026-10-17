@@ -23,7 +23,7 @@ public partial class UtView
 
     public void SelectDevice(string id)
     {
-        SelectedDevice = id; SelectedTurnout = null; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1;
+        SelectedDevice = id; SelectedTurnout = null; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1; SelectedObj = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
@@ -120,14 +120,15 @@ public partial class UtView
         foreach (var d0 in Doc.P.Devices)
         {
             var d = d0;
+            if (!Shown(LayerOf(d0.Kind))) continue;
             if (devDrag is var (did, _, ds) && did == d0.Id) d = new UtDevice { Id = d0.Id, Kind = d0.Kind, Name = d0.Name, Track = d0.Track, S = ds, Dir = d0.Dir, Side = d0.Side, Heads = d0.Heads, Dwarf = d0.Dwarf };
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p);
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
-            if (d.Id == SelectedDevice) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
+            if (d.Id == SelectedDevice && !PrintMode) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
             DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn);
             var notes = Urzadzenia.Check(Doc.P, d0);
-            if (notes.Count > 0) { dc.DrawEllipse(null, ErrPen, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
+            if (notes.Count > 0) { dc.DrawEllipse(null, ErrP, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
         }
         // podgląd wstawiania
         if (tool == UtTool.Urzadzenie && hover is XY h && Doc != null)
@@ -277,6 +278,31 @@ public partial class UtView
             case UtDevice.Ukres:
                 L(0, 0.6, 0, 2.4, thick);                          // W17 – w międzytorzu po stronie urządzenia
                 break;
+            case UtDevice.W4:
+            {
+                // Ig-10 s. 33: tarcza 2 × 3 mm na słupku 2 mm, krzyż w środku (0,35 mm)
+                L(0, 1, 0, 3);
+                dc.DrawRectangle(Brushes.White, pen, new Rect(P(-1, 3), P(1, 6)));
+                var cr = new Pen(ink, Math.Max(1, 0.35 * k));
+                L(0, 3, 0, 6, cr); L(-1, 4.5, 1, 4.5, cr);
+                T(dv.Name, -0.6, 4.5, -1);
+                break;
+            }
+            case UtDevice.W5:
+            {
+                // Ig-10 s. 30: wskaźnik granicy przetaczania – półkole nad poprzeczką 3,5 mm na słupku 2 mm
+                L(0, 1, 0, 3);
+                L(-1.75, 3, 1.75, 3);
+                var arc = new StreamGeometry();
+                using (var g = arc.Open())
+                {
+                    g.BeginFigure(P(-1, 3), false, false);
+                    for (int i = 1; i <= 12; i++) { double a = Math.PI * i / 12; g.LineTo(P(-Math.Cos(a), 3 + Math.Sin(a)), true, true); }
+                }
+                dc.DrawGeometry(null, pen, arc);
+                T(dv.Name, -0.6, 4, -1);
+                break;
+            }
         }
     }
 

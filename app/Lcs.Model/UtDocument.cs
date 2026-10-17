@@ -45,6 +45,8 @@ public class UtDocument
         p.Backgrounds ??= new();
         p.Tracks ??= new();
         p.Turnouts ??= new(); p.Crossings ??= new(); p.Devices ??= new();
+        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new();
+        foreach (var t in p.Tracks) { t.Profile ??= new(); t.Terrain ??= new(); }
         Rozjazdy.Sync(p);
         return new UtDocument(p, System.IO.Path.GetFullPath(path));
     }

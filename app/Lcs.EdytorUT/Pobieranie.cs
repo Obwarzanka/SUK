@@ -49,6 +49,34 @@ public static class Pobieranie
         return await resp.Content.ReadAsByteArrayAsync(ct);
     }
 
+    public const string NmtService = "https://services.gugik.gov.pl/nmt/";
+
+    /// <summary>
+    /// Wysokości terenu [m n.p.m.] z numerycznego modelu terenu GUGiK (lotniczy skaning laserowy, siatka ok. 1 m) dla punktów PUWG 1992,
+    /// usługa GetHByPointList („X Y” – najpierw północ). Paczki po 200 punktów (dłuższy adres – błąd 414), każda do 6 prób; NaN – brak danych.
+    /// Uwaga: NMT to teren, nie główka szyny – na wiaduktach pokazuje dolinę (przeniesione z dawnego GeoPodklad.Nmt).
+    /// </summary>
+    public static async Task<double[]> Nmt(IReadOnlyList<XY> pts, CancellationToken ct, Action<string> progress = null)
+    {
+        var res = new double[pts.Count]; const int B = 200;
+        for (int i0 = 0; i0 < pts.Count; i0 += B)
+        {
+            int n = Math.Min(B, pts.Count - i0);
+            progress?.Invoke($"Wysokości z NMT GUGiK: {i0 + n}/{pts.Count} punktów…");
+            var list = string.Join(",", Enumerable.Range(i0, n).Select(i => FormattableString.Invariant($"{pts[i].X:0.##} {pts[i].Y:0.##}")));
+            var url = NmtService + "?request=GetHByPointList&list=" + Uri.EscapeDataString(list);
+            var txt = System.Text.Encoding.UTF8.GetString(await Retry(() => GetFresh(url, ct), ct)).Trim();
+            var items = txt.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (items.Length != n) throw new InvalidOperationException("Usługa NMT GUGiK zwróciła nieoczekiwaną odpowiedź: " + (txt.Length > 120 ? txt[..120] + "…" : txt));
+            for (int k = 0; k < n; k++)
+            {
+                var f = items[k].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                res[i0 + k] = f.Length >= 3 && double.TryParse(f[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var h) && h > -100 && h < 3000 ? h : double.NaN;
+            }
+        }
+        return res;
+    }
+
     public static async Task<byte[]> Retry(Func<Task<byte[]>> get, CancellationToken ct, int n = 6)
     {
         for (int i = 1; ; i++)

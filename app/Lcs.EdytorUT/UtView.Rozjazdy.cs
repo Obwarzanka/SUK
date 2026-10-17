@@ -33,12 +33,12 @@ public partial class UtView
 
     public void SelectTurnout(string id)
     {
-        SelectedTurnout = id; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null;
+        SelectedTurnout = id; SelectedCrossing = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null; SelectedObj = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
     public void SelectCrossing(string id)
     {
-        SelectedCrossing = id; SelectedTurnout = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null;
+        SelectedCrossing = id; SelectedTurnout = null; SelectedTrack = null; SelectedVertex = -1; SelectedDevice = null; SelectedObj = null;
         InvalidateVisual(); SelectionChanged?.Invoke();
     }
 
@@ -162,7 +162,7 @@ public partial class UtView
 
     void DrawTurnouts(DrawingContext dc, double dpi)
     {
-        if (Doc == null) return;
+        if (Doc == null || !Shown("rozjazdy")) return;
         // przeciąganie: podgląd na kopii projektu (łącznik – oba rozjazdy i tor łączący na nowym miejscu)
         var src = Doc.P; UtTurnout moving = null;
         if (rzDrag is var (did, _, ds) && dragging)
@@ -175,7 +175,7 @@ public partial class UtView
         {
             var t = src.Turnouts.FirstOrDefault(x => x.Id == t0.Id) ?? t0;
             var g = Rozjazdy.Geometry(src, t); if (g == null) continue;
-            DrawTurnout(dc, t, g, t.Id == SelectedTurnout || (SelectedTurnout != null && t.Partner == SelectedTurnout), dpi, Rozjazdy.Check(src, t).Count > 0);
+            DrawTurnout(dc, t, g, !PrintMode && (t.Id == SelectedTurnout || (SelectedTurnout != null && t.Partner == SelectedTurnout)), dpi, !PrintMode && Rozjazdy.Check(src, t).Count > 0);
         }
         if (moving != null && src.Tracks.FirstOrDefault(x => x.Id == moving.Branch) is UtTrack mb)
         {
@@ -184,7 +184,7 @@ public partial class UtView
             double dlt = moving.S - orig.S;
             if (hover is XY hv) Label(dc, $"rozjazd {moving.Number}{(moving.Partner != null ? " (łącznik)" : "")}: km {moving.S:0.00} (Δ {(dlt >= 0 ? "+" : "−")}{Math.Abs(dlt):0.00} m)", ToScreen(hv) + new Vector(12, 10), Red, dpi);
         }
-        foreach (var c in Doc.P.Crossings) DrawCrossing(dc, c, c.Id == SelectedCrossing, dpi);
+        foreach (var c in Doc.P.Crossings) DrawCrossing(dc, c, !PrintMode && c.Id == SelectedCrossing, dpi);
         if (tool == UtTool.Rozjazd) DrawRzPreview(dc, dpi);
     }
 
@@ -192,7 +192,9 @@ public partial class UtView
     /// Piksele na mm arkusza dla znaków Ig-10: wg skali rysunku, ale w stałym przedziale 2,2–3,6 px/mm (klin 8 mm: 18–29 px) –
     /// znaki czytelne przy oddaleniu i nie puchną przy przybliżaniu.
     /// </summary>
-    public double PxPerMm => (Doc?.P.MetresPerSheetMm ?? 0.5) * stretch / mpp;
+    public double PxPerMm => PrintMode && PrintPxPerMm is double pk ? pk : (Doc?.P.MetresPerSheetMm ?? 0.5) * stretch / mpp;
+    /// <summary>Wydruk w widoku Teren: znaki w mm kartki (px/mm wydruku), nie arkusza schematu.</summary>
+    public double? PrintPxPerMm;
 
     /// <summary>Wielkość napisów [px]: tekst 1,8 mm arkusza, ale w granicach 10–15 px (czytelny przy każdym przybliżeniu).</summary>
     public static double FontPx(double k) => Math.Clamp(1.8 * 1.4 * k, 10, 15);
@@ -228,7 +230,7 @@ public partial class UtView
         }
         var n = DrawWedge(dc, pr, dir, pts, endAlong, t.Zas != "-", t.Manual, k, main);
         DrawSwitchStart(dc, pr, dir, n, k, t.Number, dpi);
-        if (err) { var es = ToScreen(g.SR); dc.DrawEllipse(null, ErrPen, es, 10, 10); ErrLabel(dc, $"{t.Number}: " + string.Join("; ", Rozjazdy.Check(Doc.P, t)), es, dpi); }
+        if (err) { var es = ToScreen(g.SR); dc.DrawEllipse(null, ErrP, es, 10, 10); ErrLabel(dc, $"{t.Number}: " + string.Join("; ", Rozjazdy.Check(Doc.P, t)), es, dpi); }
     }
 
     static readonly Pen StartPen = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 1.3), WedgeOutline = FrozenPen(Color.FromRgb(0x10, 0x10, 0x10), 1);

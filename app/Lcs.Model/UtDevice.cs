@@ -84,7 +84,7 @@ public class UtDevice
     public bool Dwarf { get; set; }
 
     public const string Semafor = "semafor", TarczaOstrz = "to", TarczaMan = "tm", Koziol = "koziol", Wykolejnica = "wk",
-        LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres";
+        LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5";
 
     /// <summary>Rodzaje: klucz, nazwa w programie, miejsce w Ig-10, czy ma kierunek działania, przedrostek nazwy.</summary>
     public static readonly (string Key, string Name, string Ig10, bool Directed, string Prefix)[] Kinds =
@@ -97,6 +97,8 @@ public class UtDevice
         (LicznikOsi, "Licznik osi", "zał. 8, s. 51", false, "lo"),
         (Zlacze, "Złącze izolowane", "zał. 8, s. 50", false, ""),
         (Ukres, "Ukres (W17)", "zał. 8, s. 24", false, ""),
+        (W4, "Wskaźnik W4", "zał. 8, s. 33", true, ""),
+        (W5, "Wskaźnik W5", "zał. 8, s. 30", true, ""),
     };
 
     public static (string Key, string Name, string Ig10, bool Directed, string Prefix) KindInfo(string k) => Kinds.FirstOrDefault(x => x.Key == k);

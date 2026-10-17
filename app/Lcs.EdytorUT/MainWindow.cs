@@ -58,6 +58,8 @@ public partial class MainWindow : Window
         InitTory();
         InitRozjazdy();
         InitUrzadzenia();
+        InitWyposazenie();
+        InitKontrola();
         Closing += OnClosing;
 
         UtDocument doc = null;
@@ -99,6 +101,10 @@ public partial class MainWindow : Window
         BgBox.Click += (s, e) => { Doc.P.View.ShowBg = BgBox.IsChecked == true; ApplyMode(false); };
         tb.Items.Add(BgBox);
         tb.Items.Add(gridBox);
+        tb.Items.Add(new Separator());
+        tb.Items.Add(Btn("✔ Sprawdź", (s, e) => RunCheck(true), "Kontrola układu (Ig-10, etap 7): otwarte końce, rozjazdy bez numeru, urządzenia poza torem, nakładające się tory, odcinki, kilometraż, profil (F7)"));
+        tb.Items.Add(Btn("Profil…", (s, e) => OpenProfile(), "Profil podłużny zaznaczonego toru: niweleta, pochylenia, teren z NMT GUGiK, nasyp / przekop"));
+        tb.Items.Add(Btn("Eksport…", (s, e) => OpenExport(), "Wydruk w skali do PNG / PDF (1:500 … 1:5000, schemat Ig-10 1:2000 / 1:500)"));
         // drugi rząd: narzędzia rysowania
         var bg = new SolidColorBrush(Color.FromRgb(0xe6, 0xe6, 0xe2));
         var tray = new ToolBarTray { Background = bg, IsLocked = true };
@@ -118,6 +124,11 @@ public partial class MainWindow : Window
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Urzadzenie, "⊢○ Urządzenie", "Urządzenie na torze (Ig-10): wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, po stronie, po której stoi; kozioł, licznik, złącze, ukres – klik (U)"));
         tb.Items.Add(DevKindBox);
+        tb.Items.Add(ToolBtn(UtTool.Odcinek, "▭ Odcinek", "Odcinek kontroli niezajętości: klik na torze w kawałku między granicami (licznikami osi, złączami izolowanymi) – nazwa odcinka (O)"));
+        tb.Items.Add(ToolBtn(UtTool.Peron, "▤ Peron", "Peron (Ig-10 s. 52): wciśnij na torze w miejscu początku krawędzi i przeciągnij wzdłuż toru do jej końca, po stronie peronu"));
+        tb.Items.Add(ToolBtn(UtTool.Przejazd, "╪ Przejazd", "Przejazd kolejowo-drogowy: klik na torze – droga prostopadle; przeciągnięcie – wzdłuż osi drogi (kąt i długość)"));
+        tb.Items.Add(ToolBtn(UtTool.Km, "km", "Kilometraż linii: wciśnij na torze w znanym miejscu i przeciągnij w stronę rosnącego km linii; numer linii i km z okna"));
+        tb.Items.Add(new Separator());
         tb.Items.Add(Btn("Symbole Ig-10…", (s, e) => OpenSymbols(), "Katalog znaków Ig-10 (zał. 8) z pliku Dane/symbole_ig10.json – podgląd, ponowne wczytanie po poprawkach"));
         tb.Items.Add(new Separator());
         tb.Items.Add(ToolBtn(UtTool.Miarka, "📏 Miarka", "Pomiar długości w terenie: klik – kolejne punkty, Backspace – cofnij punkt, PPM – wyczyść (M)"));
@@ -154,6 +165,10 @@ public partial class MainWindow : Window
                 ? "wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi"
                 : View.DevKind == UtDevice.Koziol ? "kliknij przy końcu toru (przyciąga się do końca)" : "kliknij na torze w miejscu urządzenia"),
             UtTool.LukOdDo => "Łuk od–do: kliknij na torze w miejscu początku łuku (np. gdzie na zdjęciu kończy się prosta), potem w miejscu końca łuku – wierzchołek i promień dobiorą się same; wierzchołki pośrednie znikną; PPM / Esc – od nowa",
+            UtTool.Odcinek => "Odcinek: kliknij na torze – nazwa odcinka kontroli niezajętości dla całego kawałka między granicami (liczniki osi, złącza izolowane, końce torów); kolor = odcinek, czerwone kreski – kawałek bez odcinka",
+            UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
+            UtTool.Przejazd => "Przejazd: kliknij na torze w osi drogi (droga prostopadle) albo przeciągnij wzdłuż osi drogi – kąt i długość drogi na planie",
+            UtTool.Km => "Kilometraż: wciśnij na torze w miejscu o znanym km linii i przeciągnij w stronę rosnącego km; w oknie numer linii i km (np. 17 25.452). Drugi punkt na tym samym torze – kilometr skrócony / wydłużony",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
@@ -172,6 +187,8 @@ public partial class MainWindow : Window
     {
         var root = new StackPanel { Margin = new Thickness(10) };
         root.Children.Add(TrackPanel);
+        root.Children.Add(CheckExpander);
+        root.Children.Add(LayerExpander);
         var sp = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
         root.Children.Add(new Expander { Header = Header("Obszar"), Content = sp, IsExpanded = false, Margin = new Thickness(0, 0, 0, 6) });
         sp.Children.Add(Label("Nazwa"));
@@ -261,10 +278,12 @@ public partial class MainWindow : Window
     void SetDoc(UtDocument d)
     {
         if (Doc != null) Doc.Changed -= Refresh;
+        if (profWin != null && !profWin.WasClosed) profWin.Close();
         Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null; View.Select(null);
         d.Changed += Refresh;
         var v = d.P.View;
         appliedAxis = double.NaN;
+        ApplyLayers();
         ApplyMode(true);
         View.SetView(new XY(v.X, v.Y), v.Mpp);
         Refresh();
@@ -381,7 +400,17 @@ public partial class MainWindow : Window
     {
         if (p is not XY w) { stCursor.Text = ""; return; }
         var (lat, lon) = Geo.ToWgs84(w);
-        stCursor.Text = $"X = {Geo.M(w.X)} m   Y = {Geo.M(w.Y)} m   ({lat.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)}, {lon.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)})";
+        var txt = $"X = {Geo.M(w.X)} m   Y = {Geo.M(w.Y)} m   ({lat.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)}, {lon.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)})";
+        // na torze: Z niwelety i km linii
+        if (View.NearTrack(w) is var (tr, s) && Doc.P.Tracks.FirstOrDefault(x => x.Id == tr) is UtTrack t)
+        {
+            double z = Profil.Z(t.Profile, s);
+            if (!double.IsNaN(z)) txt += $"   Z = {z.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} m";
+            var km = Kilometraz.Text(Doc.P, tr, s);
+            txt += $"   tor {(t.Number.Length > 0 ? t.Number : "?")} {s.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} m" + (km.Length > 0 ? "   " + km : "");
+        }
+        else if (Doc.P.KmPoints.Count > 0 && Kilometraz.At(Doc.P, w) is { Count: > 0 } a) txt += $"   km {Kilometraz.Fmt(a[0].Km)} (rzut)";
+        stCursor.Text = txt;
     }
 
     void ShowView()
@@ -420,6 +449,8 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.P) { SetTool(UtTool.Rownolegly); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.U) { SetTool(UtTool.Urzadzenie); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.K) { SetTool(UtTool.LukOdDo); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.O) { SetTool(UtTool.Odcinek); e.Handled = true; }
+        else if (!inText && e.Key == Key.F7) { RunCheck(true); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && View.NudgeKey(e.Key, shift)) e.Handled = true;
         else if (!inText && !ctrl && e.Key == Key.V) { SetTool(UtTool.Wskaz); e.Handled = true; }

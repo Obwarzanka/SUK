@@ -30,6 +30,14 @@ public class UtProject
     public List<UtCrossing> Crossings { get; set; } = new();
     /// <summary>Urządzenia przytorowe (semafory, tarcze, kozły, wykolejnice, liczniki osi, złącza, ukresy).</summary>
     public List<UtDevice> Devices { get; set; } = new();
+    /// <summary>Odcinki kontroli niezajętości: nazwa w miejscu na torze, zasięg z granic (<see cref="Odcinki"/>).</summary>
+    public List<UtSection> Sections { get; set; } = new();
+    /// <summary>Perony.</summary>
+    public List<UtPlatform> Platforms { get; set; } = new();
+    /// <summary>Przejazdy kolejowo-drogowe i przejścia w poziomie szyn.</summary>
+    public List<UtLevelCrossing> LevelCrossings { get; set; } = new();
+    /// <summary>Punkty kilometrażu linii kolejowych na torach.</summary>
+    public List<UtKmPoint> KmPoints { get; set; } = new();
     /// <summary>
     /// Oś schematu: azymut [°] kierunku, który w widoku Schemat biegnie w prawo (układ „do poziomu”); null – kierunek najdłuższego toru.
     /// Tylko widok – geometria się nie zmienia.
@@ -78,4 +86,6 @@ public class UtViewState
     public double Stretch { get; set; } = 4;
     /// <summary>Podkłady widoczne w widoku Schemat.</summary>
     public bool ShowBg { get; set; }
+    /// <summary>Warstwy ukryte (klucze <c>Warstwy</c> w edytorze).</summary>
+    public List<string> Hidden { get; set; }
 }
