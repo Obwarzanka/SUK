@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-17):** etapy 0–7 zrobione (szczegóły w `ROZWOJ.md`, etap 1): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Następny: odpowiedzi właściciela na pytania 11–15, potem etap 8 – edytor zobrazowania.
+**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Następny: odpowiedzi właściciela na pytania 11–15, potem etap 8 – edytor zobrazowania.
 
 ---
 
@@ -53,7 +53,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 | 8 | Edytor zobrazowania jako osobna aplikacja (osobny plan, po zakończeniu UT). | – |
 | 9 | Przekazywanie danych z UT do symulatora: z UT powstaje topologia (tory, zwrotnice, odcinki, sygnalizatory, długości, pochylenia, prędkości) dla komputera zależności, kart urządzeń i ruchu pociągów; przebiegi i zależności projektuje człowiek (tablica zależności). | do ustalenia z właścicielem |
 
-Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, wg `lcs-testuj-jak-uzytkownik`), zrzut i wpis w `ROZWOJ.md`.
+Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, wg `lcs-testuj-jak-uzytkownik`), zrzut, szczegółowy wpis w `HISTORIA_EDYTOR_UT.md` i skrót w `ROZWOJ.md`.
 
 ## 4. Co przenosimy ze starego kodu, a czego nie
 
@@ -98,6 +98,7 @@ Właściciel: „łączenie torów trzeba ogarnąć i to, jak łuki powstają”
 2. **Łączenie:** zakończenie na końcu innego toru (przyciąganie) łączy stycznie – jednym łukiem, gdy styczne się przecinają (R z pola albo największy, jaki się mieści), inaczej łukami odwrotnymi (esowanie, zmiana rozstawu). Tory scalają się w jeden, jeśli drugi nie jest związany z rozjazdem ani skrzyżowaniem. Start na końcu toru A i klik na końcu toru B łączy dwa istniejące tory.
 3. **Edycja łuku myszą:** zaznaczony tor ma uchwyt w środku każdego łuku. Przeciągnięcie zmienia R (środek łuku idzie za kursorem po dwusiecznej), a R widać na żywo. Wierzchołek dalej przeciąga się jak dotąd.
 4. Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje.
+5. **Łuk z punktów (J)** (2026-10-17, właściciel: „kilka punktów, żeby zrobić precyzyjniejszy łuk”): klik łuku toru, potem dowolnie wiele punktów na osi łuku ze zdjęcia; R (i L) metodą najmniejszych kwadratów, styczny do prostych toru (`Budowa.FitArc`).
 
 ## 5d. Etap 5, część 1 – urządzenia na torze (2026-10-16)
 

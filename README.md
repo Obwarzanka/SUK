@@ -1,10 +1,11 @@
-# Symulator LCS Łódź Widzew
+# SUK – Symulator urządzeń komputerowych
 
-Szkoleniowy symulator komputerowego pulpitu nastawczego **LCS Łódź Widzew** obejmującego Łódź Widzew (ŁW), Łódź Fabryczną (ŁF) i Łódź Niciarnianą (ŁN). Program działa na Windows, w C#/WPF na .NET 8.
+Szkoleniowy symulator komputerowych urządzeń srk w Lokalnych Centrach Sterowania (LCS): pulpitu nastawczego i komputera zależności. Symulator jest ogólny – stacje, posterunki i obrazy pochodzą z wczytanego układu, a nie z kodu. Pierwszym obszarem jest **LCS Łódź Widzew**: Łódź Widzew (ŁW), Łódź Fabryczna (ŁF) i Łódź Niciarniana (ŁN). Program działa na Windows, w C#/WPF na .NET 8.
 
 - Obsługa wg **Ie-20**: polecenia, przebiegi, blokady liniowe, postępowanie przy usterkach.
 - Zobrazowanie wg **Ie-104**, wzorowane na pulpitach LCS (EbiScreen / SimRail).
-- Osobny program **edytor układu torowego** (`EdytorUT.exe`) do rysowania układu w rzeczywistej geometrii (PUWG 1992). Jest w budowie, plan: `PLAN_EDYTOR_UT.md`.
+- Osobny program **edytor układu torowego** (`EdytorUT.exe`) do rysowania układu w rzeczywistej geometrii (PUWG 1992). Etapy 0–7 są gotowe, dane z niego nie trafiają jeszcze do symulatora. Plan: `PLAN_EDYTOR_UT.md`.
+- Osobny **kalkulator przechyłki** (`Przechylka.exe`).
 - **Rzeczywisty rozkład jazdy** z GTFS (IC, Polregio, ŁKA) z obiegiem jednostek ŁKA.
 
 > Symulator jest narzędziem szkoleniowym. Nie zastępuje regulaminu technicznego ani stanowiskowej instrukcji obsługi.
@@ -82,7 +83,7 @@ Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całeg
 
 ## Kalkulator przechyłki
 
-Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje najmniejszą przechyłkę, przy której niedobór nie przekracza dopuszczalnego.
+Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje przechyłkę.
 
 Prześwit toru jest w polu i wynosi domyślnie 1435 mm. Przechyłka działa na rozstawie osi główek szyn s = prześwit + szerokość główki (1435 + 65 = 1500 mm), z którego bierze się znany współczynnik 11,8. Bez h program proponuje przechyłkę równoważącą (co 5 mm, najwyżej h_max) i podaje najmniejszą dopuszczalną.
 
@@ -101,7 +102,7 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Płótno:** kółko myszy przybliża wokół kursora (od 2 mm do 2 km na piksel), przeciąganie lewym albo środkowym przyciskiem przesuwa widok. Do tego siatka o kroku 1 / 2 / 5 · 10ᵏ m, linijki ze współrzędnymi, podziałka i strzałka północy.
 - **Punkt:** w polu wpisz współrzędne z Google Maps (np. `51.7631, 19.5438`) albo `X Y` w PUWG 1992, potem Enter albo „Idź do”.
 - **Pasek stanu:** X, Y i szerokość / długość geograficzna pod kursorem, rozdzielczość (1 px = … m), przybliżona skala na ekranie.
-- **Panel obszaru:** nazwa, skala rysunku 1:500 / 1:1000 / 1:2000 (wielkość symboli Ig-10, nie zmienia geometrii), uwagi.
+- **Panel obszaru:** nazwa, skala arkusza wg Ig-10 § 3 – „1:2000 wzdłuż, 1:500 w poprzek” albo 1:4000 / 1:1000 (wielkość znaków i wydruk, nie zmienia geometrii), uwagi.
 - **Plik:** Nowy, Otwórz, Zapisz, Zapisz jako (`*.ut.json`, domyślnie w katalogu `projekty_ut`). Poprzednia wersja zostaje jako `.bak`, zapamiętywany jest też ostatni widok. Cofnij / Ponów: Ctrl+Z, Ctrl+Y.
 
 - **Podgląd na żywo** (panel „Podkłady”): ortofotomapa Geoportalu dla bieżącego widoku albo zapasowo zdjęcia Esri / mapa OSM. Nie zapisuje się w projekcie.
@@ -120,6 +121,7 @@ Stan (etapy 1–7, bez edytora zobrazowania):
   - Backspace cofa ostatni odcinek, Enter / PPM / dwuklik kończy, Esc rezygnuje, Ctrl wyłącza przyciąganie.
 - **Równoległy (P):** tor równoległy odrysowany z podkładu. Kliknij tor wzorcowy, potem na zdjęciu oś nowego toru w miejscu jego początku. Odstęp liczy się z kliknięcia co 1 cm, z Shift co 0,25 m. Na koniec kliknij miejsce końca albo naciśnij Enter, wtedy tor biegnie do końca toru wzorcowego. Łuki stają się współśrodkowe.
 - **Łuk od–do (K):** kliknij na torze w miejscu, gdzie zaczyna się łuk (np. na zdjęciu kończy się prosta), a potem tam, gdzie się kończy. Program wstawi łuk o pasującym promieniu, a wierzchołki pośrednie, np. z odrysowania łuku kilkoma kliknięciami, usunie. Przed drugim kliknięciem widać podgląd z R.
+- **Łuk z punktów (J):** dokładniejszy łuk ze zdjęcia. Kliknij łuk toru (albo przy załamaniu), potem kilka punktów na osi prawdziwego łuku na zdjęciu, najlepiej od początku do końca łuku. Program dobiera promień tak, żeby łuk przechodził jak najbliżej wszystkich punktów, a proste toru zostają na miejscu. Przy każdym punkcie widać odchyłkę w cm. Tab włącza dopasowanie także krzywych przejściowych L. Backspace usuwa ostatni punkt, Enter albo PPM zatwierdza, Esc zaczyna od nowa.
 - **Uchwyt łuku:** zaznaczony tor ma kółko w środku każdego łuku. Przeciągnięcie zmienia promień, a R widać na żywo. Przeciągnięcie do wierzchołka usuwa łuk (R 0). Załamanie bez łuku ma kreskowane kółko po wewnętrznej stronie kąta: odciągnięcie go tworzy łuk.
 - **R 0 na pasku:** w trybie Łuk łuk przechodzi przez punkt pod kursorem, a promień wynika z miejsca kliknięcia. Z Alt powstaje załamanie bez łuku.
 - **Edycja:** klik zaznacza tor i otwiera panel z numerem, kategorią, elektryfikacją, Vmax, długością w terenie, listą elementów oraz R i L każdego wierzchołka. Wierzchołki przeciąga się myszą. Dwuklik na boku dodaje wierzchołek, Del usuwa wierzchołek albo tor. W panelu jest też „Tor równoległy” (międzytorze, strona) i „Odwróć kierunek”. Błędy geometrii, np. łuk nie mieści się między wierzchołkami, widać jako czerwone kółko i opis w panelu.
@@ -143,7 +145,37 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Warstwy** (panel): widoczność warstw wg nazw z Ig-10 zał. 8 – układ torowy, rozjazdy, sygnalizator, wskaźniki, wykolejnica, licznik osi, złącze izolowane, odcinki, peron, drogi, kilometraż, opis, podkłady. Dotyczy ekranu i wydruku, zapisuje się z widokiem.
 - **Eksport… (wydruk w skali):** Schemat Ig-10 (wzdłuż 1:2000, w poprzek 1:500) albo Teren (1:500 … 1:5000), cały projekt albo bieżący widok, kartka dopasowana do planu albo A4–A0 (plan dzielony na kilka kartek), 150 / 200 / 300 dpi, zapis do PDF albo PNG. Na dole kartki jest opis i podziałka 100 mm. Drukuj w „rzeczywistym rozmiarze”, bez dopasowania do strony – wtedy 1 mm na kartce odpowiada skali. Podkłady (ortofotomapa) nie są drukowane.
 
-Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/rozjazdy.json`. Następne etapy: urządzenia (semafory, tarcze, kozły…) ze znakami z bazy Ig-10, wysokości z NMT.
+Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/rozjazdy.json`. Następny etap: edytor zobrazowania (osobny program), potem przekazanie danych z UT do symulatora.
+
+### Skróty klawiszy edytora UT
+
+| Klawisz | Działanie |
+|---|---|
+| V | Wskaż (zaznaczanie, przeciąganie, menu PPM) |
+| T | Tor; w nim Tab przełącza Prosta / Łuk |
+| R | Rozjazd (typ z listy na pasku) |
+| U | Urządzenie (rodzaj z listy na pasku) |
+| P | Równoległy |
+| K | Łuk od–do |
+| J | Łuk z punktów; w nim Tab – także krzywe przejściowe L, Enter – zastosuj |
+| O | Odcinek |
+| M | Miarka |
+| S | widok Schemat / Teren |
+| F7 | Sprawdź |
+| Del | usuń zaznaczone (wierzchołek, tor, rozjazd, urządzenie…) |
+| strzałki (z Shift – więcej) | przesuń zaznaczony rozjazd, urządzenie, tor albo wierzchołek |
+| Enter | zatwierdź długość z klawiatury / zakończ tor |
+| Backspace | cofnij ostatni odcinek toru albo punkt miarki |
+| Esc | rezygnacja, powrót do Wskaż |
+| Alt (w narzędziu Tor) | wolny kierunek – załamanie z łukiem w wierzchołku |
+| Shift (w narzędziu Tor) | łuk kończy się równolegle do osi schematu |
+| Ctrl (w narzędziu Tor) | bez przyciągania |
+| Ctrl + przeciągnięcie | przesunięcie zaznaczonego toru razem z rozjazdami |
+| Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S | nowy / otwórz / zapisz / zapisz jako |
+| Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) | cofnij / ponów |
+
+Peron, Przejazd i km nie mają klawisza – wybiera się je przyciskiem na pasku.
+
 
 ## Wersje układu
 
@@ -198,14 +230,22 @@ Planowane dalsze kroki: teren za sterownikami obiektowymi, stanowisko instruktor
 
 ```
 symulator/
-├── README.md, ROZWOJ.md, PLAN_EDYTOR_UT.md, uruchom.bat, uruchom_edytor_ut.bat
+├── README.md                  ← obsługa programów (ten plik)
+├── ROZWOJ.md                  ← stan, ustalenia z właścicielem, etapy (dla programistów i agentów AI)
+├── PLAN_EDYTOR_UT.md          ← plan, decyzje i pytania – edytor UT
+├── HISTORIA_EDYTOR_UT.md      ← szczegółowa historia prac nad edytorem UT
+├── PODZIAL_MODULOW.md         ← podział symulatora na moduły
+├── CLAUDE.md, AGENTS.md       ← instrukcje dla agentów AI
+├── uruchom.bat, uruchom_edytor_ut.bat, uruchom_przechylka.bat
+├── archiwum/                  ← stare materiały (PLAN.md v0.5, prototypy)
 ├── projekty_ut/               ← projekty układu torowego (*.ut.json)
 ├── Zrodla/                    ← Ie-20, Ie-104, materiały PKP PLK
-├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py)
+├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), pdfr (strony PDF do PNG)
 ├── zrzuty/                    ← zrzuty ekranu
 ├── app/Lcs.slnx               ← rozwiązanie: symulator, model UT, edytor UT
-├── app/Lcs.Model/             ← model układu torowego (UtProject, UtDocument, PUWG 1992) – bez okien
-├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe)
+├── app/Lcs.Model/             ← model układu torowego (tory, rozjazdy, urządzenia, odcinki, kontrola, PUWG 1992) – bez okien
+├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe), katalog rozjazdów i baza symboli w Dane/
+├── app/Lcs.Przechylka/        ← kalkulator przechyłki (Przechylka.exe)
 └── app/LcsWidzew/             ← symulator C# / WPF (.NET 8)
     ├── Data/station.json      ← układ obszaru LCS
     ├── Data/kopie/            ← automatyczne kopie zapasowe układu
@@ -233,6 +273,8 @@ Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 |---|---|
 | `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna i mysz płótna (PUWG 1992, panel, cofanie, widok, zapis; podkłady, kalibracja, miarka – potrzebny internet; geometria i budowa torów); ostatnia linia `błędów: 0`; okno poza ekranem; dodatkowo zrzuty `_mapka.png`, `_szyny.png`, `_symbole.png`, `_schemat_blisko.png` |
 | `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
+
+Kalkulator przechyłki (z `app/Lcs.Przechylka/bin/Release/net8.0-windows/`): `Przechylka.exe --test wynik.txt [zrzut.png]`.
 
 
 ## Stacja testowa
