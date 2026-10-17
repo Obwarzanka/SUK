@@ -71,10 +71,10 @@ public class BlockState
     public bool Busy => ReleaseUntil != null || AzkUntil != null;
 }
 
+/// <summary>Zasilanie wg statusu karty <see cref="Zasilanie"/> (kopia w komputerze zależności).</summary>
 public class PowerState
 {
-    public bool Mains = true, Ups = true, Gen, GenAuto = true, GenFail, NN = true;
-    public double? OutageAt;
+    public bool Mains = true, Ups = true, Gen, NN = true;
 }
 
 public class RouteDef

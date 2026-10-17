@@ -38,7 +38,8 @@ public partial class Urzadzenia
     {
         var res = new KomputerowniaStan { Stacja = S.L.Name, Zegar = S.Clock(), T = S.T };
         foreach (var (k, v) in S.L.Posts) res.Posterunki[k] = v;
-        foreach (var f in Instruktor.Faults.Where(f => f.Target is "sec" or "sw" or "sig")) res.Usterki.Add(new UsterkaDef { Key = f.Key, Name = f.Name, Kind = f.Target switch { "sec" => "odcinek", "sw" => "zwrotnica", _ => "sygnalizator" } });
+        foreach (var f in Instruktor.Faults.Where(f => f.Target is "sec" or "sw" or "sig" || f.Key.StartsWith("mains"))) res.Usterki.Add(new UsterkaDef { Key = f.Key, Name = f.Name, Kind = f.Target switch { "sec" => "odcinek", "sw" => "zwrotnica", "sig" => "sygnalizator", _ => "zasilanie" } });
+        res.Karty.Add(Wiersz(Zasilanie));
         foreach (var k in Odcinki.Values) res.Karty.Add(Wiersz(k));
         foreach (var k in Zwrotnice.Values) res.Karty.Add(Wiersz(k));
         foreach (var k in Wykolejnice.Values) res.Karty.Add(Wiersz(k));
@@ -86,6 +87,18 @@ public partial class Urzadzenia
         w.Status = k.Cel is bool c ? $"przekładanie → {(c ? "założona" : "zdjęta")}, {Math.Max(0, k.Until - S.T):0.0} s" : k.Zalozona ? "założona" : "zdjęta";
         w.Teren = k.Zalozona ? "na szynie" : "zdjęta z szyny";
         w.Nietypowa = k.Cel != null;
+        return w;
+    }
+
+    KartaWiersz Wiersz(Zasilanie k)
+    {
+        var w = Nowy("zasilanie", Zasilanie.Id, "sieć, UPS, agregat, NN"); w.Obiekt = "LCS";
+        w.Rozkaz = k.OstRozkaz; w.RozkazT = k.OstRozkazT;
+        w.Status = (k.Siec ? "sieć" : "BRAK SIECI – " + (k.Agregat ? "agregat" : "UPS")) + (k.NN ? ", NN załączone" : ", NN ODŁĄCZONE");
+        w.Teren = $"sieć {(k.Siec ? "jest" : "brak")}, UPS {(k.Ups ? "sprawny" : "niesprawny")}, agregat {(k.Agregat ? "pracuje" : k.AgregatUszkodzony ? "nie rusza samoczynnie" : k.ZanikOd is double o ? $"rozruch za {Math.Max(0, Zasilanie.CzasRozruchu - (S.T - o)):0} s" : "w gotowości")}, napięcie nastawcze {(k.NN ? "załączone" : "odłączone")}";
+        if (!k.Siec) w.Usterki.Add(k.AgregatUszkodzony ? "mainsGenFail" : "mains");
+        w.UsterkiOpis = k.Siec ? "" : k.AgregatUszkodzony ? "zanik sieci, agregat nie startuje" : "zanik sieci";
+        w.Nietypowa = !k.Siec || !k.NN;
         return w;
     }
 

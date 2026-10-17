@@ -75,8 +75,7 @@ public class Instruktor
                 break;
             case "mains":
             case "mainsGenFail":
-                if (!clear) { S.Power.Mains = false; S.Power.OutageAt = S.T; S.Power.GenFail = type == "mainsGenFail"; S.Alarm(type == "mains" ? "Zanik zasilania sieciowego – praca z UPS (Ie-20 §23)" : "Zanik zasilania – agregat nie uruchomił się (AGR / automatyk, §23 ust. 2)", "Zasilanie", "SIEĆ", stillActive: () => !S.Power.Mains); }
-                else { S.Power.Mains = true; S.Power.Gen = false; S.Power.OutageAt = null; S.Power.GenFail = false; S.Log("Zdarzenie", "Przywrócono zasilanie sieciowe", "Zasilanie", "SIEĆ"); }
+                S.Urzadzenia.Zasilanie.Usterka(type, clear); target = null;
                 break;
             case "nbrSilent": S.Blocks[target].NbrSilent = !clear; break;
         }

@@ -425,12 +425,12 @@ public partial class Simulator
                 if (b == null) return new(false, $"Nieznana blokada liniowa „{a0}” (np. 2A, 1F, 2T)");
                 return BlockCmd(code, b, EndFor(L.Blocks[b], args));
             }
-            case "ONN": Power.NN = false; return new(true, "napięcie nastawcze odłączone");
-            case "NN": Power.NN = true; return new(true, "napięcie nastawcze załączone");
+            case "ONN": Urzadzenia.NapiecieNastawcze(false); return new(true, "napięcie nastawcze odłączone");
+            case "NN": Urzadzenia.NapiecieNastawcze(true); return new(true, "napięcie nastawcze załączone");
             case "AGR":
                 if (Power.Mains) return new(false, "Zasilanie sieciowe obecne");
                 if (Power.Gen) return new(false, "Agregat pracuje");
-                Power.Gen = true; Power.GenFail = false; return new(true, "agregat uruchomiony");
+                Urzadzenia.UruchomAgregat(); return new(true, "agregat uruchomiony");
             // ----- specjalne (po potwierdzeniu)
             case "SZ":
             {

@@ -324,17 +324,25 @@ public partial class Simulator
     {
         T += dt;
         if (Pending != null && T > Pending.Until) { Log("Odrzucone", "Upłynął czas potwierdzenia polecenia " + Pending.Line, "Polecenie"); Pending = null; PendingExpired?.Invoke(); }
-        UpdatePower(); Urzadzenia.Tick(); UpdateBlocks();
+        Urzadzenia.Tick(); UpdateBlocks();
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
         UpdateSignals(); UpdateRoutes(); SignalCodes();
         Rej.UpdateAlarms();
     }
 
-    void UpdatePower()
+    /// <summary>
+    /// Status zasilania (karta <see cref="Zasilanie"/>): sieć, UPS, agregat, napięcie nastawcze. KZ trzyma kopię w <see cref="Power"/>,
+    /// przy zaniku sieci – alarm (Ie-20 § 23), przy powrocie – zdarzenie.
+    /// </summary>
+    public void StatusZasilania(bool siec, bool ups, bool agregat, bool nn, bool agregatNieRuszyl)
     {
+        Urzadzenia.LogStatus("zasilanie", Zasilanie.Id, (siec ? "sieć" : "BRAK SIECI") + (ups ? ", UPS" : ", UPS niesprawny") + (agregat ? ", agregat pracuje" : agregatNieRuszyl ? ", agregat nie ruszył" : "") + (nn ? ", NN załączone" : ", NN odłączone"));
         var p = Power;
-        if (!p.Mains && !p.Gen && p.GenAuto && !p.GenFail && p.OutageAt is double o && T - o > 15) { p.Gen = true; Log("Zdarzenie", "Agregat prądotwórczy uruchomiony samoczynnie", "Zasilanie", "AGR"); }
+        if (p.Mains && !siec)
+            Alarm(agregatNieRuszyl ? "Zanik zasilania – agregat nie uruchomił się (AGR / automatyk, §23 ust. 2)" : "Zanik zasilania sieciowego – praca z UPS (Ie-20 §23)", "Zasilanie", "SIEĆ", stillActive: () => !Power.Mains);
+        else if (!p.Mains && siec) Log("Zdarzenie", "Przywrócono zasilanie sieciowe", "Zasilanie", "SIEĆ");
+        p.Mains = siec; p.Ups = ups; p.Gen = agregat; p.NN = nn;
     }
 
     /// <summary>

@@ -298,6 +298,8 @@ Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Rele
 - **teren** – stan rzeczywisty przy torze (iglice, osie pojazdu, wykolejnica na szynie);
 - **usterki** – po wybraniu karty w panelu po prawej można je wprowadzać i usuwać (jak instruktor).
 
+Karta **zasilania** (rodzaj „zasilanie”): sieć, UPS, agregat i napięcie nastawcze. Pokazuje ostatni rozkaz (NN, oNN, AGR), status do KZ i teren, np. „agregat – rozruch za 12 s” po zaniku sieci. Usterki: zanik sieci (agregat rusza sam po 15 s) oraz zanik sieci z agregatem, który nie startuje (trzeba podać AGR). Przy odłączonym napięciu nastawczym napędy zwrotnic stoją.
+
 Karty sygnalizatorów pokazują sygnał zlecony przez KZ i wyświetlany w terenie wg Ie-1 (S1…S13a, Sz, Ms1, Ms2) i zapalone światła. Sygnał wynika z prędkości przebiegu (zwrotnice na bok) i sygnału następnego semafora (Ie-1 zał. 1) – np. wjazdowy przy wyjazdowym na „Stój” pokazuje S13, po otwarciu wyjazdowego sam zmienia się na S12; na SBL czterostawnej S3 oznacza dwa wolne odstępy. Wiersze żółte – stan nietypowy (rozkaz w toku, usterka), czerwone – brak kontroli, sygnał niezapalony, brak łączności. Filtry: rodzaj karty, posterunek (odstępowe – szlak), obiekt, „tylko stany nietypowe”.
 
 Zakładka **„Komputer zależności”**: na górze **kontrola zależności na żywo** – zielone „brak naruszeń” albo czerwona lista naruszeń (np. sygnał zezwalający przy zwrotnicy bez kontroli, odcinek w dwóch przebiegach, sygnał niezgodny z Ie-1) i żółte uwagi (np. przebieg czeka na kontrolę zwrotnicy w ochronie bocznej); niżej przebiegi w KZ (stan, sygnał, prędkość, zwrotnice, odcinki, ochrona boczna), utwierdzenia, dziennik **komunikacji KZ ↔ karty** (rozkazy i zmiany statusów) i **polecenia z pulpitu** z odpowiedzią KZ. **Sprawdź przebieg** – wpisz fragment nazwy (np. `P102 1A`): zwrotnice, odcinki, ochrona boczna, prędkość, sygnał i dlaczego można albo nie można go nastawić.
@@ -324,7 +326,7 @@ Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 
 Kalkulator przechyłki (z `app/Lcs.Przechylka/bin/Release/net8.0-windows/`): `Przechylka.exe --test wynik.txt [zrzut.png]`.
 
-Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --station Testy/station_test.json --screenshot s.png 40 "#serwis=47131" "#fault=swNoCtrl:LW:57" "@35" "#hold=30"` (w tle), potem `Komputerownia.exe --test wynik.txt [zrzut.png] 127.0.0.1:47131` – ostatnia linia `błędów: 0`.
+Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --station Testy/station_test.json --screenshot s.png 40 "#serwis=47131" "#fault=swNoCtrl:LW:57" "#page=2" "E S1 Pociąg" "@35" "#hold=30"` (w tle), potem `Komputerownia.exe --test wynik.txt [zrzut.png] 127.0.0.1:47131` – ostatnia linia `błędów: 0`.
 
 
 ## Stacja testowa

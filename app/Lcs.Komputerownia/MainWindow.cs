@@ -75,7 +75,7 @@ public class MainWindow : Window
     static readonly (string Key, string Name)[] RodzajeKart =
     {
         ("", "wszystkie"), ("odcinek", "odcinki (liczniki osi, obwody torowe)"), ("zwrotnica", "zwrotnice"), ("wykolejnica", "wykolejnice"),
-        ("sygnalizator", "sygnalizatory (sygnały wg Ie-1)"),
+        ("sygnalizator", "sygnalizatory (sygnały wg Ie-1)"), ("zasilanie", "zasilanie (sieć, UPS, agregat, NN)"),
     };
 
     public MainWindow()

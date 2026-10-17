@@ -60,7 +60,7 @@ public class KartaZwrotnicy
             }
         }
         if (Ruch == null) return;
-        if (!S.Power.NN && !Zamarznieta) return;      // bez napięcia nastawczego napęd stoi
+        if (!S.Urzadzenia.Zasilanie.NN && !Zamarznieta) return;      // bez napięcia nastawczego napęd stoi (teren, nie kopia KZ)
         if (Zamarznieta)
         {
             // zamarznięta zwrotnica wraca tylko do położenia wyjściowego (Ie-20 §24 ust. 6)

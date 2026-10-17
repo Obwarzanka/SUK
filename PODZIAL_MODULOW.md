@@ -284,3 +284,21 @@ czy KZ dobrze działa.
 - Selftest: kontrola co 2 s całego scenariusza z pociągami – **`KONTROLA KZ NA ŻYWO: 450 kontroli …, naruszeń: 0`**; test, że kontrola
   wykrywa celowo zepsuty stan (sygnał bez przebiegu, „zgubione” położenie zwrotnicy) – **`2 z 2`**. Komputerownia `--test`: błędów 0
   (2 przebiegi, 303 warunki bez naruszeń, 180 wpisów komunikacji, polecenia, sprawdzenie przebiegu), zrzut `zrzuty/Komputerownia_kz.png`.
+
+## 13. Krok 7 – zasilanie jako urządzenie (zrobione 2026-10-17)
+
+- **`Sim/Urzadzenia/Zasilanie.cs`** – teren w szafie zasilającej: sieć, UPS, agregat (samoczynny rozruch po 15 s od zaniku sieci,
+  usterka „agregat nie startuje”), napięcie nastawcze. Status do KZ co cykl (`Simulator.StatusZasilania` → `Simulator.Power` jako kopia
+  statusu): zanik sieci – alarm (Ie-20 § 23), powrót – zdarzenie. Rozkazy KZ: NN / ONN (`Urzadzenia.NapiecieNastawcze`), AGR
+  (`Urzadzenia.UruchomAgregat`) – wykonywane od razu (przełączenie w szafie, nie sterownik w pętli), wpis w dzienniku KZ ↔ karty.
+- **Karta zwrotnicy** czyta napięcie nastawcze z terenu (`Urzadzenia.Zasilanie.NN`), nie z kopii KZ. Warunki zależności (przebieg,
+  Plus / Minus przy NN0) – dalej z kopii KZ.
+- Usterki `mains` / `mainsGenFail` idą do karty zasilania (`Zasilanie.Usterka`); w Komputerowni – karta „zasilanie” (rodzaj w filtrze),
+  stan sieci / UPS / agregatu / NN i przyciski usterek.
+- Zachowanie bez zmian: selftest 25 z 26 / 4 z 4, dziennik selftestu i scenariusze usterki / zima / manewry / ic_05 identyczne jak
+  przed zmianą. Nowa linia **`ZASILANIE: kontrola 8 z 8`**: NN0 w czasie przekładania – napęd stoi, polecenie przestawienia odrzucone,
+  NN – napęd kończy przekładanie; zanik sieci – alarm i UPS, agregat samoczynnie, powrót sieci; agregat uszkodzony – alarm, AGR.
+- Komputerownia `--test`: błędów 0 (karta zasilania, usterka „agregat nie startuje” z programu i jej usunięcie). Procedura testu wymaga
+  nastawionego przebiegu w symulatorze (`"#page=2" "E S1 Pociąg"`) – bez niego zakładka KZ nie ma przebiegów ani poleceń (2 błędy).
+- Bez modelu rozładowania UPS i zużycia paliwa agregatu – do ustalenia z właścicielem, czy potrzebne (np. bez agregatu po czasie UPS:
+  wszystko bez danych, sygnały ciemne – `Zrodla/EBILock_komputerownia.md`, tabela usterek).

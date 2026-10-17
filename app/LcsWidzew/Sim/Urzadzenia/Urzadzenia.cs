@@ -3,7 +3,7 @@ namespace LcsWidzew.Sim;
 /// <summary>
 /// Urządzenia przytorowe i sterowniki obiektowe z kartami (Zrodla/EBILock_komputerownia.md rozdz. 4, etap 7).
 /// Między komputerem zależności (rozkazy → / ← statusy) a terenem, w którym jeżdżą pociągi.
-/// Karty kontroli niezajętości odcinków (krok 4), zwrotnic i wykolejnic (krok 5); sygnalizatory, zasilanie – kolejne kroki.
+/// Karty kontroli niezajętości odcinków (krok 4), zwrotnic i wykolejnic (krok 5), sygnalizatorów (krok 6), zasilanie (krok 7).
 /// </summary>
 public partial class Urzadzenia
 {
@@ -16,12 +16,15 @@ public partial class Urzadzenia
     public readonly Dictionary<string, KartaWykolejnicy> Wykolejnice = new();
     /// <summary>Karty sygnalizatorów (semafory wjazdowe, wyjazdowe, odstępowe, tarcze manewrowe).</summary>
     public readonly Dictionary<string, KartaSygnalizatora> Sygnalizatory = new();
+    /// <summary>Zasilanie: sieć, UPS, agregat, napięcie nastawcze.</summary>
+    public readonly Zasilanie Zasilanie;
     /// <summary>Sygnalizatory z kartą (świetlne, sterowane przez KZ).</summary>
     public static bool MaKarte(Model.SignalDef d) => d.Type is "wjazdowy" or "wyjazdowy" or "odstepowy" or "tm";
 
     public Urzadzenia(Simulator s)
     {
         S = s;
+        Zasilanie = new Zasilanie(s);
         foreach (var id in s.Secs.Keys) Odcinki[id] = new KartaOdcinka(s, id);
         foreach (var id in s.Sws.Keys) Zwrotnice[id] = new KartaZwrotnicy(s, id);
         foreach (var id in s.Ders.Keys) Wykolejnice[id] = new KartaWykolejnicy(s, id);
@@ -31,6 +34,7 @@ public partial class Urzadzenia
     /// <summary>Cykl kart (przed komputerem zależności): wykonanie rozkazów z poprzedniego cyklu, przekładanie, statusy do KZ.</summary>
     public void Tick()
     {
+        Zasilanie.Tick(); Zasilanie.Publikuj();
         foreach (var k in Zwrotnice.Values) { k.Tick(); k.Publikuj(); }
         foreach (var k in Wykolejnice.Values) { k.Tick(); k.Publikuj(); }
         foreach (var k in Sygnalizatory.Values) { k.Tick(); k.Publikuj(); }
@@ -65,4 +69,8 @@ public partial class Urzadzenia
     public void Wykolejnica(string name, bool zaloz) { LogRozkaz("wykolejnica", name, zaloz ? "załóż" : "zdejmij"); Wykolejnice[name].Rozkaz(zaloz); }
     /// <summary>Sygnał do wyświetlenia (kod Ie-1).</summary>
     public void Sygnal(string sig, string kod) { if (!Sygnalizatory.TryGetValue(sig, out var k)) return; LogRozkaz("sygnalizator", sig, kod == "" ? "wygaś" : "sygnał " + kod); k.Rozkaz(kod); }
+    /// <summary>Napięcie nastawcze: załącz (NN) / odłącz (ONN).</summary>
+    public void NapiecieNastawcze(bool zal) { LogRozkaz("zasilanie", Zasilanie.Id, zal ? "załącz napięcie nastawcze" : "odłącz napięcie nastawcze"); Zasilanie.RozkazNN(zal); }
+    /// <summary>Uruchomienie agregatu (AGR).</summary>
+    public void UruchomAgregat() { LogRozkaz("zasilanie", Zasilanie.Id, "uruchom agregat"); Zasilanie.RozkazAgregat(); }
 }

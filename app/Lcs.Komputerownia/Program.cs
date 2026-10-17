@@ -76,6 +76,16 @@ static class Test
             Ok(r == "OK" && po.UsterkiKlucze.Contains("swFrozen") && po.Nietypowa, $"usterka z programu: zamarznięcie {zwr.Id} → „{po.Usterki}”");
             r = await w.Usterka("swFrozen", zwr.Id, true);
             Ok(r == "OK" && !w.Karty.First(k => k == zwr).UsterkiKlucze.Contains("swFrozen"), $"usunięcie usterki {zwr.Id}");
+            var zas = w.Karty.FirstOrDefault(k => k.Rodzaj == "zasilanie");
+            Ok(zas != null && zas.Status.StartsWith("sieć"), $"karta zasilania: {zas?.Status} – {zas?.Teren}");
+            if (zas != null)
+            {
+                r = await w.Usterka("mainsGenFail", zas.Id, false);
+                var zp = w.Karty.First(k => k == zas);
+                Ok(r == "OK" && zp.Status.StartsWith("BRAK SIECI") && zp.Teren.Contains("nie rusza") && zp.UsterkiKlucze.Contains("mainsGenFail"), $"usterka z programu: zanik sieci, agregat nie startuje → „{zp.Status}”, {zp.Teren}");
+                r = await w.Usterka("mainsGenFail", zas.Id, true);
+                Ok(r == "OK" && w.Karty.First(k => k == zas).Status.StartsWith("sieć"), "usunięcie usterki zasilania");
+            }
             var zl = await w.Usterka("nieMa", zwr.Id, false);
             Ok(zl == "nieznana usterka", $"nieznana usterka odrzucona: {zl}");
             var bad = bk.FirstOrDefault();

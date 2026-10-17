@@ -6,7 +6,7 @@ Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-17 (PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
+Ostatnia aktualizacja: 2026-10-17 (krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
 
 ---
 
@@ -87,7 +87,7 @@ Pozostałe elementy:
   - edytor UT: `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe --test wynik.txt [zrzut.png]`, oczekiwane „błędów: 0”.
   - Selftest uruchamiaj na stałej kopii testowej: `--station app/LcsWidzew/Testy/station_test.json` (kopia układu z 2026-10-15; `Data/kopie/` rotuje się – trzyma 30 ostatnich zapisów).
   - Scenariusz selftestu (`SelfTest.Run`) nie zna nazw stacji: z tablicy przebiegów bierze po jednym przebiegu wyjazdowym na każdy szlak (z Wbl i Pzk), po jednym wjeździe z każdego semafora wjazdowego i jeden manewr. Każdy przebieg czeka na sygnał zezwalający, potem jest zwalniany (ZDP/ZDM). Do tego kontrola zależności: drugi przebieg z zajętego sygnalizatora musi zostać odrzucony. Wynik w linii `WYNIK:`, braki w liniach `NIE NASTAWIONO` z przyczyną.
-  - Na kopii testowej oczekiwane: **`nastawione 25 z 26`, `kontrola zależności 4 z 4`**, `OCHRONA BOCZNA … kontrola 4 z 4`, `KARTY ZWROTNIC: kontrola 8 z 8`, `SYGNAŁY: kontrola 9 z 9`, `KONTROLA KZ NA ŻYWO: … naruszeń: 0`, `wykrywanie celowych naruszeń: 2 z 2`. Jedyny brak – 2A: odstęp 2A-1 zajęty przez pociąg z rozkładu (prawidłowe odrzucenie Wbl).
+  - Na kopii testowej oczekiwane: **`nastawione 25 z 26`, `kontrola zależności 4 z 4`**, `OCHRONA BOCZNA … kontrola 4 z 4`, `KARTY ZWROTNIC: kontrola 8 z 8`, `SYGNAŁY: kontrola 9 z 9`, `ZASILANIE: kontrola 8 z 8`, `KONTROLA KZ NA ŻYWO: … naruszeń: 0`, `wykrywanie celowych naruszeń: 2 z 2`. Jedyny brak – 2A: odstęp 2A-1 zajęty przez pociąg z rozkładu (prawidłowe odrzucenie Wbl).
 
 Model danych `station.json`:
 - `nodes`, `edges` (`sec` = odcinek kontroli niezajętości `POST:nazwa`, `track`, `len` [m], `vmax`), `switches`, `signals` (wjazdowy, wyjazdowy z `shunt`, tm, to, sp, pk, odstepowy);
@@ -132,7 +132,7 @@ Szczegółowe opisy zrobionych prac (etapy 0–7 i poprawki po uwagach właścic
 - **Usuwanie kawałka toru i zaznaczanie kilku:** PPM na torze – „Usuń ten kawałek” (prosta / łuk, tor rozcina się na dwa) i „Rozetnij tor tutaj”; Ctrl + klik i Shift + prostokąt zaznaczają kilka elementów, Del usuwa naraz (jedno Ctrl+Z).
 - Obok edytora: **kalkulator przechyłki** `app/Lcs.Przechylka` (`Przechylka.exe`) – wartości dopuszczalne domyślne są przykładowe, do potwierdzenia przez właściciela; później wpięcie do edytora UT (pole L przy łuku).
 
-**Następny krok** (decyzja właściciela 2026-10-17, `PLAN_EDYTOR_UT.md` § 7): najpierw karty urządzeń w symulatorze (kroki 5, 6, 6a zrobione 2026-10-17; dalej krok 7 – zasilanie jako urządzenie, krok 8 – ruch wg sygnałów w terenie, prędkość z sygnału), potem etap 8 – edytor zobrazowania.
+**Następny krok** (decyzja właściciela 2026-10-17, `PLAN_EDYTOR_UT.md` § 7): najpierw karty urządzeń w symulatorze (kroki 5, 6, 6a, 7 zrobione 2026-10-17; dalej krok 8 – ruch wg sygnałów w terenie, prędkość z sygnału – wymaga decyzji właściciela, manewry wg tarcz później; kroki 9–10 – przenosiny), potem etap 8 – edytor zobrazowania.
 
 **Z dawnego etapu 1 – dotyczy symulatora (zostaje):**
 **ZROBIONE (2026-10-15):** okno **„Plan stacji” na żywo** (`UI/PlanStationWindow.cs`, przycisk „Plan stacji”; test `--screenshot … "#plan=post:LW"` / `"#plan=train:NUM"`). Do rozwinięcia: S5/S4 na semaforach (dziś zielone/czerwone/białe), typ pojazdu z rozkładu (dziś kategoria lub jednostka), plan na stanowiskach sieciowych. Pierwotny opis: w symulatorze (wzór: zrzut z planem stacji z pociągami jako szare prostokąty z numerem i typem pojazdu, semafory jako głowice z kolorami świateł, „śledzenie składu”, wybór nastawni). Rysuje plan schematyczny (`L`, nie zobrazowanie) ze stanem terenu.
@@ -189,6 +189,7 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
 - **ZROBIONE 2026-10-17: krok 6** – karta sygnalizatora i sygnały wg **Ie-1** (`Data/sygnaly_ie1.json`, zał. 1): sygnał z prędkości przebiegu (zwrotnice na bok, VSet) i sygnału następnego semafora – np. A S13 przy B „Stój”, S12 po otwarciu B (S10); SBL 3- / 4-stawna (S3 – dwa odstępy wolne); ruch widzi sygnał wyświetlany przez kartę. Selftest + `SYGNAŁY: kontrola 9 z 9`. Szczegóły: `PODZIAL_MODULOW.md` § 11.
 - **ZROBIONE 2026-10-17: Komputerownia – zakładka „Komputer zależności”**: przebiegi, utwierdzenia, dziennik KZ ↔ karty (rozkazy i zmiany statusów), polecenia z pulpitu, „Sprawdź przebieg” i **kontrola zależności na żywo** (niezmienniki KZ); w selftestcie `KONTROLA KZ NA ŻYWO: … naruszeń: 0` i wykrywanie celowych naruszeń 2 z 2. Szczegóły: `PODZIAL_MODULOW.md` § 12.
 - **ZROBIONE 2026-10-17: krok 6a** – osobny program **`Komputerownia.exe`** (`app/Lcs.Komputerownia`): łączy się z symulatorem przez sieć (port serwisowy 127.0.0.1:47121 albo serwer 47120), pokazuje dla każdej karty rozkaz od KZ, status do KZ, teren i usterki; usterki kart z programu. Szczegóły: `PODZIAL_MODULOW.md` § 10, obsługa: `README.md`.
+- **ZROBIONE 2026-10-17: krok 7** – zasilanie jako urządzenie (`Sim/Urzadzenia/Zasilanie.cs`): sieć, UPS, agregat, napięcie nastawcze w terenie, status do KZ (`StatusZasilania`, `Power` – kopia), rozkazy NN / oNN / AGR, karta zasilania w Komputerowni. Zachowanie bez zmian (dziennik selftestu i scenariusze identyczne) + `ZASILANIE: kontrola 8 z 8`. Szczegóły: `PODZIAL_MODULOW.md` § 13. Bez rozładowania UPS – do ustalenia z właścicielem.
 - Pytania do właściciela przed krokami 5, 6, 8: rozprucie a brak kontroli (kto rozstrzyga, usterka „sygnalizacja rozprucia” bez pojazdu), przepalenie włókna czerwonego / zezwalającego, sygnalizator bez łączności (ciemny czy czerwony), manewry wg tarcz zamiast utwierdzeń, opóźnienie jednego cyklu rozkaz → meldunek.
 - Pozostałe przecieki (do kroków 4–9): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`); pulpit bierze numery pociągów z listy pociągów.
 

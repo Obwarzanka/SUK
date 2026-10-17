@@ -191,6 +191,38 @@ public static class SelfTest
             }
             sb.AppendLine($"KARTY ZWROTNIC: kontrola {kOk} z {kTot}");
         }
+        // zasilanie jako urządzenie (krok 7): NN0 zatrzymuje napęd, zanik sieci – alarm i samoczynny agregat, agregat uszkodzony – AGR
+        {
+            var zs = new Simulator(st) { User = sim.User };
+            int zOk = 0, zTot = 0;
+            void Z(bool c, string m) { zTot++; if (c) zOk++; sb.AppendLine($"zasilanie: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            void Run(double s) { for (double t = 0; t < s; t += 0.25) zs.Tick(0.25); }
+            var z = zs.Urzadzenia.Zasilanie;
+            var sw = st.Switches.Values.FirstOrDefault(x => !x.Manual)?.Num;
+            if (sw != null)
+            {
+                var w = zs.Sws[sw]; var p0 = w.Pos; var p1 = p0 == "+" ? "-" : "+"; var ruch = p1 == "+" ? "Plus" : "Minus";
+                zs.Page = PageOf(sw);
+                var mv = zs.Exec($"{sw} {ruch}"); Run(0.5);
+                var onn = zs.Exec("ONN", true); Run(Simulator.Cfg.SwTime + 1);
+                Z(mv.Ok && onn.Ok && !z.NN && !zs.Power.NN && w.Moving != null && zs.Urzadzenia.Iglice(sw) == p0, $"NN0 w czasie przekładania {Station.Lbl(sw)} – napęd stoi, iglice „{p0}”{(onn.Ok ? "" : " (" + onn.Msg + ")")}");
+                var odrz = zs.Exec($"{sw} {(p0 == "+" ? "Plus" : "Minus")}");
+                Z(!odrz.Ok && odrz.Msg.Contains("nastawcze"), $"polecenie przestawienia przy NN0 odrzucone: {odrz.Msg}");
+                var nn = zs.Exec("NN", true); Run(Simulator.Cfg.SwTime + 1);
+                Z(nn.Ok && z.NN && zs.Power.NN && w.Moving == null && w.Pos == p1, $"NN – napęd kończy przekładanie, kontrola „{p1}”{(nn.Ok ? "" : " (" + nn.Msg + ")")}");
+            }
+            zs.Instruktor.ApplyFault("mains", null, false); Run(1);
+            Z(!zs.Power.Mains && zs.Alarms.Any(a => a.Zdarzenie.Contains("praca z UPS")) && !z.Agregat, "zanik sieci – alarm, praca z UPS");
+            Run(Zasilanie.CzasRozruchu + 1);
+            Z(z.Agregat && zs.Power.Gen, "agregat uruchomiony samoczynnie");
+            zs.Instruktor.ApplyFault("mains", null, true); Run(1);
+            Z(zs.Power.Mains && !zs.Power.Gen, "powrót sieci – agregat wyłączony");
+            zs.Instruktor.ApplyFault("mainsGenFail", null, false); Run(Zasilanie.CzasRozruchu + 2);
+            Z(!z.Agregat && zs.Alarms.Any(a => a.Zdarzenie.Contains("nie uruchomił")), "agregat uszkodzony – nie rusza samoczynnie, alarm");
+            var agr = zs.Exec("AGR", true); Run(0.5);
+            Z(agr.Ok && z.Agregat && zs.Power.Gen, $"AGR – agregat uruchomiony poleceniem{(agr.Ok ? "" : " (" + agr.Msg + ")")}");
+            sb.AppendLine($"ZASILANIE: kontrola {zOk} z {zTot}");
+        }
         // sygnały wg Ie-1 (krok 6): uzależnienie od następnego semafora, siatka zał. 1, karta sygnalizatora
         {
             var gs = new Simulator(st) { User = sim.User };
