@@ -14,4 +14,8 @@
     <StartupObject>Lcs.Przechylka.Program</StartupObject>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Model\Lcs.Model.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,7 @@
-namespace Lcs.Przechylka;
+namespace Lcs.Model;
 
 /// <summary>
-/// Wartości dopuszczalne do obliczeń. Domyślne są PRZYKŁADOWE (nie pochodzą ze źródeł projektu) – projektant wpisuje je
+/// Wartości dopuszczalne do obliczeń przechyłki (kalkulator `Lcs.Przechylka` i „Przejściowe z prędkości” w edytorze UT). Domyślne są PRZYKŁADOWE (nie pochodzą ze źródeł projektu) – projektant wpisuje je
 /// z obowiązujących przepisów (warunki techniczne dla budowli kolejowych, Id-1).
 /// </summary>
 public class Dopuszczalne

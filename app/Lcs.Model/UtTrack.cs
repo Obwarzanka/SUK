@@ -38,8 +38,10 @@ public class UtVertex
     public double R { get; set; }
     /// <summary>Długość krzywej przejściowej (parabola 3. stopnia, mierzona wzdłuż stycznej) po każdej stronie łuku [m], 0 – bez.</summary>
     public double L { get; set; }
+    /// <summary>Przechyłka toru w łuku h [mm] (0 – bez); z „Przejściowe z prędkości” albo wpisana.</summary>
+    public double H { get; set; }
     public XY P => new(X, Y);
-    public UtVertex Clone() => new() { X = X, Y = Y, R = R, L = L };
+    public UtVertex Clone() => new() { X = X, Y = Y, R = R, L = L, H = H };
 }
 
 public enum ElKind { Prosta, Przejsciowa, Luk }

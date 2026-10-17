@@ -488,14 +488,19 @@ public static class Budowa
             { Parts = vis.Select(i => (i, fv[i].P, fv[i].R, fv[i].L)).ToList() };
     }
 
-    /// <summary>Wierzchołki łuku złożonego, do którego należy łuk w <paramref name="vi"/>: sąsiednie łuki stykające się bez prostej (do 0,5 m).</summary>
-    public static List<int> ArcGroup(IReadOnlyList<UtVertex> v, int vi, double k)
+    /// <summary>
+    /// Wierzchołki łuku złożonego, do którego należy łuk w <paramref name="vi"/>: sąsiednie łuki stykające się bez prostej (do
+    /// <paramref name="maxStraight"/> m); <paramref name="sameSide"/> – tylko łuki skręcające w tę samą stronę.
+    /// </summary>
+    public static List<int> ArcGroup(IReadOnlyList<UtVertex> v, int vi, double k, double maxStraight = 0.5, bool sameSide = false)
     {
+        double Turn(int i) => Math.IEEERemainder(Trasa.Az(v[i].P, v[i + 1].P) - Trasa.Az(v[i - 1].P, v[i].P), 2 * Math.PI);
         var r = Trasa.Compute(v, k);
         // długość prostej przed każdym wierzchołkiem (element prosty z indeksem wierzchołka, do którego prowadzi)
         var straight = new Dictionary<int, double>();
         foreach (var e in r.Elements) if (e.Kind == ElKind.Prosta) straight[e.Vertex] = straight.GetValueOrDefault(e.Vertex) + e.Len / r.K;
-        bool Joined(int a) => a > 0 && a + 1 < v.Count - 1 && v[a].R > 0 && v[a + 1].R > 0 && straight.GetValueOrDefault(a + 1) < 0.5;
+        bool Joined(int a) => a > 0 && a + 1 < v.Count - 1 && v[a].R > 0 && v[a + 1].R > 0 && straight.GetValueOrDefault(a + 1) < maxStraight
+            && (!sameSide || Math.Sign(Turn(a)) == Math.Sign(Turn(a + 1)));
         int s0 = vi, s1 = vi;
         while (Joined(s0 - 1)) s0--;
         while (Joined(s1)) s1++;
@@ -542,6 +547,97 @@ public static class Budowa
             }
         }
         return best;
+    }
+
+    /// <summary>
+    /// Wygładzenie łuku złożonego (kilka łuków stykających się bez prostej, np. po dzieleniu i dopasowaniu – promienie 700, 784, 1031…):
+    /// cała grupa zamienia się na jeden wierzchołek w przecięciu skrajnych prostych z łukiem i krzywymi przejściowymi
+    /// (<paramref name="mode"/> 0), na jeden łuk bez przejściowych (1) albo na dwa łuki (2). R (L) dobrane tak, żeby nowy łuk leżał jak
+    /// najbliżej obecnego kształtu (punkty co 2 m na łuku i 30 m prostej po obu stronach). Max – największe odsunięcie [m].
+    /// </summary>
+    /// <summary>Do wygładzania: łuki w tę samą stronę z prostą między nimi do tylu metrów to jeden łuk.</summary>
+    public const double SmoothStraight = 30;
+
+    public static (List<UtVertex> V, double Max, string Error) SmoothArc(IReadOnlyList<UtVertex> v, int vi, double k, int mode)
+    {
+        var grp = ArcGroup(v, vi, k, SmoothStraight, true); int lo = grp.Min(), hi = grp.Max();
+        if (lo <= 0 || hi >= v.Count - 1) return (null, 0, "to nie łuk w środku toru");
+        var r = Trasa.Compute(v, k);
+        double acc = 0, s0 = -1, s1 = -1;
+        foreach (var e in r.Elements) { if (e.Vertex >= lo && e.Vertex <= hi && e.Kind != ElKind.Prosta) { if (s0 < 0) s0 = acc; s1 = acc + e.Len; } acc += e.Len; }
+        if (s0 < 0) return (null, 0, "łuk się nie mieści – najpierw go popraw");
+        var pts = new List<XY>();
+        for (double s = Math.Max(0, s0 - 30 * k); s <= Math.Min(acc, s1 + 30 * k); s += 2 * k) pts.Add(r.At(s / r.K).P);
+        // przecięcie skrajnych prostych
+        XY a = v[lo - 1].P, b = v[lo].P, c = v[hi].P, d = v[hi + 1].P;
+        var u = b - a; var w = d - c; double den = u.X * w.Y - u.Y * w.X;
+        if (Math.Abs(den) < 1e-12) return (null, 0, "skrajne proste równoległe – łuku nie da się zastąpić jednym");
+        var q = c - a; double t = (q.X * w.Y - q.Y * w.X) / den;
+        var x = a + u * t;
+        double rAvg = grp.Average(i => v[i].R);
+        var nv = v.Take(lo).Select(z => z.Clone()).ToList();
+        nv.Add(new UtVertex { X = x.X, Y = x.Y, R = rAvg });
+        nv.AddRange(v.Skip(hi + 1).Select(z => z.Clone()));
+        ArcFit f;
+        if (mode == 2)
+        {
+            var f1 = FitArc(nv, lo, pts, k, false); if (f1.Error != null) return (null, 0, f1.Error);
+            nv[lo].R = f1.R; nv[lo].L = 0;
+            var (sv, err) = SplitArcN(nv, lo, k, 2); if (err != null) return (null, 0, err);
+            nv = sv; f = FitArcGroup(nv, new[] { lo, lo + 1 }, pts, k, false, true);
+            if (f.Error != null) return (null, 0, f.Error);
+            foreach (var (pi, pp, pr, pl) in f.Parts) { nv[pi].X = pp.X; nv[pi].Y = pp.Y; nv[pi].R = pr; nv[pi].L = pl; }
+        }
+        else
+        {
+            f = FitArc(nv, lo, pts, k, mode == 0); if (f.Error != null) return (null, 0, f.Error);
+            nv[lo].R = f.R; nv[lo].L = f.L;
+        }
+        var nr = Trasa.Compute(nv, k);
+        return (nv, pts.Max(p => Dist(nr, p)) / k, null);
+    }
+
+    /// <summary>
+    /// Krzywe przejściowe z prędkości: dla każdego łuku toru (pojedynczego, nie złożonego) przechyłka h i długość L ze wzorów
+    /// <see cref="Obliczenia.Licz"/> (V – prędkość toru, R – promień łuku). Łuk z przejściowymi przesuwa się do środka o p ≈ L²/(24R),
+    /// więc wierzchołek odsuwa się na zewnątrz po dwusiecznej o p / cos(α/2) – środek łuku zostaje na miejscu (na zdjęciu).
+    /// Łuk, w którym L się nie mieści – bez zmian, z uwagą.
+    /// </summary>
+    public static (List<UtVertex> V, List<(int Vi, double R, double H, double L, string Note)> Rows) TransitionsFromSpeed(IReadOnlyList<UtVertex> v, double k, double vmax, Dopuszczalne d)
+    {
+        var nv = v.Select(z => z.Clone()).ToList(); var rows = new List<(int, double, double, double, string)>();
+        for (int i = 1; i < nv.Count - 1; i++)
+        {
+            if (nv[i].R <= 0) continue;
+            if (ArcGroup(nv, i, k).Count > 1) { rows.Add((i, nv[i].R, 0, 0, "łuk złożony – najpierw „Wygładź łuk”")); continue; }
+            var w = Obliczenia.Licz(vmax, nv[i].R, null, d);
+            double L = w.L, h = w.H;
+            var u1 = nv[i - 1].P - nv[i].P; var u2 = nv[i + 1].P - nv[i].P;
+            double l1 = Math.Sqrt(u1.X * u1.X + u1.Y * u1.Y), l2 = Math.Sqrt(u2.X * u2.X + u2.Y * u2.Y);
+            var bis = u1 * (1 / l1) + u2 * (1 / l2); double bl = Math.Sqrt(bis.X * bis.X + bis.Y * bis.Y);
+            var old = nv[i].Clone();
+            // środek łuku przed zmianą (punkt osi najbliżej wierzchołka) – po dodaniu L ma zostać na miejscu
+            var r0 = Trasa.Compute(nv, k); var (sm, _) = r0.Nearest(old.P, 0.25); var mid = r0.At(sm).P;
+            nv[i].L = L; nv[i].H = h;
+            if (bl > 1e-12)
+            {
+                var outw = bis * (-1 / bl);
+                double Off(double tt) { var c = nv.Select(z => z.Clone()).ToList(); c[i].X = old.X + outw.X * tt * k; c[i].Y = old.Y + outw.Y * tt * k; return Dist(Trasa.Compute(c, k), mid); }
+                // przesunięcie wierzchołka na zewnątrz po dwusiecznej: najmniejsza odległość nowej osi od dawnego środka łuku
+                double lo = -2, hi = Math.Max(2, 3 * L * L / (24 * old.R) + 1);
+                for (int it = 0; it < 60; it++) { double m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3; if (Off(m1) <= Off(m2)) hi = m2; else lo = m1; }
+                double best = (lo + hi) / 2;
+                nv[i].X = old.X + outw.X * best * k; nv[i].Y = old.Y + outw.Y * best * k;
+            }
+            var r = Trasa.Compute(nv, k);
+            if (r.Notes.Any(n => n.Error && (n.Vertex == i || n.Vertex == i + 1)))
+            {
+                nv[i] = old; rows.Add((i, old.R, h, L, $"przejściowa {L:0} m się nie mieści – za mało prostej; zostaje L {old.L:0} m"));
+                continue;
+            }
+            rows.Add((i, nv[i].R, h, L, w.Uwagi.Count > 0 ? string.Join("; ", w.Uwagi) : null));
+        }
+        return (nv, rows);
     }
 
     /// <summary>Simpleks Neldera–Meada (minimum f) w pierwszych <paramref name="n"/> współrzędnych; pozostałe stałe.</summary>

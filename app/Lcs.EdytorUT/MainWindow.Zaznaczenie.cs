@@ -89,6 +89,15 @@ public partial class MainWindow
         if (Ciecie.KawalekAt(r, s) is { Luk: true } kl)
             Item($"Podziel łuk W{kl.Vertex + 1} tutaj (dwa łuki – potem każdy może mieć inny promień)", () => SplitArc(id, kl.Vertex, s),
                 tip: "Łuk dzieli się w tym miejscu na dwa o tym samym promieniu (kształt bez zmian); „Łuk z punktów” (J) dopasuje potem promienie wszystkich części naraz");
+        if (Ciecie.KawalekAt(r, s) is { Luk: true } kg && Budowa.ArcGroup(t.Vertices, kg.Vertex, Trasa.KFor(t), Budowa.SmoothStraight, true) is var grp && grp.Count > 1)
+        {
+            var sm = new MenuItem { Header = $"Wygładź łuk W{grp.Min() + 1}–W{grp.Max() + 1} ({grp.Count} części)", ToolTip = "Cała grupa łuków → jeden łuk (albo dwa) jak najbliżej obecnego kształtu; skrajne proste zostają" };
+            foreach (var (txt, mode) in new[] { ("→ jeden łuk z krzywymi przejściowymi", 0), ("→ jeden łuk bez przejściowych", 1), ("→ dwa łuki", 2) })
+            {
+                var it = new MenuItem { Header = txt }; int md = mode; it.Click += (o, e) => SmoothArc(id, kg.Vertex, md); sm.Items.Add(it);
+            }
+            cm.Items.Add(sm);
+        }
         if (Ciecie.KawalekAt(r, s) is { Luk: true } kn)
         {
             var sub = new MenuItem { Header = $"Podziel łuk W{kn.Vertex + 1} na części", ToolTip = "Więcej wierzchołków na łuku – każdą część dostosujesz osobno (przeciągnięcie wierzchołka, R w panelu albo „Łuk z punktów” na całość)" };
@@ -116,6 +125,20 @@ public partial class MainWindow
         ChTrack(id, "Podział łuku", x => x.Vertices = nv);
         View.Select(id, vi);
         Message($"Łuk W{vi + 1} podzielony na dwa (W{vi + 1} i W{vi + 2}, oba R {F(nv[vi].R, "0")} m) – „Łuk z punktów” (J) dopasuje promienie obu części naraz (Ctrl+Z przywraca)");
+    }
+
+    /// <summary>Wygładzenie łuku złożonego (<see cref="Budowa.SmoothArc"/>).</summary>
+    public void SmoothArc(string id, int vi, int mode)
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        var grp = Budowa.ArcGroup(t.Vertices, vi, Trasa.KFor(t), Budowa.SmoothStraight, true);
+        if (grp.Any(i => View.Locked(id, i))) { Message("W tym łuku jest wierzchołek ustawiany przez rozjazd – nie da się go wygładzić"); return; }
+        var (nv, max, err) = Budowa.SmoothArc(t.Vertices, vi, Trasa.KFor(t), mode);
+        if (err != null) { Message("Nie da się wygładzić: " + err); return; }
+        ChTrack(id, "Wygładzenie łuku", x => x.Vertices = nv);
+        int lo = grp.Min(); View.Select(id, lo);
+        string what = mode == 2 ? $"dwa łuki R {F(nv[lo].R, "0")} / {F(nv[lo + 1].R, "0")} m" : $"jeden łuk R {F(nv[lo].R, "0")} m" + (nv[lo].L > 0 ? $", L {F(nv[lo].L, "0")} m" : "");
+        Message($"Łuk W{lo + 1}–W{grp.Max() + 1} ({grp.Count} części) wygładzony: {what}; najwyżej {max * 100:0.#} cm od dotychczasowego kształtu (Ctrl+Z przywraca)");
     }
 
     /// <summary>Podział łuku na n równych części (<see cref="Budowa.SplitArcN"/>).</summary>

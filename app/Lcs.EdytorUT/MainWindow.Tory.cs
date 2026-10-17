@@ -271,7 +271,22 @@ public partial class MainWindow
             act.Children.Add(SmallBtn("Dopasuj promienie", () => FitRadii(id), "Zmniejsz R tylko w łukach, które się nie mieszczą (po 5 %, do pełnych metrów, nie poniżej 140 m); łuki ustawiane przez rozjazd bez zmian"));
         act.Children.Add(SmallBtn("Usuń tor", () => { View.Select(id); DeleteSelection(); }, "Usuń tor (Del)"));
         TrackPanel.Children.Add(act);
+        if (t.Vertices.Any(x => x.R > 0))
+            TrackPanel.Children.Add(SmallBtn("Przejściowe z prędkości", () => TransitionsFromSpeed(id),
+                "Dla każdego łuku: przechyłka h i krzywe przejściowe L ze wzorów kalkulatora przechyłki (Vmax toru, R łuku, rozstaw 1435 mm); środek łuku zostaje na miejscu"));
         TrackPanel.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
+    }
+
+    /// <summary>Krzywe przejściowe i przechyłka z prędkości toru (<see cref="Budowa.TransitionsFromSpeed"/>).</summary>
+    public void TransitionsFromSpeed(string id)
+    {
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        if (t.Vmax <= 0) { Message("Przejściowe z prędkości: wpisz najpierw Vmax toru (pole obok „zelektryfikowany”)"); return; }
+        var (nv, rows) = Budowa.TransitionsFromSpeed(t.Vertices, Trasa.KFor(t), t.Vmax, new Dopuszczalne());
+        if (rows.All(x => x.Note != null && x.L <= 0)) { Message("Przejściowe z prędkości: " + string.Join("; ", rows.Select(x => $"W{x.Vi + 1}: {x.Note}"))); return; }
+        ChTrack(id, "Przejściowe z prędkości", x => x.Vertices = nv);
+        Message($"Przejściowe z prędkości {t.Vmax} km/h: " + string.Join("; ", rows.Select(x => $"W{x.Vi + 1} R {F(x.R, "0")}: " +
+            (x.L > 0 ? $"h {F(x.H, "0")} mm, L {F(x.L, "0")} m" : "") + (x.Note != null ? $" ({x.Note})" : ""))) + " – wartości dopuszczalne przykładowe (kalkulator przechyłki), Ctrl+Z przywraca");
     }
 
     /// <summary>Dopasowanie promieni łuków, które się nie mieszczą (<see cref="Budowa.FitRadii"/>).</summary>

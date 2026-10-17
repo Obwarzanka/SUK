@@ -37,7 +37,9 @@ public static partial class Test
 
     static void KeyPress(MainWindow w, Key k)
     {
-        w.View.Focus(); Keyboard.Focus(w.View);
+        // fokus z pola tekstowego panelu zdjęty zawsze – gdy okno testu nie jest aktywne, Keyboard.Focus nie działa i klawisz
+        // trafiał „do pola” (OnKey: inText), więc test raz przechodził, raz nie
+        Keyboard.ClearFocus(); w.View.Focus(); Keyboard.Focus(w.View);
         var src = PresentationSource.FromVisual(w);
         w.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, k) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
     }
