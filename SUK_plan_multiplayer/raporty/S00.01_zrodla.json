@@ -1,0 +1,630 @@
+{
+ "job": "S00.01",
+ "plan_version": "1.8",
+ "date": "2026-10-18",
+ "head": "5aaaaedd3deca7713a213ad4c7daa9a6b52c68de",
+ "worktree_status_porcelain": "",
+ "repo_path_windows": "D:\\Projects\\SUK",
+ "repo_path_vm": "$HOME/mnt/SUK",
+ "zrodla": [
+  {
+   "path": "Zrodla/EBILock_komputerownia.md",
+   "sha256": "3b087b00ec4d36dcdd483f343c7fb9b427d6c0b4a52f9267cdad5a726a2720fa",
+   "size_bytes": 46212,
+   "kategoria": "opracowanie_projektu",
+   "identyfikacja": "Opracowanie 2026-10-16: EBILock 950 – komputerownia, sterowniki, karty; oznaczenia pewności [PEWNE]/[WTÓRNE]/[DOMYSŁ]; tylko [PEWNE] ma oparcie w źródle pierwotnym"
+  },
+  {
+   "path": "Zrodla/Ie-104_2025_WCAG.pdf",
+   "sha256": "cdf969d7e50dafe3da137a4f2157dab40009fcc784374b5b889a086f7ba0735b",
+   "size_bytes": 1099417,
+   "kategoria": "norma",
+   "identyfikacja": "PKP PLK Ie-104 – wytyczne zobrazowania, wprowadzania poleceń i rejestracji zdarzeń komputerowych stanowisk srk; zał. do uchwały 810/2025 z 30.09.2025; obowiązuje 02.10.2025–19.02.2028 (strona tytułowa)",
+   "pdfinfo": {
+    "Creator": "Microsoft® Word dla Microsoft 365",
+    "Producer": "Microsoft® Word dla Microsoft 365",
+    "CreationDate": "Wed Oct  1 11:26:01 2025 UTC",
+    "ModDate": "Wed Oct  1 11:26:02 2025 UTC",
+    "Tagged": "yes",
+    "Pages": "82"
+   }
+  },
+  {
+   "path": "Zrodla/Ie-104_paleta_barw.png",
+   "sha256": "e5b713f70c3155bf3134fd29a993218dffeab8a09c514cd46e61c742f239f79f",
+   "size_bytes": 7453,
+   "kategoria": "wycinek_normy",
+   "identyfikacja": "Wycinek Ie-104 – paleta barw"
+  },
+  {
+   "path": "Zrodla/Ie-104_symbole_rozjazd.png",
+   "sha256": "3a67e6f86c10317f1de8842e5fe069749e28f62774191d8fbc4de6567cf857f9",
+   "size_bytes": 56570,
+   "kategoria": "wycinek_normy",
+   "identyfikacja": "Wycinek Ie-104 – symbole rozjazdów"
+  },
+  {
+   "path": "Zrodla/Ie-104_symbole_tor_sygnalizator.png",
+   "sha256": "2c6666432065659db5e17d4886bdcbcc3de97d67b8fb93ae80beaa6b26644982",
+   "size_bytes": 45058,
+   "kategoria": "wycinek_normy",
+   "identyfikacja": "Wycinek Ie-104 – symbole toru i sygnalizatora"
+  },
+  {
+   "path": "Zrodla/Ie-20_WCAG.pdf",
+   "sha256": "7544b5a67597b81b5dbdc2fdddda6f325ef4453bfedbb6919dd2c366218ffa51",
+   "size_bytes": 2038593,
+   "kategoria": "norma",
+   "identyfikacja": "PKP PLK Ie-20 – instrukcja obsługi komputerowych urządzeń srk; zał. nr 1 do uchwały 152/2020 z 03.03.2020 (strona tytułowa); wersja WCAG, ModDate 2024-08-30; stanu zmian nie ustalono (tabela zmian s. 89 bez warstwy tekstu)",
+   "pdfinfo": {
+    "Producer": "iLovePDF",
+    "ModDate": "Fri Aug 30 11:43:18 2024 UTC",
+    "Tagged": "yes",
+    "Pages": "89"
+   }
+  },
+  {
+   "path": "Zrodla/Instrukcja_Ig-10_-_WCAG.pdf",
+   "sha256": "ca3c13857d256baa80c8ddb5f22d557d9855875d0ebf2cb40a8fe4a1cfa24ac5",
+   "size_bytes": 6743304,
+   "kategoria": "norma",
+   "identyfikacja": "PKP PLK Ig-10 [D-27] – instrukcja o sporządzaniu i aktualizacji planów schematycznych; zał. do uchwały 850/2024 z 10.09.2024 (strona tytułowa)",
+   "pdfinfo": {
+    "Creator": "PDFCreator Free 4.2.0",
+    "Producer": "GPL Ghostscript 9.52",
+    "CreationDate": "Wed Oct  2 10:08:44 2024 UTC",
+    "ModDate": "Wed Oct  2 10:08:44 2024 UTC",
+    "Tagged": "no",
+    "Pages": "64"
+   }
+  },
+  {
+   "path": "Zrodla/KOMPUTERY.pdf",
+   "sha256": "ba4e78cb91aab6a35d5990be7df9ec171445aabf88afac93dcc2f1e2934e546d",
+   "size_bytes": 13852535,
+   "kategoria": "pomocnicze_wyciag",
+   "identyfikacja": "Wyciąg (Microsoft Print to PDF, 15.10.2026) z Poradnika UTK, druk s. 120–175 (tytuł w metadanych = nazwa pliku Poradnika); nie jest niezależnym źródłem",
+   "pdfinfo": {
+    "Producer": "Microsoft: Print To PDF",
+    "CreationDate": "Thu Oct 15 16:54:44 2026 UTC",
+    "ModDate": "Thu Oct 15 16:54:44 2026 UTC",
+    "Tagged": "no",
+    "Pages": "56"
+   }
+  },
+  {
+   "path": "Zrodla/KOMPUTERY_notatki.md",
+   "sha256": "ea2926ae4d977790885c0bc5b480e5ead4091619848b3a296a322b8291d54365",
+   "size_bytes": 7597,
+   "kategoria": "opracowanie_projektu",
+   "identyfikacja": "Notatki do symulatora z KOMPUTERY.pdf (str. 120–175, rozdz. 1.5–1.6); wskazane w AGENTS/CLAUDE jako odniesienie logiki srk"
+  },
+  {
+   "path": "Zrodla/KZN_KOLEJ_02.pdf",
+   "sha256": "651528af6f2e9e054d65a1234b95cce5764714a3bff50eb4cb0a49cd2a3e5fc6",
+   "size_bytes": 237522,
+   "kategoria": "katalog",
+   "identyfikacja": "Katalog rozjazdów KZN (KZN_katalog_KOLEJ_02, 2016), 3 s.; parametry rozjazdów Rz 60E1/49E1",
+   "pdfinfo": {
+    "Creator": "Adobe InDesign CS5 (7.0)",
+    "Producer": "Acrobat Distiller 10.1.16 (Windows)",
+    "CreationDate": "Mon Mar  7 12:01:03 2016 UTC",
+    "ModDate": "Mon Mar  7 12:01:03 2016 UTC",
+    "Tagged": "no",
+    "Pages": "3"
+   }
+  },
+  {
+   "path": "Zrodla/PLK_2013_prezentacja_Lodz_Widzew.pdf",
+   "sha256": "eb6a9122317bc01971e745eeebc40f0b616ef65edf9bde7ea6247e97d20c7fb3",
+   "size_bytes": 1167359,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Prezentacja PKP PLK 12.09.2013 'Stacja Łódź Widzew – rozpoczęcie prac' (POIiŚ 7.1-24.2)",
+   "pdfinfo": {
+    "Creator": "Microsoft® Office PowerPoint® 2007",
+    "Producer": "Microsoft® Office PowerPoint® 2007",
+    "CreationDate": "Thu Sep 12 15:39:47 2013 UTC",
+    "ModDate": "Thu Sep 12 15:39:47 2013 UTC",
+    "Tagged": "yes",
+    "Pages": "15"
+   }
+  },
+  {
+   "path": "Zrodla/PLK_2013_schemat_Lodz_Widzew.png",
+   "sha256": "decb490f4165ff8ca4b4fa30dc0598bb5afbb302e76d7f1ecfb280ffddfb3b35",
+   "size_bytes": 95566,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Schemat st. Łódź Widzew z materiałów PLK 2013 (obraz)"
+  },
+  {
+   "path": "Zrodla/PLK_2013_schemat_wezla_lodzkiego.jpg",
+   "sha256": "fbbde06e2331d4201800ec7914e44c5ba5f4d2b5e4ac0de392baa06f8f4c7e6a",
+   "size_bytes": 23891,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Schemat węzła łódzkiego PLK 2013 (obraz)"
+  },
+  {
+   "path": "Zrodla/Poradnik_dla_inspektorow_TOM_I_Automatyka_sterowania_ruchem_kolejowym_i_prowadzenie_ruchu_kolejowego (1).pdf",
+   "sha256": "35662cd1307f746440b79951e3ce08002f6df95ae46a116ea034513c19a90ac3",
+   "size_bytes": 26038908,
+   "kategoria": "pomocnicze",
+   "identyfikacja": "Poradnik dla inspektorów, tom 1 – Automatyka srk i prowadzenie ruchu; UTK, Warszawa 2023, ISBN 978-83-65709-89-9; nie jest normą",
+   "pdfinfo": {
+    "Creator": "Microsoft® Word 2013",
+    "Producer": "Microsoft® Word 2013",
+    "CreationDate": "Sat Sep 30 17:23:26 2023 UTC",
+    "ModDate": "Sat Sep 30 20:17:54 2023 UTC",
+    "Tagged": "yes",
+    "Pages": "728"
+   }
+  },
+  {
+   "path": "Zrodla/Semaforek_Lodz_Fabryczna_2016.png",
+   "sha256": "9475c10852a20c9d480394c739b2733a1fcda5a18ecd0e24db03425acd8910f5",
+   "size_bytes": 189389,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Plan schematyczny Łódź Fabryczna (Semaforek 2016) – źródło wtórne"
+  },
+  {
+   "path": "Zrodla/Semaforek_Lodz_Marysin.png",
+   "sha256": "6bfdecb7393bed41c68f50241606aca66b590a94869f8fe623327d6a8d69dc2f",
+   "size_bytes": 110048,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Plan schematyczny Łódź Marysin (Semaforek) – źródło wtórne"
+  },
+  {
+   "path": "Zrodla/Semaforek_Lodz_Widzew.png",
+   "sha256": "0ad0b2508d9f514af992cfc60a9055b842a5c8c1d1c41ae7c8254f25207f1e3d",
+   "size_bytes": 481841,
+   "kategoria": "dane_stacji",
+   "identyfikacja": "Plan schematyczny Łódź Widzew (Semaforek, stan 01.2017) – źródło wtórne"
+  },
+  {
+   "path": "Zrodla/Semaforek_Widzew_odczyt.md",
+   "sha256": "6d815ec1a251c2c0cff376f40e5a2b19e24f66819c179631fb6e9a704287ddfb",
+   "size_bytes": 3787,
+   "kategoria": "opracowanie_projektu",
+   "identyfikacja": "Odczyt planu Semaforek Łódź Widzew (sygnalizatory, szlaki)"
+  },
+  {
+   "path": "Zrodla/SimRail_LCS_Widzew_wzor.webp",
+   "sha256": "7b3e784bb30fde203268d76236cc52a5ce3f3cabf0e7667ff4989b8e40aafa8c",
+   "size_bytes": 79028,
+   "kategoria": "wzor_wygladu",
+   "identyfikacja": "Zrzut SimRail LCS Widzew – wzór wyglądu pulpitu, nie norma"
+  },
+  {
+   "path": "Zrodla/rozjazdy_1.pdf",
+   "sha256": "fb3518250381aad26c398d83cca0f6a995e7f3111e9e011985c3fc22abfed53d",
+   "size_bytes": 1504639,
+   "kategoria": "pomocnicze",
+   "identyfikacja": "3 strony skanu bez warstwy tekstu; wg PLAN_EDYTOR_UT.md:71 – D. Kosicki (drogi-zelazne), podział i prędkości rozjazdów; tożsamości nie potwierdzono z treści",
+   "pdfinfo": {
+    "Tagged": "no",
+    "Pages": "3"
+   }
+  }
+ ],
+ "braki_zrodel": [
+  {
+   "oczekiwany_plik": "Zrodla/Ie-1_obowiazuje_od_2026-01-17__uz_1041_25__WCAG.pdf",
+   "dokument": "PKP PLK Ie-1 (sygnalizacja), obowiązuje od 2026-01-17",
+   "odwolania": [
+    "ROZWOJ.md:49",
+    "PODZIAL_MODULOW.md:219,242",
+    "app/LcsWidzew/Data/sygnaly_ie1.json:2",
+    "app/LcsWidzew/Sim/Sygnaly.cs:6,33",
+    "plan 14_ZRODLA.md:81, 19:91, 24:45, 13:80"
+   ],
+   "stan": "brak w Zrodla/, brak w historii Git (wszystkie gałęzie), brak w folderze poza Gitem",
+   "skutek": "tabela sygnaly_ie1.json i dobór sygnałów niezweryfikowane wobec normy; bramka źródłowa przed normatywnym odbiorem/zmianą reguł (S02A1)"
+  },
+  {
+   "oczekiwany_plik": "(brak wskazanej nazwy)",
+   "dokument": "Ie-4",
+   "odwolania": [
+    "app/LcsWidzew/Model/Station.cs:93 (komentarz: 'Ig-10 zał. 8 / Ie-4')"
+   ],
+   "stan": "brak pliku; jedyne odwołanie to komentarz w kodzie",
+   "skutek": "liczba komór sygnalizatorów opisana tylko przez Ig-10 zał. 8; Ie-4 niedostępna do weryfikacji"
+  },
+  {
+   "oczekiwany_plik": "(brak wskazanej nazwy)",
+   "dokument": "Ir-1 (telefonogramy)",
+   "odwolania": [
+    "plan 14_ZRODLA.md:11"
+   ],
+   "stan": "brak w repo",
+   "skutek": "procedury telefonogramów/łączności (S09–S11) bez źródła normatywnego w repo"
+  },
+  {
+   "oczekiwany_plik": "(brak)",
+   "dokument": "DTR EBILock 950 (dokumentacja producenta)",
+   "odwolania": [
+    "plan 14_ZRODLA.md:60",
+    "Zrodla/EBILock_komputerownia.md (oznaczenia [WTÓRNE]/[DOMYSŁ])"
+   ],
+   "stan": "nie dostarczono",
+   "skutek": "czasy restartu, szczegóły kart i grup pozostają [WTÓRNE]/[DOMYSŁ]; nie stają się wymaganiami"
+  }
+ ],
+ "chronione_dane": [
+  {
+   "path": "app/LcsWidzew/Data/station.json",
+   "sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+   "size_bytes": 274794
+  },
+  {
+   "path": "app/LcsWidzew/Testy/station_test.json",
+   "sha256": "85760930b4a3d33eb10147d1baa3ce9c1f4e45e2c74d4e317970589238ab8f3d",
+   "size_bytes": 274794
+  },
+  {
+   "path": "app/LcsWidzew/Data/station.json.bak",
+   "sha256": "c6e6eee31f4bad5e69ca9cf5d61b0732a2001df021ec65320b6bc413e5d7dc69",
+   "size_bytes": 201398
+  },
+  {
+   "path": "app/LcsWidzew/Data/rozklad.json",
+   "sha256": "671df2ddcbe41fc9a84b19b8d86d5afa3ae7ef8c441affca3995472f7f98dd56",
+   "size_bytes": 266366
+  },
+  {
+   "path": "app/LcsWidzew/Data/rozklad_ic.json",
+   "sha256": "65f079d80821a71968d82f4a82c5d9eb635e4eaf5b4865dcc096b40b6f42158e",
+   "size_bytes": 51929
+  },
+  {
+   "path": "app/LcsWidzew/Data/sygnaly_ie1.json",
+   "sha256": "5b5b5d94427ddf3dbf9bbbc98dc9bd5c63c5ede5217f22a1409e5304b1584886",
+   "size_bytes": 4578
+  },
+  {
+   "path": "app/Lcs.EdytorUT/Dane/rozjazdy.json",
+   "sha256": "ac255107dea1eb0eb9eeef6e3c202ecb63154e7e7e4930b86c6f2e9e394875e8",
+   "size_bytes": 2626
+  },
+  {
+   "path": "app/Lcs.EdytorUT/Dane/symbole_ig10.json",
+   "sha256": "3ebf1f73ec722989ec674438bc31b13b20ed6556fa716e32f18106f4806df9b2",
+   "size_bytes": 8770
+  },
+  {
+   "path": "app/LcsWidzew/Data/projekty/pusty_szablon.json",
+   "sha256": "dab1c4343292de7658c8f25354912aa00558e05b47ca917a0b17a8023c125ea5",
+   "size_bytes": 24095
+  },
+  {
+   "path": "app/LcsWidzew/Data/projekty/stacja_testowa.json",
+   "sha256": "1130159201833546f102f0951dae5887430c81d42ab06ab0f70ba3da7b5014fd",
+   "size_bytes": 21924
+  },
+  {
+   "path": "app/LcsWidzew/Data/bledy.log",
+   "sha256": "a8b1c717ca2d86808b2437332c102953715e182b2b9a23343fcceb5d3e7f508e",
+   "size_bytes": 9710
+  }
+ ],
+ "station_json_identyczny_z_station_test": true,
+ "kod_i_instrukcje": [
+  {
+   "path": "app/LcsWidzew/Sim/Simulator.cs",
+   "sha256": "66debf061a987004f9326743919471dd66d2a3c5f5422c21631e4225f5c35ead",
+   "size_bytes": 6035
+  },
+  {
+   "path": "app/LcsWidzew/Sim/Session.cs",
+   "sha256": "fda2beff1abcbdf2d5a247cd88129ae23bf845f1f249f9b5e167a5aec427f0ba",
+   "size_bytes": 4173
+  },
+  {
+   "path": "app/LcsWidzew/Sim/Rejestrator.cs",
+   "sha256": "5aafdbb781970af11de2aeecb1a66c0150dd07327f12a688d492f5bd23af01e7",
+   "size_bytes": 4073
+  },
+  {
+   "path": "app/LcsWidzew/App.xaml.cs",
+   "sha256": "13724cb47cc9b43e6a118ba34f3d82e9227a67a98b5a4953e6c562502c4cb498",
+   "size_bytes": 4369
+  },
+  {
+   "path": "app/Lcs.EdytorUT/Program.cs",
+   "sha256": "708c9892c2ab0a248edcbca5cb998021cba561f89ce543627a6a43526bb1e5f5",
+   "size_bytes": 1833
+  },
+  {
+   "path": "app/Lcs.Komputerownia/Program.cs",
+   "sha256": "6a1db2ef2eabc716e1f5219b585536c9f4c52b3a93d4061adbfbe9b7b240fd1c",
+   "size_bytes": 8217
+  },
+  {
+   "path": "app/Lcs.Przechylka/Program.cs",
+   "sha256": "623ec934136b741bcfcd10524f9e8fc43c26deddc6d424b338102e746948cdfa",
+   "size_bytes": 4110
+  },
+  {
+   "path": "app/LcsWidzew/Sim/SelfTest.cs",
+   "sha256": "107dab10013121042c79a83a68d592e67c5acb014a66ce9dd9dd9044a549eb83",
+   "size_bytes": 40598
+  },
+  {
+   "path": "app/LcsWidzew/Sim/RealTimetable.cs",
+   "sha256": "2d373b0db4a0be81f4363fdcf3add3a53f12370e340974852a71e20c774ab360",
+   "size_bytes": 12804
+  },
+  {
+   "path": "app/Lcs.slnx",
+   "sha256": "8c78952cdaeddaa0288d3a3b3e3b4e55dab67240a004de8297434571a528630f",
+   "size_bytes": 302
+  },
+  {
+   "path": "app/LcsWidzew/LcsWidzew.csproj",
+   "sha256": "55b09d7b692b54f614c44d95b51e9580b0ee3ecb2d960d711af4ac02935b5be1",
+   "size_bytes": 715
+  },
+  {
+   "path": "app/Lcs.EdytorUT/Lcs.EdytorUT.csproj",
+   "sha256": "f2aa8d286a7c1a8ab23f3887e03062bfa2e09f2d7915ad44d6d90a9269ec8e17",
+   "size_bytes": 785
+  },
+  {
+   "path": "app/Lcs.Komputerownia/Lcs.Komputerownia.csproj",
+   "sha256": "1214c8e6f8bdece8fa762dcd5e42ff384b9c6797dd2f124b868036e3d517ff82",
+   "size_bytes": 621
+  },
+  {
+   "path": "app/Lcs.Przechylka/Lcs.Przechylka.csproj",
+   "sha256": "4e0e214ad16f649253d068a4fecc76bcd4c250d9188d5f6b1f25233cfb5ae5b2",
+   "size_bytes": 706
+  },
+  {
+   "path": "app/Lcs.Model/Lcs.Model.csproj",
+   "sha256": "3039a0ebdbf7c93555c05601008429e1727f4f63bd529389f3a7e31ef6f58763",
+   "size_bytes": 355
+  },
+  {
+   "path": "AGENTS.md",
+   "sha256": "b017ef492c0529839ef02fe7c96d365ed9abb0f789a6f3ffe7f8a9974401ae1c",
+   "size_bytes": 1838
+  },
+  {
+   "path": "CLAUDE.md",
+   "sha256": "b017ef492c0529839ef02fe7c96d365ed9abb0f789a6f3ffe7f8a9974401ae1c",
+   "size_bytes": 1838
+  },
+  {
+   "path": "ROZWOJ.md",
+   "sha256": "533248cbacbfdf33771ea2f1b390be8a743267d1fb1ccd0e8d010309664d0818",
+   "size_bytes": 36883
+  },
+  {
+   "path": "README.md",
+   "sha256": "50d1671667ff09fb79753842736aa6b7848001b7d7f9160998a31b87a36e5908",
+   "size_bytes": 42761
+  },
+  {
+   "path": "PODZIAL_MODULOW.md",
+   "sha256": "3aae3d2aaa27f8d83c921efbab66b72d33f0df26a054919a77fe22be57338bdf",
+   "size_bytes": 33185
+  },
+  {
+   "path": "PLAN_EDYTOR_UT.md",
+   "sha256": "7d221fa0fb13aa4b0a2fa01cb7abe1f6d4e96c002440951d3ce14e5523d9ff8a",
+   "size_bytes": 27419
+  }
+ ],
+ "plan_pakiet": [
+  {
+   "path": "AI_START.md",
+   "sha256": "44dd4a5a33cf686fa60cd800855891514a942a84939fe9ac358439554a1e3f14",
+   "size_bytes": 9651
+  },
+  {
+   "path": "etapy/S00.md",
+   "sha256": "4c3e39d0c1ca1c1d5091cf69d3226b982190f38a39333fe0ca35289cc9f4dc54",
+   "size_bytes": 2866
+  },
+  {
+   "path": "02_STAN_OBECNY.md",
+   "sha256": "832aac891a44ecdd69487edb59897e7cf5059c51a8d90300b11accaca4502782",
+   "size_bytes": 12878
+  },
+  {
+   "path": "11_TESTY_I_OPERACJE.md",
+   "sha256": "53386277e1edb145f8be22acbe330df83030a56da09316f9725816f4bec50059",
+   "size_bytes": 18600
+  },
+  {
+   "path": "20_STOS_TECHNICZNY.md",
+   "sha256": "351668c8e7bad5814dfa715a130ddb4a94ee4611c4d43d5e8e2c790c1801578c",
+   "size_bytes": 20044
+  },
+  {
+   "path": "25_LOGOWANIE_I_DIAGNOSTYKA.md",
+   "sha256": "f0b3245f03a33f3100f3f91a43247fe042e305dda89aa4b2a9e38c0a1577f823",
+   "size_bytes": 26321
+  },
+  {
+   "path": "czaty/S00.01.md",
+   "sha256": "7dd4af16243983099e27398a1a5965ea0c4c849f296d92dd9153864dc0e66f72",
+   "size_bytes": 1877
+  },
+  {
+   "path": "prompty_czatow/S00.01.md",
+   "sha256": "6b9b1adc19941213135655419c1b9594b0d5a2bb4e88e8cb79ef919876dd68a1",
+   "size_bytes": 1942
+  },
+  {
+   "path": "pakiety_czatow/S00.01.json",
+   "sha256": "badde56a00231c9d1ebd5889a0754c042e61db096e08594eb7e1e7302b8a50f3",
+   "size_bytes": 5530
+  },
+  {
+   "path": "manifest.json",
+   "sha256": "06533e26f632d282986bd4c41c5dc9245d8f35f819d731c4e97b83aabf913c7a",
+   "size_bytes": 216345
+  },
+  {
+   "path": "SZABLON_PRZEKAZANIA.md",
+   "sha256": "c38f4c2e0fcd83e7a28703219281aa40eddbc452bac08593f5edd3f170e9ce59",
+   "size_bytes": 920
+  },
+  {
+   "path": "SUMY_SHA256.txt",
+   "sha256": "3bf71dba61b246a93eb483e06a28715be12b94e7d2a0f487ac63b8ca775d7ebc",
+   "size_bytes": 37048
+  },
+  {
+   "path": "ZRODLA_KONTROLA_1_8.json",
+   "sha256": "a0657eb36e19d9b47a4cac18ad9165c94d534f27626bc29515f886c95f3ea94d",
+   "size_bytes": 33417
+  },
+  {
+   "path": "SUK_plan_multiplayer.pdf",
+   "sha256": "17ea0cb2226eb39d3c32de7d24a61aa3d488b1d1fea282c65b116110d23f2351",
+   "size_bytes": 2949507
+  }
+ ],
+ "rejestr_ZRODLA_KONTROLA_1_8": {
+  "plikow": 141,
+  "zgodnych_z_biezacym_drzewem": 141,
+  "rozbieznych": 0,
+  "brakujacych": 0,
+  "uwaga": "rejestr dla 5eddb5c; HEAD 5aaaaed zmienia tylko SUK_plan_multiplayer/ i SUK_plan_multiplayer.pdf"
+ },
+ "SUMY_SHA256_planu": {
+  "wpisow": 412,
+  "zgodnych": 412
+ },
+ "pomiar_bazowy_windows": {
+  "katalog": "D:\\Projects\\SUK - Dokumetacja nie gitowa\\runner\\baseline_5aaaaed",
+  "wykonawca": "orkiestrator",
+  "pliki": [
+   {
+    "path": "OPIS.txt",
+    "sha256": "5e7259dff9396f2428d405f4d0e530f220dc50b1a0eb4c003a183f597af97473",
+    "size_bytes": 705
+   },
+   {
+    "path": "SHA256SUMS.txt",
+    "sha256": "0b7962c8e9c05a5abaea3583fb04b002b8bddac93f61f51ccb59fb51caa5ed1b",
+    "size_bytes": 569
+   },
+   {
+    "path": "build_win.sh",
+    "sha256": "1fa52f3352060997892fdaa91d9229671f72dae5f6e9ba31c1a0ed409fcbbae5",
+    "size_bytes": 1263
+   },
+   {
+    "path": "diagnostyka_win.bat",
+    "sha256": "5ebe2e55b9788448a35ee7225f1495ca8acfa0396a15b489ee2c5a8758756b0b",
+    "size_bytes": 759
+   },
+   {
+    "path": "edytor_test.txt",
+    "sha256": "fcff2e0328737390293424905fc660407268dba878aac0ac9a401b34076792b1",
+    "size_bytes": 36183
+   },
+   {
+    "path": "edytor_zrzut.png",
+    "sha256": "14047d1fdb22a1de4f3fbe1cc7df2d454de881ce2df300cffde41e5cbee0d2a2",
+    "size_bytes": 81006
+   },
+   {
+    "path": "przechylka_test.txt",
+    "sha256": "77be4823e2a7297ee73164129cc1b9a4ba6b5c202408e6cb9cd34c0479a2d199",
+    "size_bytes": 724
+   },
+   {
+    "path": "przechylka_zrzut.png",
+    "sha256": "11518fd79167df7bf7fa14cfcf0efdc80efed90bcb86a67a66631854f536df96",
+    "size_bytes": 88119
+   },
+   {
+    "path": "selftest.txt",
+    "sha256": "6cc78d68523fa32783012da02a6e71777ab2fc9397c4e4e32ac00b1cdd8619ec",
+    "size_bytes": 80023
+   },
+   {
+    "path": "selftest.txt.postep",
+    "sha256": "ebeb853c752181aafd4d093a468be2736e71d3c6020776d71652fa391898286d",
+    "size_bytes": 940
+   },
+   {
+    "path": "selftest.txt.zdarzenia",
+    "sha256": "65b7a9f2636f67925200757b2f8d299bcb0123cb1de5b4649ee6e6b535d50b47",
+    "size_bytes": 23443
+   },
+   {
+    "path": "status.txt",
+    "sha256": "2d35b7afea8004b5e5daf28eb4f0a0c304971b38c3c85aecc02e9b7419aed6cd",
+    "size_bytes": 75
+   },
+   {
+    "path": "testy_win.bat",
+    "sha256": "d1b9116589ee77df195d3b7da978cb0f1032af92fef306fe527c60fc4f0dbd0d",
+    "size_bytes": 1533
+   }
+  ],
+  "brak_pliku_wymienionego_w_OPIS": [
+   "diagnostyka.txt"
+  ]
+ },
+ "binaria_z_build_win_sh": {
+  "uwaga": "zbudowane przez orkiestratora (runner/build_win.sh, Linux VM, SDK 10.0.402, -r win-x64), bin/ ignorowane przez Git; nie są artefaktem tego zadania",
+  "pliki": [
+   {
+    "path": "app/LcsWidzew/bin/Release/net8.0-windows/LcsWidzew.dll",
+    "sha256": "392c8a2add5e8d5e5dc595d549d2a64bb8ba260ef807b3bdc02ee7af04caa97a",
+    "size_bytes": 538624
+   },
+   {
+    "path": "app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.dll",
+    "sha256": "d012833a3cc5103e0da71f9a506b2f97297f4589fd05522cc5a549f6d4f6dee3",
+    "size_bytes": 811520
+   },
+   {
+    "path": "app/Lcs.EdytorUT/bin/Release/net8.0-windows/Lcs.Model.dll",
+    "sha256": "db5537acedd5eff99acdb03ed312f2020ec5dfb08d1904f97dddcb0283c7ef8d",
+    "size_bytes": 237568
+   },
+   {
+    "path": "app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.dll",
+    "sha256": "e58b1e73e870b68e9be90ca7be583857480fbb0879284041ff94c49ee548acd2",
+    "size_bytes": 21504
+   },
+   {
+    "path": "app/Lcs.Komputerownia/bin/Release/net8.0-windows/Komputerownia.dll",
+    "sha256": "7f75cb5fb2ea699c6e97e90d1a3000861847ada85e145c9922850b4eee22aa61",
+    "size_bytes": 61952
+   }
+  ]
+ },
+ "archiwum_poza_git": [
+  {
+   "path": "Plan_multiplayer_2026-10-17.7z",
+   "sha256": "6a2c2d8ee54e87792820789ef3e9ee706793df52bf5855d7c77e5b407d83d55d",
+   "size_bytes": 12838023
+  },
+  {
+   "path": "Plan_multiplayer_2026-10-17/archiwum/v1.7/PDF_zastany_w_D_Projects_SUK.pdf",
+   "sha256": "e0b9e6108761d754edc5a8318b983dcd80a7e10e301a0c63cfcee547a3d2268a",
+   "size_bytes": 2331937
+  }
+ ],
+ "zaleznosci_przypiecia": {
+  "global.json": false,
+  "Directory.Packages.props": false,
+  "packages.lock.json": false,
+  ".config/dotnet-tools.json": false,
+  "PackageReference_w_csproj": 0,
+  "TargetFramework": {
+   "LcsWidzew": "net8.0-windows",
+   "Lcs.EdytorUT": "net8.0-windows",
+   "Lcs.Komputerownia": "net8.0-windows",
+   "Lcs.Przechylka": "net8.0-windows",
+   "Lcs.Model": "net8.0",
+   "tools/pdfr": "net8.0-windows10.0.19041.0"
+  }
+ }
+}
