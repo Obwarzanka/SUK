@@ -18,7 +18,6 @@ public partial class Simulator
     public Station L { get; }
     public double T;
     public double StartClock = 6 * 3600;
-    public string Page;                       // aktualnie wyświetlany obraz (kontekst adresów poleceń, Ie-104 § 11 ust. 6)
     public Dictionary<string, SecState> Secs = new();
     public Dictionary<string, SwState> Sws = new();
     public Dictionary<string, SigState> Sigs = new();
@@ -27,10 +26,6 @@ public partial class Simulator
     public Dictionary<string, Route> Routes = new();
     public Dictionary<string, List<RouteDef>> RouteTable = new();
     public PowerState Power = new();
-    public Pending Pending;
-    public List<BookEntry> Book = new();
-    public List<Pending> BookDrafts = new();
-    public User User;
     public Stats Stats = new();
     int seq = 1;
 
@@ -48,11 +43,11 @@ public partial class Simulator
     public Simulator(Station st, bool routes = true)
     {
         L = st;
+        Nadrzedny = new SystemNadrzedny(this);
         Rej = new Rejestrator(L, () => T, () => Clock(), () => User);
         Instruktor = new Instruktor(this);
         Rozklad = new Rozklad(this);
         Otoczenie = new Otoczenie(this);
-        Page = L.Pages[^1].Id;
         foreach (var s in L.Sections.Keys) Secs[s] = new SecState { Id = s };
         foreach (var s in L.Switches.Keys) Sws[s] = new SwState { Num = s };
         foreach (var s in L.Signals.Keys) Sigs[s] = new SigState { Name = s };
@@ -323,7 +318,7 @@ public partial class Simulator
     public void Tick(double dt)
     {
         T += dt;
-        if (Pending != null && T > Pending.Until) { Log("Odrzucone", "Upłynął czas potwierdzenia polecenia " + Pending.Line, "Polecenie"); Pending = null; PendingExpired?.Invoke(); }
+        Nadrzedny.Tick();
         Urzadzenia.Tick(); UpdateBlocks();
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
