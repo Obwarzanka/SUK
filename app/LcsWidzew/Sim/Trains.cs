@@ -111,6 +111,8 @@ public partial class Trains
         t.Segs.Add(new Seg { E = null, From = null, To = b.Far, Len = t.Len + 5, Dir = inward });
         t.Head = t.Len + 5;
         S.Log("Ruch", $"Pociąg {t.Num} ({t.Cat}) wyprawiony z posterunku {b.Nbr} na szlak {q.From}", "Pociąg", t.Num);
+        // zapowiedź posterunku sąsiedniego: numer pociągu do PIP na pierwszym odstępie od granicy
+        S.Nadrzedny.Pip.Nadaj(t.Num, S.L.Nodes[b.Far].Edges.Select(e => S.L.Edges[e].Sec).FirstOrDefault());
     }
 
     /// <summary>Pociąg / lokomotywa stojąca na torze – czoło przy końcu toru w kierunku jazdy.</summary>
@@ -131,6 +133,7 @@ public partial class Trains
         if (t.Head > tot) t.Head = tot;
         t.DwellDone = true; t.Stop = false; t.State = "run"; t.ReadySince = S.T;
         if (!q.Loco) { t.State = "dwell"; t.DwellUntil = Math.Max(S.T + 20, q.Dep ?? 0); t.DwellDone = false; t.Stop = q.Stop; t.DwellSecDone = sec; }
+        S.Nadrzedny.Pip.Nadaj(t.Num, sec);   // numer z rozkładu na torze postoju
         S.Log("Ruch", q.Loco ? $"Lokomotywa manewrowa {t.Num} na torze {Station.Lbl(sec)} – oczekuje na przebiegi manewrowe" : $"Pociąg {t.Num} ({t.Cat}) podstawiony na tor {Station.Lbl(sec)}, odjazd {S.Clock(t.DwellUntil)} – do {q.To}", "Pociąg", t.Num);
         return true;
     }
@@ -263,7 +266,7 @@ public partial class Trains
                 if (t.Term?.Reverse == true)
                 {
                     var tm = t.Term;
-                    Reverse(t); var old = t.Num; t.Num = tm.NewNum ?? t.Num; t.To = tm.To; t.DepAt = S.T;
+                    Reverse(t); var old = t.Num; t.Num = tm.NewNum ?? t.Num; t.To = tm.To; t.DepAt = S.T; S.Nadrzedny.Pip.ZmienNumer(old, t.Num);
                     t.Stop = tm.NewStopAt?.Count > 0; t.StopAt = tm.NewStopAt; t.DepBy = tm.NewDepBy ?? new(); t.DwellSecDone = null;
                     if (tm.NewCat != null) { t.Cat = tm.NewCat; t.Color = (Cats.GetValueOrDefault(tm.NewCat) ?? Cats["IC"]).Color; }
                     t.Term = tm.Then;
@@ -274,7 +277,7 @@ public partial class Trains
                 else if (term != null && !term.Reverse && !term.Odstaw)
                 {
                     // zmiana numeru bez zmiany czoła (pociąg jedzie dalej w tym samym kierunku jako inny pociąg)
-                    var old = t.Num; t.Num = term.NewNum ?? t.Num; t.To = term.To; t.Stop = term.NewStopAt?.Count > 0; t.StopAt = term.NewStopAt; t.DepBy = term.NewDepBy ?? new(); t.Term = term.Then;
+                    var old = t.Num; t.Num = term.NewNum ?? t.Num; S.Nadrzedny.Pip.ZmienNumer(old, t.Num); t.To = term.To; t.Stop = term.NewStopAt?.Count > 0; t.StopAt = term.NewStopAt; t.DepBy = term.NewDepBy ?? new(); t.Term = term.Then;
                     if (term.NewDep is double nd2 && nd2 > S.T) { t.State = "dwell"; t.DwellUntil = nd2; }
                     S.Log("Ruch", $"Pociąg {old} zakończył bieg – dalej jako {t.Num}{(t.To != null ? " na szlak " + t.To : "")}", "Pociąg", t.Num);
                     if (t.State == "dwell") return;
@@ -282,7 +285,7 @@ public partial class Trains
                 else if (t.Term?.Odstaw == true)
                 {
                     var tm = t.Term; var old = t.Num;
-                    Reverse(t); t.Shunt = true; t.Stop = false; t.StopAt = null; t.Num = tm.ShuntNum ?? t.Num + "M"; t.Duty = tm.NewDuty; t.Term = tm.Then;
+                    Reverse(t); t.Shunt = true; t.Stop = false; t.StopAt = null; t.Num = tm.ShuntNum ?? t.Num + "M"; S.Nadrzedny.Pip.ZmienNumer(old, t.Num); t.Duty = tm.NewDuty; t.Term = tm.Then;
                     S.Log("Ruch", tm.NewDuty != null
                         ? $"Pociąg {old} zakończył bieg – zmiana numeru na jednostkę {t.Num}, do odstawienia w bazie ŁKA (manewr); następny bieg: pociąg {tm.NewDuty.Num} o {S.Clock(tm.NewDuty.Dep)}"
                         : $"Pociąg {old} zakończył bieg – skład {t.Num} do odstawienia (przebieg manewrowy na tor postojowy)", "Pociąg", t.Num);
@@ -344,7 +347,7 @@ public partial class Trains
         int outDir = d.Dir != 0 ? d.Dir : b == null ? t.Segs[^1].Dir : b.Ends.FirstOrDefault(x => x.Post == PostOfTrain(t))?.Outward ?? b.Ends[0].Outward;
         if (outDir != t.Segs[^1].Dir) Reverse(t);
         var unit = t.Num;
-        t.Shunt = false; t.Loco = false; t.Num = d.Num; t.To = d.To; t.Stop = true; t.StopAt = d.StopAt ?? new() { PostOfTrain(t) };
+        t.Shunt = false; t.Loco = false; t.Num = d.Num; S.Nadrzedny.Pip.ZmienNumer(unit, t.Num); t.To = d.To; t.Stop = true; t.StopAt = d.StopAt ?? new() { PostOfTrain(t) };
         if (d.Term != null) t.Term = d.Term;
         if (d.DepBy != null) t.DepBy = new(d.DepBy);
         t.State = "dwell"; t.DwellUntil = Math.Max(S.T + 30, d.Dep); t.DwellDone = false; t.DwellSecDone = HeadSec(t);
@@ -412,7 +415,7 @@ public partial class Trains
     /// <summary>Nowy scenariusz: rozkład jazdy (Rozklad) i usterki (Instruktor).</summary>
     public void Load(string key)
     {
-        List.Clear(); seq = 1;
+        List.Clear(); seq = 1; S.Nadrzedny.Pip.Numery.Clear();
         S.Rozklad.Load(key);
         S.Instruktor.Load(key);
     }

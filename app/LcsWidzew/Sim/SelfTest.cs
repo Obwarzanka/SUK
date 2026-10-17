@@ -47,6 +47,7 @@ public static class SelfTest
         var done = new HashSet<RouteDef>(); var ok = new HashSet<string>(); var failed = new Dictionary<RouteDef, string>(); var lastWbl = new Dictionary<string, double>();
         bool conflictChecked = false; int conflictOk = 0, conflictTotal = 0;
         var naruszenia = new Dictionary<string, string>(); int kontroli = 0;
+        int pipOk = 0, pipTot = 0, pipObce = 0; var pipBledy = new List<string>();
         for (int i = 0; i < 4 * 900; i++)
         {
             sim.Tick(0.25);
@@ -54,6 +55,15 @@ public static class SelfTest
             {
                 // kontrola zależności na żywo (niezmienniki KZ) – co 2 s scenariusza
                 kontroli++; foreach (var k in KzPodglad.Kontrola(sim, out _).Where(k => k.Poziom == "naruszenie")) naruszenia.TryAdd(k.Tekst, sim.Clock());
+                // PIP (system nadrzędny, po zajętościach) a położenie pociągów w terenie
+                var okna = sim.Nadrzedny.Pip.Okna();
+                foreach (var t in tr.List.Where(t => t.Window != null))
+                {
+                    pipTot++;
+                    if (okna.GetValueOrDefault(t.Window)?.Contains(t.Num) == true) pipOk++;
+                    else if (pipBledy.Count < 12) pipBledy.Add($"{sim.Clock()} {t.Num}: pociąg na {t.Window}, PIP {string.Join(", ", sim.Nadrzedny.Pip.Numery.Where(x => x.Nr == t.Num).Select(x => $"czoło {x.Czolo}, okno {x.Okno ?? "–"}").DefaultIfEmpty("brak numeru"))}");
+                }
+                pipObce += okna.Values.SelectMany(x => x).Count(n => !tr.List.Any(t => t.Num == n && t.Window != null));
             }
             if (i % 20 != 0) continue;
             // posterunki sąsiednie i drugi koniec szlaku wewnętrznego dają pozwolenie
@@ -111,6 +121,8 @@ public static class SelfTest
         sb.AppendLine($"WYNIK: nastawione {ok.Count} z {todo.Count} przebiegów; kontrola zależności {conflictOk} z {conflictTotal}");
         sb.AppendLine($"KONTROLA KZ NA ŻYWO: {kontroli} kontroli w trakcie scenariusza, naruszeń: {naruszenia.Count}");
         foreach (var (t, c) in naruszenia) sb.AppendLine($"   naruszenie {c}: {t}");
+        sb.AppendLine($"PIP: numer w oknie pociągu {pipOk} z {pipTot} kontroli, numery bez pociągu w oknie: {pipObce}");
+        foreach (var x in pipBledy) sb.AppendLine("   PIP " + x);
         {
             // kontrola musi wykrywać naruszenia: celowo zepsuty stan KZ (osobny symulator)
             var ns = new Simulator(st) { User = sim.User }; int wyk = 0;
@@ -349,6 +361,7 @@ public static class SelfTest
             return r;
         }
         int okRoutes = 0; var lastWbl = new Dictionary<string, double>(); double maxBok = 0, maxSt = 0, maxAll = 0;
+        int pipOk = 0, pipTot = 0, pipObce = 0; var pipBledy = new List<string>();
         for (int i = 0; i < 3 * 3600 * 4; i++)
         {
             sim.Tick(0.25);
@@ -359,6 +372,18 @@ public static class SelfTest
                 maxAll = Math.Max(maxAll, v);
                 if (ed.SwLimit > 0 && t.Segs.Where(x => x.E != null).All(x => st.Edges[x.E].SwLimit > 0 || true)) maxBok = Math.Max(maxBok, ed.SwLimit > 0 ? v : 0);
                 if (!ed.Szlak && ed.SwLimit <= 0 && ed.VMax <= 0) maxSt = Math.Max(maxSt, v);
+            }
+            if (i % 8 == 0)
+            {
+                // PIP (po zajętościach) a położenie pociągów w terenie
+                var okna = sim.Nadrzedny.Pip.Okna();
+                foreach (var t in tr.List.Where(t => t.Window != null))
+                {
+                    pipTot++;
+                    if (okna.GetValueOrDefault(t.Window)?.Contains(t.Num) == true) pipOk++;
+                    else if (pipBledy.Count < 12) pipBledy.Add($"{sim.Clock()} {t.Num}: pociąg na {t.Window}, PIP {string.Join(", ", sim.Nadrzedny.Pip.Numery.Where(x => x.Nr == t.Num).Select(x => $"czoło {x.Czolo}, okno {x.Okno ?? "–"}").DefaultIfEmpty("brak numeru"))}");
+                }
+                pipObce += okna.Values.SelectMany(x => x).Count(n => !tr.List.Any(t => t.Num == n && t.Window != null));
             }
             if (i % 20 != 0) continue;
             // pozwolenia dla posterunków sąsiednich i drugiego końca szlaków wewnętrznych
@@ -440,6 +465,8 @@ public static class SelfTest
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pozostałe: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.Cat} {t.State} wait={t.WaitingAt}")));
         sb.AppendLine("Niewykonane z kolejki: " + string.Join(", ", sim.Rozklad.Queue.Where(q => !q.Done).Select(q => q.Num)));
+        sb.AppendLine($"PIP: numer w oknie pociągu {pipOk} z {pipTot} kontroli, numery bez pociągu w oknie: {pipObce}");
+        foreach (var x in pipBledy) sb.AppendLine("   PIP " + x);
         if (outPath != null) File.WriteAllText(outPath, sb.ToString());
         if (onlyNum == null) return sb.ToString();
         var evs = sim.Events.Where(e => e.Kategoria == "Ruch").Select(e => e.Zdarzenie).ToList();

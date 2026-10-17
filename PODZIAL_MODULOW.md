@@ -1,6 +1,6 @@
 # Podział klasy `Simulator` na moduły – plan (zaakceptowany)
 
-Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), kroki 5, 6 i 6a (2026-10-17). Każdy krok kończy się kompletem testów (niżej).
+Stan: plan zaakceptowany przez właściciela 2026-10-16. Zrobione: kroki 0–4 (2026-10-16), kroki 5, 6, 6a, 7 i 9 (2026-10-17); krok 8 odłożony (decyzja właściciela 2026-10-17). Każdy krok kończy się kompletem testów (niżej).
 
 Podstawa: `ROZWOJ.md` („Plan podziału programu na moduły”, etap 7), `Zrodla/EBILock_komputerownia.md` rozdz. 4 i 7.
 
@@ -302,3 +302,35 @@ czy KZ dobrze działa.
   nastawionego przebiegu w symulatorze (`"#page=2" "E S1 Pociąg"`) – bez niego zakładka KZ nie ma przebiegów ani poleceń (2 błędy).
 - Bez modelu rozładowania UPS i zużycia paliwa agregatu – do ustalenia z właścicielem, czy potrzebne (np. bez agregatu po czasie UPS:
   wszystko bez danych, sygnały ciemne – `Zrodla/EBILock_komputerownia.md`, tabela usterek).
+
+## 14. Krok 9 – system nadrzędny (zrobione 2026-10-17)
+
+Decyzja właściciela 2026-10-17: krok 8 (ruch wg sygnałów, prędkość z sygnału) odłożony, najpierw krok 9.
+
+**Część 1 – przenosiny** (`Sim/Pulpit/SystemNadrzedny.cs`, commit osobny):
+- interpreter poleceń (kody Ie-104 § 12, skróty, `Fold`, sklejanie nazw ze spacją), adresy w kontekście obrazu (`Resolve`, `EndFor`),
+  polecenia dwuetapowe (`Pending`, potwierdzenie, wycofanie, wygaśnięcie w `Tick`), stanowiska i obszary sterowania (`Desks`, `Control`,
+  przekazywanie, telefon, logowanie, `ExecAs` / `As`), książka E-1758, zapis wymiany ze stanowiskami;
+- komputer zależności dostaje **`PolecenieSystemowe(Kod, Obiekty, Koniec, Arg0)`** z rozwiązanymi adresami: `Simulator.Wykonaj`
+  (dawne `Run` bez `Resolve`), `SprawdzSpecjalne` (warunki wstępne polecenia specjalnego), `WszystkieStoj`, `NastawPrzebieg`;
+- `Simulator` przekierowuje (`Page`, `User`, `Pending`, `Desks`, `Exec`, `ExecAs`…) – okna, sieć i testy bez zmian;
+- zachowanie bez zmian: dziennik selftestu i scenariusze usterki / zima / manewry / ic_05 / ic_15 / ic_18 identyczne.
+
+**Część 2 – PIP po zajętościach** (`Sim/Pulpit/Pip.cs`): pulpit nie bierze już numerów z listy pociągów (`Meldunki` → `Pip.Okna()`).
+- PIP zna tylko zajętości odcinków meldowane przez KZ (`SecState.TrainOcc`) i układ (sąsiedztwo odcinków).
+- Każdy numer ma **czoło** (odcinek, na który ostatnio wjechał pociąg) i **okno** (ostatni tor stacyjny `:JT` albo odstęp szlakowy,
+  przez który przeszło czoło – tam jest wyświetlany, jak dotąd).
+- Zajęcie odcinka połączonego zajętymi odcinkami z czołem numeru → czoło przechodzi na ten odcinek; przy kilku tak samo bliskich –
+  numer, którego czoło ruszyło ostatnio (pociąg w ruchu, nie stojący przed semaforem – np. dwa pociągi za sobą na szlaku 2A).
+- Czoło zwolnione bez przejścia: pociąg wjechał na odcinek już zajęty (drugi pociąg na torze, tunel) – czoło na zajęty sąsiedni
+  odcinek (nie ten, z którego przyszedł); bez zajętego sąsiada – pociąg opuścił obszar albo został odstawiony, numer znika.
+- Numery przychodzą z **zapowiedzi posterunku sąsiedniego** (wyprawienie na szlak – numer od razu na pierwszym odstępie od granicy)
+  i z **rozkładu** (pociąg podstawiony na tor, zmiana numeru na końcu biegu, odstawienie, jednostka z bazy) – `Pip.Nadaj`, `Pip.ZmienNumer`.
+- Kontrola w selftestcie i w scenariuszach (co 2 s: numer pociągu w oknie, w którym jest pociąg): **`PIP: numer w oknie pociągu
+  1526 z 1526`** (kopia testowa), usterki / zima 26280 z 26280; rozkład rzeczywisty na kopii układu właściciela: ic_05 85696 z 85728,
+  ic_15 57890 z 57916 – różnice to kilkanaście sekund, gdy pociąg wjeżdża na odcinek zajęty innym pociągiem (numer przechodzi
+  dopiero po zwolnieniu poprzedniego odcinka). Numerów bez pociągu: 0.
+- Stanowisko przez sieć (`#serve` / `#join`): numery z PIP widoczne, polecenie spoza obszaru sterowania odrzucone
+  (`zrzuty/PIP_stanowisko_sieciowe.png`). Komputerownia `--test`: błędów 0.
+- Nie zrobione (etap 4 w `ROZWOJ.md`): ręczne nadanie, usunięcie i przesunięcie numeru przez dyżurnego, miganie numeru
+  nieprzesuniętego automatycznie i czerwony numer wpisany na wolny tor (Ie-104 § 8 pkt 26 ust. 4), dodatkowe informacje przy numerze.

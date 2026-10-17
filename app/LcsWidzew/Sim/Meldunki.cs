@@ -121,8 +121,7 @@ public partial class Simulator : IPulpitSource
         if (Pending != null && (d == null || Pending.Desk == null || Pending.Desk == d.Id))
             I.Pending = new PendingInd { Code = Pending.Code, Arg = Pending.Arg, Line = Pending.Line, Desc = Pending.Desc, Targets = new(Pending.Targets), Notes = new(Pending.Notes), NotBefore = Pending.NotBefore, Until = Pending.Until };
         I.Power = new PowerInd { Mains = Power.Mains, Ups = Power.Ups, Gen = Power.Gen, NN = Power.NN };
-        if (Trains != null)
-            foreach (var g in Trains.List.Where(t => t.Window != null).GroupBy(t => t.Window)) I.Windows[g.Key] = g.Select(t => t.Num).ToList();
+        I.Windows = Nadrzedny.Pip.Okna();
         I.Control = new(Control);
         I.Desks = Desks.Values.Select(x => new DeskInd { Id = x.Id, Name = x.Name, User = x.User?.Name, Host = x.Host }).ToList();
         if (d != null) I.ControlReqs = ControlReqs.Where(r => r.To == d.Id).ToList();

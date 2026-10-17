@@ -4,7 +4,7 @@ Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania buduje
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**
 
-**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7 zrobione, dalej 8–10; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7).
+**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7 i 9 zrobione, dalej 10, krok 8 odłożony; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7).
 
 ---
 

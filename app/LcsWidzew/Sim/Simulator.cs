@@ -323,6 +323,7 @@ public partial class Simulator
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }
         Trains?.Tick(dt);
         UpdateSignals(); UpdateRoutes(); SignalCodes();
+        Nadrzedny.Pip.Tick();
         Rej.UpdateAlarms();
     }
 

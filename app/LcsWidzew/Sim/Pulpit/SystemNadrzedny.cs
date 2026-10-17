@@ -40,7 +40,10 @@ public class SystemNadrzedny
     /// <summary>Stanowisko, od którego pochodzi wykonywane polecenie (null – wewnętrzne / test).</summary>
     public Desk CurDesk;
 
-    public SystemNadrzedny(Simulator s) { S = s; Page = s.L.Pages[^1].Id; }
+    /// <summary>PIP – numery pociągów na pulpicie.</summary>
+    public readonly Pip Pip;
+
+    public SystemNadrzedny(Simulator s) { S = s; Page = s.L.Pages[^1].Id; Pip = new Pip(s); }
 
     /// <summary>Cykl: wygaśnięcie niepotwierdzonego polecenia specjalnego.</summary>
     public void Tick()
