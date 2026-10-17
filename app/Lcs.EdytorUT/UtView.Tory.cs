@@ -21,6 +21,8 @@ public partial class UtView
     public event Action<List<UtVertex>, string, string> TrackDrawn;
     public event Action<string, int, XY> VertexMoved;
     public event Action<string, int, XY> VertexInserted;
+    /// <summary>Dwuklik na łuku: podział łuku (tor, wierzchołek łuku, km) – nowy wierzchołek bez załamania.</summary>
+    public event Action<string, int, double> ArcSplitAt;
     /// <summary>Zmiana stanu rysowania (opis do paska stanu).</summary>
     public event Action<string> DraftInfo;
     /// <summary>Promień i przejściowa w nowych wierzchołkach [m].</summary>
@@ -328,8 +330,16 @@ public partial class UtView
         if (tool == UtTool.Tor) { FinishDraft(); return true; }
         if (tool == UtTool.Wskaz && Track(SelectedTrack) is UtTrack t)
         {
+            var w = ToWorld(p);
+            // dwuklik na łuku (na osi, w części kołowej) – podział łuku w tym miejscu: nowy wierzchołek bez zmiany kształtu, a nie
+            // załamanie R 0 na boku wieloboku (przesunięcie takiego wierzchołka robiło ostre załamanie i psuło sąsiedni łuk)
+            {
+                var rr = Geometry(t); var (sk, _) = rr.Nearest(w, 0.25);
+                if ((ToScreen(rr.At(sk).P) - p).Length <= HitPx && Ciecie.KawalekAt(rr, sk) is { Luk: true } kl && t.Vertices[kl.Vertex].L <= 0)
+                { ArcSplitAt?.Invoke(t.Id, kl.Vertex, sk); return true; }
+            }
             // wstawienie wierzchołka na boku wieloboku stycznych najbliżej kursora
-            var w = ToWorld(p); int bi = -1; double bd = HitPx * 2; XY bq = default;
+            int bi = -1; double bd = HitPx * 2; XY bq = default;
             for (int i = 1; i < t.Vertices.Count; i++)
             {
                 var a = t.Vertices[i - 1].P; var b = t.Vertices[i].P; var d = b - a; double l2 = d.X * d.X + d.Y * d.Y;

@@ -34,6 +34,7 @@ public partial class MainWindow
             }
             else ChTrack(id, "Przesunięcie wierzchołka", t => { t.Vertices[i].X = p.X; t.Vertices[i].Y = p.Y; });
         };
+        View.ArcSplitAt += (id, vi, s) => SplitArc(id, vi, s);
         View.VertexInserted += (id, i, p) =>
         {
             ChTrack(id, "Nowy wierzchołek", t => t.Vertices.Insert(i, new UtVertex { X = p.X, Y = p.Y, R = View.NewR, L = View.NewL }));

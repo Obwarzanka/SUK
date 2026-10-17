@@ -89,6 +89,19 @@ public static partial class Test
         Ok(sub != null && tr.Vertices.Count == 6 && tr.Vertices.Skip(1).Take(4).All(x => x.R == 700) && ra.Ok && sh4 < 0.002 && arcs4.Max(x => x.Len) - arcs4.Min(x => x.Len) < 0.01,
             $"„Podziel łuk na części → 4 części”: W2–W5, każda R 700, równe ({arcs4.FirstOrDefault()?.Len:0.00} m), kształt bez zmian ({sh4 * 1000:0.0} mm)");
         Ok(Budowa.ArcGroup(tr.Vertices, 2, k).Count == 4, "4 części to jeden łuk złożony – „Łuk z punktów” dopasuje je razem");
+
+        // dwuklik we Wskaż: na łuku – podział łuku (bez załamania), na prostej – zwykły wierzchołek; kształt bez zmian
+        w.SetTool(UtTool.Wskaz); w.View.Select(tr.Id);
+        var a2 = Ciecie.Kawalki(ra).Where(x => x.Luk).ElementAt(1); var pa = ra.At((a2.S0 + a2.S1) / 2).P;
+        w.View.SetView(pa, 0.2); var sp = S(pa); w.View.Press(sp, MouseButton.Left, 2); w.View.Release(sp, MouseButton.Left);
+        tr = d.P.Tracks.First(x => x.Id == tr.Id); var rd = w.View.Geometry(tr);
+        double shD = ra.Sample(2).Max(q => rd.Nearest(q.P, 0.25).Dist) / k;
+        Ok(tr.Vertices.Count == 7 && tr.Vertices.Skip(1).Take(5).All(x => x.R == 700) && rd.Ok && shD < 0.002 && d.UndoName == "Podział łuku",
+            $"dwuklik na łuku: łuk podzielony (7 wierzchołków, wszystkie R 700), bez załamania R 0, kształt bez zmian ({shD * 1000:0.0} mm)");
+        var ps = rd.At(100).P; w.View.SetView(ps, 0.2); sp = S(ps); w.View.Press(sp, MouseButton.Left, 2); w.View.Release(sp, MouseButton.Left);
+        tr = d.P.Tracks.First(x => x.Id == tr.Id); var rs2 = w.View.Geometry(tr);
+        Ok(tr.Vertices.Count == 8 && d.UndoName == "Nowy wierzchołek" && rs2.Ok && rd.Sample(2).Max(q => rs2.Nearest(q.P, 0.25).Dist) / k < 0.002,
+            "dwuklik na prostej: zwykły nowy wierzchołek, kształt bez zmian");
         await Task.CompletedTask;
     }
 }

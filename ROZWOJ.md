@@ -121,7 +121,7 @@ Szczegółowe opisy zrobionych prac (etapy 0–7 i poprawki po uwagach właścic
 - **Etap 7:** „Sprawdź” (F7), warstwy wg Ig-10, eksport w skali do PDF / PNG.
 - Ostatni pełny test `--test` po zacommitowanych zmianach: **0 błędów**. Nie sprawdzono prawdziwą myszą ani na prawdziwej drukarce.
 - **Łuk z punktów (J):** wierzchołek (kierunki prostych), promień i (Tab) krzywe przejściowe dopasowane metodą najmniejszych kwadratów do punktów klikniętych na osi toru na zdjęciu; test – wierzchołek narysowany 8 m obok wraca z dokładnością 6 cm, R 700 → 999 (prawdziwy 1000); ze stałymi prostymi (W) R 1000 / L 59 przy 1000 / 60.
-- **Łuk o zmiennym promieniu:** PPM na łuku – „Podziel łuk tutaj” / „na 2–6 części” (kształt bez zmian), „Łuk z punktów” dopasowuje wszystkie części naraz (test: R 600 / 899 przy 600 / 900, 94 ms – odległość punktu od osi ze wzorów zamiast próbkowania, wcześniej 63 s).
+- **Łuk o zmiennym promieniu:** PPM na łuku – „Podziel łuk tutaj” / „na 2–6 części” (kształt bez zmian; dwuklik na łuku też dzieli, zamiast wstawiać załamanie R 0), „Łuk z punktów” dopasowuje wszystkie części naraz (test: R 600 / 899 przy 600 / 900, 94 ms – odległość punktu od osi ze wzorów zamiast próbkowania, wcześniej 63 s).
 - **Usuwanie kawałka toru i zaznaczanie kilku:** PPM na torze – „Usuń ten kawałek” (prosta / łuk, tor rozcina się na dwa) i „Rozetnij tor tutaj”; Ctrl + klik i Shift + prostokąt zaznaczają kilka elementów, Del usuwa naraz (jedno Ctrl+Z).
 - Obok edytora: **kalkulator przechyłki** `app/Lcs.Przechylka` (`Przechylka.exe`) – wartości dopuszczalne domyślne są przykładowe, do potwierdzenia przez właściciela; później wpięcie do edytora UT (pole L przy łuku).
 
