@@ -212,6 +212,8 @@ public class Station
     public Dictionary<string, GantryDef> Gantries = new();
     public List<DashedDef> Dashed = new();
     public List<RouteRule> RouteRules = new();
+    /// <summary>Zależności specjalne przebiegów z pliku &lt;układ&gt;.zaleznosci.json (projektuje człowiek).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public Zaleznosci Zal = new();
     public double Width = 2000, Height = 1125;
     /// <summary>
     /// Zobrazowanie (obrazy pulpitu EbiScreen): ta sama topologia i identyfikatory, własne położenia węzłów i przebieg torów
@@ -265,6 +267,7 @@ public class Station
         var fullPath = Path.GetFullPath(path);
         var station = Parse(File.ReadAllText(fullPath));
         station.SourcePath = fullPath;
+        station.Zal = Zaleznosci.Wczytaj(fullPath);
         return station;
     }
 

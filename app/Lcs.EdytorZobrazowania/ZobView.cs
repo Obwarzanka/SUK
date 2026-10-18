@@ -6,7 +6,7 @@ using Lcs.Model;
 
 namespace Lcs.EdytorZobrazowania;
 
-public enum ZobTool { Wskaz, Tor, Lacznik, Miarka }
+public enum ZobTool { Wskaz, Tor, Lacznik, Miarka, Zwrotnica, Sygnalizator, Wykolejnica, Koziol }
 
 /// <summary>
 /// Płótno obrazu w jednostkach obrazu „j.” (PLAN_EDYTOR_ZOBRAZOWANIA.md § 4): czarne tło jak na pulpicie (Ie-104 § 4 ust. 13),
@@ -14,7 +14,7 @@ public enum ZobTool { Wskaz, Tor, Lacznik, Miarka }
 /// (we Wskaż także lewym na pustym miejscu). Narzędzia: Wskaż (zaznaczenie toru, przeciąganie wierzchołka), Tor (łamana co 45°),
 /// Łącznik (ukos – pion – ukos między dwoma torami). Siatka, ramka, węzły i zaznaczenie są tylko w edytorze – nie należą do obrazu.
 /// </summary>
-public class ZobView : FrameworkElement
+public partial class ZobView : FrameworkElement
 {
     public ZobObraz Obraz { get; set; }
     public int Siatka { get; set; } = 8;
@@ -94,7 +94,7 @@ public class ZobView : FrameworkElement
             if (e.ChangedButton == MouseButton.Middle) StartPan(p);
             else if (e.ChangedButton == MouseButton.Left) LeftDown(p, Keyboard.Modifiers, e.ClickCount);
             else if (e.ChangedButton == MouseButton.Right) RightClick(p);
-            if (panFrom != null || drag != null) CaptureMouse();
+            if (panFrom != null || drag != null || opisDrag != null) CaptureMouse();
             e.Handled = true;
         };
         MouseUp += (s, e) => { LeftUp(e.GetPosition(this)); e.Handled = true; };
@@ -151,7 +151,7 @@ public class ZobView : FrameworkElement
             .Where(z => z.Dist * Zoom <= 6).OrderBy(z => z.Dist).Select(z => z.t).FirstOrDefault();
     }
 
-    public void Select(string id) { Selected = id; SelectionChanged?.Invoke(); InvalidateVisual(); }
+    public void Select(string id) { Selected = id; SelectedSym = null; SelectionChanged?.Invoke(); InvalidateVisual(); }
 
     public void ZoomAt(Point s, double factor)
     {
@@ -189,14 +189,18 @@ public class ZobView : FrameworkElement
             case ZobTool.Tor: TorClick(p, mods, clicks); break;
             case ZobTool.Lacznik: LacznikClick(p); break;
             case ZobTool.Miarka: Miara.Add(SnapAt(p).P); Info?.Invoke(MiaraText()); InvalidateVisual(); break;
+            case ZobTool.Zwrotnica or ZobTool.Sygnalizator or ZobTool.Wykolejnica or ZobTool.Koziol:
+                { var s = SnapAt(p); SymbolClick?.Invoke(s.P, s.Tor); break; }
             default:
-                // wierzchołek zaznaczonego toru – przeciąganie; tor – zaznaczenie; puste miejsce – przesuwanie widoku
+                // opis – przeciąganie, symbol – zaznaczenie; wierzchołek zaznaczonego toru – przeciąganie; tor – zaznaczenie;
+                // puste miejsce – przesuwanie widoku
+                if (SymDown(p)) return;
                 if (Selected != null && Obraz.Tory.FirstOrDefault(t => t.Id == Selected) is ZobTor st)
                     for (int i = 0; i < st.Pkt.Count; i++)
                         if ((ToScreen(st.Pkt[i]) - p).Length <= 7) { drag = (st.Id, i, st.Pkt[i]); return; }
                 var hit = HitTrack(p);
                 if (hit != null) { Select(hit.Id); return; }
-                if (Selected != null) Select(null);
+                if (Selected != null || SelectedSym != null) Select(null);
                 StartPan(p);
                 break;
         }
@@ -207,6 +211,7 @@ public class ZobView : FrameworkElement
         hoverScreen = p;
         if (panFrom is Point f) { Cursor = Cursors.SizeAll; PanTo(new Point(panOff.X + p.X - f.X, panOff.Y + p.Y - f.Y)); }
         if (drag is var (tor, i, _)) { var (gx, gy) = Snap(p); drag = (tor, i, new[] { gx, gy }); }
+        SymMove(p);
         var c = HoverPoint(p, mods);
         CursorPt = (c[0], c[1]); CursorMoved?.Invoke(); InvalidateVisual();
     }
@@ -214,6 +219,7 @@ public class ZobView : FrameworkElement
     public void LeftUp(Point p)
     {
         if (panFrom != null) { panFrom = null; ReleaseMouseCapture(); Cursor = null; }
+        if (SymUp()) ReleaseMouseCapture();
         if (drag is var (tor, i, pt))
         {
             drag = null; ReleaseMouseCapture();
@@ -330,6 +336,7 @@ public class ZobView : FrameworkElement
         if (ShowGrid && !vis.IsEmpty) DrawGrid(dc, vis);
         dc.DrawRectangle(null, Frame, new Rect(Math.Round(img.X) - 0.5, Math.Round(img.Y) - 0.5, Math.Round(img.Width) + 1, Math.Round(img.Height) + 1));
         DrawTracks(dc);
+        DrawSymbols(dc);
         DrawTool(dc);
         if (CursorPt is var (cx, cy) && cx >= 0 && cy >= 0 && cx <= Obraz.Szer && cy <= Obraz.Wys)
         {

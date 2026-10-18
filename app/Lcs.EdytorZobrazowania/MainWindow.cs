@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += OnKey;
         Closing += OnClosing;
         InitTory();
+        InitSymbole();
         Loaded += (s, e) =>
         {
             if (path != null) OpenPath(path);
@@ -100,6 +101,14 @@ public partial class MainWindow : Window
         tools.Items.Add(ToolBtn(ZobTool.Wskaz, "Wskaż", "Wskaż (V): klik na torze – zaznaczenie i panel; przeciągnięcie wierzchołka zaznaczonego toru; strzałki – przesunięcie o krok siatki; Del – zdjęcie z obrazu"));
         tools.Items.Add(ToolBtn(ZobTool.Tor, "Tor", "Tor (T): wybierz tor w panelu UT (albo kliknij węzeł obrazu – lista torów UT), potem punkty łamanej; Shift – poziomo, Ctrl – co 45°; koniec: klik na węźle, PPM, Enter, dwuklik"));
         tools.Items.Add(ToolBtn(ZobTool.Miarka, "Miarka", "Miarka (M): klikaj punkty – długość w jednostkach obrazu i w kratkach siatki; PPM – wyczyść"));
+        tools.Items.Add(ToolBtn(ZobTool.Zwrotnica, "Zwrotnica", "Zwrotnica (Z): rozjazd UT z panelu UT albo następny nieumieszczony – klik na torze zasadniczym w miejscu, gdzie odchodzi tor odgałęźny"));
+        tools.Items.Add(ToolBtn(ZobTool.Sygnalizator, "Sygnalizator", "Sygnalizator (S): semafor / tarcza z panelu UT albo następny nieumieszczony – klik na linii jego toru; kierunek z UT"));
+        tools.Items.Add(ToolBtn(ZobTool.Wykolejnica, "Wykolejnica", "Wykolejnica (W): klik na linii jej toru"));
+        tools.Items.Add(ToolBtn(ZobTool.Koziol, "Kozioł", "Kozioł (K): klik przy końcu jego toru obrazu"));
+        tools.Items.Add(new Separator());
+        tools.Items.Add(Btn("✔ Sprawdź", (s, e) => Sprawdz(), "Sprawdź obraz (F7): nieumieszczone obiekty UT, przypięcia, symbole poza torem, kolejność wzdłuż km"));
+        tools.Items.Add(Btn("Do symulatora…", (s, e) => DoSymulatora(), "Zapisz UT i obrazy jako układ symulatora (LcsWidzew/Data/projekty) – do wyboru przy starcie symulatora; Data/station.json zostaje bez zmian"));
+        tools.Items.Add(new Separator());
         tools.Items.Add(ToolBtn(ZobTool.Lacznik, "Łącznik", "Łącznik (R): klik na torze obrazu w miejscu pierwszej zwrotnicy, potem na drugim torze – ukos 45° – pion – ukos 45°"));
         return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools } };
     }
@@ -150,6 +159,8 @@ public partial class MainWindow : Window
         var o = Obraz;
         if (o == null) return;
         BuildTrackPanel();
+        BuildSymPanel();
+        if (Uwagi != null) { ImgPanel.Children.Add(Header("Sprawdź")); if (CheckPanel.Parent is Panel cp) cp.Children.Remove(CheckPanel); ImgPanel.Children.Add(CheckPanel); ImgPanel.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) }); }
         ImgPanel.Children.Add(Header("Obraz"));
         ImgPanel.Children.Add(Label("Nazwa")); ImgPanel.Children.Add(NameBox);
         ImgPanel.Children.Add(Label("Rodzaj")); KindBox.ToolTip = "Ie-104 § 5 – obraz szczegółowy posterunku, § 6 – obraz poglądowy obszaru"; ImgPanel.Children.Add(KindBox);
@@ -204,12 +215,14 @@ public partial class MainWindow : Window
             SaveBtn.IsEnabled = SaveAsBtn.IsEnabled = ReloadUtBtn.IsEnabled = has;
             UndoBtn.IsEnabled = has && Doc.UndoName != null; UndoBtn.ToolTip = has && Doc.UndoName != null ? $"Cofnij: {Doc.UndoName} (Ctrl+Z)" : "Nic do cofnięcia";
             RedoBtn.IsEnabled = has && Doc.RedoName != null; RedoBtn.ToolTip = has && Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
-            View.Obraz = Obraz; View.Siatka = has ? Doc.P.Siatka : 8;
+            View.Obraz = Obraz; View.Siatka = has ? Doc.P.Siatka : 8; View.Ut = Doc?.Ut;
+            if (View.SelectedSym is var (sr, su) && (Obraz == null || !ZobSymbole.Lista(Obraz, sr).Any(x => x.Ut == su))) View.SelectSym(null, null);
             if (View.Selected != null && Obraz?.Tory.Any(t => t.Id == View.Selected) != true) View.Select(null);
             RefreshPreview();
             RefreshTabs();
             RefreshUt();
             RefreshImgPanel();
+            RefreshCheck();
             StUt.Text = !has ? "" : Doc.UtChanged ? $"⚠ UT {Path.GetFileName(Doc.UtPath)} zmieniony po zapisie obrazu" : $"UT: {Path.GetFileName(Doc.UtPath)} (tylko do odczytu)";
             StUt.Foreground = has && Doc.UtChanged ? MissFg : Brushes.Black;
             ShowZoom();
@@ -284,11 +297,11 @@ public partial class MainWindow : Window
             {
                 var it = new TreeViewItem
                 {
-                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}", Tag = x, FontWeight = FontWeights.Normal,
+                    // obiekt wybrany ostatnio – pogrubiony (bez zaznaczania w drzewie: TreeView zgłosiłby to później jak klik)
+                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}", Tag = x, FontWeight = x.Id == utSelected ? FontWeights.Bold : FontWeights.Normal,
                     Foreground = x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
                 };
                 gi.Items.Add(it);
-                if (x.Id == utSelected) it.IsSelected = true;
             }
             UtTree.Items.Add(gi);
         }
@@ -493,6 +506,7 @@ public partial class MainWindow : Window
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
         else if (!inText && e.Key == Key.Home) { View.Fit(); e.Handled = true; }
+        else if (e.Key == Key.F7) { Sprawdz(); e.Handled = true; }
         else if (!inText && !ctrl && ToolKey(e.Key, shift)) e.Handled = true;
     }
 }

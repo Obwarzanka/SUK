@@ -55,7 +55,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 | 6 ✔ | Wysokości (Z): profil podłużny, pochylenia, NMT z Geoportalu, nasyp / przekop. | profil toru zgodny z NMT w punktach kontrolnych |
 | 7 ✔ | Kontrola układu (otwarte końce, rozjazd bez numeru, urządzenie poza torem, nakładające się tory), warstwy, wydruk / eksport PNG / PDF w skali. | wydruk 1:1000 – zmierzone na kartce = skala |
 | 8 | Edytor zobrazowania jako osobna aplikacja – plan: `PLAN_EDYTOR_ZOBRAZOWANIA.md` (zaakceptowany 2026-10-17). | – |
-| 9 | Przekazywanie danych z UT do symulatora: z UT powstaje topologia (tory, zwrotnice, odcinki, sygnalizatory, długości, pochylenia, prędkości) dla komputera zależności, kart urządzeń i ruchu pociągów; przebiegi i zależności projektuje człowiek (tablica zależności). | do ustalenia z właścicielem |
+| 9 | Przekazywanie danych z UT do symulatora: z UT powstaje topologia (tory, zwrotnice, odcinki, sygnalizatory, długości, pochylenia, prędkości) dla komputera zależności, kart urządzeń i ruchu pociągów; przebiegi i zależności projektuje człowiek (tablica zależności). | **zaczęty 2026-10-18:** `DoSymulatora` (UT + obraz → `station.json`), „Do symulatora…” w edytorze zobrazowania; mijanka testowa w symulatorze (selftest 5 z 5). Brak: rozjazdy krzyżowe, pochylenia, Z4 |
 
 Po każdym etapie: build, test automatyczny etapu (kliknięcia jak użytkownik, wg `lcs-testuj-jak-uzytkownik`), zrzut, szczegółowy wpis w `HISTORIA_EDYTOR_UT.md` i skrót w `ROZWOJ.md`.
 

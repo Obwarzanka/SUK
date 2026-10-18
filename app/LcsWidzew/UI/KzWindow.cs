@@ -70,14 +70,14 @@ public class KzWindow : DarkWindow
                 gRoutes.ItemsSource = sim.Routes.Values.Select(r => new RouteRow
                 {
                     Przebieg = r.Id, Stan = r.State switch { "setting" => "nastawianie (zwrotnice / warunki)", "set" => "utwierdzony, sygnał zezwalający", "passed" => "przejechany – zwalnianie odcinkami", "stopped" => "sygnał „Stój” – przebieg utwierdzony", _ => r.State } + (r.ManualStop ? ", zatrzymany ręcznie" : ""),
-                    Zwolniono = $"{r.Rel}/{r.Secs.Count}", Odcinki = string.Join(" ", r.Secs.Skip(r.Rel).Select(L)), Ochronna = L(r.Overlap), Boczna = r.FlankText, Czas = $"{sim.T - r.T0:0} s", ZCZ = Secs(r.TimeRelUntil),
+                    Zwolniono = $"{r.Rel}/{r.Secs.Count}", Odcinki = string.Join(" ", r.Secs.Skip(r.Rel).Select(L)), Ochronna = string.Join(" ", r.OvSecs.Select(L).Concat(r.OvSw.Select(q => L(q.Num) + q.Pos))), Boczna = r.FlankText, Czas = $"{sim.T - r.T0:0} s", ZCZ = Secs(r.TimeRelUntil),
                     Stanowisko = sim.Desks.Values.FirstOrDefault(d => sim.Control.GetValueOrDefault(Station.PostOf(r.Start)) == d.Id)?.Name ?? ""
                 }).ToList();
                 break;
             case 1:
-                gSw.ItemsSource = sim.Sws.Values.Where(w => !only || w.Lock != null || w.Flank.Count > 0 || w.Moving != null || w.Stopped || w.Rozpr || w.NoCtrl || w.Frozen || w.Local || w.NoData).OrderBy(w => w.Num).Select(w => new SwRow
+                gSw.ItemsSource = sim.Sws.Values.Where(w => !only || w.Lock != null || w.Flank.Count > 0 || w.Ov.Count > 0 || w.Moving != null || w.Stopped || w.Rozpr || w.NoCtrl || w.Frozen || w.Local || w.NoData).OrderBy(w => w.Num).Select(w => new SwRow
                 {
-                    Zwrotnica = L(w.Num), Polozenie = w.Pos, Utwierdzona = RouteName(w.Lock) + (w.Flank.Count > 0 ? (w.Lock != null ? "; " : "") + "ochrona boczna: " + string.Join(", ", w.Flank.Select(RouteName)) : ""),
+                    Zwrotnica = L(w.Num), Polozenie = w.Pos, Utwierdzona = RouteName(w.Lock) + (w.Flank.Count > 0 ? (w.Lock != null ? "; " : "") + "ochrona boczna: " + string.Join(", ", w.Flank.Select(RouteName)) : "") + (w.Ov.Count > 0 ? "; droga ochronna: " + string.Join(", ", w.Ov.Select(RouteName)) : ""),
                     Przestawianie = w.Moving == null ? "" : $"→ „{w.Moving.Target}”, {Math.Max(0, w.Moving.Until - sim.T):0.0} s" + (w.Frozen ? " (nie przestawia się!)" : ""),
                     Stan = string.Join(", ", new[] { w.Stopped ? "zastopowana" : null, w.Rozpr ? "ROZPRUCIE" : null, w.NoCtrl ? "brak kontroli" : null, w.Frozen ? "przekroczony czas przekładania" : null, w.Local ? "sterowanie miejscowe" : null, w.NoData ? "brak danych" : null }.Where(x => x != null))
                 }).ToList();

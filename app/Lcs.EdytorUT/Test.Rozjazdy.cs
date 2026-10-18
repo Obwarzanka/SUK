@@ -121,6 +121,23 @@ public static partial class Test
             var zas = Find<ComboBox>(w.TrackPanel, c => c.Items.Count == 2 && (c.Items[0] as string)?.StartsWith("+") == true);
             zas.SelectedIndex = 1;
             Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Zas == "-", "położenie zasadnicze 5: na zwrot");
+            // zmiana numeru wstawionego rozjazdu (Enter) i powrót
+            var nb = Find<TextBox>(w.TrackPanel, x => x.Text == "5"); nb.Text = "15"; Enter(nb);
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && Find<TextBlock>(w.TrackPanel, x => x.Text == "Rozjazd 15") != null, "numer rozjazdu 5 → 15 w panelu (Enter)");
+            nb = Find<TextBox>(w.TrackPanel, x => x.Text == "15"); nb.Text = "1"; Enter(nb);
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && w.LastMessage.Contains("zajęty"), "numer zajęty (1) – odrzucony z komunikatem");
+            nb = Find<TextBox>(w.TrackPanel, x => x.Text == "15"); Type(nb, "5");
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "5", "numer rozjazdu 15 → 5 (wyjście z pola)");
+            // menu PPM łącznika: oba numery naraz, zamiana miejscami; zajęty numer odrzucony
+            var q3 = d.P.Turnouts.First(x => x.Number == "3"); var q4 = d.P.Turnouts.First(x => x.Number == "4");
+            var rn = w.BuildTurnoutMenu(q3.Id).Items.OfType<MenuItem>().FirstOrDefault(x => (x.Header as string)?.StartsWith("Zmień numery") == true);
+            w.AskNumbersForTest = def => def.Length == 2 && def[0] == "3" && def[1] == "4" ? new[] { "4", "3" } : null;
+            rn?.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Ok(rn != null && d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "3", "menu „Zmień numery łącznika…”: 3/4 → 4/3 (zamiana miejscami)");
+            w.AskNumbersForTest = _ => new[] { "1", "3" }; w.RenumberTurnout(q3.Id);
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && w.LastMessage.Contains("zajęty"), "numer 1 zajęty – numery łącznika bez zmian");
+            w.DoUndo(); w.AskNumbersForTest = null;
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "3" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "4", "Ctrl+Z – numery łącznika 3/4 wróciły");
             // zablokowane wierzchołki odgałęzienia
             var lnk = d.P.Tracks.First(x => x.Id == z1.Branch); w.View.Select(lnk.Id);
             var v1 = lnk.Vertices[1].P; Look(v1);

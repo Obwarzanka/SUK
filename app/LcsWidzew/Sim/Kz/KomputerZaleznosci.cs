@@ -73,6 +73,7 @@ public partial class KomputerZaleznosci
                 r.Off = L.RouteRules.Any(q => q.Off && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey);
                 r.VSet = L.RouteRules.FirstOrDefault(q => q.VMax > 0 && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey)?.VMax ?? 0;
                 r.VCalc = RouteSpeed(r);
+                ApplySpecial(r);
             }
             var basic = list.FirstOrDefault(r => !r.Off && L.RouteRules.Any(q => q.Basic && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey));
             if (basic != null) { list.Remove(basic); list.Insert(0, basic); }
@@ -218,6 +219,36 @@ public partial class KomputerZaleznosci
         // ten sam element dla kilku zwrotnic – raz; sprzeczne położenia tej samej zwrotnicy – bez ochrony
         return res.GroupBy(f => (f.Item1, f.Item2)).Where(g => g.Select(x => x.Item3).Distinct().Count() == 1).Select(g => g.First()).ToList();
     }
+
+    /// <summary>
+    /// Zależności specjalne z pliku &lt;układ&gt;.zaleznosci.json (projektuje człowiek): warianty drogi ochronnej, przebieg bez drogi
+    /// ochronnej, przebiegi sprzeczne i dopuszczone, elementy ochrony bocznej dodane / usunięte, dodatkowe warunki.
+    /// </summary>
+    void ApplySpecial(RouteDef r)
+    {
+        foreach (var z in L.Zal.Dla(r.Type, r.Start, r.End, r.SwKey))
+        {
+            if (z.BezOchronnej) r.NoOverlap = true;
+            r.OverlapAlts.AddRange(z.DrogaOchronna);
+            r.Excl.AddRange(z.Sprzeczne); r.Allow.AddRange(z.Dopuszczone); r.Conds.AddRange(z.Warunki);
+            foreach (var u in z.OchronaUsun) r.Flank.RemoveAll(f => f.Id == u || f.Id + f.Pos == u);
+            foreach (var d in z.OchronaDodaj)
+            {
+                (string, string, string, string) f;
+                if (d.Length > 1 && d[^1] is '+' or '-' && L.Switches.ContainsKey(d[..^1])) f = ("sw", d[..^1], d[^1..], null);
+                else if (L.Derailers.ContainsKey(d)) f = ("der", d, "on", null);
+                else if (L.Signals.ContainsKey(d)) f = ("sig", d, "stop", null);
+                else continue;
+                r.Flank.RemoveAll(x => x.Id == f.Item2);
+                r.Flank.Add(f);
+            }
+        }
+    }
+
+    /// <summary>Przebiegi dopuszczone do jednoczesnego nastawienia zależnością specjalną (wpis przy którymkolwiek z nich).</summary>
+    public static bool Dopuszczone(RouteDef a, RouteDef b) => a.Allow.Contains(b.Key) || b.Allow.Contains(a.Key);
+    /// <summary>Przebiegi sprzeczne z zależności specjalnej (wpis przy którymkolwiek z nich).</summary>
+    public static bool Sprzeczne(RouteDef a, RouteDef b) => a.Excl.Contains(b.Key) || b.Excl.Contains(a.Key);
 
     /// <summary>Wybór przebiegu: zasadniczy albo wariantowy przechodzący przez punkty pośrednie (zwrotnica, odcinek, sygnalizator).</summary>
     public RouteDef FindRoute(string start, string end, string type, IList<string> via = null)

@@ -52,8 +52,10 @@ public partial class MainWindow
             ZobTool.Tor => "Tor: wybierz tor w panelu UT albo kliknij węzeł obrazu (koniec toru) – lista torów UT; potem punkty łamanej",
             ZobTool.Lacznik => "Łącznik: kliknij tor obrazu w miejscu pierwszej zwrotnicy, potem drugi tor",
             ZobTool.Miarka => "Miarka: klikaj punkty – długość w j. i w kratkach siatki; PPM – wyczyść, Esc – koniec",
+            ZobTool.Zwrotnica or ZobTool.Sygnalizator or ZobTool.Wykolejnica or ZobTool.Koziol => "",
             _ => "Wskaż: klik na torze – zaznaczenie; przeciągnięcie wierzchołka; puste miejsce – przesuwanie widoku",
         });
+        if (RodzajNarzedzia(t) is ZobRodzaj sr && Doc != null && Obraz != null) PickSym(sr, utSelected);
         // tor wybrany w panelu UT i jeszcze nie cały na obrazie – od razu jego brakujący kawałek
         if (t == ZobTool.Tor && Doc != null && Obraz != null && utSelected != null && Doc.Ut.Tracks.Any(x => x.Id == utSelected)
             && ZobTory.Luki(Obraz, utSelected, UtLen(utSelected)).Count > 0) StartTor(utSelected);
@@ -108,6 +110,7 @@ public partial class MainWindow
         utSelected = o.Id;
         bool tor = o.Grupa == ZobUt.GTory;
         View.Highlight = tor ? o.Id : null;
+        if (!tor && UtSymClicked(o)) { RefreshPreview(); View.InvalidateVisual(); return; }
         if (tor && View.Tool == ZobTool.Tor) StartTor(o.Id);
         else if (tor && View.Tool == ZobTool.Lacznik) Message($"Łącznik: {o.Opis} – kliknij tor obrazu w miejscu pierwszej zwrotnicy, potem drugi tor");
         else if (tor && Obraz.Tory.FirstOrDefault(t => t.Ut?.Tor == o.Id) is ZobTor zt) { View.Select(zt.Id); Message($"{o.Opis} – na obrazie" + (o.Czesc != null ? $" w części ({o.Czesc})" : "")); }
@@ -213,6 +216,7 @@ public partial class MainWindow
 
     public void DeleteSelected()
     {
+        if (View.SelectedSym != null) { DeleteSym(); return; }
         var t = SelectedTor; if (t == null) return;
         var name = TorName(t.Ut.Tor);
         Ch("Zdjęcie toru z obrazu", o => o.Tory.RemoveAll(x => x.Id == t.Id));
@@ -224,7 +228,19 @@ public partial class MainWindow
     {
         var t = SelectedTor; if (t == null) return;
         var id = t.Id;
-        Ch("Przesunięcie toru", o => { var x = o.Tory.First(q => q.Id == id); x.Pkt = x.Pkt.Select(q => new[] { q[0] + dx, q[1] + dy }).ToList(); });
+        Ch("Przesunięcie toru", o =>
+        {
+            var x = o.Tory.First(q => q.Id == id);
+            // symbole stojące na tym torze (obiekty UT tego toru) jadą razem z nim, z opisami
+            foreach (ZobRodzaj r in Enum.GetValues<ZobRodzaj>())
+                foreach (var s in ZobSymbole.Lista(o, r))
+                    if (s.P != null && ZobSymbole.Miejsce(Doc.Ut, s.Ut)?.Track == x.Ut.Tor && ZobSymbole.NaTorze(x, s.P))
+                    {
+                        s.P = new[] { s.P[0] + dx, s.P[1] + dy };
+                        if (s.Opis != null) s.Opis = new[] { s.Opis[0] + dx, s.Opis[1] + dy };
+                    }
+            x.Pkt = x.Pkt.Select(q => new[] { q[0] + dx, q[1] + dy }).ToList();
+        });
     }
 
     void Reverse()
@@ -289,6 +305,10 @@ public partial class MainWindow
             case Key.T: SetTool(ZobTool.Tor); break;
             case Key.R: SetTool(ZobTool.Lacznik); break;
             case Key.M: SetTool(ZobTool.Miarka); break;
+            case Key.Z: SetTool(ZobTool.Zwrotnica); break;
+            case Key.S: SetTool(ZobTool.Sygnalizator); break;
+            case Key.W: SetTool(ZobTool.Wykolejnica); break;
+            case Key.K: SetTool(ZobTool.Koziol); break;
             case Key.Enter when View.Tool == ZobTool.Tor: View.FinishDraft(); break;
             case Key.Back when View.Tool == ZobTool.Tor: View.UndoPoint(); break;
             case Key.Escape:

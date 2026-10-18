@@ -424,7 +424,7 @@ public class PanelView : FrameworkElement
             if (!OnPageNode(e.A) && !OnPageNode(e.B)) continue;
             if (!secCache.TryGetValue(e.Sec, out var col)) secCache[e.Sec] = col = SecBrush(e.Sec);
             var pts = e.Pts.Select(p => new Point(p.X, p.Y)).ToList();
-            double gapA = EndGap(e, e.A), gapB = EndGap(e, e.B); Brush c = deadLeg.Contains(e.Id) ? Grey : col;
+            double gapA = EndGap(e, e.A), gapB = EndGap(e, e.B); Brush c = deadLeg.Contains(e.Id) ? Grey : LockedEdge(e, col);
             foreach (var n in new[] { e.A, e.B })
             {
                 var sw = L.Nodes[n].Switch; if (sw == null) continue;
@@ -705,6 +705,26 @@ public class PanelView : FrameworkElement
         using (var ctx = g.Open()) { ctx.BeginFigure(pts[0], false, false); ctx.PolyLineTo(pts.Skip(1).ToList(), true, true); }
         g.Freeze();
         dc.DrawGeometry(null, pen, g);
+    }
+
+    /// <summary>
+    /// Barwa toru w odcinku utwierdzonym: tylko na drodze jazdy i drodze ochronnej przebiegu, który odcinek utwierdza – pozostałe
+    /// tory odcinka (np. drugi tor w odcinku zwrotnicowym grupy rozjazdów) szare (Ie-104 § 8 pkt 8 ust. 2 lit. c). Przy dwóch
+    /// przebiegach dopuszczonych zależnością specjalną każdy tor ma barwę swojego przebiegu. Zajętość – na całym odcinku.
+    /// </summary>
+    Brush LockedEdge(Edge e, Brush col)
+    {
+        var s = Ind.Secs[e.Sec];
+        // zajętość – na całym odcinku (licznik osi nie mówi, na którym torze grupy jest pojazd)
+        if (s.NoData || s.Lock == null || s.TrainOcc || s.Fault != null) return col;
+        foreach (var uid in new[] { s.Lock }.Concat(s.Shared ?? new()))
+        {
+            if (!Ind.Routes.TryGetValue(uid, out var r) || r.Edges.Count == 0) return col;     // brak drogi w meldunku – jak dawniej
+            bool own = uid == s.Lock;
+            if (r.Edges.Contains(e.Id)) return own ? col : r.Type == "P" ? Green : Yellow;
+            if (r.OverlapEdges.Contains(e.Id)) return own ? col : Yellow;
+        }
+        return Grey;
     }
 
     Brush SecBrush(string sec)

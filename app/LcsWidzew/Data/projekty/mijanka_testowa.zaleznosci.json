@@ -1,0 +1,16 @@
+{
+  "przebiegi": [
+    {
+      "start": "MT:B",
+      "end": "MT:D2",
+      "type": "P",
+      "drogaOchronna": [
+        {
+          "odcinki": [ "MT:Z1/2" ],
+          "zwrotnice": [ "MT:2+" ]
+        }
+      ],
+      "dopuszczone": [ "P MT:A→MT:C1" ]
+    }
+  ]
+}

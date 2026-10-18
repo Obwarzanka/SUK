@@ -45,19 +45,45 @@ public static partial class Test
     public static void Start(MainWindow w, string output, string shot)
     {
         Running = true; outPath = output;
-        // okno poza ekranem i bez aktywowania – mysz osoby przy komputerze nie zmienia wyniku
-        w.WindowState = WindowState.Normal; w.Width = 1500; w.Height = 900;
-        w.WindowStartupLocation = WindowStartupLocation.Manual; w.ShowActivated = false; w.ShowInTaskbar = false;
-        w.Left = SystemParameters.VirtualScreenLeft - 3200; w.Top = SystemParameters.VirtualScreenTop;
+        OffScreen(w);
         w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
         {
             try
             {
                 log.AppendLine("== etap Z1: szkielet"); await RunZ1(w, shot);
                 log.AppendLine("== etap Z2: tory obrazu, łączniki"); await RunZ2(w, shot);
+                log.AppendLine("== etap Z3: zwrotnice, sygnalizatory, kozły"); await RunZ3(w, shot);
+                log.AppendLine("== etap 9: do symulatora"); await RunSymulator(w);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();
+        }, DispatcherPriority.ApplicationIdle);
+    }
+
+    /// <summary>Okno poza ekranem i bez aktywowania – mysz osoby przy komputerze nie zmienia wyniku.</summary>
+    static void OffScreen(Window w)
+    {
+        w.WindowState = WindowState.Normal; w.Width = 1500; w.Height = 900;
+        w.WindowStartupLocation = WindowStartupLocation.Manual; w.ShowActivated = false; w.ShowInTaskbar = false;
+        w.Left = SystemParameters.VirtualScreenLeft - 3200; w.Top = SystemParameters.VirtualScreenTop;
+    }
+
+    /// <summary>Sam zrzut okna z wczytanym plikiem: cały obraz, a z punktem „x,y” – powiększenie (domyślnie 1:1) ze środkiem w tym punkcie.</summary>
+    public static void Shot(MainWindow w, string shot, string point, double zoom)
+    {
+        OffScreen(w);
+        w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
+        {
+            await Settle(w);
+            w.Sprawdz(); w.View.Fit();
+            var xy = point?.Split(',', ';', ' ');
+            if (xy?.Length == 2 && double.TryParse(xy[0], System.Globalization.CultureInfo.InvariantCulture, out var x) && double.TryParse(xy[1], System.Globalization.CultureInfo.InvariantCulture, out var y))
+            {
+                w.View.Actual();
+                if (zoom > 0 && zoom != 1) w.View.ZoomAt(new Point(w.View.ActualWidth / 2, w.View.ActualHeight / 2), zoom);
+                w.View.CenterOn(x, y);
+            }
+            await Settle(w); Save(w, shot); Application.Current.Shutdown();
         }, DispatcherPriority.ApplicationIdle);
     }
 

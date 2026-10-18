@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0, Z1 i Z2 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z3 – zwrotnice, sygnalizatory, wykolejnice, kozły.
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z4 – przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, szlaki, napisy.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
@@ -125,8 +125,8 @@ Jeden plik zawiera wszystkie obrazy obszaru (szczegółowe i poglądowe).
 Po każdym etapie: build, test edytora „jak użytkownik” (`EdytorZobrazowania.exe --test wynik.txt zrzut.png`, `błędów: 0`), zrzut,
 wpis w historii i skrót w `ROZWOJ.md`, jak przy edytorze UT.
 
-**Uwaga:** do etapu 9 symulator dalej czyta `station.json`. Obraz z nowego edytora trafi na pulpit dopiero po przekształceniu
-UT + obraz → model symulatora (etap 9, osobny plan).
+**Uwaga:** symulator czyta `station.json`. Od 2026-10-18 „Do symulatora…” przekształca UT + obraz → `station.json` w `Data/projekty`
+(`Lcs.Model/DoSymulatora.cs`, początek etapu 9) – obraz z edytora jest na pulpicie symulatora (bez elementów Z4).
 
 ## 6. Co trzeba dodać w UT przed rysowaniem (etap Z0)
 

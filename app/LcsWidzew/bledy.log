@@ -1,0 +1,53 @@
+[2026-10-16 13:19:23] edytor: System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at LcsWidzew.UI.EditorWindow.DownCore(Point w, MouseButtonEventArgs e) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 792
+   at LcsWidzew.UI.EditorWindow.<>c__DisplayClass112_0.<Down>b__2() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 783
+   at LcsWidzew.UI.EditorWindow.Safe(Action a) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 2305
+
+[2026-10-16 14:10:43] edytor: System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at LcsWidzew.UI.EditorWindow.DownCore(Point w, MouseButtonEventArgs e) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 1061
+   at LcsWidzew.UI.EditorWindow.<>c__DisplayClass112_0.<Down>b__2() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 784
+   at LcsWidzew.UI.EditorWindow.Safe(Action a) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\UI\EditorWindow.cs:line 2321
+
+[2026-10-17 15:08:55] UI: System.Collections.Generic.KeyNotFoundException: The given key 'LW' was not present in the dictionary.
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at LcsWidzew.Sim.Instruktor.ApplyFault(String type, String target, Boolean clear) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\Sim\Instruktor.cs:line 64
+   at LcsWidzew.MainWindow.Demo() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 163
+   at LcsWidzew.MainWindow.<.ctor>b__22_9() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 65
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-17 15:09:15] UI: System.Collections.Generic.KeyNotFoundException: The given key 'LW' was not present in the dictionary.
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at LcsWidzew.Sim.Instruktor.ApplyFault(String type, String target, Boolean clear) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\Sim\Instruktor.cs:line 64
+   at LcsWidzew.MainWindow.Demo() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 163
+   at LcsWidzew.MainWindow.<.ctor>b__22_9() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 65
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-17 15:09:55] UI: System.Collections.Generic.KeyNotFoundException: The given key 'LW' was not present in the dictionary.
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at LcsWidzew.Sim.Instruktor.ApplyFault(String type, String target, Boolean clear) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\Sim\Instruktor.cs:line 64
+   at LcsWidzew.MainWindow.Demo() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 163
+   at LcsWidzew.MainWindow.<.ctor>b__22_9() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 65
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-17 15:11:13] UI: System.Collections.Generic.KeyNotFoundException: The given key 'LW' was not present in the dictionary.
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at LcsWidzew.Sim.Instruktor.ApplyFault(String type, String target, Boolean clear) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\Sim\Instruktor.cs:line 64
+   at LcsWidzew.MainWindow.Demo() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 163
+   at LcsWidzew.MainWindow.<.ctor>b__22_9() in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\MainWindow.xaml.cs:line 65
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[2026-10-17 16:12:23] UI: System.IO.DirectoryNotFoundException: Could not find a part of the path 'C:\Users\micha\AppData\Local\Temp\claude\C--Users-micha-Documents-symulator\16cf3049-b043-4aa3-bd0f-884f2b840211\scratchpad$v\sc_usterki.txt'.
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.File.OpenHandle(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize)
+   at System.IO.File.WriteToFile(String path, FileMode mode, String contents, Encoding encoding)
+   at LcsWidzew.Sim.SelfTest.RunScenario(String stationPath, String outPath, String key, String onlyNum) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\Sim\SelfTest.cs:line 411
+   at LcsWidzew.App.OnStartup(StartupEventArgs e) in C:\Users\micha\Documents\symulator\SUK\app\LcsWidzew\App.xaml.cs:line 45
+   at System.Windows.Application.<.ctor>b__1_0(Object unused)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+

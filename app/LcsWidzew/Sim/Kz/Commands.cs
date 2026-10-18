@@ -35,6 +35,7 @@ public partial class KomputerZaleznosci
                 var w = key;
                 if (Sws[w].Lock != null) return ("Zwrotnica utwierdzona w przebiegu", null, null);
                 if (Sws[w].Flank.Count > 0) return ($"Zwrotnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(Sws[w].Flank, null)}", null, null);
+                if (Sws[w].Ov.Count > 0) return ($"Zwrotnica utwierdzona w drodze ochronnej przebiegu {FlankOwner(Sws[w].Ov, null)}", null, null);
                 if (Sws[w].Stopped) return ("Zwrotnica zastopowana", null, null);
                 return (null, w, new() { w, L.Switches[w].Sec });
             }
@@ -148,6 +149,7 @@ public partial class KomputerZaleznosci
                 if (w.NoData) return new(false, "Brak danych o zwrotnicy");
                 if (w.Lock != null) return new(false, "Zwrotnica utwierdzona w przebiegu");
                 if (w.Flank.Count > 0) return new(false, $"Zwrotnica utwierdzona w ochronie bocznej przebiegu {FlankOwner(w.Flank, null)}");
+                if (w.Ov.Count > 0) return new(false, $"Zwrotnica utwierdzona w drodze ochronnej przebiegu {FlankOwner(w.Ov, null)}");
                 if (w.Stopped) return new(false, "Zwrotnica zastopowana (Ie-20 §15 ust. 6)");
                 if (w.Local) return new(false, "Zwrotnica przekazana do nastawiania lokalnego");
                 if (w.Rozpr) return new(false, "Sygnalizowane rozprucie – najpierw KSR po sprawdzeniu w terenie");

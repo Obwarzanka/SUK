@@ -10,6 +10,8 @@ public class SecState
     public string Fault;          // null | "occ" (zajętość bez pojazdu) | "reset" (wymagane zerowanie) | "await" (oczekiwanie na 1. przejazd)
     public bool Closed, NoData;
     public string Lock, LockType; // przebieg utwierdzający; "train" | "shunt" | "overlap"
+    /// <summary>Inne przebiegi utwierdzające ten odcinek jednocześnie (przebiegi dopuszczone zależnością specjalną).</summary>
+    public HashSet<string> Shared = new();
     public double? TimeRel;
 }
 
@@ -20,6 +22,8 @@ public class SwState
     public string Num, Pos = "+", Lock;
     /// <summary>Przebiegi, których ochronę boczną zapewnia zwrotnica (utwierdzona w położeniu ochronnym).</summary>
     public HashSet<string> Flank = new();
+    /// <summary>Przebiegi, w których drodze ochronnej zwrotnica jest utwierdzona (zależność specjalna).</summary>
+    public HashSet<string> Ov = new();
     /// <summary>Przestawianie zlecone karcie zwrotnicy (do meldunku o kontroli w położeniu docelowym albo o braku kontroli).</summary>
     public MoveInfo Moving;
     /// <summary>Frozen – karta melduje przekroczony czas przekładania (nadzór czasu, np. zamarznięcie).</summary>
@@ -85,6 +89,12 @@ public class RouteDef
     /// <summary>Ochrona boczna: Kind „sw” (zwrotnica w położeniu Pos), „der” (wykolejnica założona), „sig” (sygnalizator „Stój”); For – zwrotnica przebiegu, którą chroni.</summary>
     public List<(string Kind, string Id, string Pos, string For)> Flank = new();
     public int Minus, Variant;
+    /// <summary>Zależności specjalne (plik &lt;układ&gt;.zaleznosci.json): warianty drogi ochronnej, przebieg bez drogi ochronnej,
+    /// przebiegi sprzeczne i dopuszczone (klucze „P MT:A→MT:C1”), dodatkowe warunki.</summary>
+    public List<Model.ZalOchronna> OverlapAlts = new();
+    public bool NoOverlap;
+    public List<string> Excl = new(), Allow = new(), Conds = new();
+    public string Key => Model.Zaleznosci.Klucz(Type, Start, End);
     public string FlankText => string.Join(" ", Flank.Select(f => f.Kind switch { "sw" => Model.Station.Lbl(f.Id) + f.Pos, "der" => Model.Station.Lbl(f.Id), _ => Model.Station.Lbl(f.Id) + "(S1)" }));
     public string SwText => string.Join(" ", Sw.Select(q => Model.Station.Lbl(q.Num) + q.Pos));
     /// <summary>Klucz przebiegu w regułach edytora: położenia zwrotnic (posortowane).</summary>
@@ -98,6 +108,9 @@ public class RouteDef
 public class Route : RouteDef
 {
     public string Uid, State = "setting";
+    /// <summary>Wybrana droga ochronna: odcinki i zwrotnice utwierdzone w drodze ochronnej.</summary>
+    public List<string> OvSecs = new();
+    public List<(string Num, string Pos)> OvSw = new();
     public int Rel;
     public HashSet<string> WasOcc = new();
     public bool Passed, SlowAlarm, ManualStop;

@@ -69,12 +69,12 @@ public static class KzPodglad
                 Id = r.Id, Typ = r.Type == "P" ? "pociągowy" : "manewrowy",
                 Stan = r.State switch { "setting" => "nastawianie", "set" => "utwierdzony, sygnał zezwalający", "passed" => "przejechany – zwalnianie", "stopped" => "„Stój” – utwierdzony", _ => r.State } + (r.TimeRelUntil != null ? ", zwalnianie czasowe" : ""),
                 Sygnal = s.Sigs[r.Start].Sig ?? "", Zwrotnice = r.SwText, Odcinki = string.Join(" ", r.Secs.Skip(r.Rel).Select(L)), Zwolnione = $"{r.Rel}/{r.Secs.Count}",
-                Ochronna = L(r.Overlap), Boczna = r.FlankText, Czas = $"{s.T - r.T0:0} s", V = $"{r.VMax:0}" + (s.SignalSpeed(r) > 0 ? $" (sygnał {s.SignalSpeed(r):0})" : ""),
+                Ochronna = string.Join(" ", r.OvSecs.Select(L).Concat(r.OvSw.Select(q => L(q.Num) + q.Pos))), Boczna = r.FlankText, Czas = $"{s.T - r.T0:0} s", V = $"{r.VMax:0}" + (s.SignalSpeed(r) > 0 ? $" (sygnał {s.SignalSpeed(r):0})" : ""),
             });
         foreach (var x in s.Secs.Values.Where(x => x.Lock != null || x.Closed).OrderBy(x => x.Id))
             res.Utwierdzenia.Add(new UtwWiersz { Rodzaj = "odcinek", Obiekt = L(x.Id), Utwierdzenie = x.Lock == null ? "" : (x.LockType switch { "train" => "pociągowy", "shunt" => "manewrowy", "overlap" => "droga ochronna", _ => x.LockType }) + " – " + RN(x.Lock), Stan = string.Join(", ", new[] { s.SecOcc(x.Id) ? "zajęty" : "wolny", x.Closed ? "zamknięty ruchowo" : null }.Where(v => v != null)) });
-        foreach (var w in s.Sws.Values.Where(w => w.Lock != null || w.Flank.Count > 0 || w.Stopped).OrderBy(w => w.Num))
-            res.Utwierdzenia.Add(new UtwWiersz { Rodzaj = "zwrotnica", Obiekt = L(w.Num), Utwierdzenie = string.Join("; ", new[] { w.Lock != null ? "w przebiegu " + RN(w.Lock) : null, w.Flank.Count > 0 ? "ochrona boczna " + string.Join(", ", w.Flank.Select(RN)) : null, w.Stopped ? "zastopowana" : null }.Where(v => v != null)), Stan = (s.SwControlled(w.Num) ? $"kontrola „{w.Pos}”" : w.Moving != null ? $"przekładanie → „{w.Moving.Target}”" : "brak kontroli") });
+        foreach (var w in s.Sws.Values.Where(w => w.Lock != null || w.Flank.Count > 0 || w.Ov.Count > 0 || w.Stopped).OrderBy(w => w.Num))
+            res.Utwierdzenia.Add(new UtwWiersz { Rodzaj = "zwrotnica", Obiekt = L(w.Num), Utwierdzenie = string.Join("; ", new[] { w.Lock != null ? "w przebiegu " + RN(w.Lock) : null, w.Flank.Count > 0 ? "ochrona boczna " + string.Join(", ", w.Flank.Select(RN)) : null, w.Ov.Count > 0 ? "droga ochronna " + string.Join(", ", w.Ov.Select(RN)) : null, w.Stopped ? "zastopowana" : null }.Where(v => v != null)), Stan = (s.SwControlled(w.Num) ? $"kontrola „{w.Pos}”" : w.Moving != null ? $"przekładanie → „{w.Moving.Target}”" : "brak kontroli") });
         foreach (var d in s.Ders.Values.Where(d => d.Lock != null || d.Flank.Count > 0).OrderBy(d => d.Name))
             res.Utwierdzenia.Add(new UtwWiersz { Rodzaj = "wykolejnica", Obiekt = L(d.Name), Utwierdzenie = string.Join("; ", new[] { d.Lock != null ? "w przebiegu " + RN(d.Lock) : null, d.Flank.Count > 0 ? "ochrona boczna " + string.Join(", ", d.Flank.Select(RN)) : null }.Where(v => v != null)), Stan = d.MovingTo != null ? "przekładanie" : d.On ? "założona" : "zdjęta" });
         foreach (var x in s.Sigs.Values.Where(x => x.Flank.Count > 0 || x.Closed).OrderBy(x => x.Name))
@@ -105,12 +105,14 @@ public static class KzPodglad
             foreach (var sc in r.Secs.Skip(r.Rel))
             {
                 n++;
-                if (s.Secs[sc].Lock != r.Uid) Nar($"{r.Id}: odcinek {L(sc)} nieutwierdzony w przebiegu");
+                if (s.Secs[sc].Lock != r.Uid && !s.Secs[sc].Shared.Contains(r.Uid)) Nar($"{r.Id}: odcinek {L(sc)} nieutwierdzony w przebiegu");
                 if (r.Type == "P" && s.SecOcc(sc)) Nar($"{r.Id}: sygnał zezwalający przy zajętym odcinku {L(sc)}");
             }
             foreach (var d in r.Ders) { n++; if (s.Ders[d].On || s.Ders[d].MovingTo != null) Nar($"{r.Id}: sygnał zezwalający przy założonej wykolejnicy {L(d)}"); }
+            foreach (var (num, pos) in r.OvSw)
+            { n++; if (s.Sws[num].Pos != pos || !s.SwControlled(num) || !s.Sws[num].Ov.Contains(r.Uid)) Nar($"{r.Id}: droga ochronna – zwr. {L(num)} bez kontroli / utwierdzenia w położeniu „{pos}”"); }
             foreach (var (kind, id, fpos, forSw) in r.Flank.Where(f => f.Kind == "sw"))
-            { n++; if (s.Sws[forSw].Lock == r.Uid && (s.Sws[id].Pos != fpos || !s.SwControlled(id))) Nar($"{r.Id}: ochrona boczna – zwr. {L(id)} bez kontroli w położeniu „{fpos}”"); }
+            { n++; if ((forSw == null || s.Sws[forSw].Lock == r.Uid) && (s.Sws[id].Pos != fpos || !s.SwControlled(id))) Nar($"{r.Id}: ochrona boczna – zwr. {L(id)} bez kontroli w położeniu „{fpos}”"); }
         }
         // 2. sygnał zezwalający pociągowy / manewrowy tylko przy nastawionym przebiegu (odstępowe – z blokady)
         foreach (var (name, x) in s.Sigs)
@@ -121,7 +123,7 @@ public static class KzPodglad
                 Nar($"semafor {L(name)}: sygnał zezwalający bez nastawionego przebiegu");
         }
         // 3. odcinek nie może należeć do dwóch przebiegów (części niezwolnione)
-        foreach (var g in aktywne.SelectMany(r => r.Secs.Skip(r.Rel).Select(sc => (sc, r))).GroupBy(x => x.sc).Where(g => g.Count() > 1))
+        foreach (var g in aktywne.SelectMany(r => r.Secs.Skip(r.Rel).Select(sc => (sc, r))).GroupBy(x => x.sc).Where(g => g.Count() > 1 && !g.All(a => g.All(b => a.r == b.r || KomputerZaleznosci.Dopuszczone(a.r, b.r)))))
         { n++; Nar($"odcinek {L(g.Key)} w dwóch przebiegach: {string.Join(", ", g.Select(x => x.r.Id))}"); }
         // 4. utwierdzenie bez przebiegu
         foreach (var x in s.Secs.Values.Where(x => x.Lock != null)) { n++; if (!s.Routes.ContainsKey(x.Lock)) Nar($"odcinek {L(x.Id)} utwierdzony w nieistniejącym przebiegu"); }

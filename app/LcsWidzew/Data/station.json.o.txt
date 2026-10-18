@@ -1,0 +1,1 @@
+migracja: odwrócone 64, sprzeczne węzły 0:  | normalizacja po migracji: odwrócone 0, sprzeczne 0: 

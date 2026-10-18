@@ -17,8 +17,8 @@ public partial class KomputerZaleznosci
             var sc = rt.Secs[i]; var s = Secs[sc]; bool last = i == rt.Secs.Count - 1;
             if (s.Closed) why.Add($"odcinek {sc} zamknięty");
             // droga ochronna przebiegu kończącego się na semaforze początkowym może zostać zajęta przez przebieg dalszy (jazda „na wprost” przez stację)
-            bool overlapOfPrev = s.LockType == "overlap" && Routes.TryGetValue(s.Lock ?? "", out var prv) && prv.End == rt.Start && prv.Overlap == sc;
-            if (s.Lock != null && s.Lock != rt.Uid && !overlapOfPrev) why.Add($"odcinek {sc} utwierdzony w innym przebiegu");
+            bool overlapOfPrev = s.LockType == "overlap" && Routes.TryGetValue(s.Lock ?? "", out var prv) && prv.End == rt.Start && prv.OvSecs.Contains(sc);
+            if (s.Lock != null && s.Lock != rt.Uid && !overlapOfPrev && !SharedOk(rt, s)) why.Add($"odcinek {sc} utwierdzony w innym przebiegu");
             if (SecOcc(sc) && !(rt.Type == "M" && last)) why.Add($"odcinek {sc} zajęty");
         }
         foreach (var (num, pos) in rt.Sw)
@@ -32,6 +32,7 @@ public partial class KomputerZaleznosci
             {
                 if (w.Lock != null && w.Lock != rt.Uid) why.Add($"zwr. {num} utwierdzona w innym przebiegu");
                 if (w.Flank.Any(u => u != rt.Uid)) why.Add($"zwr. {num} utwierdzona w ochronie bocznej przebiegu {FlankOwner(w.Flank, rt.Uid)}");
+                if (w.Ov.Any(u => u != rt.Uid)) why.Add($"zwr. {num} utwierdzona w drodze ochronnej przebiegu {FlankOwner(w.Ov, rt.Uid)}");
                 if (w.Stopped) why.Add($"zwr. {num} zastopowana");
                 if (!Power.NN) why.Add("wyłączone napięcie nastawcze");
                 if (forSetting && SecOcc(L.Switches[num].Sec)) why.Add($"zwr. {num} – odcinek zajęty");
@@ -46,7 +47,7 @@ public partial class KomputerZaleznosci
                 var w = Sws[id]; var cur = w.Moving?.Target ?? w.Pos;
                 if (cur == fpos) continue;
                 if (w.Lock != null && w.Lock != rt.Uid) why.Add($"ochrona boczna: zwr. {id} utwierdzona w innym przebiegu");
-                if (w.Flank.Any(u => u != rt.Uid)) why.Add($"ochrona boczna: zwr. {id} utwierdzona w ochronie innego przebiegu w położeniu {cur}");
+                if (w.Flank.Any(u => u != rt.Uid) || w.Ov.Any(u => u != rt.Uid)) why.Add($"ochrona boczna: zwr. {id} utwierdzona w ochronie innego przebiegu w położeniu {cur}");
                 if (w.Stopped) why.Add($"ochrona boczna: zwr. {id} zastopowana");
                 if (w.Rozpr || w.NoData || w.Local) why.Add($"ochrona boczna: zwr. {id} bez kontroli / rozprucie / nastawianie lokalne");
                 if (!Power.NN) why.Add("ochrona boczna: wyłączone napięcie nastawcze");
@@ -65,11 +66,39 @@ public partial class KomputerZaleznosci
                 if (s.Aspect != Aspect.Stop || (forSetting && s.Route != null)) why.Add($"ochrona boczna: sygnalizator {id} – sygnał zezwalający / początek przebiegu");
             }
         }
-        if (rt.Overlap != null)
+        foreach (var oc in rt.OvSecs)
         {
-            var o = Secs[rt.Overlap];
-            if (SecOcc(rt.Overlap)) why.Add($"droga ochronna {rt.Overlap} zajęta");
-            if (o.Lock != null && o.Lock != rt.Uid && o.LockType != "overlap") why.Add($"droga ochronna {rt.Overlap} utwierdzona w innym przebiegu");
+            var o = Secs[oc];
+            if (SecOcc(oc)) why.Add($"droga ochronna {oc} zajęta");
+            if (o.Lock != null && o.Lock != rt.Uid && o.LockType != "overlap" && !SharedOk(rt, o)) why.Add($"droga ochronna {oc} utwierdzona w innym przebiegu");
+        }
+        // zwrotnice drogi ochronnej (zależność specjalna) – przestawiane i utwierdzane jak w ochronie bocznej
+        foreach (var (num, pos) in rt.OvSw)
+        {
+            var w = Sws[num]; var cur = w.Moving?.Target ?? w.Pos;
+            if (cur == pos) continue;
+            if (w.Lock != null && w.Lock != rt.Uid) why.Add($"droga ochronna: zwr. {num} utwierdzona w innym przebiegu");
+            if (w.Flank.Any(u => u != rt.Uid) || w.Ov.Any(u => u != rt.Uid)) why.Add($"droga ochronna: zwr. {num} utwierdzona w ochronie innego przebiegu w położeniu {cur}");
+            if (w.Stopped) why.Add($"droga ochronna: zwr. {num} zastopowana");
+            if (w.Rozpr || w.NoData || w.Local) why.Add($"droga ochronna: zwr. {num} bez kontroli / rozprucie / nastawianie lokalne");
+            if (!Power.NN) why.Add("droga ochronna: wyłączone napięcie nastawcze");
+            if (forSetting && SecOcc(L.Switches[num].Sec)) why.Add($"droga ochronna: zwr. {num} – odcinek zajęty");
+        }
+        // przebiegi sprzeczne i dodatkowe warunki z zależności specjalnych
+        foreach (var o in Routes.Values) if (o.Uid != rt.Uid && Sprzeczne(rt, o)) why.Add($"przebieg sprzeczny {o.Id} (zależność specjalna)");
+        foreach (var c in rt.Conds)
+        {
+            var (obj, st) = Zaleznosci.Warunek(c);
+            bool ok = st switch
+            {
+                "+" or "-" => Sws.TryGetValue(obj, out var w) && w.Pos == st && SwControlled(obj),
+                "wolny" => Secs.ContainsKey(obj) && !SecOcc(obj),
+                "założona" => Ders.TryGetValue(obj, out var d) && d.On && d.MovingTo == null,
+                "zdjęta" => Ders.TryGetValue(obj, out var d2) && !d2.On && d2.MovingTo == null,
+                "stój" => Sigs.TryGetValue(obj, out var g) && g.Aspect == Aspect.Stop && g.Route == null,
+                _ => false
+            };
+            if (!ok) why.Add($"warunek specjalny „{Station.Lbl(obj)} {st}” niespełniony");
         }
         if (rt.EndKind is "szlak" or "szlakM" && !BlockAllowsExit(rt.End, L.Signals[rt.Start].Dir)) why.Add($"blokada liniowa {rt.End}: brak kierunku WYJAZD, szlak zamknięty lub pierwszy odstęp zajęty");
         if (forSetting && rt.EndKind == "szlak" && PwlBlocks(rt.End, L.Signals[rt.Start].Dir)) why.Add($"blokada półsamoczynna {rt.End}: przeciwwtórność liniowa (Pwl) – sygnał zezwalający już był podany, najpierw blok początkowy ({rt.End} Po)");
@@ -86,28 +115,91 @@ public partial class KomputerZaleznosci
     /// <summary>Przeszkody w nastawieniu przebiegu (diagnostyka testów).</summary>
     public List<string> WhyNot(RouteDef rd)
     {
-        var r = new Route { Id = rd.Id, Start = rd.Start, End = rd.End, EndKind = rd.EndKind, Type = rd.Type, EndNode = rd.EndNode, Overlap = rd.Overlap, Uid = "probe" };
-        r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders); r.Flank.AddRange(rd.Flank);
-        return RouteObstacles(r, true);
+        return Obstacles(NewRoute(rd, "probe"), rd, true);
     }
 
-    (bool Ok, List<string> Why, Route R) SetRoute(RouteDef rd)
+    Route NewRoute(RouteDef rd, string uid)
     {
         var r = new Route
         {
             Variant = rd.Variant, VCalc = rd.VCalc, VSet = rd.VSet, Id = rd.Id, Start = rd.Start, End = rd.End, EndKind = rd.EndKind, Type = rd.Type, EndNode = rd.EndNode, Overlap = rd.Overlap,
-            Uid = "R" + seq++, T0 = T
+            NoOverlap = rd.NoOverlap, Uid = uid, T0 = T
         };
         r.Edges.AddRange(rd.Edges); r.Secs.AddRange(rd.Secs); r.Sw.AddRange(rd.Sw); r.Ders.AddRange(rd.Ders); r.Flank.AddRange(rd.Flank);
-        var why = RouteObstacles(r, true);
+        r.OverlapAlts.AddRange(rd.OverlapAlts); r.Excl.AddRange(rd.Excl); r.Allow.AddRange(rd.Allow); r.Conds.AddRange(rd.Conds);
+        return r;
+    }
+
+    /// <summary>Droga ochronna przebiegu: wariant z zależności specjalnej albo (null) z układu – pierwszy odcinek za końcem przebiegu.</summary>
+    static void ChooseOverlap(Route r, ZalOchronna alt, string fromLayout)
+    {
+        r.OvSecs.Clear(); r.OvSw.Clear();
+        if (r.NoOverlap) { }
+        else if (alt != null) { r.OvSecs.AddRange(alt.Odcinki); r.OvSw.AddRange(alt.Zwrotnice.Where(z => z.Length > 1).Select(z => (z[..^1], z[^1..]))); }
+        else if (fromLayout != null) r.OvSecs.Add(fromLayout);
+        r.Overlap = r.OvSecs.FirstOrDefault();
+    }
+
+    /// <summary>Przeszkody z wyborem drogi ochronnej: pierwszy wariant bez przeszkód; gdy żadnego – przeszkody wariantu pierwszego.</summary>
+    List<string> Obstacles(Route r, RouteDef rd, bool forSetting)
+    {
+        var alts = rd.OverlapAlts.Count > 0 && !rd.NoOverlap ? rd.OverlapAlts : new List<ZalOchronna> { null };
+        List<string> first = null;
+        foreach (var alt in alts)
+        {
+            ChooseOverlap(r, alt, rd.Overlap);
+            var why = RouteObstacles(r, forSetting);
+            if (why.Count == 0) return why;
+            first ??= why;
+        }
+        ChooseOverlap(r, alts[0], rd.Overlap);
+        return first;
+    }
+
+    /// <summary>Odcinek utwierdzony w innych przebiegach – tylko dopuszczonych zależnością specjalną (albo już w tym przebiegu).</summary>
+    bool SharedOk(Route rt, SecState s) => s.Shared.Contains(rt.Uid) || new[] { s.Lock }.Concat(s.Shared).Where(u => u != null && u != rt.Uid).All(u => Routes.TryGetValue(u, out var o) && Dopuszczone(rt, o));
+
+    void LockSec(string sc, string uid, string type)
+    {
+        var s = Secs[sc];
+        if (s.Lock == null || s.Lock == uid) { s.Lock = uid; s.LockType = type; }
+        else s.Shared.Add(uid);
+    }
+
+    /// <summary>Zwolnienie odcinka przez przebieg; przy wspólnym utwierdzeniu odcinek przechodzi na kolejny przebieg.</summary>
+    void UnlockSec(string sc, string uid, bool timeRel)
+    {
+        var s = Secs[sc];
+        if (s.Lock != uid) { s.Shared.Remove(uid); return; }
+        s.Lock = null; s.LockType = null; if (timeRel) s.TimeRel = null;
+        s.Shared.RemoveWhere(u => u == uid || !Routes.ContainsKey(u));
+        var nx = s.Shared.FirstOrDefault();
+        if (nx == null) return;
+        s.Shared.Remove(nx); var o = Routes[nx];
+        s.Lock = nx; s.LockType = o.Secs.Skip(o.Rel).Contains(sc) ? (o.Type == "P" ? "train" : "shunt") : "overlap";
+    }
+
+    /// <summary>Droga ochronna przejęta przez przebieg dalszy (jazda „na wprost”): odcinek, a gdy to ostatni – także zwrotnice.</summary>
+    void DropOverlap(Route prv, string sc)
+    {
+        prv.OvSecs.Remove(sc); UnlockSec(sc, prv.Uid, false);
+        if (prv.OvSecs.Count == 0) { foreach (var (num, _) in prv.OvSw) Sws[num].Ov.Remove(prv.Uid); prv.OvSw.Clear(); }
+        prv.Overlap = prv.OvSecs.FirstOrDefault();
+    }
+
+    (bool Ok, List<string> Why, Route R) SetRoute(RouteDef rd)
+    {
+        var r = NewRoute(rd, "R" + seq++);
+        var why = Obstacles(r, rd, true);
         if (why.Count > 0) return (false, why, null);
         foreach (var sc in r.Secs)
         {
             var s = Secs[sc];
-            if (s.LockType == "overlap" && s.Lock != null && Routes.TryGetValue(s.Lock, out var prv) && prv.Overlap == sc) prv.Overlap = null;   // przejęta droga ochronna
-            s.Lock = r.Uid; s.LockType = r.Type == "P" ? "train" : "shunt";
+            if (s.LockType == "overlap" && s.Lock != null && Routes.TryGetValue(s.Lock, out var prv) && prv.OvSecs.Contains(sc) && prv.End == r.Start) DropOverlap(prv, sc);   // przejęta droga ochronna
+            LockSec(sc, r.Uid, r.Type == "P" ? "train" : "shunt");
         }
-        if (r.Overlap != null && Secs[r.Overlap].Lock == null) { Secs[r.Overlap].Lock = r.Uid; Secs[r.Overlap].LockType = "overlap"; }
+        foreach (var oc in r.OvSecs) if (!r.Secs.Contains(oc)) LockSec(oc, r.Uid, "overlap");
+        foreach (var (num, pos) in r.OvSw) { var w = Sws[num]; w.Ov.Add(r.Uid); if ((w.Moving?.Target ?? w.Pos) != pos) MoveSwitch(num, pos, true); }
         foreach (var (num, pos) in r.Sw)
         {
             var w = Sws[num]; w.Lock = r.Uid;
@@ -134,17 +226,19 @@ public partial class KomputerZaleznosci
         foreach (var d in r.Ders) if (Ders[d].On || Ders[d].MovingTo != null) why.Add($"wykolejnica {d} założona");
         foreach (var (kind, id, fpos, forSw) in r.Flank)
         {
-            if (kind == "sw" && (Sws[id].Pos != fpos || !SwControlled(id)) && Sws[forSw].Lock == r.Uid) why.Add($"ochrona boczna: zwr. {id} bez kontroli w położeniu {fpos}");
-            if (kind == "der" && (!Ders[id].On || Ders[id].MovingTo != null) && Sws[forSw].Lock == r.Uid) why.Add($"ochrona boczna: wykolejnica {id} nie założona");
+            if (kind == "sw" && (Sws[id].Pos != fpos || !SwControlled(id)) && (forSw == null || Sws[forSw].Lock == r.Uid)) why.Add($"ochrona boczna: zwr. {id} bez kontroli w położeniu {fpos}");
+            if (kind == "der" && (!Ders[id].On || Ders[id].MovingTo != null) && (forSw == null || Sws[forSw].Lock == r.Uid)) why.Add($"ochrona boczna: wykolejnica {id} nie założona");
         }
+        foreach (var (num, pos) in r.OvSw) if (Sws[num].Pos != pos || !SwControlled(num)) why.Add($"droga ochronna: zwr. {num} bez kontroli w położeniu {pos}");
         return why;
     }
 
     public void ReleaseRoute(string uid, string reason)
     {
         if (!Routes.TryGetValue(uid, out var r)) return;
-        foreach (var sc in r.Secs) { var s = Secs[sc]; if (s.Lock == uid) { s.Lock = null; s.LockType = null; s.TimeRel = null; } }
-        if (r.Overlap != null && Secs[r.Overlap].Lock == uid) { Secs[r.Overlap].Lock = null; Secs[r.Overlap].LockType = null; }
+        foreach (var sc in r.Secs) UnlockSec(sc, uid, true);
+        foreach (var oc in r.OvSecs) UnlockSec(oc, uid, false);
+        foreach (var (num, _) in r.OvSw) Sws[num].Ov.Remove(uid);
         foreach (var (num, _) in r.Sw) if (Sws[num].Lock == uid) Sws[num].Lock = null;
         foreach (var d in r.Ders) if (Ders[d].Lock == uid) { Ders[d].Lock = null; DerCmd(d, true); }
         foreach (var f in r.Flank) ReleaseFlank(f, uid);
@@ -206,10 +300,10 @@ public partial class KomputerZaleznosci
                     // przebieg do sygnalizatora – już po zajęciu ostatniego odcinka (pociąg zatrzymuje się na nim)
                     if (r.WasOcc.Contains(sc) && (!s.TrainOcc || (last && r.EndKind != "szlak")))
                     {
-                        if (s.Lock == uid) { s.Lock = null; s.LockType = null; }
+                        UnlockSec(sc, uid, false);
                         foreach (var (num, _) in r.Sw) if (L.Switches[num].Sec == sc && Sws[num].Lock == uid) Sws[num].Lock = null;
                         foreach (var d in r.Ders) if (L.Derailers[d].Sec == sc && Ders[d].Lock == uid) { Ders[d].Lock = null; DerCmd(d, true); }
-                        foreach (var f in r.Flank) if (L.Switches[f.For].Sec == sc) ReleaseFlank(f, uid);
+                        foreach (var f in r.Flank) if (f.For != null && L.Switches[f.For].Sec == sc) ReleaseFlank(f, uid);
                         r.Rel++;
                     }
                     else break;

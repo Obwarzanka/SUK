@@ -9,7 +9,7 @@ namespace LcsWidzew.Sim;
 // Utrata łączności: brak meldunków – wszystkie obiekty w stanie „brak danych” (biały), polecenia nie są przyjmowane.
 // ---------------------------------------------------------------------------------------------------------------------------
 
-public class SecInd { public bool TrainOcc, Closed, NoData; public string Fault, LockType; public double? TimeRel; }
+public class SecInd { public bool TrainOcc, Closed, NoData; public string Fault, LockType, Lock; public double? TimeRel; public List<string> Shared; }
 public class MoveInd { public string Target; public double Started; }
 public class SwInd { public string Pos = "+", Lock; public MoveInd Moving; public bool Stopped, Rozpr, NoCtrl, Frozen, NoData, Local; }
 public class SigInd { public string Sig; public Aspect Aspect; public bool Closed, LampFault, FailAlarm, NoData, Dark; public string Route, RouteEnd; public double SzLeft; /** <summary>Przebieg od tego sygnalizatora w trakcie nastawiania (zwrotnice się przekładają).</summary> */ public bool Setting; }
@@ -22,7 +22,8 @@ public class BlockInd
     /// <summary>Półsamoczynna: lampki Pwl (czerwona), Ko możliwy (biała) dla każdego końca; kTor – szczelina kontrolna SBL (czerwona).</summary>
     public bool[] Pwl = new bool[2], KoReady = new bool[2]; public bool KTor;
 }
-public class RouteInd { public string Start, End, EndKind, EndNode, Type, State; public bool TimeRel; }
+/// <summary>Przebieg na pulpicie; Edges – droga jazdy, OverlapEdges – droga ochronna wg położenia zwrotnic (Ie-104 § 8 pkt 8 ust. 2 lit. c: barwa tylko na drodze).</summary>
+public class RouteInd { public string Start, End, EndKind, EndNode, Type, State; public bool TimeRel; public List<string> Edges = new(), OverlapEdges = new(); }
 public class PendingInd { public string Code, Arg, Line, Desc; public List<string> Targets = new(), Notes = new(); public double NotBefore, Until; }
 public class PowerInd { public bool Mains, Ups, Gen, NN; }
 public class DeskInd { public string Id, Name, User; public bool Host; }
@@ -106,7 +107,7 @@ public partial class Simulator : IPulpitSource
         // przebieg w trakcie nastawiania (zwrotnice się przekładają) – droga przebiegu wyświetlana dopiero po przełożeniu
         // i utwierdzeniu: do tego czasu odcinki, zwrotnice i sygnalizator końcowy jak bez przebiegu
         bool Shown(string uid) => uid != null && (!Routes.TryGetValue(uid, out var rr) || rr.State != "setting");
-        foreach (var (k, s) in Secs) I.Secs[k] = new SecInd { TrainOcc = s.TrainOcc, Closed = s.Closed, NoData = s.NoData, Fault = s.Fault, LockType = Shown(s.Lock) ? s.LockType : null, TimeRel = s.TimeRel };
+        foreach (var (k, s) in Secs) I.Secs[k] = new SecInd { TrainOcc = s.TrainOcc, Closed = s.Closed, NoData = s.NoData, Fault = s.Fault, LockType = Shown(s.Lock) ? s.LockType : null, Lock = Shown(s.Lock) ? s.Lock : null, TimeRel = s.TimeRel, Shared = s.Shared.Count == 0 ? null : s.Shared.Where(Shown).ToList() };
         foreach (var (k, w) in Sws) I.Sws[k] = new SwInd { Pos = w.Pos, Lock = Shown(w.Lock) ? w.Lock : null, Moving = w.Moving == null ? null : new MoveInd { Target = w.Moving.Target, Started = w.Moving.Started }, Stopped = w.Stopped, Rozpr = w.Rozpr, NoCtrl = w.NoCtrl, Frozen = w.Frozen, NoData = w.NoData, Local = w.Local };
         foreach (var (k, s) in Sigs) I.Sigs[k] = new SigInd { Aspect = s.Aspect, Closed = s.Closed, LampFault = s.LampFault, FailAlarm = s.FailAlarm, NoData = s.NoData, Dark = s.Dark, Sig = s.Sig, Route = Shown(s.Route) ? s.Route : null, RouteEnd = Shown(s.RouteEnd) ? s.RouteEnd : null, SzLeft = s.SzUntil - T, Setting = s.Route != null && !Shown(s.Route) };
         foreach (var (k, x) in Ders) I.Ders[k] = new DerInd { On = x.On, MovingTo = x.MovingTo, Lock = Shown(x.Lock) ? x.Lock : null };
@@ -117,7 +118,7 @@ public partial class Simulator : IPulpitSource
                 AwaitEnd = b.AwaitEnd, StopEnd = (bool[])b.StopEnd.Clone(), NbrStop = b.NbrStop, TrainOn = Trains != null && TrainOnBlock(k),
                 Pwl = (bool[])b.Pwl.Clone(), KoReady = new[] { KoReady(L.Blocks[k], 0), KoReady(L.Blocks[k], 1) }, KTor = KTor(L.Blocks[k])
             };
-        foreach (var (k, r) in Routes) I.Routes[k] = new RouteInd { Start = r.Start, End = r.End, EndKind = r.EndKind, EndNode = r.EndNode, Type = r.Type, State = r.State, TimeRel = r.TimeRelUntil != null };
+        foreach (var (k, r) in Routes) I.Routes[k] = new RouteInd { Start = r.Start, End = r.End, EndKind = r.EndKind, EndNode = r.EndNode, Type = r.Type, State = r.State, TimeRel = r.TimeRelUntil != null, Edges = new(r.Edges), OverlapEdges = OverlapPath(r) };
         if (Pending != null && (d == null || Pending.Desk == null || Pending.Desk == d.Id))
             I.Pending = new PendingInd { Code = Pending.Code, Arg = Pending.Arg, Line = Pending.Line, Desc = Pending.Desc, Targets = new(Pending.Targets), Notes = new(Pending.Notes), NotBefore = Pending.NotBefore, Until = Pending.Until };
         I.Power = new PowerInd { Mains = Power.Mains, Ups = Power.Ups, Gen = Power.Gen, NN = Power.NN };
@@ -127,5 +128,20 @@ public partial class Simulator : IPulpitSource
         if (d != null) I.ControlReqs = ControlReqs.Where(r => r.To == d.Id).ToList();
         I.BookDrafts = BookDrafts.Count(x => x.Desk == null || d == null || x.Desk == d.Id);
         return I;
+    }
+
+    /// <summary>Tory drogi ochronnej: od końca przebiegu w głąb odcinków drogi ochronnej, przez zwrotnice w ich obecnym położeniu.</summary>
+    List<string> OverlapPath(Route r)
+    {
+        var res = new List<string>();
+        if (r.OvSecs.Count == 0 || r.Edges.Count == 0 || r.EndNode == null || !L.Signals.TryGetValue(r.Start, out var sg)) return res;
+        string nid = r.EndNode, from = r.Edges[^1];
+        for (int k = 0; k < 50; k++)
+        {
+            var f = Next(nid, sg.Dir, from, n => Sws.TryGetValue(n, out var w) ? w.Pos : "+");
+            if (f == null || !r.OvSecs.Contains(L.Edges[f.Edge].Sec) || res.Contains(f.Edge)) break;
+            res.Add(f.Edge); nid = L.Other(f.Edge, nid); from = f.Edge;
+        }
+        return res;
     }
 }

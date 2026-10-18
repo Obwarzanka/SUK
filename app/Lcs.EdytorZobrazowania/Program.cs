@@ -7,6 +7,7 @@ namespace Lcs.EdytorZobrazowania;
 /// Edytor zobrazowania (obrazy pulpitu wg Ie-104, PLAN_EDYTOR_ZOBRAZOWANIA.md). Uruchomienie:
 ///   EdytorZobrazowania.exe [plik.zob.json | plik.ut.json]
 ///   EdytorZobrazowania.exe --test wynik.txt [zrzut.png]   – test automatyczny (operacje jak użytkownik), zrzut okna
+///   EdytorZobrazowania.exe --shot zrzut.png plik.zob.json ["x,y" [powiększenie]] – sam zrzut okna (cały obraz albo okolica punktu)
 /// </summary>
 public static class Program
 {
@@ -28,6 +29,11 @@ public static class Program
         {
             w = new MainWindow(null) { NoPrompt = true };
             Test.Start(w, args[1], args.Length > 2 ? args[2] : null);
+        }
+        else if (args.Length > 2 && args[0] == "--shot")
+        {
+            w = new MainWindow(args[2]) { NoPrompt = true };
+            Test.Shot(w, args[1], args.Length > 3 ? args[3] : null, args.Length > 4 ? double.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture) : 0);
         }
         else w = new MainWindow(args.Length > 0 ? args[0] : null);
         app.Run(w);

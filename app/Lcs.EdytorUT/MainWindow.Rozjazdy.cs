@@ -78,6 +78,7 @@ public partial class MainWindow
         var t = Doc.P.Turnouts.FirstOrDefault(x => x.Id == id); if (t == null) return cm;
         MenuItem Item(string h, Action a, bool en = true) { var mi = new MenuItem { Header = h, IsEnabled = en }; mi.Click += (s, e) => a(); cm.Items.Add(mi); return mi; }
         cm.Items.Add(new MenuItem { Header = $"Rozjazd {t.Number} ({t.Type})", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+        Item(t.Partner != null ? "Zmień numery łącznika…" : "Zmień numer…", () => RenumberTurnout(id));
         Item("Zmień stronę", () => ChTurnout(id, "Strona rozjazdu", x => x.Side = -x.Side), t.Partner == null);
         Item("Odwróć", () => ChTurnout(id, "Kierunek rozjazdu", x => { var ty = Katalog.Find(x.Type); x.S += x.Dir * (ty.A + ty.B); x.Dir = -x.Dir; }), t.Partner == null);
         Item(t.Zas == "-" ? "Położenie zasadnicze: na wprost (+)" : "Położenie zasadnicze: na zwrot (−)", () => ChTurnout(id, "Położenie zasadnicze", x => x.Zas = x.Zas == "-" ? "+" : "-"));
@@ -101,10 +102,37 @@ public partial class MainWindow
         Message($"Popraw łuk przy rozjeździe {z.Number}: {fx.Label}; zmiana R o {fx.R1 - fx.R0:+0;−0} m (Ctrl+Z przywraca)");
     }
 
-    /// <summary>Numery z okna (domyślnie kolejne wolne); null – rezygnacja.</summary>
-    string[] AskNumbers(string title, string[] labels)
+    /// <summary>
+    /// Nowy numer wstawionego rozjazdu (w łączniku – obu rozjazdów naraz, więc można je zamienić miejscami).
+    /// Numer nie może być pusty ani zajęty w posterunku.
+    /// </summary>
+    public void RenumberTurnout(string id)
     {
-        var def = labels.Select((_, i) => Rozjazdy.NextNumber(Doc.P, i).ToString()).ToArray();
+        var t = Doc.P.Turnouts.FirstOrDefault(x => x.Id == id); if (t == null) return;
+        var pa = t.Partner != null ? Doc.P.Turnouts.FirstOrDefault(x => x.Id == t.Partner) : null;
+        var all = pa != null ? new[] { t, pa } : new[] { t };
+        var nums = AskNumbers(pa != null ? $"Łącznik {t.Number}/{pa.Number} – numery" : $"Rozjazd {t.Number} – numer",
+            all.Select(x => $"Numer rozjazdu (teraz {x.Number})").ToArray(), all.Select(x => x.Number).ToArray());
+        if (nums == null || nums.SequenceEqual(all.Select(x => x.Number))) return;
+        if (nums.Any(n => n.Length == 0)) { Message("Numer nie może być pusty"); return; }
+        if (nums.Distinct().Count() != nums.Length) { Message("Numery zwrotnic łącznika muszą być różne"); return; }
+        // numery zmieniane razem nie zajmują się nawzajem – sprawdzane bez nich
+        var old = all.Select(x => x.Number).ToArray();
+        foreach (var x in all) x.Number = "";
+        var taken = nums.Where((n, i) => Rozjazdy.NumberUsed(Doc.P, n, null, all[i].Track)).ToList();
+        for (int i = 0; i < all.Length; i++) all[i].Number = old[i];
+        if (taken.Count > 0) { Message($"Numer {taken[0]} jest już zajęty – numer nie został zmieniony"); return; }
+        Doc.Change(pa != null ? "Numery łącznika" : "Numer rozjazdu", p =>
+        {
+            for (int i = 0; i < all.Length; i++) { var x = p.Turnouts.FirstOrDefault(q => q.Id == all[i].Id); if (x != null) x.Number = nums[i]; }
+        });
+        Message($"Rozjazd {string.Join("/", old)} → {string.Join("/", nums)} (Ctrl+Z przywraca)");
+    }
+
+    /// <summary>Numery z okna (domyślnie kolejne wolne albo <paramref name="def"/>); null – rezygnacja.</summary>
+    string[] AskNumbers(string title, string[] labels, string[] def = null)
+    {
+        def ??= labels.Select((_, i) => Rozjazdy.NextNumber(Doc.P, i).ToString()).ToArray();
         if (AskNumbersForTest != null) return AskNumbersForTest(def) ?? def;
         if (NoPrompt) return def;
         var dlg = new Window { Title = title, Owner = this, SizeToContent = SizeToContent.WidthAndHeight, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, FontFamily = FontFamily, FontSize = 13 };
@@ -242,7 +270,9 @@ public partial class MainWindow
             ChTurnout(t.Id, "Numer rozjazdu", x => x.Number = n);
         }
         num.LostFocus += (s, e) => CommitNum(); num.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitNum(); };
-        P.Children.Add(Label("Numer rozjazdu")); P.Children.Add(num);
+        P.Children.Add(Label("Numer rozjazdu (Enter – zastosuj)")); P.Children.Add(num);
+        if (partner != null)
+            P.Children.Add(SmallBtn($"Zmień numery łącznika {t.Number}/{partner.Number}…", () => RenumberTurnout(t.Id), "Oba numery naraz – można je też zamienić miejscami"));
 
         var tb = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
         foreach (var k in Katalog.Types.Where(k => k.Kind == RozjazdTyp.Rz)) tb.Items.Add(k.Name);
@@ -317,7 +347,13 @@ public partial class MainWindow
         var P = TrackPanel; var typ = Katalog.Find(c.Type);
         P.Children.Add(Header(typ?.Kind == RozjazdTyp.St ? $"Skrzyżowanie {c.Number}" : $"Rozjazd krzyżowy {c.Number}"));
         var num = new TextBox { Text = c.Number, Margin = new Thickness(0, 2, 0, 6) };
-        num.KeyDown += (s, e) => { if (e.Key == Key.Enter) { var n = num.Text.Trim(); if (!Rozjazdy.NumberUsed(Doc.P, n, c.Id)) Doc.Change("Numer skrzyżowania", p => p.Crossings.First(x => x.Id == c.Id).Number = n); else Message($"Numer {n} jest już zajęty"); } };
+        void CommitNum()
+        {
+            var n = num.Text.Trim(); if (n == c.Number) return;
+            if (n.Length == 0 && typ?.Kind != RozjazdTyp.St || Rozjazdy.NumberUsed(Doc.P, n, c.Id)) { Message(n.Length == 0 ? "Numer rozjazdu krzyżowego nie może być pusty" : $"Numer {n} jest już zajęty"); num.Text = c.Number; return; }
+            Doc.Change("Numer skrzyżowania", p => p.Crossings.First(x => x.Id == c.Id).Number = n);
+        }
+        num.LostFocus += (s, e) => CommitNum(); num.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitNum(); };
         P.Children.Add(Label("Numer (zwrotnice: numer + a, b, c, d)")); P.Children.Add(num);
         var tb = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
         foreach (var k in Katalog.Types.Where(k => k.IsCrossing)) tb.Items.Add(k.Name);
