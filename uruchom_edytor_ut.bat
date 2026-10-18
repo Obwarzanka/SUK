@@ -1,3 +1,6 @@
 @echo off
-REM Edytor ukladu torowego (UT) - wymaga .NET 8 SDK
-dotnet run --project "%~dp0app\Lcs.EdytorUT\Lcs.EdytorUT.csproj" -c Release -- %*
+setlocal
+set "SUK_PROJECT=Lcs.EdytorUT"
+set "SUK_EXE=EdytorUT"
+call "%~dp0tools\uruchom_program.cmd" %*
+exit /b %errorlevel%

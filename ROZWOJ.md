@@ -4,6 +4,8 @@ Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest
 
 Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT), `PLAN_EDYTOR_ZOBRAZOWANIA.md` (etap 8 – edytor zobrazowania, zaakceptowany 2026-10-17), `HISTORIA_EDYTOR_UT.md` (szczegółowe opisy zrobionych prac nad edytorem UT i kalkulatorem przechyłki), `PODZIAL_MODULOW.md` (podział `Simulator` na moduły), `README.md` (obsługa programów).
 
+**Aktualizacja 2026-10-18:** kontynuacja S01.01 planu multiplayer – niezależny audyt i poprawki logów; naprawa uruchamiania po wprowadzeniu SDK 10.0.402. Wspólny launcher buduje z katalogu `app`, respektuje `global.json`, obsługuje lokalne SDK `.tools/dotnet` i pozostawia komunikat po błędzie. Aplikacje nadal działają na .NET 8; migracja runtime pozostaje S01.03. Właściciel zatwierdził: koniec dalszego zapisu surowego `bledy.log` w symulatorze (istniejący plik zostaje), logi bez treści wpisów, retencja 8 × 32 MiB / 7 dni, schemat v1 i wyłączenie telemetrii testów przez środowisko. Dowody i odbiór: `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
+
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
 Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako fasada; krok 9 – system nadrzędny i PIP po zajętościach; krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).

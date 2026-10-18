@@ -1,3 +1,6 @@
 @echo off
-REM Uruchomienie symulatora LCS Lodz Widzew (wymaga .NET 8 SDK)
-dotnet run --project "%~dp0app\LcsWidzew\LcsWidzew.csproj" -c Release
+setlocal
+set "SUK_PROJECT=LcsWidzew"
+set "SUK_EXE=LcsWidzew"
+call "%~dp0tools\uruchom_program.cmd" %*
+exit /b %errorlevel%

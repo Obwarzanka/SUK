@@ -1,5 +1,7 @@
 bin/
 obj/
+.tools/
+artifacts/
 *.user
 __pycache__/
 app/LcsWidzew/Data/ostatni_uklad.txt

@@ -1,3 +1,6 @@
 @echo off
-REM Kalkulator przechylki i krzywej przejsciowej - wymaga .NET 8 SDK
-dotnet run --project "%~dp0app\Lcs.Przechylka\Lcs.Przechylka.csproj" -c Release -- %*
+setlocal
+set "SUK_PROJECT=Lcs.Przechylka"
+set "SUK_EXE=Przechylka"
+call "%~dp0tools\uruchom_program.cmd" %*
+exit /b %errorlevel%

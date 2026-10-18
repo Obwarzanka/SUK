@@ -22,12 +22,11 @@ public partial class App : Application
         return Path.Combine(AppContext.BaseDirectory, "Data", "station.json");
     }
 
-    public static string ErrorLog => Path.Combine(Path.GetDirectoryName(StationPath) ?? AppContext.BaseDirectory, "..", "bledy.log");
+    public static string ErrorLogDirectory => Diagnostyka.Silnik?.Katalog;
     public static void LogError(Exception ex, string where)
     {
         // logi techniczne (25): zredagowany wyjątek do ograniczonej kolejki, bez I/O na tym wątku
         ZdarzeniaProcesu.Blad(logApp, ex, where switch { "UI" => "UI_DISPATCHER", "serwer" => "NET_SERVER", "stanowisko" => "NET_CLIENT", _ => "OTHER" });
-        try { File.AppendAllText(ErrorLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {where}: {ex}\n\n"); } catch { }
     }
 
     // ------------------------------------------------------------------ logi techniczne (S01.01, rozdział 25 planu)
@@ -98,7 +97,9 @@ public partial class App : Application
             LogError(a.Exception, "UI");
             a.Handled = true;
             if (Current?.MainWindow?.IsVisible == true || Current?.Windows.Count > 0)
-                MessageBox.Show("Wystąpił błąd – operacja została przerwana, program działa dalej.\n\n" + a.Exception.Message + "\n\nSzczegóły: " + Path.GetFullPath(ErrorLog), "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Wystąpił błąd – operacja została przerwana, program działa dalej.\n\n" + a.Exception.Message + "\n\n" +
+                    (ErrorLogDirectory == null ? "Logi techniczne nie są dostępne." : "Katalog logów technicznych: " + ErrorLogDirectory),
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
         };
         if (A.Length > 0 && A[0] == "--selftest")
         {

@@ -14,12 +14,14 @@ Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowani
 
 ## Uruchomienie
 
-Wymagany **.NET 8 SDK**.
+Do uruchamiania zbudowanych programów wymagany jest **.NET Desktop Runtime 8**. Do kompilacji wymagany jest **.NET SDK 10.0.402** lub zgodne nowsze SDK 10 wskazane przez `app/global.json` (moduł logów ma również cel `net10.0`). SDK 8 nie wystarcza do zbudowania obecnego rozwiązania.
 
-- Dwuklik `uruchom.bat`, albo z wiersza poleceń:
+- Dwuklik `uruchom.bat`. Skrypty `uruchom*.bat` najpierw budują aktualną wersję Release, a potem uruchamiają program i przekazują wszystkie argumenty. Przy błędzie terminal pozostaje otwarty, aby można było odczytać komunikat. SDK jest wybierane z katalogu `app`, więc obowiązuje `app/global.json` także przy uruchomieniu z innego katalogu.
+- Launcher korzysta z lokalnego `.tools/dotnet/dotnet.exe`, jeżeli istnieje; w przeciwnym razie z systemowego `dotnet`. Lokalna kopia SDK to rozpakowane oficjalne archiwum Windows x64 z [witryny Microsoft](https://dotnet.microsoft.com/download/dotnet/10.0), bez zmiany instalacji systemowej. `.tools/` jest pomijany przez Git. Przy lokalnym SDK pakiety są przechowywane w `.tools/nuget/packages`, chyba że ustawiono własne `NUGET_PACKAGES`.
+- Z wiersza poleceń:
 
 ```bash
-dotnet run --project app/LcsWidzew/LcsWidzew.csproj -c Release
+uruchom.bat
 ```
 
 - Po zmianach w kodzie zbuduj program w katalogu `app/LcsWidzew`, przy **zamkniętym** symulatorze (otwarty blokuje plik `.exe`):
@@ -27,6 +29,8 @@ dotnet run --project app/LcsWidzew/LcsWidzew.csproj -c Release
 ```bash
 dotnet build -c Release
 ```
+
+Polecenie wykonuj z SDK zgodnym z `app/global.json`. Przy lokalnej kopii SDK możesz z katalogu głównego użyć `.tools\dotnet\dotnet.exe build app\LcsWidzew\LcsWidzew.csproj -c Release`. Testy automatyczne launcherów ustawiają `SUK_NO_PAUSE=1`, aby przy błędzie zwrócić kod zakończenia bez oczekiwania na klawisz.
 
 Po zalogowaniu (dyżurny ruchu) wybierz scenariusz. Zakładki u góry przełączają obrazy:
 - **0 – Obraz poglądowy**: cały obszar LCS, klik przenosi do obrazu stacji;
@@ -320,7 +324,7 @@ Opcja `--station plik.json` wczytuje inny układ, np. kopię z `Data/kopie/`.
 
 ### Logi techniczne (od S01.01)
 
-Symulator zapisuje logi techniczne w formacie JSONL (jedna linia = jeden rekord JSON wg `kontrakty/logi/rekord_logu_v1.schema.json`) w `%LocalAppData%\SUK\LcsWidzew\Logs\LcsWidzew-RRRRMMDD.jsonl`. Działa bez internetu i konta. Pliki do 32 MiB, najwyżej 8 plików i 7 dni (starsze są usuwane), zapis przez osobny wątek – pulpit i cykl symulacji nie czekają na dysk; przy przepełnieniu kolejki rekordy są pomijane i liczone (rekord `LOG.DIAGNOSTICS_DROPPED`). Do logów trafiają: start i zamknięcie programu, nieobsłużone błędy (po redakcji: bez haseł, tokenów, kluczy, ścieżki profilu użytkownika, adresów IP) i kopia wpisów okna Zdarzenia bez ich treści (kategoria, typ i identyfikator obiektu, numer wpisu). Okno Zdarzenia, eksport `.zdarzenia` i `bledy.log` działają jak dotąd.
+Symulator zapisuje logi techniczne w formacie JSONL (jedna linia = jeden rekord JSON wg `kontrakty/logi/rekord_logu_v1.schema.json`) w `%LocalAppData%\SUK\LcsWidzew\Logs\LcsWidzew-RRRRMMDD.jsonl`. Działa bez internetu i konta. Pliki do 32 MiB, najwyżej 8 plików i 7 dni (starsze są usuwane), zapis przez osobny wątek – pulpit i cykl symulacji nie czekają na dysk; przy przepełnieniu kolejki rekordy są pomijane i liczone (rekord `LOG.DIAGNOSTICS_DROPPED`). Do logów trafiają: start i zamknięcie programu, nieobsłużone błędy (po redakcji: bez haseł, tokenów, kluczy, ścieżki profilu użytkownika, adresów IP) i kopia wpisów okna Zdarzenia bez ich treści (kategoria, typ i identyfikator obiektu, numer wpisu). Okno Zdarzenia i eksport `.zdarzenia` działają jak dotąd. Od 18.10.2026 symulator nie dopisuje surowych wyjątków do starego `bledy.log`; istniejący plik pozostaje na dysku. Komunikat błędu wskazuje katalog logów JSONL. Właściciel potwierdził schemat v1, powyższą retencję i dalsze pomijanie treści wpisów. Telemetrię narzędzi testowych wyłączamy przez `TESTINGPLATFORM_TELEMETRY_OPTOUT=1` i `DOTNET_CLI_TELEMETRY_OPTOUT=1`.
 
 | Opcja (z dowolnym trybem) | Co robi |
 |---|---|

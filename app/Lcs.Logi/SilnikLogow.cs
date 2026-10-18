@@ -232,14 +232,16 @@ public sealed class SilnikLogow : IDisposable
         if (spoza) def = ZdarzeniaLogow.SpozaKatalogu;
 
         int odrzucone = 0, obcieteNa = 0;
-        var pola = new List<KeyValuePair<string, object>>(16 + e.Properties.Count);
+        var pola = new List<KeyValuePair<string, object>>(KontraktLogu.MaxPol);
         DodajWymagane(pola, def, e.Level, mod.Id, mod.Wersja);
         if (spoza) pola.Add(new("originalEventId", (long)id));
         KeyValuePair<string, long>[] liczniki = null;
         int limitPol = KontraktLogu.MaxPol - 20;   // @t, @mt, @l, @x, @tr, @sp i pola wymagane mieszczą się w 64
 
+        int sprawdzone = 0;
         foreach (var kv in e.Properties)
         {
+            if (++sprawdzone > KontraktLogu.MaxPol) { odrzucone += e.Properties.Count - sprawdzone + 1; break; }
             var nazwa = kv.Key;
             if (KontraktLogu.PolaMostu.Contains(nazwa)) continue;
             if (kv.Value is ScalarValue { Value: null }) continue;   // brak wartości = pole nie dotyczy (nie „grupa zasadnicza”, nie błąd)
@@ -277,14 +279,24 @@ public sealed class SilnikLogow : IDisposable
     }
 
     readonly ConcurrentDictionary<string, string> szablonyZredagowane = new(StringComparer.Ordinal);
+    const int MaxSzablonow = 2048;
+    int liczbaSzablonowZredagowanych;
 
     /// <summary>Szablon @mt po redakcji (stałe teksty modułów – wynik w pamięci podręcznej, żeby nie powtarzać wzorców w ticku).</summary>
     string SzablonZredagowany(string t)
     {
-        if (string.IsNullOrWhiteSpace(t)) return "(brak szablonu)";
-        if (szablonyZredagowane.TryGetValue(t, out var z)) return z;
+        if (t == null || t.AsSpan(0, Math.Min(t.Length, Redakcja.MaxZnakowWejscia)).IsWhiteSpace()) return "(brak szablonu)";
+        // Surowy tekst jest kluczem cache, więc także on musi mieścić się w limicie. Długi albo
+        // zredagowany szablon nie jest zachowywany. 2048 × 512 znaków to najwyżej 2 MiB tekstów
+        // UTF-16 (klucz i wartość są tym samym obiektem), poza narzutem słownika/tokenów Serilog.
+        bool krotki = t.Length <= KontraktLogu.MaxZnakowTekstu;
+        if (krotki && szablonyZredagowane.TryGetValue(t, out var z)) return z;
         z = Redakcja.Tekst(t);
-        if (szablonyZredagowane.Count < 2048) szablonyZredagowane[t] = z;
+        if (krotki && ReferenceEquals(t, z))
+        {
+            int n = Interlocked.Increment(ref liczbaSzablonowZredagowanych);
+            if (n > MaxSzablonow || !szablonyZredagowane.TryAdd(t, z)) Interlocked.Decrement(ref liczbaSzablonowZredagowanych);
+        }
         return z;
     }
 
@@ -405,9 +417,12 @@ public sealed class SilnikLogow : IDisposable
             _ => null,
         };
         if (wejscie == null) { odrzucone++; return null; }
+        int liczba = pv is DictionaryValue dw ? dw.Elements.Count : ((StructureValue)pv).Properties.Count;
         var wynik = new List<KeyValuePair<string, long>>();
+        int sprawdzone = 0;
         foreach (var kv in wejscie)
         {
+            if (++sprawdzone > KontraktLogu.MaxLicznikow) { odrzucone += liczba - sprawdzone + 1; break; }
             if (wynik.Count < KontraktLogu.MaxLicznikow - 2 && KontraktLogu.PoprawnaNazwaLicznika(kv.Key)
                 && kv.Value is ScalarValue { Value: var o } && Calkowita(o, out var v) && v >= 0)
                 wynik.Add(new(kv.Key, v));
@@ -654,7 +669,7 @@ public sealed class SilnikLogow : IDisposable
     {
         if (szablony.TryGetValue(tekst, out var t)) return t;
         t = parser.Parse(tekst);
-        if (szablony.Count < 2048) szablony[tekst] = t;
+        if (szablony.Count < MaxSzablonow) szablony[tekst] = t;
         return t;
     }
 

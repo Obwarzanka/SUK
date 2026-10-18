@@ -8,6 +8,8 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 
 ## Edytor UT
 
+**2026-10-18 – uruchamianie po zmianie wersji SDK:** `uruchom_edytor_ut.bat` przekazuje argumenty do wspólnego `tools/uruchom_program.cmd`. Budowanie odbywa się z katalogu `app`, z uwzględnieniem `global.json`; SDK 8 nie buduje rozwiązania zawierającego cel `net10.0` modułu logów. Launcher obsługuje systemowe SDK 10.0.402 lub lokalną kopię `.tools/dotnet`, a przy błędzie pozostawia terminal otwarty. Edytor zachowuje .NET 8, geometrię, narzędzia i format plików. Bieżące wyniki build/test i zrzuty: `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
+
 **ZROBIONE 2026-10-16 – etap 0 (usunięcie starych edytorów):**
 - Usunięte z `LcsWidzew`: `UI/EditorWindow*.cs`, `UI/TilePicker.cs`, `Model/StationDoc*.cs`, `Model/Profil.cs`, `Sim/EditorTest.cs`, przyciski edytorów w oknie pulpitu, tryby `--edtest` i `--editshot`. Z `PanelView` usunięte: interfejs edytora, widok edytora (`EditView`) i plan schematyczny (`PlanView`, `DrawPlan`). `PlanLayers` przeniesione do `UI/PlanStationWindow.cs`.
 - Stan sprzed usunięcia: commit **`d2c7431`**. `ROZWOJ.md` w tej wersji ma pełną historię starego edytora: plan Ig-10, podkłady, rozjazdy, zobrazowanie, testy fuzz / dfuzz / ut / mijanka.
