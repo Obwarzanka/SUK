@@ -51,6 +51,7 @@ public partial class MainWindow
         act.Children.Add(SmallBtn("Usuń zaznaczone", () => DeleteMulti(), "Usuń wszystkie zaznaczone elementy (Del); jedno Ctrl+Z przywraca"));
         act.Children.Add(SmallBtn("Odznacz", () => View.ClearMulti(), "Koniec zaznaczenia (Esc)"));
         P.Children.Add(act);
+        PostCombo(P, View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList(), "Posterunek zaznaczonych torów");
         P.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
     }
 
@@ -67,6 +68,8 @@ public partial class MainWindow
             Kontrola.KPeron => p.Platforms.FirstOrDefault(x => x.Id == id)?.Name,
             Kontrola.KPrzejazd => p.LevelCrossings.FirstOrDefault(x => x.Id == id)?.Name,
             Kontrola.KKm => p.KmPoints.FirstOrDefault(x => x.Id == id) is UtKmPoint k ? $"{k.Line} km {k.Km:0.000}" : null,
+            Kontrola.KSzlak => p.Lines.FirstOrDefault(x => x.Id == id)?.Numer,
+            Kontrola.KPosterunek => p.Posts.FirstOrDefault(x => x.Id == id)?.Kod,
             _ => null,
         };
         return string.IsNullOrEmpty(n) ? "(bez nazwy)" : n;

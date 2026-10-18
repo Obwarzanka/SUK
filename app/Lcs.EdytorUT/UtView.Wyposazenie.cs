@@ -142,6 +142,7 @@ public partial class UtView
     {
         if (Doc == null) return null;
         var p = Doc.P;
+        if (HitLine(s) is var (lk, lid)) return (lk, lid);
         if (Shown("kilometraz"))
             foreach (var k in p.KmPoints)
                 if (KmMark(k) is Point q && (q - s).Length < 9) return (Kontrola.KKm, k.Id);

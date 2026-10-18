@@ -38,6 +38,10 @@ public class UtProject
     public List<UtLevelCrossing> LevelCrossings { get; set; } = new();
     /// <summary>Punkty kilometrażu linii kolejowych na torach.</summary>
     public List<UtKmPoint> KmPoints { get; set; } = new();
+    /// <summary>Posterunki ruchu (obszary: tory przypisane w <see cref="UtTrack.Post"/>).</summary>
+    public List<UtPost> Posts { get; set; } = new();
+    /// <summary>Szlaki z blokadą liniową (końce: semafory wjazdowe albo granica obszaru).</summary>
+    public List<UtLine> Lines { get; set; } = new();
     /// <summary>
     /// Oś schematu: azymut [°] kierunku, który w widoku Schemat biegnie w prawo (układ „do poziomu”); null – kierunek najdłuższego toru.
     /// Tylko widok – geometria się nie zmienia.

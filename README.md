@@ -99,7 +99,7 @@ Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.
 
 Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
-Stan (etapy 1–7, bez edytora zobrazowania):
+Stan (etapy 1–7 i Z0 – posterunki, szlaki, funkcja semafora; edytor zobrazowania w budowie):
 - **Układ współrzędnych PUWG 1992** (EPSG:2180): X na północ, Y na wschód, Z to wysokość, wszystko w metrach.
 - **Siatka:** pole „Siatka” na pasku działa w obu widokach. W Terenie siatka idzie po współrzędnych PUWG, w Schemacie wzdłuż i w poprzek osi stacji. Przełącznik jest osobny dla każdego widoku, a w Schemacie siatka jest domyślnie wyłączona.
 - **Widok Schemat / Teren** (przyciski na pasku, klawisz S). Schemat (domyślny) wygląda jak UT w ISDR: oś stacji poziomo, w poprzek rozciągnięte ×4 (lista obok), białe tło, sama oś toru. Podkład jest ukryty, pole „Podkład” go pokazuje. „Oś wg toru” kładzie poziomo zaznaczony tor, a „↻ 180°” obraca schemat. Teren: północ u góry, 1:1, ortofotomapa – do odrysowania torów ze zdjęcia. Rysować i edytować można w obu widokach, zapis jest zawsze w metrach terenu.
@@ -173,7 +173,12 @@ Stan (etapy 1–7, bez edytora zobrazowania):
 - **Przejazd:** kliknięcie na torze daje drogę prostopadłą, przeciągnięcie wzdłuż osi drogi daje kąt i długość drogi na planie. Panel: opis, kategoria A–F albo przejście (P), km, kąt, szerokość, rogatki (mechaniczne / elektryczne). Na planie: krawędzie drogi kreskowane, napis z kategorią i km linii.
 - **Kilometraż (km):** wciśnij na torze w miejscu, gdzie znasz km linii, i przeciągnij w stronę rosnącego km. W oknie wpisz numer linii i km, np. `17 25.452`. Drugi punkt na tym samym torze ustala kilometr skrócony albo wydłużony. Pozostałe tory biorą km z rzutu na tor z kilometrażem. Na planie są wskaźniki hektometrowe i kilometrowe. Km pod kursorem pokazuje pasek stanu, a panele peronu, przejazdu i toru podają km linii.
 - **Profil… (profil podłużny):** dla zaznaczonego toru. „Teren z NMT GUGiK” pobiera wysokości terenu co krok (domyślnie 10 m). „Niweleta z terenu” układa odcinki stałego pochylenia (tolerancja, najkrótszy odcinek – domyślnie 0,3 m i 100 m). Załom przeciągasz na wykresie w pionie albo wpisujesz w tabeli km, Z i promień łuku pionowego Rv. Wykres pokazuje pochylenia ‰, długości oraz nasyp (pomarańczowy) i przekop (niebieski). NMT to teren, nie główka szyny: na wiaduktach i w przekopach popraw niweletę ręcznie. Pochylenia widać też na planie (Ig-10 s. 58), a Z niwelety na pasku stanu.
-- **Sprawdź (F7):** kontrola całego układu. Lista w panelu „Kontrola układu”: błędy na czerwono, uwagi na pomarańczowo. Kliknięcie pokazuje miejsce i zaznacza obiekt. Sprawdzane są: geometria torów, otwarte końce (tor bez połączenia i bez kozła – na granicy obszaru zaznacz w panelu toru „początek / koniec – granica obszaru”), tory bez numeru, rozjazdy bez numeru i ich uwagi, urządzenia poza torem i powtórzone nazwy, nakładające się tory, odcinki (kawałek bez odcinka, odcinki bez granicy między sobą, granica w obrębie rozjazdu), perony, przejazdy, kilometraż, profil.
+- **Funkcja semafora** (panel semafora): wjazdowy, wyjazdowy, drogowskazowy, odstępowy, powtarzacz (Sp), PK. Od niej zależy symbol na pulpicie, więc „Sprawdź” przypomina o semaforze bez funkcji.
+- **Posterunki i szlaki** (panel „Posterunki i szlaki”; gdy jest rozwinięty, tory posterunków są podświetlone ich kolorem, a szlaki – pasem z numerem):
+  - **posterunek:** zaznacz tory (Shift + prostokąt albo Ctrl + klik), potem „+ posterunek” – kod (np. LW) i nazwa. Tor przypiszesz też w panelu toru (pole „Posterunek”). Rozjazdy i urządzenia należą do posterunku swojego toru. Nazwy semaforów i numery rozjazdów nie mogą się powtarzać w jednym posterunku, ale na różnych posterunkach mogą (np. „A” na każdej stacji);
+  - **szlak – narzędzie Szlak (B):** kliknij semafor wjazdowy posterunku albo koniec toru na granicy obszaru, potem drugi koniec. Droga po torach i semafory odstępowe wyznaczą się same. W panelu szlaku: oznaczenie, linia, tor szlakowy, blokada (SBL, PBL, telefoniczna), stawność SBL, dla każdego końca – posterunek sąsiedni (koniec na granicy obszaru) i oznaczenie końca na pulpicie (np. 1G);
+  - Del na zaznaczonym posterunku usuwa go (tory zostają bez posterunku), na szlaku – szlak.
+- **Sprawdź (F7):** kontrola całego układu. Lista w panelu „Kontrola układu”: błędy na czerwono, uwagi na pomarańczowo. Kliknięcie pokazuje miejsce i zaznacza obiekt. Sprawdzane są: geometria torów, otwarte końce (tor bez połączenia i bez kozła – na granicy obszaru zaznacz w panelu toru „początek / koniec – granica obszaru”), tory bez numeru, rozjazdy bez numeru i ich uwagi, urządzenia poza torem i powtórzone nazwy, nakładające się tory, odcinki (kawałek bez odcinka, odcinki bez granicy między sobą, granica w obrębie rozjazdu), perony, przejazdy, kilometraż, profil, funkcje semaforów, posterunki i szlaki.
 - **Warstwy** (panel): widoczność warstw wg nazw z Ig-10 zał. 8 – układ torowy, rozjazdy, sygnalizator, wskaźniki, wykolejnica, licznik osi, złącze izolowane, odcinki, peron, drogi, kilometraż, opis, podkłady. Dotyczy ekranu i wydruku, zapisuje się z widokiem.
 - **Eksport… (wydruk w skali):** Schemat Ig-10 (wzdłuż 1:2000, w poprzek 1:500) albo Teren (1:500 … 1:5000), cały projekt albo bieżący widok, kartka dopasowana do planu albo A4–A0 (plan dzielony na kilka kartek), 150 / 200 / 300 dpi, zapis do PDF albo PNG. Na dole kartki jest opis i podziałka 100 mm. Drukuj w „rzeczywistym rozmiarze”, bez dopasowania do strony – wtedy 1 mm na kartce odpowiada skali. Podkłady (ortofotomapa) nie są drukowane.
 
@@ -191,6 +196,7 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 | K | Łuk od–do |
 | J | Łuk z punktów; w nim Tab – także krzywe przejściowe L, W – proste stałe / wierzchołek swobodny, O – punkty z OpenStreetMap, Enter – zastosuj |
 | O | Odcinek |
+| B | Szlak |
 | M | Miarka |
 | S | widok Schemat / Teren |
 | F7 | Sprawdź |

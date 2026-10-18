@@ -553,8 +553,18 @@ public static class Rozjazdy
         return max + 1 + skip;
     }
 
-    public static bool NumberUsed(UtProject p, string n, string exceptId = null) =>
-        n.Length > 0 && (p.Turnouts.Any(t => t.Number == n && t.Id != exceptId) || p.Crossings.Any(c => c.Number == n && c.Id != exceptId));
+    /// <summary>
+    /// Numer zajęty przez inny rozjazd tego samego posterunku (numery powtarzają się między posterunkami). Bez <paramref name="exceptId"/>
+    /// (nowy rozjazd) – w posterunku toru <paramref name="track"/>, a bez toru – w całym obszarze.
+    /// </summary>
+    public static bool NumberUsed(UtProject p, string n, string exceptId = null, string track = null)
+    {
+        if (n.Length == 0) return false;
+        track ??= p.Turnouts.FirstOrDefault(t => t.Id == exceptId)?.Track ?? p.Crossings.FirstOrDefault(c => c.Id == exceptId)?.TrackA;
+        string g = track != null ? Posterunki.Grupa(p, track) : null;
+        bool Same(string tr) => g == null || Posterunki.Grupa(p, tr) == g;
+        return p.Turnouts.Any(t => t.Number == n && t.Id != exceptId && Same(t.Track)) || p.Crossings.Any(c => c.Number == n && c.Id != exceptId && Same(c.TrackA));
+    }
 
     /// <summary>
     /// Rozjazd zwyczajny z nowym odgałęzieniem; przed dodaniem do projektu. <paramref name="offset"/> = 0 – samo odgałęzienie PR – ŚR – KR;

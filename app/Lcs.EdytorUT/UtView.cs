@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty, Szlak }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
@@ -225,7 +225,7 @@ public partial class UtView : FrameworkElement
         {
             if ((p - d).Length > ClickTol) dragging = true;
             if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
-            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty or UtTool.Szlak) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
         if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
@@ -247,6 +247,7 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.Rownolegly) { if (parD != null) parD = null; else parSrc = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukPunkty && fitArc != null) { if (!FitApply()) { fitArc = null; FitPts.Clear(); InvalidateVisual(); } return true; }
+            if (tool == UtTool.Szlak && szlakFrom != null) { SzlakCancel(); return true; }
             return false;
         }
         if (ReleaseMulti(p)) { downAt = null; return true; }
@@ -284,6 +285,7 @@ public partial class UtView : FrameworkElement
         else if (tool == UtTool.LukOdDo) ArcClick(p);
         else if (tool == UtTool.LukPunkty) FitClick(p);
         else if (tool == UtTool.Odcinek) OdcClick(p);
+        else if (tool == UtTool.Szlak) SzlakClick(p);
         else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
         else if (tool == UtTool.Wskaz) SelectAt(p);
         return true;
@@ -383,6 +385,7 @@ public partial class UtView : FrameworkElement
         DrawLevelCrossings(dc, dpi);
         DrawPlatforms(dc, dpi);
         DrawSections(dc, dpi);
+        DrawPosts(dc, dpi);
         DrawTracks(dc, dpi);
         DrawTurnouts(dc, dpi);
         DrawDevices(dc, dpi);

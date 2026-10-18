@@ -23,6 +23,8 @@ public class UtTrack
     /// <summary>Początek / koniec toru na granicy obszaru (tor biegnie dalej poza projektem) – „Sprawdź” nie zgłasza otwartego końca.</summary>
     public bool OpenStart { get; set; }
     public bool OpenEnd { get; set; }
+    /// <summary>Posterunek, do którego należy tor (id <see cref="UtPost"/>); null – brak (np. tor szlakowy).</summary>
+    public string Post { get; set; }
     /// <summary>Niweleta: załomy profilu podłużnego (km toru, wysokość główki szyny, łuk pionowy) – <see cref="Lcs.Model.Profil"/>.</summary>
     public List<UtProfilePoint> Profile { get; set; } = new();
     /// <summary>Teren wzdłuż osi toru z NMT GUGiK (km, wysokość) – do porównania z niweletą (nasyp / przekop).</summary>

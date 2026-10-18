@@ -69,6 +69,7 @@ public static partial class Test
                 log.AppendLine("== bramka sygnałowa jak na planach (Semaforek, Łódź Widzew)"); await RunBramka(w);
                 log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);
+                log.AppendLine("== etap Z0: posterunki, szlaki, funkcja semafora"); await RunPosterunki(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

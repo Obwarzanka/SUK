@@ -90,6 +90,21 @@ public class UtDevice
     /// <summary>Tarcza manewrowa karzełkowa (bez masztu).</summary>
     public bool Dwarf { get; set; }
 
+    /// <summary>
+    /// Funkcja semafora (decyzja właściciela 2026-10-17, PLAN_EDYTOR_UT.md § 7 pkt 4): wjazdowy, wyjazdowy, drogowskazowy, odstępowy,
+    /// powtarzacz, PK; puste – nie określona („Sprawdź” przypomina). Od niej zależy symbol na pulpicie i rola w zależnościach.
+    /// </summary>
+    public string Funkcja { get; set; }
+
+    public const string FWjazdowy = "wjazdowy", FWyjazdowy = "wyjazdowy", FDrogowskazowy = "drogowskazowy", FOdstepowy = "odstepowy",
+        FPowtarzacz = "sp", FPk = "pk";
+    public static readonly (string Key, string Name)[] Funkcje =
+    {
+        (FWjazdowy, "wjazdowy"), (FWyjazdowy, "wyjazdowy"), (FDrogowskazowy, "drogowskazowy"), (FOdstepowy, "odstępowy"),
+        (FPowtarzacz, "powtarzacz (Sp)"), (FPk, "PK – punkt końcowy przebiegu"),
+    };
+    public static string FunkcjaName(string f) => Funkcje.FirstOrDefault(x => x.Key == f).Name ?? "";
+
     public const string Semafor = "semafor", TarczaOstrz = "to", TarczaMan = "tm", Koziol = "koziol", Wykolejnica = "wk",
         LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5";
 
@@ -124,10 +139,20 @@ public static class Urzadzenia
         return (pt, d.Dir < 0 ? az + Math.PI : az, r.K);
     }
 
-    /// <summary>Podpowiedź nazwy: semafory – kolejna wolna litera, inne – przedrostek + kolejny numer; złącze, kozioł, ukres – bez nazwy.</summary>
-    public static string NextName(UtProject p, string kind)
+    /// <summary>Nazwa zajęta przez inne urządzenie tego samego posterunku (nazwy powtarzają się między posterunkami, np. „A” na każdej stacji).</summary>
+    public static bool NameTaken(UtProject p, string name, string track, string exceptId = null)
     {
-        var used = p.Devices.Select(x => x.Name).ToHashSet();
+        if (string.IsNullOrEmpty(name)) return false;
+        var g = Posterunki.Grupa(p, track);
+        return p.Devices.Any(x => x.Id != exceptId && x.Name == name && Posterunki.Grupa(p, x.Track) == g);
+    }
+
+    /// <summary>Podpowiedź nazwy: semafory – kolejna wolna litera, inne – przedrostek + kolejny numer; złącze, kozioł, ukres – bez nazwy.
+    /// Wolna w posterunku toru <paramref name="track"/> (null – w całym obszarze).</summary>
+    public static string NextName(UtProject p, string kind, string track = null)
+    {
+        var g = track != null ? Posterunki.Grupa(p, track) : null;
+        var used = p.Devices.Where(x => g == null || Posterunki.Grupa(p, x.Track) == g).Select(x => x.Name).ToHashSet();
         if (kind == UtDevice.Semafor)
         {
             foreach (var c in "ABCDEFGHJKLMNPRSTUWYZ") if (!used.Contains(c.ToString())) return c.ToString();
@@ -145,7 +170,8 @@ public static class Urzadzenia
         if (t == null) { res.Add("brak toru"); return res; }
         var r = Trasa.Compute(t);
         if (d.S < -0.01 || d.S > r.Length + 0.01) res.Add("poza torem");
-        if (d.Name.Length > 0 && p.Devices.Any(x => x.Id != d.Id && x.Name == d.Name)) res.Add($"nazwa „{d.Name}” powtórzona");
+        if (d.Name.Length > 0 && NameTaken(p, d.Name, d.Track, d.Id)) res.Add($"nazwa „{d.Name}” powtórzona");
+        if (d.Kind == UtDevice.Semafor && string.IsNullOrEmpty(d.Funkcja)) res.Add("funkcja semafora nie określona (wjazdowy, wyjazdowy…)");
         if (d.Kind == UtDevice.Koziol && Math.Min(d.S, r.Length - d.S) > 1) res.Add("kozioł nie stoi na końcu toru");
         return res;
     }

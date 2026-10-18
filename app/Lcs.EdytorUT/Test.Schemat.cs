@@ -220,6 +220,10 @@ public static partial class Test
         Ok(dK != null && dK.Track == br4.Id && Math.Abs(dK.S - rb4.Length) < 0.01 && dWk != null && dWk.Track == br4.Id, "kozioł przyciągnięty do końca bocznicy 4, wykolejnica Wk1 na bocznicy");
         Ok(d.P.Devices.Count(x => x.Kind == UtDevice.LicznikOsi) == 2 && d.P.Devices.Where(x => x.Kind == UtDevice.LicznikOsi).Select(x => x.Name).OrderBy(x => x).SequenceEqual(new[] { "lo1", "lo2" }),
             "liczniki osi lo1, lo2 na torze 1 – klikiem");
+        // funkcja semafora z panelu urządzenia (etap Z0): A, B – wjazdowe
+        foreach (var sg in new[] { dA, dB }.Where(x => x != null))
+        { w.View.SelectDevice(sg.Id); Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("wjazdowy")).SelectedIndex = 1; }
+        Ok(dA?.Funkcja == UtDevice.FWjazdowy && dB?.Funkcja == UtDevice.FWjazdowy, "funkcja semaforów A, B z panelu: wjazdowy");
         Ok(d.P.Devices.All(x => Urzadzenia.Check(d.P, x).Count == 0), "urządzenia bez uwag");
         // panel: nazwa, komory; zajęta nazwa
         w.SetTool(UtTool.Wskaz); w.View.SelectDevice(dA.Id);

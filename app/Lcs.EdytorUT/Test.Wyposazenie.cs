@@ -115,6 +115,9 @@ public static partial class Test
         var w4 = d.P.Devices.FirstOrDefault(x => x.Kind == UtDevice.W4); var w5 = d.P.Devices.FirstOrDefault(x => x.Kind == UtDevice.W5);
         Ok(w4 != null && w4.Track == t1.Id && w4.Dir == 1 && Math.Abs(w4.S - 600) < 0.3 && w5 != null && w5.Dir == -1 && w5.Side == -1, "W4 (km 600, w stronę rosnącego km) i W5 (tor 2, w drugą stronę, po lewej) przeciągnięciem");
         Ok(d.P.Devices.Any(x => x.Kind == UtDevice.Semafor && x.Name == "A"), "semafor A");
+        w.View.SelectDevice(d.P.Devices.First(x => x.Name == "A").Id);
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("wjazdowy")).SelectedIndex = 1;
+        Ok(d.P.Devices.First(x => x.Name == "A").Funkcja == UtDevice.FWjazdowy, "semafor A – funkcja z panelu: wjazdowy");
 
         // --- peron przeciągnięciem wzdłuż toru 1 (km 400 → 600) po prawej
         w.SetTool(UtTool.Peron);

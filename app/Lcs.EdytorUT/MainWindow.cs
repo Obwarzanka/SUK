@@ -61,6 +61,7 @@ public partial class MainWindow : Window
         InitUrzadzenia();
         InitWyposazenie();
         InitKontrola();
+        InitPosterunki();
         Closing += OnClosing;
 
         UtDocument doc = null;
@@ -131,6 +132,7 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Peron, "▤ Peron", "Peron (Ig-10 s. 52): wciśnij na torze w miejscu początku krawędzi i przeciągnij wzdłuż toru do jej końca, po stronie peronu"));
         tb.Items.Add(ToolBtn(UtTool.Przejazd, "╪ Przejazd", "Przejazd kolejowo-drogowy: klik na torze – droga prostopadle; przeciągnięcie – wzdłuż osi drogi (kąt i długość)"));
         tb.Items.Add(ToolBtn(UtTool.Km, "km", "Kilometraż linii: wciśnij na torze w znanym miejscu i przeciągnij w stronę rosnącego km linii; numer linii i km z okna"));
+        tb.Items.Add(ToolBtn(UtTool.Szlak, "⇄ Szlak", "Szlak z blokadą liniową: klik na semaforze wjazdowym posterunku albo przy końcu toru na granicy obszaru, potem na drugim końcu (B)"));
         tb.Items.Add(new Separator());
         tb.Items.Add(Btn("Symbole Ig-10…", (s, e) => OpenSymbols(), "Katalog znaków Ig-10 (zał. 8) z pliku Dane/symbole_ig10.json – podgląd, ponowne wczytanie po poprawkach"));
         tb.Items.Add(new Separator());
@@ -173,6 +175,7 @@ public partial class MainWindow : Window
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
             UtTool.Przejazd => "Przejazd: kliknij na torze w osi drogi (droga prostopadle) albo przeciągnij wzdłuż osi drogi – kąt i długość drogi na planie",
             UtTool.Km => "Kilometraż: wciśnij na torze w miejscu o znanym km linii i przeciągnij w stronę rosnącego km; w oknie numer linii i km (np. 17 25.452). Drugi punkt na tym samym torze – kilometr skrócony / wydłużony",
+            UtTool.Szlak => "Szlak: kliknij semafor wjazdowy posterunku albo koniec toru na granicy obszaru, potem drugi koniec szlaku – droga po torach wyznaczy się sama; PPM / Esc – od nowa",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",
@@ -193,6 +196,7 @@ public partial class MainWindow : Window
         root.Children.Add(TrackPanel);
         root.Children.Add(CheckExpander);
         root.Children.Add(LayerExpander);
+        root.Children.Add(PostExpander);
         var sp = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
         root.Children.Add(new Expander { Header = Header("Obszar"), Content = sp, IsExpanded = false, Margin = new Thickness(0, 0, 0, 6) });
         sp.Children.Add(Label("Nazwa"));
@@ -311,6 +315,7 @@ public partial class MainWindow : Window
         RedoBtn.IsEnabled = Doc.RedoName != null; RedoBtn.ToolTip = Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
         RefreshBg();
         RefreshTrackPanel();
+        RefreshPosts();
         if (Doc.P.AxisAz != appliedExplicit) ApplyMode(false);
         View.InvalidateVisual();
     }
@@ -447,6 +452,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.Escape)
         {
             if (View.Tool == UtTool.Kalibracja && View.CalPending != null) { View.CalPending = null; View.InvalidateVisual(); }
+            else if (View.Tool == UtTool.Szlak && View.SzlakFrom != null) View.SzlakCancel();
             else SetTool(UtTool.Wskaz);
             e.Handled = true;
         }
@@ -458,6 +464,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.K) { SetTool(UtTool.LukOdDo); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.J) { SetTool(UtTool.LukPunkty); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.O) { SetTool(UtTool.Odcinek); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.B) { SetTool(UtTool.Szlak); e.Handled = true; }
         else if (!inText && e.Key == Key.F7) { RunCheck(true); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && View.NudgeKey(e.Key, shift)) e.Handled = true;

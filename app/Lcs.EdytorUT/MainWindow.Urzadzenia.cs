@@ -57,9 +57,9 @@ public partial class MainWindow
         string name = "";
         if (!string.IsNullOrEmpty(info.Prefix) || kind == UtDevice.Semafor)
         {
-            name = AskName(info.Name, $"Nazwa ({info.Name.ToLower()})", Urzadzenia.NextName(Doc.P, kind));
+            name = AskName(info.Name, $"Nazwa ({info.Name.ToLower()})", Urzadzenia.NextName(Doc.P, kind, track));
             if (name == null) return;
-            if (name.Length > 0 && Doc.P.Devices.Any(x => x.Name == name)) { Message($"Nazwa {name} jest już zajęta – urządzenie nie zostało wstawione"); return; }
+            if (Urzadzenia.NameTaken(Doc.P, name, track)) { Message($"Nazwa {name} jest już zajęta w tym posterunku – urządzenie nie zostało wstawione"); return; }
         }
         var d = new UtDevice { Kind = kind, Name = name, Track = track, S = Math.Round(s, 2), Dir = dir, Side = side };
         Doc.Change(info.Name, p => p.Devices.Add(d));
@@ -99,12 +99,14 @@ public partial class MainWindow
         void CommitName()
         {
             var n = name.Text.Trim(); if (n == d.Name) return;
-            if (n.Length > 0 && Doc.P.Devices.Any(x => x.Id != d.Id && x.Name == n)) { Message($"Nazwa {n} jest już zajęta"); name.Text = d.Name; return; }
+            if (Urzadzenia.NameTaken(Doc.P, n, d.Track, d.Id)) { Message($"Nazwa {n} jest już zajęta w tym posterunku"); name.Text = d.Name; return; }
             ChDevice(d.Id, "Nazwa urządzenia", x => x.Name = n);
         }
         name.LostFocus += (s, e) => CommitName(); name.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitName(); };
         P.Children.Add(Label("Nazwa")); P.Children.Add(name);
+        if (d.Kind == UtDevice.Semafor) FunkcjaCombo(P, d);
         var tr = Doc.P.Tracks.FirstOrDefault(x => x.Id == d.Track);
+        if (Posterunki.Of(Doc.P, d.Track) is UtPost post) P.Children.Add(new TextBlock { Text = $"Posterunek {PostName(post)} (z toru)", Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
         P.Children.Add(Label($"Tor {(tr?.Number.Length > 0 ? tr.Number : "(bez numeru)")} – km [m od początku toru]"));
         var km = new TextBox { Text = d.S.ToString("0.00", CultureInfo.InvariantCulture), Margin = new Thickness(0, 2, 0, 6) };
         km.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(km.Text) is double v) ChDevice(d.Id, "Kilometraż urządzenia", x => x.S = v); };

@@ -10,7 +10,7 @@ public record Uwaga(bool Error, string Text, XY? At, string Kind, string Id);
 public static class Kontrola
 {
     public const string KTor = "tor", KRozjazd = "rozjazd", KSkrzyzowanie = "skrzyzowanie", KUrzadzenie = "urzadzenie", KOdcinek = "odcinek",
-        KPeron = "peron", KPrzejazd = "przejazd", KKm = "km";
+        KPeron = "peron", KPrzejazd = "przejazd", KKm = "km", KSzlak = "szlak", KPosterunek = "posterunek";
 
     public static List<Uwaga> Run(UtProject p)
     {
@@ -50,7 +50,7 @@ public static class Kontrola
         {
             var g = Rozjazdy.Geometry(p, z);
             if (z.Number.Length == 0) res.Add(new Uwaga(true, "rozjazd bez numeru", g?.SR, KRozjazd, z.Id));
-            else if (Rozjazdy.NumberUsed(p, z.Number, z.Id) && p.Turnouts.First(x => x.Number == z.Number).Id == z.Id) res.Add(new Uwaga(true, $"numer rozjazdu {z.Number} powtórzony", g?.SR, KRozjazd, z.Id));
+            else if (Rozjazdy.NumberUsed(p, z.Number, z.Id) && p.Turnouts.First(x => x.Number == z.Number && Posterunki.Grupa(p, x.Track) == Posterunki.Grupa(p, z.Track)).Id == z.Id) res.Add(new Uwaga(true, $"numer rozjazdu {z.Number} powtórzony", g?.SR, KRozjazd, z.Id));
             foreach (var n in Rozjazdy.Check(p, z)) res.Add(new Uwaga(true, $"rozjazd {z.Number}: {n}", g?.SR, KRozjazd, z.Id));
         }
         foreach (var c in p.Crossings)
@@ -63,6 +63,11 @@ public static class Kontrola
                 res.Add(new Uwaga(n.Contains("poza torem") || n.Contains("brak toru"), $"{UtDevice.KindInfo(d.Kind).Name} {d.Name}: {n}", At(d.Track, d.S), KUrzadzenie, d.Id));
         foreach (var d in p.Devices.Where(d => d.Kind == UtDevice.Semafor && d.Name.Length == 0))
             res.Add(new Uwaga(true, "semafor bez nazwy", At(d.Track, d.S), KUrzadzenie, d.Id));
+
+        // posterunki i szlaki
+        var drogi = Szlaki.Drogi(p, r, styki);
+        foreach (var (err, text, track, s, id) in Szlaki.Check(p, drogi)) res.Add(new Uwaga(err, text, At(track, s), id != null ? KSzlak : KUrzadzenie, id ?? p.Devices.FirstOrDefault(d => d.Track == track && Math.Abs(d.S - s) < 1e-6)?.Id));
+        foreach (var (err, text, track, id) in Posterunki.Check(p, drogi, r)) res.Add(new Uwaga(err, text, track != null && r.TryGetValue(track, out var pt) && pt.Elements.Count > 0 ? pt.At(pt.Length / 2).P : null, id != null ? KPosterunek : KTor, id ?? track));
 
         var o = Odcinki.Compute(p, r);
         foreach (var (text, track, s, sec) in Odcinki.Check(p, o))

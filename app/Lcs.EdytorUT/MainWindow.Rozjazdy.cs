@@ -124,12 +124,12 @@ public partial class MainWindow
         return dlg.ShowDialog() == true ? boxes.Select(b => b.Text.Trim()).ToArray() : null;
     }
 
-    bool NumbersOk(string[] nums)
+    bool NumbersOk(string[] nums, string track = null)
     {
         foreach (var n in nums)
         {
             if (n.Length == 0) { Message("Wpisz numer rozjazdu"); return false; }
-            if (Rozjazdy.NumberUsed(Doc.P, n)) { Message($"Numer {n} jest już zajęty – rozjazd nie został wstawiony"); return false; }
+            if (Rozjazdy.NumberUsed(Doc.P, n, null, track)) { Message($"Numer {n} jest już zajęty – rozjazd nie został wstawiony"); return false; }
         }
         if (nums.Distinct().Count() != nums.Length) { Message("Numery zwrotnic łącznika muszą być różne"); return false; }
         return true;
@@ -144,7 +144,7 @@ public partial class MainWindow
             var (t1, t2, link, err) = Rozjazdy.NewCrossover(Doc.P, track, s, dir, side, target, type, "", "");
             if (err != null) { Message("Łącznik: " + err); return; }
             var nums = AskNumbers("Łącznik – numery rozjazdów", new[] { "Rozjazd na torze, z którego zaczyna się łącznik", "Rozjazd na torze sąsiednim" });
-            if (nums == null || !NumbersOk(nums)) return;
+            if (nums == null || !NumbersOk(nums, track)) return;
             t1.Number = nums[0]; t2.Number = nums[1];
             Doc.Change("Łącznik", p => { p.Tracks.Add(link); p.Turnouts.Add(t1); p.Turnouts.Add(t2); });
             View.SelectTurnout(t1.Id);
@@ -156,7 +156,7 @@ public partial class MainWindow
             double rz = View.NewR > 0 ? View.NewR : 300;
             var (t, br) = Rozjazdy.NewSingle(Doc.P, track, s, dir, side, type, "", pl.Offset, pl.EndAlong, rz);
             var nums = AskNumbers("Rozjazd – numer", new[] { "Numer rozjazdu" });
-            if (nums == null || !NumbersOk(nums)) return;
+            if (nums == null || !NumbersOk(nums, track)) return;
             t.Number = nums[0];
             Doc.Change("Rozjazd", p => { p.Tracks.Add(br); p.Turnouts.Add(t); });
             View.SelectTurnout(t.Id);

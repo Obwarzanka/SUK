@@ -31,7 +31,7 @@ public static partial class Test
         var a5 = Go(a, lineAz + 90, 5); var b5 = Go(b, lineAz + 90, 5);
         var t5 = new UtTrack { Number = "5", Vertices = new() { new() { X = a5.X, Y = a5.Y }, new() { X = b5.X, Y = b5.Y } } };
         // L3, L5: dla jazdy w stronę malejącego km (w lewo), po lewej stronie toru (patrząc w kierunku jazdy), na bramce w km 300
-        UtDevice Sig(string n, UtTrack t, double s, string mast) => new() { Kind = UtDevice.Semafor, Name = n, Track = t.Id, S = s, Dir = -1, Side = -1, Mast = mast, W24 = true, StripeP = true };
+        UtDevice Sig(string n, UtTrack t, double s, string mast) => new() { Kind = UtDevice.Semafor, Name = n, Track = t.Id, S = s, Dir = -1, Side = -1, Mast = mast, W24 = true, StripeP = true, Funkcja = UtDevice.FWyjazdowy };
         var l3 = Sig("L3", t3, 300, UtDevice.MastBramka); var l5 = Sig("L5", t5, 300.5, UtDevice.MastBramka);
         var l7 = Sig("L7", t3, 400, UtDevice.MastBramka); var m4 = Sig("M4", t5, 200, UtDevice.MastProsty);
         d.Change("Bramka", p => { p.Tracks.Add(t3); p.Tracks.Add(t5); p.Devices.AddRange(new[] { l3, l5, l7, m4 }); });

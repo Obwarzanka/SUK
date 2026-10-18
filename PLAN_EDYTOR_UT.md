@@ -6,7 +6,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 
 **Aktualizacja techniczna 2026-10-18:** `uruchom_edytor_ut.bat` korzysta ze wspólnego launchera i SDK zgodnego z `app/global.json` (SDK 10.0.402; obsługiwana lokalna kopia `.tools/dotnet`). Przy błędzie budowania terminal pozostaje otwarty. Edytor i model UT nadal mają dotychczasowe cele .NET 8; zakres etapów UT i ustalenia geometrii nie zmieniają się. Wyniki bieżącej regresji w raporcie `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
 
-**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7, 9 i 10 zrobione, krok 8 odłożony; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7).
+**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7, 9 i 10 zrobione, krok 8 odłożony; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7). **2026-10-18:** etap Z0 (funkcja semafora, posterunki, szlaki w UT) zrobiony – `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
 
 ---
 

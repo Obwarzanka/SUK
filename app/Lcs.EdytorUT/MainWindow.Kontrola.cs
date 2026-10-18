@@ -90,7 +90,7 @@ public partial class MainWindow
             case Kontrola.KRozjazd when Doc.P.Turnouts.Any(t => t.Id == u.Id): View.SelectTurnout(u.Id); break;
             case Kontrola.KSkrzyzowanie when Doc.P.Crossings.Any(t => t.Id == u.Id): View.SelectCrossing(u.Id); break;
             case Kontrola.KUrzadzenie when Doc.P.Devices.Any(t => t.Id == u.Id): View.SelectDevice(u.Id); break;
-            case Kontrola.KOdcinek or Kontrola.KPeron or Kontrola.KPrzejazd or Kontrola.KKm when u.Id != null: View.SelectObj(u.Kind, u.Id); break;
+            case Kontrola.KOdcinek or Kontrola.KPeron or Kontrola.KPrzejazd or Kontrola.KKm or Kontrola.KSzlak or Kontrola.KPosterunek when u.Id != null: View.SelectObj(u.Kind, u.Id); break;
         }
         Message(u.Text);
     }
