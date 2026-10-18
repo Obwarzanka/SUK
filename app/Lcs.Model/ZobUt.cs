@@ -1,7 +1,8 @@
 namespace Lcs.Model;
 
 /// <summary>Obiekt UT do umieszczenia na obrazie: grupa w panelu UT, id, opis, czy jest już na obrazie.</summary>
-public record ZobUtObj(string Grupa, string Id, string Opis, bool NaObrazie);
+/// <summary>Obiekt UT do umieszczenia na obrazie; <see cref="Czesc"/> – tor narysowany tylko w części (opis brakujących km).</summary>
+public record ZobUtObj(string Grupa, string Id, string Opis, bool NaObrazie, string Czesc = null);
 
 /// <summary>
 /// Obiekty UT obrazu (PLAN_EDYTOR_ZOBRAZOWANIA.md § 3–4): co z UT należy do posterunków obrazu i czy jest już narysowane.
@@ -45,7 +46,11 @@ public static class ZobUt
             var sz = tory[t.Id] is UtLine l ? $" – szlak {l.Numer}" : "";
             var rz = ut.Turnouts.Where(z => z.Branch == t.Id && z.Number.Length > 0).Select(z => z.Number).ToList();
             var nm = t.Number.Length > 0 ? $"tor {t.Number}" : rz.Count == 2 ? $"tor łączący {rz[0]}/{rz[1]}" : rz.Count == 1 ? $"tor bez numeru (za rozjazdem {rz[0]})" : "tor bez numeru";
-            res.Add(new(GTory, t.Id, $"{nm}{cat}{sz}", o.Tory.Any(x => x.Ut?.Tor == t.Id)));
+            // na obrazie = cały kilometraż toru narysowany (kawałkami); część – brakujące km
+            double len = Trasa.Compute(t).Length;
+            var luki = ZobTory.Luki(o, t.Id, len);
+            string czesc = luki.Count > 0 && o.Tory.Any(x => x.Ut?.Tor == t.Id) ? "brak km " + string.Join(", ", luki.Select(x => $"{x.A:0}–{x.B:0}")) : null;
+            res.Add(new(GTory, t.Id, $"{nm}{cat}{sz}", luki.Count == 0, czesc));
         }
         foreach (var z in ut.Turnouts.Where(z => tory.ContainsKey(z.Track)).Select(z => (z.Id, z.Number, "rozjazd"))
                      .Concat(ut.Crossings.Where(c => tory.ContainsKey(c.TrackA)).Select(c => (c.Id, c.Number, "skrzyżowanie")))

@@ -54,6 +54,7 @@ public static partial class Test
             try
             {
                 log.AppendLine("== etap Z1: szkielet"); await RunZ1(w, shot);
+                log.AppendLine("== etap Z2: tory obrazu, łączniki"); await RunZ2(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

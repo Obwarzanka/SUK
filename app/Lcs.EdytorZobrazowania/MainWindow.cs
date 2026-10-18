@@ -44,7 +44,7 @@ public partial class MainWindow : Window
     bool refreshing;
 
     static readonly Brush ToolbarBg = new SolidColorBrush(Color.FromRgb(0xe6, 0xe6, 0xe2)), Border = new SolidColorBrush(Color.FromRgb(0xc8, 0xc8, 0xc2)),
-        TabOn = new SolidColorBrush(Color.FromRgb(0xb8, 0xd4, 0xf0)), OkFg = new SolidColorBrush(Color.FromRgb(0x10, 0x80, 0x10)), MissFg = new SolidColorBrush(Color.FromRgb(0xb0, 0x30, 0x20));
+        TabOn = new SolidColorBrush(Color.FromRgb(0xb8, 0xd4, 0xf0)), PartFg = new SolidColorBrush(Color.FromRgb(0xb0, 0x70, 0x00)), OkFg = new SolidColorBrush(Color.FromRgb(0x10, 0x80, 0x10)), MissFg = new SolidColorBrush(Color.FromRgb(0xb0, 0x30, 0x20));
 
     public MainWindow(string path)
     {
@@ -67,6 +67,7 @@ public partial class MainWindow : Window
         GridBox.Click += (s, e) => { View.ShowGrid = GridBox.IsChecked == true; View.InvalidateVisual(); };
         PreviewKeyDown += OnKey;
         Closing += OnClosing;
+        InitTory();
         Loaded += (s, e) =>
         {
             if (path != null) OpenPath(path);
@@ -95,7 +96,12 @@ public partial class MainWindow : Window
         tb.Items.Add(Btn("1:1", (s, e) => View.Actual(), "Powiększenie 1 – jednostka obrazu = piksel monitora"));
         tb.Items.Add(new Separator());
         ReloadUtBtn.Click += (s, e) => ReloadUt(); ReloadUtBtn.ToolTip = "Wczytaj projekt UT od nowa – po zmianach w edytorze UT (obraz zostaje)"; tb.Items.Add(ReloadUtBtn);
-        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb } };
+        var tools = new ToolBar { Background = ToolbarBg };
+        tools.Items.Add(ToolBtn(ZobTool.Wskaz, "Wskaż", "Wskaż (V): klik na torze – zaznaczenie i panel; przeciągnięcie wierzchołka zaznaczonego toru; strzałki – przesunięcie o krok siatki; Del – zdjęcie z obrazu"));
+        tools.Items.Add(ToolBtn(ZobTool.Tor, "Tor", "Tor (T): wybierz tor w panelu UT (albo kliknij węzeł obrazu – lista torów UT), potem punkty łamanej; Shift – poziomo, Ctrl – co 45°; koniec: klik na węźle, PPM, Enter, dwuklik"));
+        tools.Items.Add(ToolBtn(ZobTool.Miarka, "Miarka", "Miarka (M): klikaj punkty – długość w jednostkach obrazu i w kratkach siatki; PPM – wyczyść"));
+        tools.Items.Add(ToolBtn(ZobTool.Lacznik, "Łącznik", "Łącznik (R): klik na torze obrazu w miejscu pierwszej zwrotnicy, potem na drugim torze – ukos 45° – pion – ukos 45°"));
+        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools } };
     }
 
     UIElement BuildUtPanel()
@@ -105,8 +111,12 @@ public partial class MainWindow : Window
         sp.Children.Add(UtInfo);
         var dock = new DockPanel();
         dock.Children.Add(Dock(sp, System.Windows.Controls.Dock.Top));
-        UtTree.SelectedItemChanged += (s, e) => { if (UtTree.SelectedItem is TreeViewItem { Tag: ZobUtObj o }) UtClicked(o); };
-        dock.Children.Add(UtTree);
+        var prev = new StackPanel { Margin = new Thickness(10, 4, 10, 10) };
+        prev.Children.Add(new TextBlock { Text = "Podgląd UT", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+        prev.Children.Add(Preview);
+        dock.Children.Add(Dock(prev, System.Windows.Controls.Dock.Bottom));
+        UtTree.SelectedItemChanged += (s, e) => { if (!refreshing && UtTree.SelectedItem is TreeViewItem { Tag: ZobUtObj o }) UtClicked(o); };
+        dock.Children.Add(new ScrollViewer { Content = UtTree, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         return new Border { Child = dock, Width = 300, BorderBrush = Border, BorderThickness = new Thickness(0, 0, 1, 0) };
     }
 
@@ -139,6 +149,7 @@ public partial class MainWindow : Window
         if (WidthBox.Parent is Panel wp) wp.Children.Clear();
         var o = Obraz;
         if (o == null) return;
+        BuildTrackPanel();
         ImgPanel.Children.Add(Header("Obraz"));
         ImgPanel.Children.Add(Label("Nazwa")); ImgPanel.Children.Add(NameBox);
         ImgPanel.Children.Add(Label("Rodzaj")); KindBox.ToolTip = "Ie-104 § 5 – obraz szczegółowy posterunku, § 6 – obraz poglądowy obszaru"; ImgPanel.Children.Add(KindBox);
@@ -177,6 +188,7 @@ public partial class MainWindow : Window
         if (Doc != null) Doc.Changed -= Refresh;
         Doc = d; Doc.Changed += Refresh;
         Current = d.P.Obrazy.FirstOrDefault()?.Id;
+        ResetTools();
         Refresh();
         Dispatcher.BeginInvoke(() => View.Fit(), System.Windows.Threading.DispatcherPriority.Loaded);
     }
@@ -193,6 +205,8 @@ public partial class MainWindow : Window
             UndoBtn.IsEnabled = has && Doc.UndoName != null; UndoBtn.ToolTip = has && Doc.UndoName != null ? $"Cofnij: {Doc.UndoName} (Ctrl+Z)" : "Nic do cofnięcia";
             RedoBtn.IsEnabled = has && Doc.RedoName != null; RedoBtn.ToolTip = has && Doc.RedoName != null ? $"Ponów: {Doc.RedoName} (Ctrl+Y)" : "Nic do ponowienia";
             View.Obraz = Obraz; View.Siatka = has ? Doc.P.Siatka : 8;
+            if (View.Selected != null && Obraz?.Tory.Any(t => t.Id == View.Selected) != true) View.Select(null);
+            RefreshPreview();
             RefreshTabs();
             RefreshUt();
             RefreshImgPanel();
@@ -260,23 +274,28 @@ public partial class MainWindow : Window
         var all = ZobUt.Obiekty(Doc.Ut, o);
         var posts = o.Posterunki.Select(id => Doc.Ut.Posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Select(p => p.Kod).ToList();
         UtHeader.Text = "Obiekty UT – " + (posts.Count > 0 ? string.Join(", ", posts) : "cały obszar");
-        UtInfo.Text = $"Na obrazie {all.Count(x => x.NaObrazie)} z {all.Count}. Zielone – na obrazie, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
+        UtInfo.Text = $"Na obrazie {all.Count(x => x.NaObrazie)} z {all.Count}. Zielone – na obrazie, brązowe – tor w części, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
         foreach (var g in ZobUt.Grupy)
         {
             var items = all.Where(x => x.Grupa == g).ToList();
             if (items.Count == 0) continue;
             var gi = new TreeViewItem { Header = $"{g} ({items.Count(x => x.NaObrazie)}/{items.Count})", IsExpanded = true, FontWeight = FontWeights.SemiBold };
             foreach (var x in items)
-                gi.Items.Add(new TreeViewItem
+            {
+                var it = new TreeViewItem
                 {
-                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : "brak")}", Tag = x, FontWeight = FontWeights.Normal,
-                    Foreground = x.NaObrazie ? OkFg : MissFg,
-                });
+                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}", Tag = x, FontWeight = FontWeights.Normal,
+                    Foreground = x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
+                };
+                gi.Items.Add(it);
+                if (x.Id == utSelected) it.IsSelected = true;
+            }
             UtTree.Items.Add(gi);
         }
     }
 
-    void UtClicked(ZobUtObj o) => Message(o.NaObrazie ? $"{o.Opis} – na obrazie" : $"{o.Opis} – nie ma go jeszcze na obrazie");
+    /// <summary>Obiekt UT wybrany w panelu (zostaje wybrany po odświeżeniu drzewa).</summary>
+    string utSelected;
 
     void ShowCursor() => stCursor.Text = View.CursorPt is var (x, y) ? $"x = {x,5} j.  y = {y,5} j." : "";
     void ShowZoom() => stZoom.Text = Doc == null ? "" : $"powiększenie {View.Zoom * 100:0} %";
@@ -314,6 +333,7 @@ public partial class MainWindow : Window
     public void ShowImage(string id)
     {
         if (Doc == null || Doc.P.Obrazy.All(o => o.Id != id)) return;
+        if (id != Current) ResetTools();
         Current = id; Refresh(); View.Fit();
         Message($"Obraz „{Obraz.Nazwa}”");
     }
@@ -473,5 +493,6 @@ public partial class MainWindow : Window
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
         else if (!inText && e.Key == Key.Home) { View.Fit(); e.Handled = true; }
+        else if (!inText && !ctrl && ToolKey(e.Key, shift)) e.Handled = true;
     }
 }

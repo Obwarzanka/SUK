@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0 i Z1 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z2 – tory obrazu.
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0, Z1 i Z2 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z3 – zwrotnice, sygnalizatory, wykolejnice, kozły.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
