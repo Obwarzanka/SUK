@@ -244,7 +244,7 @@ public partial class MainWindow : Window
     {
         scenario = sc;
         if (ses is RemoteSession rs) { rs.Dispose(); }
-        var s = new Simulator(station);
+        var s = new Simulator(station, options: App.CreateSimulatorOptions());
         if (Panel.Page != null && Panel.Page.Id != "OV") s.Page = Panel.Page.Id;
         var tr = new Trains(s);
         tr.Load(sc);

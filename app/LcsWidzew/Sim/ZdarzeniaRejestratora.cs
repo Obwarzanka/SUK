@@ -1,6 +1,5 @@
 // SYSLIB1015: pola rekordu nie muszą występować w szablonie komunikatu – trafiają jako właściwości strukturalne.
 #pragma warning disable SYSLIB1015
-using Lcs.Logi;
 using LcsWidzew.Model;
 using Microsoft.Extensions.Logging;
 
@@ -14,12 +13,6 @@ namespace LcsWidzew.Sim;
 /// </summary>
 static partial class ZdarzeniaRejestratora
 {
-    public const string Modul = "LcsWidzew.Rejestrator";
-    public static readonly string Wersja = typeof(ZdarzeniaRejestratora).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-    public static readonly DefinicjaZdarzenia Zapisano = new(3601, "REJ.EVENT_RECORDED", KontraktLogu.Strumien.Domenowy, "kategoria", "typObiektu", "rejId");
-
-    static ZdarzeniaRejestratora() => KatalogZdarzen.Zarejestruj(Zapisano);
-
     /// <summary>Typy obiektów, których identyfikator może trafić do logu (urządzenia, ruch). Pozostałe (Użytkownik, Stanowisko, Łączność, Książka…) – bez identyfikatora.</summary>
     static readonly HashSet<string> TypyZIdentyfikatorem = new(StringComparer.Ordinal)
     {
@@ -41,6 +34,6 @@ static partial class ZdarzeniaRejestratora
         catch (Exception) { }   // kopia w logach nie może przerwać cyklu symulacji ani zmienić dziennika pulpitu
     }
 
-    [LoggerMessage(EventId = 3601, EventName = "REJ.EVENT_RECORDED", Level = LogLevel.Information, Message = "Wpis dziennika pulpitu ({kategoria})")]
+    [LoggerMessage(EventId = CoreLogging.EventId, EventName = CoreLogging.EventCode, Level = LogLevel.Information, Message = "Wpis dziennika pulpitu ({kategoria})")]
     static partial void LogWpis(ILogger log, string kategoria, string typObiektu, long rejId, string targetId, string postId);
 }

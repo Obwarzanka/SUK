@@ -7,14 +7,14 @@ namespace LcsWidzew.Sim;
 /// <summary>Test bez interfejsu: LcsWidzew.exe --selftest [plik_wyjściowy]</summary>
 public static class SelfTest
 {
-    public static void Run(string stationPath, string outPath)
+    public static void Run(string stationPath, string outPath, SimulatorOptions options = null)
     {
         var sb = new StringBuilder();
         var sw0 = System.Diagnostics.Stopwatch.StartNew();
         void Prog(string m) => File.AppendAllText(outPath + ".postep", $"{sw0.Elapsed.TotalSeconds:0.0}s {m}{(char)10}");
         Prog("start");
         var st = Station.Load(stationPath); Prog("wczytano");
-        var sim = new Simulator(st); Prog("tablica przebiegów");
+        var sim = new Simulator(st, options: options); Prog("tablica przebiegów");
         var tr = new Trains(sim);
         sb.AppendLine($"Węzły {st.Nodes.Count}, krawędzie {st.Edges.Count}, zwrotnice {st.Switches.Count}, semafory {st.Signals.Count}, odcinki {st.Sections.Count}");
         foreach (var e in st.Edges.Values) if (Math.Abs(st.Nodes[e.A].X - st.Nodes[e.B].X) < 0.5) sb.AppendLine("UWAGA krawędź pionowa: " + e.Id + " " + e.Sec);
@@ -125,7 +125,7 @@ public static class SelfTest
         foreach (var x in pipBledy) sb.AppendLine("   PIP " + x);
         {
             // kontrola musi wykrywać naruszenia: celowo zepsuty stan KZ (osobny symulator)
-            var ns = new Simulator(st) { User = sim.User }; int wyk = 0;
+            var ns = new Simulator(st, options: options) { User = sim.User }; int wyk = 0;
             var sg = st.Signals.Values.First(x => x.Type == "wyjazdowy").Name;
             ns.Sigs[sg].Aspect = Aspect.Train;
             if (KzPodglad.Kontrola(ns, out _).Any(k => k.Poziom == "naruszenie" && k.Tekst.Contains("bez nastawionego przebiegu"))) wyk++;
@@ -142,7 +142,7 @@ public static class SelfTest
         }
         // ochrona boczna (poradnik UTK 1.5.8, Tabela 22) – osobny symulator bez pociągów
         {
-            var fs = new Simulator(st) { User = sim.User };
+            var fs = new Simulator(st, options: options) { User = sim.User };
             var all = fs.RouteTable.Values.SelectMany(v => v).ToList();
             int withFlank = all.Count(r => r.Flank.Count > 0), fOk = 0, fTot = 0;
             void F(bool c, string m) { fTot++; if (c) fOk++; sb.AppendLine($"ochrona boczna: {(c ? "OK  " : "BŁĄD")} {m}"); }
@@ -165,7 +165,7 @@ public static class SelfTest
         }
         // karty zwrotnic (PODZIAL_MODULOW krok 5): brak kontroli, rozprucie przy zajętości, KSR, nadzór czasu – osobny symulator bez pociągów
         {
-            var ks = new Simulator(st) { User = sim.User };
+            var ks = new Simulator(st, options: options) { User = sim.User };
             int kOk = 0, kTot = 0;
             void K(bool c, string m) { kTot++; if (c) kOk++; sb.AppendLine($"karty: {(c ? "OK  " : "BŁĄD")} {m}"); }
             void Run(double s) { for (double t = 0; t < s; t += 0.25) ks.Tick(0.25); }
@@ -205,7 +205,7 @@ public static class SelfTest
         }
         // zasilanie jako urządzenie (krok 7): NN0 zatrzymuje napęd, zanik sieci – alarm i samoczynny agregat, agregat uszkodzony – AGR
         {
-            var zs = new Simulator(st) { User = sim.User };
+            var zs = new Simulator(st, options: options) { User = sim.User };
             int zOk = 0, zTot = 0;
             void Z(bool c, string m) { zTot++; if (c) zOk++; sb.AppendLine($"zasilanie: {(c ? "OK  " : "BŁĄD")} {m}"); }
             void Run(double s) { for (double t = 0; t < s; t += 0.25) zs.Tick(0.25); }
@@ -237,7 +237,7 @@ public static class SelfTest
         }
         // sygnały wg Ie-1 (krok 6): uzależnienie od następnego semafora, siatka zał. 1, karta sygnalizatora
         {
-            var gs = new Simulator(st) { User = sim.User };
+            var gs = new Simulator(st, options: options) { User = sim.User };
             int sOk = 0, sTot = 0;
             void G(bool c, string m) { sTot++; if (c) sOk++; sb.AppendLine($"sygnały: {(c ? "OK  " : "BŁĄD")} {m}"); }
             void Run(double s) { for (double t = 0; t < s; t += 0.25) gs.Tick(0.25); }
@@ -287,7 +287,7 @@ public static class SelfTest
                 foreach (var stawn in new[] { 3, 4 })
                 {
                     blk.B.Aspects = stawn;
-                    var ss = new Simulator(st) { User = sim.User };
+                    var ss = new Simulator(st, options: options) { User = sim.User };
                     for (int k = 0; k < 4; k++) ss.Tick(0.25);
                     // kolejność od początku szlaku: odstępowy, za którym jest drugi, stoi wcześniej
                     var ciag = blk.Sigs.Select(s => s.Name).ToList();
@@ -336,11 +336,11 @@ public static class SelfTest
     }
 
     /// <summary>Przebieg scenariusza z automatycznym dyżurnym (test rozkładu): LcsWidzew.exe --selftest wynik.txt ic_05</summary>
-    public static string RunScenario(string stationPath, string outPath, string key, string onlyNum = null)
+    public static string RunScenario(string stationPath, string outPath, string key, string onlyNum = null, SimulatorOptions options = null)
     {
         var sb = new StringBuilder();
         var st = Station.Load(stationPath);
-        var sim = new Simulator(st);
+        var sim = new Simulator(st, options: options);
         var tr = new Trains(sim);
         sim.User = new User { Name = "auto", Role = "dyżurny ruchu" };
         tr.Load(key);
@@ -467,7 +467,12 @@ public static class SelfTest
         sb.AppendLine("Niewykonane z kolejki: " + string.Join(", ", sim.Rozklad.Queue.Where(q => !q.Done).Select(q => q.Num)));
         sb.AppendLine($"PIP: numer w oknie pociągu {pipOk} z {pipTot} kontroli, numery bez pociągu w oknie: {pipObce}");
         foreach (var x in pipBledy) sb.AppendLine("   PIP " + x);
-        if (outPath != null) File.WriteAllText(outPath, sb.ToString());
+        if (outPath != null)
+        {
+            File.WriteAllText(outPath, sb.ToString());
+            // Ten sam pełny dziennik co dla Run; obejmuje również odrzucenia poleceń, nie tylko podsumowanie scenariusza.
+            File.WriteAllLines(outPath + ".zdarzenia", sim.Events.Select(e => $"{e.Czas}|{e.Kategoria}|{e.TypObiektu}|{e.Obiekt}|{e.Stacja}|{e.Zrodlo}|{e.Zdarzenie}"));
+        }
         if (onlyNum == null) return sb.ToString();
         var evs = sim.Events.Where(e => e.Kategoria == "Ruch").Select(e => e.Zdarzenie).ToList();
         var left = evs.LastOrDefault(e => e.Contains("opuścił obszar")); var parked = evs.LastOrDefault(e => e.Contains("odstawiony"));
@@ -476,10 +481,10 @@ public static class SelfTest
     }
 
     /// <summary>Każdy rodzaj biegu z rozkładu (wjazd, wyjazd, postoje, zmiany czoła, baza) osobno – jeden pociąg na pustym układzie.</summary>
-    public static void RunPatterns(string stationPath, string outPath, string key)
+    public static void RunPatterns(string stationPath, string outPath, string key, SimulatorOptions options = null)
     {
         var sb = new StringBuilder();
-        var st = Station.Load(stationPath); var sim = new Simulator(st); var tr = new Trains(sim); tr.Load(key);
+        var st = Station.Load(stationPath); var sim = new Simulator(st, options: options); var tr = new Trains(sim); tr.Load(key);
         string Pat(TimetableEntry q) => $"{q.Cat}|{q.From ?? q.StartSec?.Split(':')[0] + (q.Duty != null ? "-baza" : "")}|{q.To}|{string.Join(">", (q.Track ?? "").Split('→').Select(x => x.Trim().Split(' ').FirstOrDefault(y => y is "ŁW" or "ŁF" or "ŁN")))}|{(q.Term != null ? (q.Term.Reverse ? "rev" : "") + (q.Term.Odstaw ? "odst" : "") : "")}";
         var groups = sim.Rozklad.Queue.Where(q => !q.Loco || q.Duty != null).GroupBy(Pat).ToList();
         sb.AppendLine($"Rodzajów biegu: {groups.Count} (pociągów {sim.Rozklad.Queue.Count})");
@@ -487,7 +492,7 @@ public static class SelfTest
         foreach (var g in groups)
         {
             var q = g.First(); var num = q.Duty?.Num ?? q.Num;
-            var res = RunScenario(stationPath, null, key, num);
+            var res = RunScenario(stationPath, null, key, num, options);
             if (res.StartsWith("OK")) ok++;
             sb.AppendLine($"{(res.StartsWith("OK") ? "✓" : "✗")} [{g.Count(),2}×] {g.Key,-60} np. {num}: {res}");
         }

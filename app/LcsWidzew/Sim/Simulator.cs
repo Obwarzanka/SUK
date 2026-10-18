@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.IO;
 using LcsWidzew.Model;
 
 namespace LcsWidzew.Sim;
@@ -17,6 +18,8 @@ public partial class Simulator
     }
 
     public Station L { get; }
+    /// <summary>Katalog plików rozkładu nadany przez hosta lub wynikający ze źródła układu.</summary>
+    public string DataDirectory { get; }
     public double T;
     public double StartClock = 6 * 3600;
     public Stats Stats = new();
@@ -32,11 +35,12 @@ public partial class Simulator
     public event Action<string> SpecialExecuted;
     public event Action PendingExpired;
 
-    public Simulator(Station st, bool routes = true)
+    public Simulator(Station st, bool routes = true, SimulatorOptions options = null)
     {
         L = st;
+        DataDirectory = Path.GetFullPath(options?.DataDirectory ?? (st.SourcePath == null ? "." : Path.GetDirectoryName(st.SourcePath)));
         Nadrzedny = new SystemNadrzedny(this);
-        Rej = new Rejestrator(L, () => T, () => Clock(), () => User, Lcs.Logi.Diagnostyka.Modul(ZdarzeniaRejestratora.Modul, ZdarzeniaRejestratora.Wersja));
+        Rej = new Rejestrator(L, () => T, () => Clock(), () => User, options?.RejestratorLogger);
         Instruktor = new Instruktor(this);
         Rozklad = new Rozklad(this);
         Otoczenie = new Otoczenie(this);

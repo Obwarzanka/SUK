@@ -103,10 +103,11 @@ public partial class App : Application
         };
         if (A.Length > 0 && A[0] == "--selftest")
         {
-            if (A.Length > 3 && A[3] == "wzorce") Sim.SelfTest.RunPatterns(StationPath, A[1], A[2]);
-            else if (A.Length > 3 && A[3].StartsWith("tylko:")) Sim.SelfTest.RunScenario(StationPath, A[1], A[2], A[3][6..]);
-            else if (A.Length > 2) Sim.SelfTest.RunScenario(StationPath, A[1], A[2]);
-            else Sim.SelfTest.Run(StationPath, A.Length > 1 ? A[1] : "selftest.txt");
+            var coreOptions = CreateSimulatorOptions();
+            if (A.Length > 3 && A[3] == "wzorce") Sim.SelfTest.RunPatterns(StationPath, A[1], A[2], coreOptions);
+            else if (A.Length > 3 && A[3].StartsWith("tylko:")) Sim.SelfTest.RunScenario(StationPath, A[1], A[2], A[3][6..], coreOptions);
+            else if (A.Length > 2) Sim.SelfTest.RunScenario(StationPath, A[1], A[2], options: coreOptions);
+            else Sim.SelfTest.Run(StationPath, A.Length > 1 ? A[1] : "selftest.txt", coreOptions);
             Shutdown();
             return;
         }

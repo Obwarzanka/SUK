@@ -157,18 +157,18 @@ public class PlatformDef
 {
     public string Name; public double X, Y, W, H, Rot;
     /// <summary>Narożniki (po obrocie).</summary>
-    public System.Windows.Point[] Corners()
+    public Point2[] Corners()
     {
         double r = Rot * Math.PI / 180, c = Math.Cos(r), s = Math.Sin(r);
-        System.Windows.Point P(double u, double v) => new(X + u * c - v * s, Y + u * s + v * c);
+        Point2 P(double u, double v) => new(X + u * c - v * s, Y + u * s + v * c);
         return new[] { P(0, 0), P(W, 0), P(W, H), P(0, H) };
     }
-    public bool Contains(System.Windows.Point w)
+    public bool Contains(Point2 w)
     {
         double r = -Rot * Math.PI / 180, dx = w.X - X, dy = w.Y - Y, u = dx * Math.Cos(r) - dy * Math.Sin(r), v = dx * Math.Sin(r) + dy * Math.Cos(r);
         return u >= 0 && u <= W && v >= 0 && v <= H;
     }
-    public System.Windows.Rect Bounds() { var c = Corners(); return new System.Windows.Rect(new System.Windows.Point(c.Min(q => q.X), c.Min(q => q.Y)), new System.Windows.Point(c.Max(q => q.X), c.Max(q => q.Y))); }
+    public Bounds2 Bounds() { var c = Corners(); return new Bounds2(new Point2(c.Min(q => q.X), c.Min(q => q.Y)), new Point2(c.Max(q => q.X), c.Max(q => q.Y))); }
 }
 public class LabelDef { public double X, Y; public string Text, Anchor; }
 /// <summary>Przejazd kolejowo-drogowy: Kind „Y” albo „T” – oznaczenie na końcach linii.</summary>
@@ -183,6 +183,9 @@ public class PageDef { public string Id, Name; public double X0, X1; public List
 
 public class Station
 {
+    /// <summary>Pełna ścieżka źródła ustawiana wyłącznie przez Load; Parse nie wiąże modelu z plikiem.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string SourcePath { get; private set; }
     public string Name, Code, Source;
     public Dictionary<string, Node> Nodes = new();
     public Dictionary<string, Edge> Edges = new();
@@ -257,7 +260,13 @@ public class Station
 
     static string S(JsonElement e, string n, string def = null) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : def;
 
-    public static Station Load(string path) => Parse(File.ReadAllText(path));
+    public static Station Load(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var station = Parse(File.ReadAllText(fullPath));
+        station.SourcePath = fullPath;
+        return station;
+    }
 
     public static Station Parse(string json)
     {

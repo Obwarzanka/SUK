@@ -8,6 +8,8 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 
 ## Edytor UT
 
+**2026-10-18 – pełna regresja po wydzieleniu rdzenia symulatora (S01.02):** `Lcs.Core` to biblioteka dotychczasowego Model/Sim, odrębna od `Lcs.Model`; nie zmieniano źródeł edytora, modelu UT, geometrii ani formatów projektu. Zbudowano Release całego rozwiązania i programów właściciela. Niezależny pełny `EdytorUT.exe --test` dał **474 OK, błędów: 0**, kod 0; pobrał prawdziwe kafelki Geoportalu 6/6, sprawdził Esri i ORM (rzeczywisty cache), profil NMT z 101 punktów oraz zapis, urządzenia, łuki, kontrolę, warstwy i wydruk PNG/PDF. Zrzuty obejrzane. Wcześniejszych prób z ograniczonym zapisem systemowego TEMP lub dostępem do map nie zaliczano; końcową próbę wykonano z osobnym TEMP w `artifacts`, bez zmiany testów. Wyniki, opis ograniczeń i zrzuty: `artifacts/2026-10-18-S01.02/edytor-final/`; przekazanie całego zadania: `SUK_plan_multiplayer/raporty/S01.02.md`. Etapy 8–9 pozostają osobnymi zadaniami.
+
 **2026-10-18 – uruchamianie po zmianie wersji SDK:** `uruchom_edytor_ut.bat` przekazuje argumenty do wspólnego `tools/uruchom_program.cmd`. Budowanie odbywa się z katalogu `app`, z uwzględnieniem `global.json`; SDK 8 nie buduje rozwiązania zawierającego cel `net10.0` modułu logów. Launcher obsługuje systemowe SDK 10.0.402 lub lokalną kopię `.tools/dotnet`, a przy błędzie pozostawia terminal otwarty. Edytor zachowuje .NET 8, geometrię, narzędzia i format plików. Bieżące wyniki build/test i zrzuty: `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
 
 **ZROBIONE 2026-10-16 – etap 0 (usunięcie starych edytorów):**

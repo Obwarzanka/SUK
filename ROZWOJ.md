@@ -4,6 +4,8 @@ Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest
 
 Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT), `PLAN_EDYTOR_ZOBRAZOWANIA.md` (etap 8 – edytor zobrazowania, zaakceptowany 2026-10-17), `HISTORIA_EDYTOR_UT.md` (szczegółowe opisy zrobionych prac nad edytorem UT i kalkulatorem przechyłki), `PODZIAL_MODULOW.md` (podział `Simulator` na moduły), `README.md` (obsługa programów).
 
+**Aktualizacja S01.02, 2026-10-18:** wspólny rdzeń `app/Lcs.Core` (`net8.0`, bez WPF i providera logów), używany przez dotychczasowy pulpit oraz `Lcs.Core.TestHost`. Jedna implementacja Model/Sim jest kompilowana przez linki źródeł; zachowano przestrzenie nazw i kolejność ticku. Neutralne geometria/kolory, jawne opcje katalogu rozkładu i loggera; wszystkie warianty selftestu współdzielą scenariusz, pojedyncze scenariusze eksportują także pełny dziennik. Model UT pozostaje oddzielny. Dowody pełnej regresji i odbiór: `SUK_plan_multiplayer/raporty/S01.02.md`. Następny podkrok multiplayer: S01.03 (migracja runtime).
+
 **Aktualizacja 2026-10-18:** kontynuacja S01.01 planu multiplayer – niezależny audyt i poprawki logów; naprawa uruchamiania po wprowadzeniu SDK 10.0.402. Wspólny launcher buduje z katalogu `app`, respektuje `global.json`, obsługuje lokalne SDK `.tools/dotnet` i pozostawia komunikat po błędzie. Aplikacje nadal działają na .NET 8; migracja runtime pozostaje S01.03. Właściciel zatwierdził: koniec dalszego zapisu surowego `bledy.log` w symulatorze (istniejący plik zostaje), logi bez treści wpisów, retencja 8 × 32 MiB / 7 dni, schemat v1 i wyłączenie telemetrii testów przez środowisko. Dowody i odbiór: `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
@@ -76,6 +78,7 @@ Moduły wydzielone z `Simulator` (etap 7, kroki 1–3; `Simulator` tworzy je w k
 - `Sim/Urzadzenia/` – urządzenia przytorowe (krok 4): `KartaOdcinka` (obwód torowy / licznik osi: osie w terenie, zajętość bez pojazdu, błąd zliczenia, zerowanie, pierwszy przejazd). Ruch zgłasza osie (`Urzadzenia.Osie`), karta melduje KZ status (`Publikuj` → `SecState.TrainOcc/Fault`), ZeroLO to rozkaz `Urzadzenia.Zeruj`, usterki odcinków idą do karty. KZ zna „pociąg na szlaku” z odcinków i meldunku sąsiada (`TrainOnBlock`, `Otoczenie.SzlakZajetyUSasiada`), nie z listy pociągów.
 
 Pozostałe elementy:
+- **Rdzeń bez WPF (S01.02):** `app/Lcs.Core` linkuje `LcsWidzew/Model` i `LcsWidzew/Sim` poza `SelfTest`; WPF ma `ProjectReference` i wyłącza te źródła ze swojej kompilacji. Biblioteka zna wyłącznie BCL i MEL Abstractions. `SimulatorOptions` przekazuje katalog rozkładu i logger, `Station.SourcePath` (bez serializacji) pozwala ustalić domyślny katalog. `App.Core.cs` jest adapterem WPF do istniejących logów. `app/Lcs.Core.TestHost` to neutralny runner wspólnego `SelfTest`, kontroli adapterów i porównania pełnych dzienników. Sieć/Dispatcher pozostają w aplikacji WPF; dotychczasowe KZ i algorytmy nie są w tym kroku przepisywane.
 - **Logi techniczne (S01.01, plan MP rozdz. 25):** `app/Lcs.Logi` (net8.0/net10.0) – moduły dostają `ILogger` (MEL) przez `Diagnostyka.Modul(moduleId, wersja)`; most Serilog kieruje zdarzenia do jednego ujścia w pamięci (lista dozwolonych pól, redakcja, ograniczona kolejka 1024 rekordy / 2 MiB, `TryWrite` bez czekania), osobny wątek zapisuje JSONL przez Serilog.Sinks.File + CompactJsonFormatter (rotacja, retencja, nadzór miejsca). Kody zdarzeń w `kontrakty/logi/katalog_zdarzen_v1.json` (definicje `DefinicjaZdarzenia` + `[LoggerMessage]`). W symulatorze: `App` (start/stop/błędy), `Rejestrator` → `Sim/ZdarzeniaRejestratora.cs` (kopia wpisu bez treści). Nowy moduł: własny podzakres/kody w katalogu, logger przez `Diagnostyka.Modul`, test limitów i redakcji. Testy: `app/Lcs.Logi.Testy` (xUnit v3).
 - **Sieć:** `Net/LcsNet.cs` – `LcsServer` przy komputerze zależności i `RemoteSession` na stanowisku. JSON w liniach przez TCP, port 47120.
 - **Model układu (symulator):** `Model/Station.cs` – wczytany `station.json`, tylko do odczytu. Nowy model UT: `app/Lcs.Model` (`UtProject`, `UtDocument`, `Geo`).
@@ -111,6 +114,10 @@ Model danych `station.json`:
 - Węzeł ukryty na zobrazowaniu ma współrzędne `Station.Hidden` (-1e7).
 
 ## 5. Etapy
+
+### Plan multiplayer – S01 (podkroki)
+
+S01.01 (fundament logów) i S01.02 (wspólny rdzeń bez WPF) mają osobne raporty odbioru w `SUK_plan_multiplayer/raporty/`. S01.02 obejmuje bibliotekę używaną przez pulpit i neutralny host oraz pełną regresję wszystkich aplikacji. S01 jako całość nadal wymaga S01.03 – migracji runtime. Kolejne ID wykonuje się po osobnym zleceniu; aktualny wynik i minimalny kontekst są w `raporty/S01.02.md`. Dalsze granice KZ/Ada i hosta pozostają według zatwierdzonego planu.
 
 ### Etap 1 – Edytor układu torowego od nowa (od 2026-10-16)
 Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa jako osobne programy. Stare usunięte, bez przerabiania. **Plan, decyzje i etapy: `PLAN_EDYTOR_UT.md`** (XYZ w PUWG 1992, dwa widoki skali, parabola 3°, katalog rozjazdów KZN + `Zrodla/rozjazdy_1.pdf`, wysokości z NMT).

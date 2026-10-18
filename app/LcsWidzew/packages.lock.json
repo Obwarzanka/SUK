@@ -34,6 +34,12 @@
         "resolved": "10.0.13",
         "contentHash": "M2pJpnFHrk43r1ukjr7yxVcoPwjGna7Vzt9731iaZjXdADXXIiW5MmMvR/2t4eoimuwICB2W4kLJjesCTB58FA=="
       },
+      "lcs.core": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.13, )"
+        }
+      },
       "lcs.logi": {
         "type": "Project",
         "dependencies": {
