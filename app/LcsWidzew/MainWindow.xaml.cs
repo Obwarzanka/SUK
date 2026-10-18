@@ -33,6 +33,8 @@ public partial class MainWindow : Window
     bool paused = true;
     int pushTick;
     string scenario = "podstawowy";
+    /// <summary>Układ torowy z pliku – dla komputera zależności (station po Bind to zobrazowanie pulpitu).</summary>
+    Station layout;
     readonly ObservableCollection<EventRecord> events = new();
     readonly ObservableCollection<EventRecord> alarms = new();
     readonly List<string> history = new(); int histIdx;
@@ -44,7 +46,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        station = Station.Load(App.StationPath);
+        station = layout = Station.Load(App.StationPath);
         GridEvents.ItemsSource = events;
         GridAlarms.ItemsSource = alarms;
         EvFilter.ItemsSource = new[] { "wszystkie", "Polecenie", "Odrzucone", "Zdarzenie", "Alarm", "Ruch", "Telefon", "Uwaga", "Ocena", "Instruktor", "E-1758" };
@@ -94,7 +96,7 @@ public partial class MainWindow : Window
         {
             var st = Station.Load(path);
             var keep = Panel.Page?.Id;
-            station = st; App.StationPath = path;
+            station = layout = st; App.StationPath = path;
             BuildTabs();
             Start(scenario, ses.Last?.User ?? sim?.User);
             int pi = quiet ? station.Pages.FindIndex(p => p.Id == keep) : -1;
@@ -181,6 +183,7 @@ public partial class MainWindow : Window
             if (c.StartsWith("#sleep=")) { var end = DateTime.Now.AddSeconds(double.Parse(c[7..], System.Globalization.CultureInfo.InvariantCulture)); while (DateTime.Now < end) { Dispatcher.Invoke(() => { }, DispatcherPriority.Background); Thread.Sleep(50); } continue; }
             if (c.StartsWith("#phone=")) { ses.Phone("*", c[7..]); continue; }
             if (c.StartsWith("#kz=")) { kzShots.Add(int.Parse(c[4..])); continue; }
+            if (c.StartsWith("#tablica=")) { routesShot = c[9..]; continue; }
             if (c.StartsWith("#plan")) { planShot = c.Length > 6 ? c[6..] : ""; continue; }
             if (c.StartsWith("#sw=")) { Panel.SelSwitch = station.Switches.Values.First(x => x.Label == c[4..] && Panel.Page.Posts.Contains(x.Post)).Num; continue; }
             if (c.StartsWith("#via=")) { ToggleVia(station.Switches.Values.First(x => x.Label == c[5..] && Panel.Page.Posts.Contains(x.Post)).Num); continue; }
@@ -212,6 +215,15 @@ public partial class MainWindow : Window
                     using (var f = File.Create(ShotPath + ".plan.png")) ep.Save(f);
                     pw.Close();
                 }
+                if (routesShot != null)
+                {
+                    var rw = new RoutesWindow(ses.RouteTable, sim) { Owner = this }; rw.Show(); rw.Pokaz(routesShot); rw.UpdateLayout();
+                    Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    var rr = new System.Windows.Media.Imaging.RenderTargetBitmap((int)rw.ActualWidth, (int)rw.ActualHeight, 96, 96, PixelFormats.Pbgra32); rr.Render((Visual)rw.Content);
+                    var er = new System.Windows.Media.Imaging.PngBitmapEncoder(); er.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rr));
+                    using (var f = File.Create(ShotPath + ".tablica.png")) er.Save(f);
+                    rw.Close();
+                }
                 foreach (var tab in kzShots)
                 {
                     var kw = new KzWindow(() => sim, () => server) { Owner = this, Width = 1100, Height = 520 }; kw.Show(); kw.ShowTab(tab); kw.UpdateLayout();
@@ -229,7 +241,7 @@ public partial class MainWindow : Window
     /// <summary>Tryb zrzutu: ile sekund program działa po zrzucie (serwer dla testu sieci).</summary>
     public double ShotHold;
     readonly List<int> kzShots = new();
-    string planShot;
+    string planShot, routesShot;
 
     /// <summary>Stanowisko sieciowe w trybie testu: odczekanie na meldunki z serwera.</summary>
     void Pump(double until)
@@ -244,7 +256,8 @@ public partial class MainWindow : Window
     {
         scenario = sc;
         if (ses is RemoteSession rs) { rs.Dispose(); }
-        var s = new Simulator(station, options: App.CreateSimulatorOptions());
+        // komputer zależności liczy z układu torowego, nie z zobrazowania (ses.L po Bind)
+        var s = new Simulator(layout ?? station, options: App.CreateSimulatorOptions());
         if (Panel.Page != null && Panel.Page.Id != "OV") s.Page = Panel.Page.Id;
         var tr = new Trains(s);
         tr.Load(sc);
@@ -333,7 +346,7 @@ public partial class MainWindow : Window
     {
         if (ses is not RemoteSession rs) return;
         rs.Dispose();
-        station = Station.Load(App.StationPath); BuildTabs();
+        station = layout = Station.Load(App.StationPath); BuildTabs();
         Start(scenario, rs.Last?.User);
         ShowPage(station.Pages.Count - 1);
     }
@@ -688,7 +701,7 @@ public partial class MainWindow : Window
     void FitStation_Click(object s, RoutedEventArgs e) => Panel.FitPage();
     void FitAll_Click(object s, RoutedEventArgs e) => Panel.FitPage();
     void Plan_Click(object s, RoutedEventArgs e) => new PlanWindow(ses) { Owner = this }.Show();
-    void Routes_Click(object s, RoutedEventArgs e) => new RoutesWindow(ses.RouteTable) { Owner = this }.Show();
+    void Routes_Click(object s, RoutedEventArgs e) => new RoutesWindow(ses.RouteTable, ses.IsHost ? sim : null) { Owner = this }.Show();
     void Book_Click(object s, RoutedEventArgs e) => new BookWindow(ses) { Owner = this }.Show();
     void Instr_Click(object s, RoutedEventArgs e)
     {

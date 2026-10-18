@@ -154,29 +154,6 @@ public class PlanWindow : DarkWindow
     }
 }
 
-// ---------------------------------------------------------------------- tablica przebiegów
-public class RoutesWindow : DarkWindow
-{
-    public class Row { public string Typ { get; set; } public string Od { get; set; } public string Do { get; set; } public string V { get; set; } public string Zwrotnice { get; set; } public string Odcinki { get; set; } public string Ochronna { get; set; } }
-    public RoutesWindow(Dictionary<string, List<RouteDef>> table) : base("Tablica przebiegów (generowana z topologii)", 1000, 600)
-    {
-        var all = table.OrderBy(k => k.Key).SelectMany(k => k.Value).Select(r => new Row
-        {
-            Typ = (r.Type == "P" ? "poc." : "man.") + (r.Variant > 0 ? " w" + r.Variant : ""), Od = r.Start, Do = Model.Station.Lbl(r.End), V = $"{r.VMax:0}{(r.VSet > 0 ? "*" : "")}", Zwrotnice = r.SwText + (r.Ders.Count > 0 ? " " + string.Join(" ", r.Ders.Select(Model.Station.Lbl)) : ""),
-            Odcinki = string.Join(" ", r.Secs.Select(Model.Station.Lbl)), Ochronna = Model.Station.Lbl(r.Overlap ?? "")
-        }).ToList();
-        var g = Grid();
-        Col(g, "Typ", "Typ", 60); Col(g, "Od", "Od", 70); Col(g, "Do", "Do", 70); Col(g, "V [km/h]", "V", 60); Col(g, "Zwrotnice", "Zwrotnice", 330); Col(g, "Odcinki", "Odcinki"); Col(g, "Dr. ochr.", "Ochronna", 70);
-        var f = Box(); f.ToolTip = "Filtr (np. S1, W17_1)";
-        var info = T($"{all.Count} przebiegów. Filtr:", 11, Brushes.Gray);
-        f.TextChanged += (a, b) => g.ItemsSource = all.Where(r => f.Text == "" || (r.Od + " " + r.Do).Contains(f.Text, StringComparison.OrdinalIgnoreCase)).ToList();
-        g.ItemsSource = all;
-        var dock = new DockPanel { Margin = new Thickness(8) };
-        var top = new StackPanel(); top.Children.Add(info); top.Children.Add(f); DockPanel.SetDock(top, Dock.Top);
-        dock.Children.Add(top); dock.Children.Add(g); Content = dock;
-    }
-}
-
 // ---------------------------------------------------------------------- instruktor
 public class InstructorWindow : DarkWindow
 {

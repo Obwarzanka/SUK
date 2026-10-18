@@ -163,6 +163,72 @@ public static class SelfTest
             }
             sb.AppendLine($"OCHRONA BOCZNA: przebiegi z ochroną {withFlank} z {all.Count}; kontrola {fOk} z {fTot}");
         }
+        // zależności specjalne (<układ>.zaleznosci.json) – wpisy testowe w pamięci, dobrane z tablicy przebiegów (bez nazw stacji)
+        {
+            var zalOrig = st.Zal;
+            int zOk = 0, zTot = 0;
+            void Z(bool c, string m) { zTot++; if (c) zOk++; sb.AppendLine($"zależności specjalne: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            try
+            {
+                st.Zal = new Zaleznosci();
+                var ps = new Simulator(st, options: options) { User = sim.User };
+                var all = ps.RouteTable.Values.SelectMany(v => v).Where(r => r.Variant == 0 && r.Type == "P").ToList();
+                // przebieg z drogą ochronną, w której odcinku jest zwrotnica spoza przebiegu i jego ochrony bocznej
+                RouteDef zr = null; string ovNum = null, ovPos = null;
+                foreach (var r in all.Where(r => r.EndKind == "sig" && r.Overlap != null && ps.WhyNot(r).Count == 0))
+                {
+                    // zwrotnica w ochronie bocznej – położenie ochronne; inna – przestawienie do drugiego położenia
+                    // najlepiej zwrotnica w odcinku drogi ochronnej; gdy takiej nie ma (kopia testowa) – zwrotnica tego posterunku spoza przebiegu
+                    var w = st.Switches.Values.FirstOrDefault(x => x.Sec == r.Overlap && !r.Sw.Any(q => q.Num == x.Num))
+                         ?? st.Switches.Values.FirstOrDefault(x => Station.PostOf(x.Num) == Station.PostOf(r.Start) && !r.Sw.Any(q => q.Num == x.Num) && !r.Secs.Contains(x.Sec) && x.Sec != r.Overlap && !x.Manual);
+                    if (w == null) continue;
+                    var fl = r.Flank.FirstOrDefault(f => f.Kind == "sw" && f.Id == w.Num);
+                    zr = r; ovNum = w.Num; ovPos = fl.Id != null ? fl.Pos : ps.Sws[w.Num].Pos == "+" ? "-" : "+"; break;
+                }
+                if (zr == null) sb.AppendLine("zależności specjalne: brak przebiegu z drogą ochronną – bez kontroli");
+                else
+                {
+                    var used = zr.Secs.Append(zr.Overlap).ToHashSet();
+                    var free = all.Where(r => r.Start != zr.Start && r.End != zr.End && !r.Secs.Any(used.Contains) && r.Overlap != zr.Overlap && ps.WhyNot(r).Count == 0).ToList();
+                    var r2 = free.FirstOrDefault();
+                    var r3 = free.Skip(1).FirstOrDefault();
+                    var cw = r3 == null ? null : st.Switches.Values.FirstOrDefault(x => !r3.Sw.Any(q => q.Num == x.Num) && !r3.Flank.Any(f => f.Id == x.Num) && x.Num != ovNum);
+                    var z = new ZalPrzebieg { Start = zr.Start, End = zr.End, Type = "P", DrogaOchronna = { new ZalOchronna { Odcinki = { zr.Overlap }, Zwrotnice = { ovNum + ovPos } } } };
+                    st.Zal.Przebiegi.Add(z);
+                    if (r2 != null) st.Zal.Przebiegi.Add(new ZalPrzebieg { Start = r2.Start, End = r2.End, Type = "P", Sprzeczne = { zr.Key } });
+                    if (cw != null) st.Zal.Przebiegi.Add(new ZalPrzebieg { Start = r3.Start, End = r3.End, Type = "P", Warunki = { cw.Num + (ps.Sws[cw.Num].Pos == "+" ? "-" : "+") } });
+                    var uw = st.Zal.Sprawdz(st, ps.RouteTable.Values.SelectMany(v => v).Select(r => r.Key));
+                    Z(uw.Count == 0, "kontrola danych bez uwag" + (uw.Count > 0 ? ": " + string.Join("; ", uw) : ""));
+                    var zs = new Simulator(st, options: options) { User = sim.User };
+                    var zd = zs.FindRoute(zr.Start, zr.End, "P");
+                    Z(zd != null && zd.OverlapAlts.Count == 1, $"{zr.Id}: droga ochronna z zależności – {zr.Overlap}, zwr. {Station.Lbl(ovNum)}{ovPos}");
+                    zs.Page = PageOf(zr.Start); var res = zs.Exec(Cmd(zr));
+                    for (int k = 0; k < 160 && !zs.Routes.Values.Any(x => x.Id == zr.Id && x.State == "set"); k++) zs.Tick(0.25);
+                    var act = zs.Routes.Values.FirstOrDefault(x => x.Id == zr.Id);
+                    Z(res.Ok && act != null && act.State == "set" && zs.Sws[ovNum].Pos == ovPos && zs.Sws[ovNum].Ov.Contains(act.Uid), $"zwr. {Station.Lbl(ovNum)} przestawiona do „{ovPos}” i utwierdzona w drodze ochronnej, sygnał zezwalający");
+                    zs.Page = PageOf(ovNum); var mv = zs.Exec($"{ovNum} {(ovPos == "+" ? "Minus" : "Plus")}");
+                    Z(!mv.Ok, $"przestawienie zwrotnicy drogi ochronnej odrzucone: {mv.Msg}");
+                    if (r2 != null) Z(zs.WhyNot(zs.FindRoute(r2.Start, r2.End, "P")).Any(x => x.Contains("przebieg sprzeczny")), $"{r2.Id} sprzeczny z {zr.Id} (wpis przy {r2.Id}) – odrzucony");
+                    if (cw != null) Z(zs.WhyNot(zs.FindRoute(r3.Start, r3.End, "P")).Any(x => x.Contains("warunek specjalny")), $"{r3.Id}: warunek specjalny niespełniony – odrzucony");
+                    // przebieg odrzucany tylko z powodu odcinka drogi ochronnej – po wpisie „dopuszczone” możliwy jednocześnie
+                    var r4 = all.FirstOrDefault(r => r.Id != zr.Id && zs.WhyNot(r) is var w && w.Count > 0 && w.All(x => x.Contains(zr.Overlap) && x.Contains("utwierdzon")));
+                    zs.Page = PageOf(zr.Start); zs.Exec($"{zr.Start} ZDP", true); zs.Tick(0.25);
+                    Z(zs.Sws[ovNum].Ov.Count == 0 && zs.Secs[zr.Overlap].Lock == null, "po zwolnieniu przebiegu zwrotnica i odcinek drogi ochronnej wolne");
+                    if (r4 != null)
+                    {
+                        z.Dopuszczone.Add(r4.Key);
+                        var ds = new Simulator(st, options: options) { User = sim.User };
+                        ds.Page = PageOf(zr.Start); ds.Exec(Cmd(zr));
+                        for (int k = 0; k < 160 && !ds.Routes.Values.Any(x => x.Id == zr.Id && x.State == "set"); k++) ds.Tick(0.25);
+                        var w4 = ds.WhyNot(r4);
+                        Z(w4.Count == 0, $"{r4.Id} dopuszczony jednocześnie z {zr.Id} mimo wspólnego odcinka {Station.Lbl(zr.Overlap)}" + (w4.Count > 0 ? ": " + w4[0] : ""));
+                    }
+                    else sb.AppendLine("zależności specjalne: brak przebiegu blokowanego tylko drogą ochronną – bez kontroli „dopuszczone”");
+                }
+            }
+            finally { st.Zal = zalOrig; }
+            sb.AppendLine($"ZALEŻNOŚCI SPECJALNE: kontrola {zOk} z {zTot}");
+        }
         // karty zwrotnic (PODZIAL_MODULOW krok 5): brak kontroli, rozprucie przy zajętości, KSR, nadzór czasu – osobny symulator bez pociągów
         {
             var ks = new Simulator(st, options: options) { User = sim.User };

@@ -138,6 +138,7 @@ public static partial class Test
             Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && w.LastMessage.Contains("zajęty"), "numer 1 zajęty – numery łącznika bez zmian");
             w.DoUndo(); w.AskNumbersForTest = null;
             Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "3" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "4", "Ctrl+Z – numery łącznika 3/4 wróciły");
+            if (shotRails != null) { w.SetTool(UtTool.Wskaz); w.View.SelectTurnout(q3.Id); Look(Rozjazdy.Geometry(d.P, q3).PR, 0.25); Save(w, shotRails.Replace("_szyny.png", "_numer_lacznika.png")); }
             // zablokowane wierzchołki odgałęzienia
             var lnk = d.P.Tracks.First(x => x.Id == z1.Branch); w.View.Select(lnk.Id);
             var v1 = lnk.Vertices[1].P; Look(v1);

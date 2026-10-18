@@ -292,3 +292,12 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 - **Mijanka testowa w symulatorze** (`app/LcsWidzew/Data/projekty/mijanka_testowa.json`; w obrazie odstępowe 103/104 i 127/128 przeniesione w jedno miejsce – jeden węzeł): konwersja bez uwag; `--trasy`: 19 przebiegów (P i M: A→C1/C2, B→D1/D2, C1/C2→1W, D1/D2→1Z, do semaforów wjazdowych), orientacja – odwrócony 1 tor (łącznik 3/4), sprzecznych węzłów 0; selftest: **nastawione 5 z 5**, KZ na żywo 0 naruszeń, wykrywanie naruszeń 2 z 2, ochrona boczna 20 z 20 / 4 z 4, karty zwrotnic 8 z 8, zasilanie 8 z 8, sygnały 6 z 6; „kontrola zależności 0 z 0” – scenariusz selftestu nie trafił na start z dwoma przebiegami zasadniczymi. Zrzut `zrzuty/Mijanka_testowa_pulpit.png` – przebieg A→C2 nastawiony poleceniem „A C2 Pociąg” (zwrotnice 1, 2 na „−”, droga zielona).
 - Regresja: selftest `station_test.json` 25 z 26 / 4 z 4 (bez zmian).
 - Do zrobienia w etapie 9: rozjazdy krzyżowe i skrzyżowania, pochylenia z profilu (`poch`), tarcza ostrzegawcza – `repeats`, powtarzacze, elementy Z4 na pulpicie (perony, przejazdy, napisy, numery torów, opisy odcinków), na pulpicie odstępowe w jednym węźle pokazują jeden numer (jak w „Testowie”).
+
+## Edytor UT – zmiana numeru wstawionego rozjazdu
+
+**ZROBIONE 2026-10-19** (właściciel: „popraw to, żeby w edytorze UT można było zmienić numer rozjazdu po wybudowaniu go”):
+- **Menu PPM rozjazdu:** „Zmień numer…”, w łączniku „Zmień numery łącznika…” (`MainWindow.RenumberTurnout`) – okno z obecnymi numerami (`AskNumbers` przyjmuje domyślne), oba numery łącznika zmieniane w jednym kroku (można je zamienić miejscami, 3/4 → 4/3; przy sprawdzaniu zajętości numery zmieniane razem nie blokują się nawzajem); pusty, powtórzony albo zajęty w posterunku – odrzucony z komunikatem; Ctrl+Z przywraca.
+- **Panel rozjazdu:** podpis „Numer rozjazdu (Enter – zastosuj)”, w łączniku przycisk „Zmień numery łącznika N/M…”.
+- **Panel skrzyżowania / rozjazdu krzyżowego:** numer zatwierdzany też przy wyjściu z pola, błędny wpis wraca do poprzedniego, rozjazd krzyżowy nie może mieć pustego numeru.
+- Test `Test.Rozjazdy.cs`: numer 5 → 15 z panelu (Enter), zajęty 1 odrzucony, 15 → 5 (wyjście z pola), menu łącznika 3/4 → 4/3, zajęty numer w łączniku, Ctrl+Z; `--test` **błędów: 0**. Zrzut `zrzuty/EdytorUT_numer_lacznika.png`. Regresja: selftest `station_test.json` 25 z 26 / 4 z 4.
+- Uwaga: zmiana numeru w UT nie poprawia odwołań do rozjazdu w zobrazowaniu – po zmianie sprawdź obraz.

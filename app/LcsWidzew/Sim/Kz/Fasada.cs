@@ -26,6 +26,13 @@ public partial class Simulator
     public double SignalSpeed(RouteDef r) => Kz.SignalSpeed(r);
     public double RouteSpeed(RouteDef r) => Kz.RouteSpeed(r);
     public List<string> WhyNot(RouteDef rd) => Kz.WhyNot(rd);
+    /// <summary>Przeliczenie tablicy przebiegów po zmianie zależności specjalnych – tylko bez nastawionych przebiegów (null – przeliczona).</summary>
+    public string PrzeliczTablice()
+    {
+        if (Routes.Count > 0) return "Są nastawione przebiegi – zwolnij je i naciśnij „Przelicz tablicę” (albo uruchom symulację ponownie).";
+        Kz.RouteTable.Clear(); Kz.BuildRouteTable();
+        return null;
+    }
     public List<string> SignalConditions(Route r) => Kz.SignalConditions(r);
     public RouteDef FindRoute(string start, string end, string type, IList<string> via = null) => Kz.FindRoute(start, end, type, via);
     public List<RouteDef> RawRoutes(string sigName) => Kz.RawRoutes(sigName);
