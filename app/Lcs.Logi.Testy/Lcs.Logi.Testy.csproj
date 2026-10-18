@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Testy fundamentu logów (S01.01): N43, L01–L03, L05, budżety B01–B05/B07/B08. Uruchomienie: dotnet test (Microsoft.Testing.Platform, app/global.json). -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Lcs.Logi.Testy</RootNamespace>
+    <NoWarn>$(NoWarn);SYSLIB1015;CA1416</NoWarn>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
+  </ItemGroup>
+
+</Project>

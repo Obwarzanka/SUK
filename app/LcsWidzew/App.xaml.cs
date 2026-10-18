@@ -1,5 +1,9 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using Lcs.Logi;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LcsWidzew;
 
@@ -21,13 +25,71 @@ public partial class App : Application
     public static string ErrorLog => Path.Combine(Path.GetDirectoryName(StationPath) ?? AppContext.BaseDirectory, "..", "bledy.log");
     public static void LogError(Exception ex, string where)
     {
+        // logi techniczne (25): zredagowany wyjątek do ograniczonej kolejki, bez I/O na tym wątku
+        ZdarzeniaProcesu.Blad(logApp, ex, where switch { "UI" => "UI_DISPATCHER", "serwer" => "NET_SERVER", "stanowisko" => "NET_CLIENT", _ => "OTHER" });
         try { File.AppendAllText(ErrorLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {where}: {ex}\n\n"); } catch { }
+    }
+
+    // ------------------------------------------------------------------ logi techniczne (S01.01, rozdział 25 planu)
+    static ILogger logApp = NullLogger.Instance;
+    static readonly long startProcesu = Stopwatch.GetTimestamp();
+    static string logiRaport, wynikProby;
+    public static string Wersja => typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    /// <summary>
+    /// Start logów: JSONL w %LocalAppData%\SUK\LcsWidzew\Logs (albo katalog z --logi). Działa offline; błąd logów nie zatrzymuje programu.
+    /// --logi-raport plik – stan i liczniki logów przy zamknięciu; --logi-proba – kontrolny błąd z testowymi sekretami (L01/L05) i pomiar emisji (B05).
+    /// </summary>
+    static void StartLogow(string katalog, string tryb, bool proba)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(logiRaport)) logiRaport = Path.GetFullPath(logiRaport);
+            katalog = string.IsNullOrWhiteSpace(katalog) ? null : Path.GetFullPath(katalog);
+            if (!Diagnostyka.Start(new OpcjeLogow { Aplikacja = "LcsWidzew", Katalog = katalog, Profil = ProfilLogow.Klient })) return;
+            logApp = Diagnostyka.Modul("LcsWidzew.App", Wersja);
+            ZdarzeniaProcesu.Uruchomiono(logApp, tryb);
+            if (!proba) return;
+            ProbaLogow.Wykonaj(logApp);
+            var rytm = ProbaLogow.Pomiar(logApp);
+            var zalew = ProbaLogow.Pomiar(logApp, 1, 5000, 0);
+            wynikProby = $"pomiar_rytm_ticku: {rytm}\npomiar_zalew: {zalew}\n";
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            logiRaport = null;   // błędna ścieżka z wiersza poleceń – program działa bez logów technicznych
+        }
+    }
+
+    static string Zdejmij(List<string> args, string nazwa, bool zWartoscia)
+    {
+        int i = args.IndexOf(nazwa);
+        if (i < 0) return null;
+        if (!zWartoscia) { args.RemoveAt(i); return ""; }
+        if (i + 1 >= args.Count) { args.RemoveAt(i); return null; }
+        var v = args[i + 1]; args.RemoveRange(i, 2); return v;
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        ZdarzeniaProcesu.Zatrzymano(logApp, (long)Stopwatch.GetElapsedTime(startProcesu).TotalMicroseconds);
+        logApp = NullLogger.Instance;
+        var st = Diagnostyka.Zatrzymaj();
+        if (logiRaport != null)
+            try { File.WriteAllText(logiRaport, (st?.ToString() ?? "logi=nie_uruchomione\n") + (wynikProby ?? "")); } catch { }
+        base.OnExit(e);
     }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         // --station <plik> – inny plik układu (np. kopia)
         var args = e.Args.ToList();
+        // --logi <katalog>, --logi-raport <plik>, --logi-proba – logi techniczne (testy na kopii danych)
+        var logiKatalog = Zdejmij(args, "--logi", true);
+        logiRaport = Zdejmij(args, "--logi-raport", true);
+        bool logiProba = Zdejmij(args, "--logi-proba", false) != null;
+        string tryb = args.Contains("--selftest") ? "selftest" : args.Contains("--trasy") ? "trasy" : args.Contains("--screenshot") ? "zrzut" : "pulpit";
+        StartLogow(logiKatalog, tryb, logiProba);
         int si = args.IndexOf("--station");
         if (si >= 0 && si + 1 < args.Count) { StationPath = Path.GetFullPath(args[si + 1]); args.RemoveRange(si, 2); }
         var A = args.ToArray();

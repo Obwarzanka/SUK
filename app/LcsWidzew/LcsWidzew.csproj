@@ -9,7 +9,13 @@
     <AssemblyTitle>Symulator LCS Łódź Widzew</AssemblyTitle>
     <Product>Symulator LCS Łódź Widzew</Product>
     <Version>0.2.0</Version>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logi techniczne SUK (S01.01, rozdział 25): MEL + Serilog, ograniczona kolejka, JSONL w %LocalAppData%\SUK\LcsWidzew\Logs -->
+    <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Update="Data\sygnaly_ie1.json">

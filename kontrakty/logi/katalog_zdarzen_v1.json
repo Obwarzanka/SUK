@@ -11,7 +11,9 @@
     "Nowy moduł dopisuje swoje kody w przydzielonym podzakresie razem z testem limitów i redakcji (F24). Podzakres 'rezerwa' przydziela zadanie, które tworzy moduł, przez zmianę tego pliku.",
     "Kody kontraktowe diagnostyki Ada (DiagnosticBatch, podzakresy 42xx–49xx) przydziela S02A1.02 i są wspólne dla Kz_A i Kz_B; katalog nie zawiera algorytmu ani stanu.",
     "Tekst komunikatu (@mt) jest po polsku, ale znaczenie wynika z eventId/eventCode, nie z tłumaczenia.",
-    "DiagnosticCandidate (obliczenie kanału) i EffectCommitted (jeden logiczny skutek OutputGate) mają różne kody (25 §5)."
+    "DiagnosticCandidate (obliczenie kanału) i EffectCommitted (jeden logiczny skutek OutputGate) mają różne kody (25 §5).",
+    "S01.01 (18.10.2026): przydzielono podzakres 3600–3699 REJ (kopia dziennika pulpitu – Rejestrator) i kody fundamentu logów; adapter przyjmuje kod bez definicji, jeśli jest zgodny z podzakresem, a pola ponad pola kontekstu schematu tylko z listy 'pola' definicji.",
+    "Pole 'pola' wymienia pola kontekstu schematu i pola dodatkowe zdarzenia; inne pola adapter odrzuca i liczy w counters.rejectedFields. Rekord spoza katalogu dostaje LOG.EVENT_UNCATALOGUED z originalEventId i zachowanym poziomem."
   ],
   "obszary": [
     {
@@ -131,6 +133,12 @@
         },
         {
           "od": 3600,
+          "do": 3699,
+          "prefiks": "REJ",
+          "opis": "kopia dziennika zdarzeń i alarmów pulpitu (Rejestrator) – strumień domain, bez treści wpisanej przez użytkownika"
+        },
+        {
+          "od": 3700,
           "do": 3999,
           "prefiks": "REZERWA",
           "opis": "rezerwa"
@@ -350,6 +358,50 @@
   ],
   "kody": [
     {
+      "eventId": 1001,
+      "eventCode": "PROC.STARTED",
+      "severity": "Information",
+      "moduleId": "<Aplikacja>.App",
+      "stream": "diagnostic",
+      "pola": [
+        "tryb",
+        "runtimeVersion",
+        "osVersion",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §8 (start, wersje); S01.01",
+      "uwaga": "Wspólny dla aplikacji; moduleVersion = wersja programu. Bez nazwy komputera, konta i ścieżek."
+    },
+    {
+      "eventId": 1002,
+      "eventCode": "PROC.STOPPED",
+      "severity": "Information",
+      "moduleId": "<Aplikacja>.App",
+      "stream": "diagnostic",
+      "pola": [
+        "durationUs",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §8; S01.01",
+      "uwaga": "durationUs = czas działania procesu."
+    },
+    {
+      "eventId": 1010,
+      "eventCode": "PROC.UNHANDLED_EXCEPTION",
+      "severity": "Error",
+      "moduleId": "<Aplikacja>.App",
+      "stream": "diagnostic",
+      "pola": [
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §1 (App.LogError), §7; S01.01",
+      "uwaga": "@x po redakcji (≤ 4096 znaków); reasonCode = stały kod miejsca (UI_DISPATCHER, NET_SERVER, NET_CLIENT, TEST_PROBE, OTHER)."
+    },
+    {
       "eventId": 2101,
       "eventCode": "AUTH.COMMAND_REJECTED",
       "severity": "Warning",
@@ -391,9 +443,86 @@
       "uwaga": "Powstaje z istniejącego rozstrzygnięcia; nie zmienia stanu, nie zastępuje rekordu commit i nie dowodzi statusu z karty."
     },
     {
+      "eventId": 3601,
+      "eventCode": "REJ.EVENT_RECORDED",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.Rejestrator",
+      "stream": "domain",
+      "pola": [
+        "kategoria",
+        "typObiektu",
+        "rejId",
+        "targetId",
+        "postId"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §1 (Rejestrator: eksport wybranych zdarzeń), §2; S01.01",
+      "uwaga": "Kopia wpisu dziennika pulpitu: kategoria (zamknięta lista), typ obiektu, identyfikator obiektu urządzeń/pociągu, rejId = Id wpisu w oknie Zdarzenia. Bez treści wpisu, operatora, telefonu i książki (tekst może pochodzić od użytkownika). Nie jest źródłem prawdy."
+    },
+    {
+      "eventId": 9001,
+      "eventCode": "LOG.STARTED",
+      "severity": "Information",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "profile",
+        "outcome",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6; S01.01",
+      "uwaga": "counters: maxRecords, maxBytes, maxFileBytes, maxFiles, maxAgeDays, groupingMs, shutdownMs – limity działające w procesie. Bez ścieżki katalogu (zawiera nazwę konta)."
+    },
+    {
+      "eventId": 9002,
+      "eventCode": "LOG.EVENT_UNCATALOGUED",
+      "severity": "Warning",
+      "moduleId": "<moduł emitujący>",
+      "stream": "diagnostic",
+      "pola": [
+        "originalEventId"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §3–§4; S01.01",
+      "uwaga": "Zastępuje eventId/eventCode spoza katalogu, z rezerwy albo niezgodny z definicją; rzeczywisty poziom rekordu = poziom zgłoszenia (severity zgodne z @l)."
+    },
+    {
+      "eventId": 9003,
+      "eventCode": "LOG.PROBE",
+      "severity": "Information",
+      "moduleId": "<moduł emitujący>",
+      "stream": "diagnostic",
+      "pola": [
+        "opis",
+        "targetId",
+        "durationUs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §9 L01/L05; S01.01",
+      "uwaga": "Próba kontrolna i pomiar emisji (opcja --logi-proba, testy)."
+    },
+    {
       "eventId": 9101,
       "eventCode": "LOG.DIAGNOSTICS_DROPPED",
       "severity": "Warning",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "targetId",
+        "droppedCount",
+        "windowMs",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §4, przykład 3, §6; S01.01",
+      "uwaga": "Zbiorczy licznik odrzuceń po przepełnieniu kolejki; worker nie loguje rekurencyjnie do własnej pełnej kolejki. targetId = moduleId, którego rekordy pominięto; jeden rekord na moduł i powód (QUEUE_FULL, QUEUE_BYTES, SINK_FAILED, STOPPED, SHUTDOWN_TIMEOUT, RECORD_TOO_LARGE, ADAPTER_ERROR)."
+    },
+    {
+      "eventId": 9102,
+      "eventCode": "LOG.SINK_FAILED",
+      "severity": "Error",
       "moduleId": "Diagnostics.Writer",
       "stream": "diagnostic",
       "pola": [
@@ -402,9 +531,83 @@
         "reasonCode",
         "outcome"
       ],
-      "status": "wstepny",
-      "zrodlo": "25 §4, przykład 3, §6",
-      "uwaga": "Zbiorczy licznik odrzuceń po przepełnieniu kolejki; worker nie loguje rekurencyjnie do własnej pełnej kolejki."
+      "status": "wdrozony",
+      "zrodlo": "25 §6, §9 L03; S01.01",
+      "uwaga": "Po odzyskaniu zapisu: liczba rekordów niezapisanych w czasie awarii i czas trwania awarii."
+    },
+    {
+      "eventId": 9103,
+      "eventCode": "LOG.SHUTDOWN_FLUSH_INCOMPLETE",
+      "severity": "Warning",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "droppedCount",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6 (limit 5 s), B04; S01.01",
+      "uwaga": ""
+    },
+    {
+      "eventId": 9104,
+      "eventCode": "LOG.RECORD_TOO_LARGE",
+      "severity": "Warning",
+      "moduleId": "<moduł emitujący>",
+      "stream": "diagnostic",
+      "pola": [
+        "originalEventId",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6, B01; S01.01",
+      "uwaga": "Rekord zastępczy z polami wymaganymi, gdy po skróceniu tekstów rekord nadal przekracza 8 KiB."
+    },
+    {
+      "eventId": 9105,
+      "eventCode": "LOG.STOPPED",
+      "severity": "Information",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "outcome",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6; S01.01",
+      "uwaga": "counters: accepted, written, dropped, sinkFailures, maxQueueRecords, maxQueueBytes, truncated, replaced."
+    },
+    {
+      "eventId": 9201,
+      "eventCode": "LOG.DISK_SPACE_LOW",
+      "severity": "Warning",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "reasonCode",
+        "outcome",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6, B08; S01.01",
+      "uwaga": "reasonCode DISK_BELOW_WARNING (< 15%) albo DISK_BELOW_LIMIT (< 10% – przepuszczane tylko Warning i wyżej); counters: freePercent, freeMiB."
+    },
+    {
+      "eventId": 9202,
+      "eventCode": "LOG.DISK_SPACE_RESTORED",
+      "severity": "Information",
+      "moduleId": "Diagnostics.Writer",
+      "stream": "diagnostic",
+      "pola": [
+        "reasonCode",
+        "outcome",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "25 §6, B08; S01.01",
+      "uwaga": ""
     }
   ]
 }

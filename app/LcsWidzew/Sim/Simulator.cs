@@ -36,7 +36,7 @@ public partial class Simulator
     {
         L = st;
         Nadrzedny = new SystemNadrzedny(this);
-        Rej = new Rejestrator(L, () => T, () => Clock(), () => User);
+        Rej = new Rejestrator(L, () => T, () => Clock(), () => User, Lcs.Logi.Diagnostyka.Modul(ZdarzeniaRejestratora.Modul, ZdarzeniaRejestratora.Wersja));
         Instruktor = new Instruktor(this);
         Rozklad = new Rozklad(this);
         Otoczenie = new Otoczenie(this);

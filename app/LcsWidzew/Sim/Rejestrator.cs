@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using LcsWidzew.Model;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LcsWidzew.Sim;
 
@@ -13,6 +15,8 @@ public class Rejestrator
     readonly Func<double> czas;
     readonly Func<string> zegar;
     readonly Func<User> uzytkownik;
+    /// <summary>Logi techniczne (25): kopia wpisów w strumieniu domain – bez treści i operatora (<see cref="ZdarzeniaRejestratora"/>).</summary>
+    readonly ILogger log;
     long evSeq;
 
     public List<EventRecord> Events = new();
@@ -26,9 +30,10 @@ public class Rejestrator
     /// <param name="czas">czas symulacji [s]</param>
     /// <param name="zegar">godzina do kolumny „Czas”</param>
     /// <param name="uzytkownik">zalogowany operator (kolumna „Operator”)</param>
-    public Rejestrator(Station layout, Func<double> czas, Func<string> zegar, Func<User> uzytkownik)
+    /// <param name="log">logger modułu (brak – bez logów technicznych)</param>
+    public Rejestrator(Station layout, Func<double> czas, Func<string> zegar, Func<User> uzytkownik, ILogger log = null)
     {
-        L = layout; this.czas = czas; this.zegar = zegar; this.uzytkownik = uzytkownik;
+        L = layout; this.czas = czas; this.zegar = zegar; this.uzytkownik = uzytkownik; this.log = log ?? NullLogger.Instance;
     }
 
     // przedrostki posterunków (np. „LW:”) i ich skróty (np. ŁW) – z wczytanego układu, nie zaszyte w programie
@@ -54,6 +59,7 @@ public class Rejestrator
         var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = uzytkownik()?.Name ?? "", Zrodlo = zrodlo };
         Events.Add(e);
         EventAdded?.Invoke(e);
+        ZdarzeniaRejestratora.Wpis(log, L, e, obiekt);   // bez I/O: tylko wpis do ograniczonej kolejki logów
         return e;
     }
 

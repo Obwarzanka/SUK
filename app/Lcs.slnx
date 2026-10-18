@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Lcs.EdytorUT/Lcs.EdytorUT.csproj" />
+  <Project Path="Lcs.Logi/Lcs.Logi.csproj" />
+  <Project Path="Lcs.Logi.Testy/Lcs.Logi.Testy.csproj" />
   <Project Path="Lcs.Komputerownia/Lcs.Komputerownia.csproj" />
   <Project Path="Lcs.Model/Lcs.Model.csproj" />
   <Project Path="Lcs.Przechylka/Lcs.Przechylka.csproj" />

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Fundament logów SUK (S01.01, rozdział 25 planu): adapter Microsoft.Extensions.Logging -> Serilog,
+    redakcja i lista dozwolonych pól, ograniczona kolejka w pamięci i osobny worker plików JSONL
+    (Serilog.Sinks.File + CompactJsonFormatter). Wersje pakietów: app/Directory.Packages.props (CPM).
+    net8.0 – obecne aplikacje; net10.0 – docelowy runtime (S01.03).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>Lcs.Logi</RootNamespace>
+    <AssemblyTitle>Logi i diagnostyka SUK</AssemblyTitle>
+    <Product>SUK</Product>
+    <Version>0.1.0</Version>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- SYSLIB1015: pola rekordu nie muszą występować w szablonie komunikatu – trafiają do rekordu jako właściwości strukturalne. -->
+    <NoWarn>$(NoWarn);SYSLIB1015</NoWarn>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Formatting.Compact" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lcs.Logi.Testy" />
+  </ItemGroup>
+
+</Project>
