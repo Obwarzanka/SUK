@@ -105,12 +105,20 @@ public partial class MainWindow : Window
         tools.Items.Add(ToolBtn(ZobTool.Sygnalizator, "Sygnalizator", "Sygnalizator (S): semafor / tarcza z panelu UT albo następny nieumieszczony – klik na linii jego toru; kierunek z UT"));
         tools.Items.Add(ToolBtn(ZobTool.Wykolejnica, "Wykolejnica", "Wykolejnica (W): klik na linii jej toru"));
         tools.Items.Add(ToolBtn(ZobTool.Koziol, "Kozioł", "Kozioł (K): klik przy końcu jego toru obrazu"));
+        var z4 = new ToolBar { Background = ToolbarBg, Band = 1 };      // drugi wiersz – pierwszy jest pełny
+        z4.Items.Add(ToolBtn(ZobTool.Przerwa, "Przerwa", "Przerwa izolacyjna (P): licznik osi / złącze UT – klik na linii jego toru; przerwa w linii jak na pulpicie"));
+        z4.Items.Add(ToolBtn(ZobTool.OpisOdcinka, "Opis odcinka", "Opis odcinka (O): odcinek UT – klik w miejscu opisu, przy torze odcinka (Ie-104 § 8 ust. 1 – nad torem)"));
+        z4.Items.Add(ToolBtn(ZobTool.NumerToru, "Numer toru", "Numer toru (N): klik na linii toru – numer w przerwie linii"));
+        z4.Items.Add(ToolBtn(ZobTool.Peron, "Peron", "Peron: peron UT z panelu albo następny – przeciągnij prostokąt"));
+        z4.Items.Add(ToolBtn(ZobTool.Przejazd, "Przejazd", "Przejazd: przejazd UT – klik na linii jego toru; zasięg linii przejazdu w panelu"));
+        z4.Items.Add(ToolBtn(ZobTool.Szlak, "Szlak", "Strzałka blokady (B): szlak UT – klik na torze za semaforem wjazdowym, od strony szlaku"));
+        z4.Items.Add(ToolBtn(ZobTool.Napis, "Napis", "Napis (X): klik w miejscu napisu – nazwa posterunku sąsiedniego, nastawnia albo dowolny tekst"));
         tools.Items.Add(new Separator());
         tools.Items.Add(Btn("✔ Sprawdź", (s, e) => Sprawdz(), "Sprawdź obraz (F7): nieumieszczone obiekty UT, przypięcia, symbole poza torem, kolejność wzdłuż km"));
         tools.Items.Add(Btn("Do symulatora…", (s, e) => DoSymulatora(), "Zapisz UT i obrazy jako układ symulatora (LcsWidzew/Data/projekty) – do wyboru przy starcie symulatora; Data/station.json zostaje bez zmian"));
         tools.Items.Add(new Separator());
         tools.Items.Add(ToolBtn(ZobTool.Lacznik, "Łącznik", "Łącznik (R): klik na torze obrazu w miejscu pierwszej zwrotnicy, potem na drugim torze – ukos 45° – pion – ukos 45°"));
-        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools } };
+        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools, z4 } };
     }
 
     UIElement BuildUtPanel()
@@ -160,12 +168,14 @@ public partial class MainWindow : Window
         if (o == null) return;
         BuildTrackPanel();
         BuildSymPanel();
+        BuildZ4Panel();
         if (Uwagi != null) { ImgPanel.Children.Add(Header("Sprawdź")); if (CheckPanel.Parent is Panel cp) cp.Children.Remove(CheckPanel); ImgPanel.Children.Add(CheckPanel); ImgPanel.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) }); }
         ImgPanel.Children.Add(Header("Obraz"));
         ImgPanel.Children.Add(Label("Nazwa")); ImgPanel.Children.Add(NameBox);
         ImgPanel.Children.Add(Label("Rodzaj")); KindBox.ToolTip = "Ie-104 § 5 – obraz szczegółowy posterunku, § 6 – obraz poglądowy obszaru"; ImgPanel.Children.Add(KindBox);
         ImgPanel.Children.Add(Label("Posterunki na obrazie"));
         ImgPanel.Children.Add(PostsPanel);
+        OpisyCombo(o);
         ImgPanel.Children.Add(Label("Wymiary [j.] – szerokość × wysokość"));
         var sizes = new StackPanel { Orientation = Orientation.Horizontal };
         sizes.Children.Add(WidthBox); sizes.Children.Add(new TextBlock { Text = "×", Margin = new Thickness(0, 4, 6, 0) }); sizes.Children.Add(HeightBox);

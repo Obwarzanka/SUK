@@ -30,6 +30,8 @@ public class Edge
     /// <summary>Pochylenie podłużne [‰] od A do B (dodatnie – wzniesienie), z profilu wysokościowego; NaN – brak danych.</summary>
     public double Grad = double.NaN;
     public bool Platform, Szlak;
+    /// <summary>Zobrazowanie: odcinek bez kontroli niezajętości – linia przerywana (Ie-104 § 8 ust. 1; oznacza człowiek w edytorze zobrazowania).</summary>
+    public bool NoDetect;
     /// <summary>Kierunek jazdy A→B dla toru pionowego (1 – na wschód, -1 – na zachód); dla pozostałych wynika z położenia końców.</summary>
     public int Dir;
     /// <summary>Prędkość dopuszczalna na torze [km/h] (0 – domyślna: stacja 60, szlak – prędkość pociągu).</summary>
@@ -106,7 +108,9 @@ public class SignalDef
 public class DerailerDef { public string Name, Node, Sec, Label, Post; }
 /// <summary>Koniec szlaku przy posterunku; Label – oznaczenie szlaku na obrazie tego posterunku (szlak wewnętrzny: np. 1A przy Gałkówku, 1G przy Andrzejowie).</summary>
 public class BlockEnd { public string Boundary, EntrySig, Post, Label; public int Outward; /// <summary>Zwrot „na zewnątrz” na rysunku (±1 w poziomie) – tylko do rysowania.</summary>
-    public int VOut; }
+    public int VOut;
+    /// <summary>Zobrazowanie: środek strzałki blokady narysowany w edytorze zobrazowania (null – za semaforem wjazdowym jak dotąd).</summary>
+    public double? MarkX, MarkY; }
 
 public class BlockDef
 {
@@ -211,6 +215,11 @@ public class Station
     public List<CrossingDef> Crossings = new();
     public Dictionary<string, GantryDef> Gantries = new();
     public List<DashedDef> Dashed = new();
+    /// <summary>Zobrazowanie: numery torów w miejscach z edytora zobrazowania (tekst, środek); tor bez wpisu – numer na środku odcinka jak dotąd.</summary>
+    public List<LabelDef> TrackLabels = new();
+    /// <summary>Zobrazowanie: opisy odcinków (odcinek, środek napisu) i kiedy je pokazywać: „nazadanie” (Ie-104 § 5 ust. 2), „zawsze”, „nie”.</summary>
+    public List<(string Sec, double X, double Y)> SecLabels = new();
+    public string SecLabelsMode = "nazadanie";
     public List<RouteRule> RouteRules = new();
     /// <summary>Zależności specjalne przebiegów z pliku &lt;układ&gt;.zaleznosci.json (projektuje człowiek).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Zaleznosci Zal = new();
@@ -297,6 +306,20 @@ public class Station
             }
             var d = ParseCore(root.ToJsonString(), true);
             if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
+            // elementy z edytora zobrazowania (etap Z4): numery torów, opisy odcinków, strzałki blokady, odcinki bez kontroli niezajętości
+            if (disp["trackLabels"] is System.Text.Json.Nodes.JsonArray tl)
+                foreach (var x in tl.OfType<System.Text.Json.Nodes.JsonObject>())
+                    d.TrackLabels.Add(new LabelDef { Text = (string)x["text"], X = x["x"].GetValue<double>(), Y = x["y"].GetValue<double>(), Anchor = "middle" });
+            if (disp["secLabels"] is System.Text.Json.Nodes.JsonArray sl)
+                foreach (var x in sl.OfType<System.Text.Json.Nodes.JsonObject>())
+                    if ((string)x["sec"] is string sec) d.SecLabels.Add((sec, x["x"].GetValue<double>(), x["y"].GetValue<double>()));
+            if (disp["secLabelsMode"]?.GetValue<string>() is string slm) d.SecLabelsMode = slm;
+            if (disp["dashedEdges"] is System.Text.Json.Nodes.JsonArray dashE)
+                foreach (var x in dashE) if (x?.GetValue<string>() is string eid && d.Edges.TryGetValue(eid, out var ed)) ed.NoDetect = true;
+            if (disp["blockMarks"] is System.Text.Json.Nodes.JsonArray bm)
+                foreach (var x in bm.OfType<System.Text.Json.Nodes.JsonObject>())
+                    if ((string)x["block"] is string bid && d.Blocks.TryGetValue(bid, out var db) && x["end"]?.GetValue<int>() is int ei && ei >= 0 && ei < db.Ends.Count)
+                    { db.Ends[ei].MarkX = x["x"].GetValue<double>(); db.Ends[ei].MarkY = x["y"].GetValue<double>(); }
             if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
             else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
             // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)

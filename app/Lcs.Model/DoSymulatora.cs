@@ -292,6 +292,9 @@ public static class DoSymulatora
         if (zob != null && zob.Obrazy.Count > 0)
         {
             var dn = new JsonObject(); var de = new JsonObject();
+            // elementy etapu Z4: napisy, perony, przejazdy, numery torów, opisy odcinków, strzałki blokady, odcinki bez kontroli niezajętości
+            var dLabels = new JsonArray(); var dPlat = new JsonArray(); var dCross = new JsonArray(); var dTrack = new JsonArray();
+            var dSec = new JsonArray(); var dBlk = new JsonArray(); var dDash = new JsonArray(); string secMode = null;
             int x0 = 0;
             foreach (var ob in zob.Obrazy)
             {
@@ -308,12 +311,47 @@ public static class DoSymulatora
                     de[ei.Id] = new JsonArray(line.Select(q => (JsonNode)new JsonArray(q.X + x0, q.Y)).ToArray());
                     if (!dn.ContainsKey(ei.A)) dn[ei.A] = new JsonArray(line[0].X + x0, line[0].Y);
                     if (!dn.ContainsKey(ei.B)) dn[ei.B] = new JsonArray(line[^1].X + x0, line[^1].Y);
+                    if (zt.BezKontroli) dDash.Add(ei.Id);
+                }
+                foreach (var n in ob.Napisy.Where(n => n.P != null && n.Tekst.Length > 0))
+                    dLabels.Add(new JsonObject { ["text"] = n.Tekst, ["x"] = n.P[0] + x0, ["y"] = n.P[1], ["anchor"] = n.Rodzaj == ZobNapis.Nastawnia ? "nastawnia" : "middle" });
+                foreach (var pr in ob.Perony.Where(p => p.Prost is { Length: 4 }))
+                {
+                    var pl = ut.Platforms.FirstOrDefault(x => x.Id == pr.Ut); if (pl == null) continue;
+                    var name = pl.Name.StartsWith("Peron", StringComparison.OrdinalIgnoreCase) ? pl.Name : $"Peron {pl.Name}".Trim();
+                    dPlat.Add(new JsonObject { ["name"] = name, ["x"] = pr.Prost[0] + x0, ["y"] = pr.Prost[1], ["w"] = pr.Prost[2], ["h"] = pr.Prost[3] });
+                }
+                foreach (var s in ob.Przejazdy.Where(s => s.P != null))
+                {
+                    var lc = ut.LevelCrossings.FirstOrDefault(x => x.Id == s.Ut); if (lc == null) continue;
+                    int up = s.Zasieg?[0] ?? 28, down = s.Zasieg?[1] ?? 28;
+                    dCross.Add(new JsonObject { ["name"] = lc.Name.Length > 0 ? lc.Name : UtLevelCrossing.CatName(lc.Cat), ["kind"] = "Y", ["x"] = s.P[0] + x0, ["y0"] = s.P[1] - up, ["y1"] = s.P[1] + down });
+                }
+                foreach (var s in ob.NumeryTorow.Where(s => s.P != null))
+                    if (ut.Tracks.FirstOrDefault(t => t.Id == s.Ut) is UtTrack t && t.Number.Length > 0)
+                        dTrack.Add(new JsonObject { ["text"] = t.Number, ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
+                foreach (var s in ob.Odcinki.Where(s => s.P != null))
+                    if (ut.Sections.FirstOrDefault(x => x.Id == s.Ut) is UtSection sc && pts.ContainsKey(sc.Track))
+                        dSec.Add(new JsonObject { ["sec"] = SecName(sc.Track, sc.S, out _, out _), ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
+                secMode ??= ob.OpisyOdcinkow;
+                foreach (var s in ob.Szlaki.Where(s => s.P != null))
+                {
+                    // indeks końca w „ends” symulatora: kolejne końce szlaku z semaforem wjazdowym (koniec na granicy obszaru to „far”)
+                    var ln = ut.Lines.FirstOrDefault(x => x.Id == s.Ut); if (ln == null || !blocks.ContainsKey(ln.Numer)) continue;
+                    int k = s.Koniec ?? 0, idx = 0;
+                    for (int i = 0; i < k && i < ln.Konce.Count; i++) if (ln.Konce[i].Semafor != null) idx++;
+                    if (k >= ln.Konce.Count || ln.Konce[k].Semafor == null) continue;
+                    dBlk.Add(new JsonObject { ["block"] = ln.Numer, ["end"] = idx, ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
                 }
                 x0 += ob.Szer;
             }
             int missing = edgeInfo.Count(e => !de.ContainsKey(e.Id));
             if (missing > 0) uw.Add($"{missing} kawałków torów UT nie ma na żadnym obrazie – na pulpicie ich nie widać");
-            display = new JsonObject { ["nodes"] = dn, ["edges"] = de, ["labels"] = new JsonArray(), ["platforms"] = new JsonArray(), ["crossings"] = new JsonArray() };
+            display = new JsonObject
+            {
+                ["nodes"] = dn, ["edges"] = de, ["labels"] = dLabels, ["platforms"] = dPlat, ["crossings"] = dCross,
+                ["trackLabels"] = dTrack, ["secLabels"] = dSec, ["secLabelsMode"] = secMode ?? ZobObraz.OpisNaZadanie, ["blockMarks"] = dBlk, ["dashedEdges"] = dDash,
+            };
         }
         else uw.Add("brak zobrazowania – pulpit pokaże plan z UT");
 
@@ -340,9 +378,9 @@ public static class DoSymulatora
     static Func<double, double> Mapa(UtProject ut, ZobObraz ob, ZobTor zt)
     {
         var anchors = new List<(double Km, double F)> { (zt.Ut.S0, 0), (zt.Ut.S1, 1) };
-        foreach (ZobRodzaj rd in Enum.GetValues<ZobRodzaj>())
+        foreach (ZobRodzaj rd in Enum.GetValues<ZobRodzaj>().Where(ZobSymbole.Kotwica))
             foreach (var s in ZobSymbole.Lista(ob, rd))
-                if (ZobSymbole.Miejsce(ut, s.Ut) is var (tr, km) && tr == zt.Ut.Tor && ZobSymbole.NaTorze(zt, s.P))
+                if (s.P != null && ZobSymbole.Miejsce(ut, s) is var (tr, km) && tr == zt.Ut.Tor && ZobSymbole.NaTorze(zt, s.P))
                     anchors.Add((km, ZobTory.Rzut(zt.Pkt, s.P[0], s.P[1]).Frac));
         anchors = anchors.OrderBy(a => a.Km).ToList();
         return km =>

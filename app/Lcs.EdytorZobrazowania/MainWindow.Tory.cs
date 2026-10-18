@@ -52,10 +52,13 @@ public partial class MainWindow
             ZobTool.Tor => "Tor: wybierz tor w panelu UT albo kliknij węzeł obrazu (koniec toru) – lista torów UT; potem punkty łamanej",
             ZobTool.Lacznik => "Łącznik: kliknij tor obrazu w miejscu pierwszej zwrotnicy, potem drugi tor",
             ZobTool.Miarka => "Miarka: klikaj punkty – długość w j. i w kratkach siatki; PPM – wyczyść, Esc – koniec",
-            ZobTool.Zwrotnica or ZobTool.Sygnalizator or ZobTool.Wykolejnica or ZobTool.Koziol => "",
+            ZobTool.Peron => "Peron: przeciągnij prostokąt peronu (do siatki)",
+            ZobTool.Napis => "Napis: kliknij w miejscu napisu",
+            _ when RodzajNarzedzia(t) != null => "",
             _ => "Wskaż: klik na torze – zaznaczenie; przeciągnięcie wierzchołka; puste miejsce – przesuwanie widoku",
         });
         if (RodzajNarzedzia(t) is ZobRodzaj sr && Doc != null && Obraz != null) PickSym(sr, utSelected);
+        if (t == ZobTool.Peron && Doc != null && Obraz != null) PickPeron(utSelected);
         // tor wybrany w panelu UT i jeszcze nie cały na obrazie – od razu jego brakujący kawałek
         if (t == ZobTool.Tor && Doc != null && Obraz != null && utSelected != null && Doc.Ut.Tracks.Any(x => x.Id == utSelected)
             && ZobTory.Luki(Obraz, utSelected, UtLen(utSelected)).Count > 0) StartTor(utSelected);
@@ -110,6 +113,13 @@ public partial class MainWindow
         utSelected = o.Id;
         bool tor = o.Grupa == ZobUt.GTory;
         View.Highlight = tor ? o.Id : null;
+        if (o.Grupa == ZobUt.GPerony)
+        {
+            if (View.Tool == ZobTool.Peron) PickPeron(o.Id);
+            else if (Obraz.Perony.Any(x => x.Ut == o.Id)) { View.SelectItem("peron", o.Id); Message($"{o.Opis} – na obrazie"); }
+            else Message($"{o.Opis} – nie ma go jeszcze na obrazie (narzędzie Peron)");
+            return;
+        }
         if (!tor && UtSymClicked(o)) { RefreshPreview(); View.InvalidateVisual(); return; }
         if (tor && View.Tool == ZobTool.Tor) StartTor(o.Id);
         else if (tor && View.Tool == ZobTool.Lacznik) Message($"Łącznik: {o.Opis} – kliknij tor obrazu w miejscu pierwszej zwrotnicy, potem drugi tor");
@@ -217,6 +227,7 @@ public partial class MainWindow
     public void DeleteSelected()
     {
         if (View.SelectedSym != null) { DeleteSym(); return; }
+        if (View.SelectedPeron != null || View.SelectedNapis != null) { DeleteItem(); return; }
         var t = SelectedTor; if (t == null) return;
         var name = TorName(t.Ut.Tor);
         Ch("Zdjęcie toru z obrazu", o => o.Tory.RemoveAll(x => x.Id == t.Id));
@@ -234,7 +245,7 @@ public partial class MainWindow
             // symbole stojące na tym torze (obiekty UT tego toru) jadą razem z nim, z opisami
             foreach (ZobRodzaj r in Enum.GetValues<ZobRodzaj>())
                 foreach (var s in ZobSymbole.Lista(o, r))
-                    if (s.P != null && ZobSymbole.Miejsce(Doc.Ut, s.Ut)?.Track == x.Ut.Tor && ZobSymbole.NaTorze(x, s.P))
+                    if (s.P != null && ZobSymbole.Miejsce(Doc.Ut, s)?.Track == x.Ut.Tor && ZobSymbole.NaTorze(x, s.P))
                     {
                         s.P = new[] { s.P[0] + dx, s.P[1] + dy };
                         if (s.Opis != null) s.Opis = new[] { s.Opis[0] + dx, s.Opis[1] + dy };
@@ -285,6 +296,10 @@ public partial class MainWindow
         row.Children.Add(KmFromBox); row.Children.Add(new TextBlock { Text = "–", Margin = new Thickness(0, 4, 6, 0) }); row.Children.Add(KmToBox);
         P.Children.Add(row);
         P.Children.Add(new TextBlock { Text = "Pierwszy punkt łamanej to „km od”. Długości na obrazie nie muszą się zgadzać z UT – to schemat.", Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
+        var bk = new CheckBox { Content = "bez kontroli niezajętości (linia przerywana)", IsChecked = t.BezKontroli, Margin = new Thickness(0, 0, 0, 6), ToolTip = "Ie-104 § 8 ust. 1 – odcinek torowy bez kontroli niezajętości wyświetla się linią przerywaną" };
+        BezKontroliBox = bk;
+        bk.Click += (s, e) => { bool v = bk.IsChecked == true; var id = t.Id; Ch(v ? "Tor bez kontroli niezajętości" : "Tor z kontrolą niezajętości", o => o.Tory.First(x => x.Id == id).BezKontroli = v); };
+        P.Children.Add(bk);
         int odd = t.Pkt.Zip(t.Pkt.Skip(1)).Count(x => !ZobTory.Osiowy(x.First, x.Second));
         P.Children.Add(new TextBlock { Text = $"Punktów łamanej: {t.Pkt.Count}" + (odd > 0 ? $"; {odd} odcinków nie co 45°" : ""), Foreground = odd > 0 ? MissFg : Brushes.Black, Margin = new Thickness(0, 0, 0, 6) });
         var btns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
@@ -309,6 +324,11 @@ public partial class MainWindow
             case Key.S: SetTool(ZobTool.Sygnalizator); break;
             case Key.W: SetTool(ZobTool.Wykolejnica); break;
             case Key.K: SetTool(ZobTool.Koziol); break;
+            case Key.P: SetTool(ZobTool.Przerwa); break;
+            case Key.O: SetTool(ZobTool.OpisOdcinka); break;
+            case Key.N: SetTool(ZobTool.NumerToru); break;
+            case Key.B: SetTool(ZobTool.Szlak); break;
+            case Key.X: SetTool(ZobTool.Napis); break;
             case Key.Enter when View.Tool == ZobTool.Tor: View.FinishDraft(); break;
             case Key.Back when View.Tool == ZobTool.Tor: View.UndoPoint(); break;
             case Key.Escape:

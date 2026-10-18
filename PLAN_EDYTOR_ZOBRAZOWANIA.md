@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z4 – przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, szlaki, napisy.
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4 – 2026-10-19** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4 – § 10). Następny: Z5 – kilka obrazów, obraz poglądowy, „Sprawdź” (§ 3), wydruk / PNG.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
@@ -126,7 +126,7 @@ Po każdym etapie: build, test edytora „jak użytkownik” (`EdytorZobrazowani
 wpis w historii i skrót w `ROZWOJ.md`, jak przy edytorze UT.
 
 **Uwaga:** symulator czyta `station.json`. Od 2026-10-18 „Do symulatora…” przekształca UT + obraz → `station.json` w `Data/projekty`
-(`Lcs.Model/DoSymulatora.cs`, początek etapu 9) – obraz z edytora jest na pulpicie symulatora (bez elementów Z4).
+(`Lcs.Model/DoSymulatora.cs`, początek etapu 9) – obraz z edytora jest na pulpicie symulatora, od 2026-10-19 także z elementami Z4.
 
 ## 6. Co trzeba dodać w UT przed rysowaniem (etap Z0)
 
@@ -170,3 +170,10 @@ Plan zaakceptowany z propozycjami z § 8:
 6. Ten sam obiekt UT może być na dwóch obrazach; sterowanie – według obszaru sterowania posterunku, do którego należy.
 7. Zobrazowanie Widzew / Fabryczna ze `station.json` rysowane od nowa (można je pokazać jako podkład do odrysowania).
 8. Kolejność: Z0 (funkcja semafora, posterunki, szlaki w UT), potem Z1–Z6.
+
+## 10. Decyzje właściciela do etapu Z4 (2026-10-19)
+
+1. **Numery torów i strzałki blokady** stawia człowiek w edytorze zobrazowania; pulpit bierze ich miejsce z obrazu. Gdzie nie są postawione – pulpit liczy jak dotąd (numer na środku najdłuższego kawałka toru odcinka, strzałka za semaforem wjazdowym).
+2. **Opisy odcinków** – „do dostosowania w edytorze”: miejsce opisu każdego odcinka ustawia się w edytorze (domyślnie nad torem, Ie-104 § 8 ust. 1 pkt 3), a w obrazie jest ustawienie, czy opisy idą na pulpit (na żądanie wg Ie-104 § 5 ust. 2, zawsze, nie). *Odczytanie do potwierdzenia przez właściciela.*
+3. **Tor bez kontroli niezajętości** (linia przerywana, Ie-104 § 8 ust. 1) oznacza człowiek – pole w panelu toru obrazu; nie wynika samo z odcinków UT.
+

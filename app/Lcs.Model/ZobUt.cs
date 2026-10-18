@@ -11,8 +11,8 @@ public record ZobUtObj(string Grupa, string Id, string Opis, bool NaObrazie, str
 public static class ZobUt
 {
     public const string GTory = "Tory", GRozjazdy = "Rozjazdy", GSygnalizatory = "Sygnalizatory", GWykolejnice = "Wykolejnice",
-        GKozly = "Kozły", GPrzerwy = "Przerwy izolacyjne", GOdcinki = "Odcinki", GPerony = "Perony", GPrzejazdy = "Przejazdy", GSzlaki = "Szlaki";
-    public static readonly string[] Grupy = { GTory, GRozjazdy, GSygnalizatory, GWykolejnice, GKozly, GPrzerwy, GOdcinki, GPerony, GPrzejazdy, GSzlaki };
+        GKozly = "Kozły", GPrzerwy = "Przerwy izolacyjne", GOdcinki = "Odcinki", GPerony = "Perony", GPrzejazdy = "Przejazdy", GSzlaki = "Szlaki", GNumery = "Numery torów";
+    public static readonly string[] Grupy = { GTory, GRozjazdy, GSygnalizatory, GWykolejnice, GKozly, GPrzerwy, GOdcinki, GNumery, GPerony, GPrzejazdy, GSzlaki };
 
     /// <summary>Tory UT obrazu: tory posterunków obrazu i tory szlaków, które dochodzą do nich (wartość – szlak albo null).</summary>
     public static Dictionary<string, UtLine> Tory(UtProject ut, ZobObraz o, out List<UtLine> szlaki)
@@ -29,6 +29,21 @@ public static class ZobUt
             if (drogi.TryGetValue(l.Id, out var dr))
                 foreach (var k in dr.Kawalki)
                     if (!res.ContainsKey(k.Track) || res[k.Track] == null && ut.Tracks.First(t => t.Id == k.Track).Post == null) res[k.Track] = l;
+        return res;
+    }
+
+    /// <summary>Końce szlaku przy posterunkach obrazu (semafor wjazdowy na torze posterunku obrazu; obraz bez posterunków – każdy z semaforem).</summary>
+    public static List<int> KonceNaObrazie(UtProject ut, ZobObraz o, UtLine l)
+    {
+        var posts = o.Posterunki.Where(id => ut.Posts.Any(x => x.Id == id)).ToHashSet();
+        var res = new List<int>();
+        for (int i = 0; i < l.Konce.Count; i++)
+        {
+            var e = l.Konce[i];
+            if (e.Semafor == null || ut.Devices.FirstOrDefault(d => d.Id == e.Semafor) is not UtDevice sd) continue;
+            var post = ut.Tracks.FirstOrDefault(t => t.Id == sd.Track)?.Post;
+            if (posts.Count == 0 || post != null && posts.Contains(post)) res.Add(i);
+        }
         return res;
     }
 
@@ -79,8 +94,17 @@ public static class ZobUt
             res.Add(new(GPerony, pl.Id, $"peron {(pl.Name.Length > 0 ? pl.Name : "(bez numeru)")}", o.Perony.Any(x => x.Ut == pl.Id)));
         foreach (var c in ut.LevelCrossings.Where(x => tory.ContainsKey(x.Track)))
             res.Add(new(GPrzejazdy, c.Id, $"{UtLevelCrossing.CatName(c.Cat)}{(c.Name.Length > 0 ? " – " + c.Name : "")}", o.Przejazdy.Any(x => x.Ut == c.Id)));
+        // numery torów stacyjnych (Ie-104 § 5 ust. 2 – widoczne stale): tory z numerem, nie szlakowe
+        foreach (var t in ut.Tracks.Where(t => tory.ContainsKey(t.Id) && tory[t.Id] == null && t.Number.Length > 0).OrderBy(t => t.Number.Length).ThenBy(t => t.Number))
+            res.Add(new(GNumery, t.Id, $"numer toru {t.Number}", o.NumeryTorow.Any(x => x.Ut == t.Id)));
         foreach (var l in szlaki)
-            res.Add(new(GSzlaki, l.Id, $"szlak {(l.Numer.Length > 0 ? l.Numer : "(bez numeru)")}", o.Szlaki.Any(x => x.Ut == l.Id)));
+        {
+            // strzałka blokady przy każdym końcu szlaku na posterunku obrazu (szlak wewnętrzny – przy obu)
+            var konce = KonceNaObrazie(ut, o, l);
+            int on = konce.Count(k => o.Szlaki.Any(x => x.Ut == l.Id && (x.Koniec ?? 0) == k));
+            res.Add(new(GSzlaki, l.Id, $"szlak {(l.Numer.Length > 0 ? l.Numer : "(bez numeru)")}", konce.Count > 0 && on == konce.Count,
+                on > 0 && on < konce.Count ? $"strzałka {on} z {konce.Count}" : null));
+        }
         return res;
     }
 }

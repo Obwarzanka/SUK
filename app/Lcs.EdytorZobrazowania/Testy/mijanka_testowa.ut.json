@@ -1,0 +1,854 @@
+{
+  "version": 1,
+  "name": "Mijanka testowa",
+  "crs": "EPSG:2180",
+  "drawingScale": 2000,
+  "notes": "Mijanka testowa na linii jednotorowej z SBL (dane przykładowe do testów edytorów UT i zobrazowania).",
+  "backgrounds": [],
+  "tracks": [
+    {
+      "id": "8e18933c",
+      "number": "1",
+      "cat": "gz",
+      "elec": false,
+      "vmax": 120,
+      "vertices": [
+        {
+          "x": 433000,
+          "y": 537000,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 537000,
+            "length": 689824.6153914776
+          }
+        },
+        {
+          "x": 433000,
+          "y": 539997.9504353217,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 539997.9504353217,
+            "length": 692160.9541677051
+          }
+        }
+      ],
+      "openStart": true,
+      "openEnd": true,
+      "post": "4ba1c77a",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "066a2f2f",
+      "number": "2",
+      "cat": "gd",
+      "elec": false,
+      "vmax": 40,
+      "vertices": [
+        {
+          "x": 432995.2532451441,
+          "y": 537922.3694172673,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 537922.3694172673,
+            "length": 690539.9082256675
+          }
+        },
+        {
+          "x": 432995.2532451441,
+          "y": 539075.5810180544,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 539075.5810180544,
+            "length": 691438.6244510639
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "4ba1c77a",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "190f71ba",
+      "number": "",
+      "cat": "",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 433000,
+          "y": 537899.3863814013,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 537899.3863814013,
+            "length": 690524.981350775
+          }
+        },
+        {
+          "x": 433000,
+          "y": 537915.9900533202,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 537915.9900533202,
+            "length": 690537.9152190295
+          }
+        },
+        {
+          "x": 432995.2532451441,
+          "y": 537958.7108470234,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 537958.7108470234,
+            "length": 690568.2181428695
+          }
+        },
+        {
+          "x": 432995.2532451441,
+          "y": 537975.3145189423,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 537975.3145189423,
+            "length": 690581.1526276845
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "4ba1c77a",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "4f6d81c3",
+      "number": "",
+      "cat": "",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 433000,
+          "y": 539098.5682232698,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 539098.5682232698,
+            "length": 691459.5188876783
+          }
+        },
+        {
+          "x": 433000,
+          "y": 539081.9645513509,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433000,
+            "y": 539081.9645513509,
+            "length": 691446.5738613099
+          }
+        },
+        {
+          "x": 432995.2532451441,
+          "y": 539039.2437576477,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 539039.2437576477,
+            "length": 691410.2947191654
+          }
+        },
+        {
+          "x": 432995.2532451441,
+          "y": 539022.6400857288,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432995.2532451441,
+            "y": 539022.6400857288,
+            "length": 691397.3501958303
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "4ba1c77a",
+      "profile": [],
+      "terrain": []
+    }
+  ],
+  "turnouts": [
+    {
+      "id": "e687ab9e",
+      "number": "1",
+      "type": "Rz 60E1-190-1:9",
+      "track": "8e18933c",
+      "s": 900,
+      "dir": 1,
+      "side": 1,
+      "zas": "+",
+      "manual": false,
+      "branch": "190f71ba",
+      "branchAtEnd": false,
+      "partner": "f0fe569d",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "f0fe569d",
+      "number": "2",
+      "type": "Rz 60E1-190-1:9",
+      "track": "066a2f2f",
+      "s": 52.98122419110322,
+      "dir": -1,
+      "side": 1,
+      "zas": "+",
+      "manual": false,
+      "branch": "190f71ba",
+      "branchAtEnd": true,
+      "partner": "e687ab9e",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "cf333de8",
+      "number": "3",
+      "type": "Rz 60E1-190-1:9",
+      "track": "8e18933c",
+      "s": 2100,
+      "dir": -1,
+      "side": -1,
+      "zas": "+",
+      "manual": false,
+      "branch": "4f6d81c3",
+      "branchAtEnd": false,
+      "partner": "92aa95a7",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "92aa95a7",
+      "number": "4",
+      "type": "Rz 60E1-190-1:9",
+      "track": "066a2f2f",
+      "s": 1101.0213430987844,
+      "dir": 1,
+      "side": -1,
+      "zas": "+",
+      "manual": false,
+      "branch": "4f6d81c3",
+      "branchAtEnd": true,
+      "partner": "cf333de8",
+      "branchLen": 0,
+      "single": false
+    }
+  ],
+  "crossings": [],
+  "devices": [
+    {
+      "id": "fc9493fb",
+      "kind": "semafor",
+      "name": "103",
+      "track": "8e18933c",
+      "s": 350,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lights": "P*CZ",
+      "lightsOrDefault": "P*CZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "odstepowy",
+      "directed": true
+    },
+    {
+      "id": "c3f7bfca",
+      "kind": "semafor",
+      "name": "104",
+      "track": "8e18933c",
+      "s": 350,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lights": "P*CZ",
+      "lightsOrDefault": "P*CZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "odstepowy",
+      "directed": true
+    },
+    {
+      "id": "c808d9bf",
+      "kind": "semafor",
+      "name": "A",
+      "track": "8e18933c",
+      "s": 700,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCP*Z*",
+      "lightsOrDefault": "B*PCP*Z*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wjazdowy",
+      "directed": true
+    },
+    {
+      "id": "54b4cb0c",
+      "kind": "semafor",
+      "name": "D1",
+      "track": "8e18933c",
+      "s": 1000,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCZ*",
+      "lightsOrDefault": "B*PCZ*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wyjazdowy",
+      "directed": true
+    },
+    {
+      "id": "339f6f06",
+      "kind": "semafor",
+      "name": "D2",
+      "track": "066a2f2f",
+      "s": 77,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCZ*",
+      "lightsOrDefault": "B*PCZ*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wyjazdowy",
+      "directed": true
+    },
+    {
+      "id": "f91dc8dd",
+      "kind": "semafor",
+      "name": "C1",
+      "track": "8e18933c",
+      "s": 2000,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCZ*",
+      "lightsOrDefault": "B*PCZ*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wyjazdowy",
+      "directed": true
+    },
+    {
+      "id": "87063c8c",
+      "kind": "semafor",
+      "name": "C2",
+      "track": "066a2f2f",
+      "s": 1077,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCZ*",
+      "lightsOrDefault": "B*PCZ*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wyjazdowy",
+      "directed": true
+    },
+    {
+      "id": "104e741a",
+      "kind": "semafor",
+      "name": "B",
+      "track": "8e18933c",
+      "s": 2300,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lights": "B*PCP*Z*",
+      "lightsOrDefault": "B*PCP*Z*",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wjazdowy",
+      "directed": true
+    },
+    {
+      "id": "b020c559",
+      "kind": "semafor",
+      "name": "127",
+      "track": "8e18933c",
+      "s": 2650,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lights": "P*CZ",
+      "lightsOrDefault": "P*CZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "odstepowy",
+      "directed": true
+    },
+    {
+      "id": "15108812",
+      "kind": "semafor",
+      "name": "128",
+      "track": "8e18933c",
+      "s": 2650,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lights": "P*CZ",
+      "lightsOrDefault": "P*CZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "odstepowy",
+      "directed": true
+    },
+    {
+      "id": "48cd04f9",
+      "kind": "koziol",
+      "name": "",
+      "track": "066a2f2f",
+      "s": 0,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": true
+    },
+    {
+      "id": "98c166d1",
+      "kind": "koziol",
+      "name": "",
+      "track": "066a2f2f",
+      "s": 1153.99839509585,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": true
+    },
+    {
+      "id": "b1670d9b",
+      "kind": "lo",
+      "name": "lo1",
+      "track": "8e18933c",
+      "s": 350,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "6a8797c9",
+      "kind": "lo",
+      "name": "lo2",
+      "track": "8e18933c",
+      "s": 700,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "03289632",
+      "kind": "lo",
+      "name": "lo3",
+      "track": "8e18933c",
+      "s": 1000,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "da1acb7f",
+      "kind": "lo",
+      "name": "lo4",
+      "track": "066a2f2f",
+      "s": 77,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "5e2f3fd4",
+      "kind": "lo",
+      "name": "lo5",
+      "track": "8e18933c",
+      "s": 2000,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "a52348d3",
+      "kind": "lo",
+      "name": "lo6",
+      "track": "066a2f2f",
+      "s": 1077,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "a80d6c7d",
+      "kind": "lo",
+      "name": "lo7",
+      "track": "8e18933c",
+      "s": 2300,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    },
+    {
+      "id": "853a4a2e",
+      "kind": "lo",
+      "name": "lo8",
+      "track": "8e18933c",
+      "s": 2650,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "499dfd7d",
+      "name": "1Za",
+      "track": "8e18933c",
+      "s": 175,
+      "kind": "lo"
+    },
+    {
+      "id": "103ef24a",
+      "name": "1Zb",
+      "track": "8e18933c",
+      "s": 525,
+      "kind": "lo"
+    },
+    {
+      "id": "72d79fe9",
+      "name": "Z1/2",
+      "track": "8e18933c",
+      "s": 850,
+      "kind": "lo"
+    },
+    {
+      "id": "4a4fd807",
+      "name": "T1",
+      "track": "8e18933c",
+      "s": 1500,
+      "kind": "lo"
+    },
+    {
+      "id": "31a8dca7",
+      "name": "T2",
+      "track": "066a2f2f",
+      "s": 577,
+      "kind": "lo"
+    },
+    {
+      "id": "e025d84e",
+      "name": "Z3/4",
+      "track": "8e18933c",
+      "s": 2150,
+      "kind": "lo"
+    },
+    {
+      "id": "69823050",
+      "name": "1Wa",
+      "track": "8e18933c",
+      "s": 2475,
+      "kind": "lo"
+    },
+    {
+      "id": "48d2e1d7",
+      "name": "1Wb",
+      "track": "8e18933c",
+      "s": 2825,
+      "kind": "lo"
+    }
+  ],
+  "platforms": [
+    {
+      "id": "6c7f19ae",
+      "name": "Peron 1",
+      "track": "8e18933c",
+      "s0": 1400,
+      "s1": 1600,
+      "side": -1,
+      "offset": 1.725,
+      "width": 4,
+      "height": 0.76,
+      "len": 200
+    },
+    {
+      "id": "d4792fd3",
+      "name": "Peron 2",
+      "track": "066a2f2f",
+      "s0": 477,
+      "s1": 677,
+      "side": 1,
+      "offset": 1.725,
+      "width": 4,
+      "height": 0.76,
+      "len": 200
+    }
+  ],
+  "levelCrossings": [
+    {
+      "id": "940fe5cb",
+      "name": "",
+      "track": "8e18933c",
+      "s": 550,
+      "angle": 90,
+      "cat": "C",
+      "width": 6,
+      "reach": 15,
+      "barriers": "elektr"
+    }
+  ],
+  "kmPoints": [
+    {
+      "id": "66f08126",
+      "line": "1",
+      "track": "8e18933c",
+      "s": 0,
+      "km": 10000,
+      "dir": 1
+    }
+  ],
+  "posts": [
+    {
+      "id": "4ba1c77a",
+      "kod": "MT",
+      "nazwa": "Mijanka Testowa"
+    }
+  ],
+  "lines": [
+    {
+      "id": "c6e3d9e5",
+      "numer": "1Z",
+      "linia": "1",
+      "tor": "1",
+      "typ": "sbl",
+      "stawnosc": 3,
+      "konce": [
+        {
+          "track": "8e18933c",
+          "atStart": true,
+          "sasiad": "Zachodnia",
+          "oznaczenie": ""
+        },
+        {
+          "semafor": "c808d9bf",
+          "atStart": false,
+          "sasiad": "",
+          "oznaczenie": ""
+        }
+      ],
+      "samoczynna": true
+    },
+    {
+      "id": "c3974402",
+      "numer": "1W",
+      "linia": "1",
+      "tor": "1",
+      "typ": "sbl",
+      "stawnosc": 3,
+      "konce": [
+        {
+          "semafor": "104e741a",
+          "atStart": false,
+          "sasiad": "",
+          "oznaczenie": ""
+        },
+        {
+          "track": "8e18933c",
+          "atStart": false,
+          "sasiad": "Wschodnia",
+          "oznaczenie": ""
+        }
+      ],
+      "samoczynna": true
+    }
+  ],
+  "view": {
+    "x": 433000,
+    "y": 538498.9752176608,
+    "mpp": 2.8,
+    "schemat": true,
+    "stretch": 4,
+    "showBg": false
+  },
+  "metresPerSheetMm": 0.5
+}

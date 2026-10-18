@@ -7,8 +7,9 @@ using Lcs.Model;
 namespace Lcs.EdytorZobrazowania;
 
 /// <summary>
-/// Symbole na torach obrazu (etap Z3): zwrotnice, sygnalizatory, wykolejnice, kozły – kształty jak na pulpicie (<c>PanelView</c>,
-/// Ie-104 § 8 ust. 3, 8, 10; wzory SimRail), w stanie zasadniczym (szare), w jednostkach obrazu, obrócone wzdłuż toru. Opis – miejsce
+/// Symbole na torach obrazu (etapy Z3–Z4): zwrotnice, sygnalizatory, wykolejnice, kozły, przerwy izolacyjne, numery torów, przejazdy,
+/// strzałki blokady, opisy odcinków – kształty jak na pulpicie (<c>PanelView</c>, Ie-104 § 8; wzory SimRail), w stanie zasadniczym,
+/// w jednostkach obrazu, obrócone wzdłuż toru. Opis – miejsce
 /// domyślne jak na pulpicie albo przeciągnięte (<see cref="ZobSymbol.Opis"/>). Zaznaczenie i ramki – tylko w edytorze.
 /// </summary>
 public partial class ZobView
@@ -23,13 +24,14 @@ public partial class ZobView
     public event Action<ZobRodzaj, string, int[]> OpisMoved;
     (ZobRodzaj R, string Ut, int[] Pt)? opisDrag;
 
-    static readonly Brush SigName = B(0xe8, 0xc0, 0x00), TmName = B(0x18, 0xc0, 0xc0), SwLabel = B(0xb4, 0xb4, 0xb4), White = B(0xff, 0xff, 0xff), Azure = B(0x00, 0xa0, 0xff);
+    static readonly Brush SigName = B(0xe8, 0xc0, 0x00), TmName = B(0x18, 0xc0, 0xc0), SwLabel = B(0xb4, 0xb4, 0xb4), White = B(0xff, 0xff, 0xff), Azure = B(0x00, 0xa0, 0xff),
+        CrossPink = B(0xf0, 0x80, 0xf0), Green = B(0x00, 0xe6, 0x00);
     static readonly Typeface Mono = new("Consolas");
 
     public void SelectSym(ZobRodzaj? r, string ut)
     {
         SelectedSym = r is ZobRodzaj rr && ut != null ? (rr, ut) : null;
-        if (SelectedSym != null) Selected = null;
+        if (SelectedSym != null) { Selected = null; SelectedPeron = null; SelectedNapis = null; }
         SelectionChanged?.Invoke(); InvalidateVisual();
     }
 
@@ -45,6 +47,8 @@ public partial class ZobView
             ZobRodzaj.Zwrotnica => Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Dir ?? 1,
             _ => Ut.Devices.FirstOrDefault(d => d.Id == s.Ut)?.Dir ?? 1,
         };
+        if (r == ZobRodzaj.Szlak) { var (sx, sy) = ZobSymbole.NaZewnatrz(Ut, Obraz, s); return (sx, sy, t); }
+        if (r is ZobRodzaj.Przerwa or ZobRodzaj.NumerToru or ZobRodzaj.Przejazd) { var (kx, ky) = ZobSymbole.Kierunek(t, s.P, 1); return (kx, ky, t); }
         if (r == ZobRodzaj.Kozioł)
         {
             // na zewnątrz toru obrazu – od przedostatniego punktu do końca
@@ -86,16 +90,33 @@ public partial class ZobView
                 bool down = br is var (_, by) && by > 0;
                 return new[] { x - tip * 8, down ? y - 12 : y + 13 };
             case ZobRodzaj.Wykolejnica: return new[] { x, y + 17 };
+            case ZobRodzaj.Szlak:
+                // oznaczenie szlaku nad strzałką (na torze pionowym – z prawej)
+                return dy == 0 ? new[] { x, y - 14 } : new[] { x + 16, y };
+            case ZobRodzaj.Przejazd:
+                { int up = s.Zasieg?[0] ?? 28; return new[] { x + 8 + 4 * Label(r, s).Length, y - up - 4 }; }
+            case ZobRodzaj.NumerToru or ZobRodzaj.OpisOdcinka or ZobRodzaj.Przerwa: return new[] { x, y };
             default: return new[] { x, y + 15 };
         }
     }
 
-    public int[] OpisAt(ZobRodzaj r, ZobSymbol s) => s.Opis ?? OpisDomyslny(r, s);
+    /// <summary>Środek opisu [j.]; numer toru i opis odcinka – sam punkt symbolu.</summary>
+    public int[] OpisAt(ZobRodzaj r, ZobSymbol s) => r is ZobRodzaj.NumerToru or ZobRodzaj.OpisOdcinka or ZobRodzaj.Przerwa ? s.P : s.Opis ?? OpisDomyslny(r, s);
 
     string Label(ZobRodzaj r, ZobSymbol s)
     {
         if (Ut == null) return "";
         if (r == ZobRodzaj.Zwrotnica) return Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Number ?? Ut.Crossings.FirstOrDefault(c => c.Id == s.Ut)?.Number ?? "?";
+        if (r == ZobRodzaj.NumerToru) return Ut.Tracks.FirstOrDefault(t => t.Id == s.Ut)?.Number ?? "?";
+        if (r == ZobRodzaj.OpisOdcinka) return Ut.Sections.FirstOrDefault(x => x.Id == s.Ut) is UtSection sc ? (sc.Name.Length > 0 ? sc.Name : "?") : "?";
+        if (r == ZobRodzaj.Przejazd) return Ut.LevelCrossings.FirstOrDefault(x => x.Id == s.Ut) is UtLevelCrossing lc ? (lc.Name.Length > 0 ? lc.Name : UtLevelCrossing.CatName(lc.Cat)) : "?";
+        if (r == ZobRodzaj.Szlak)
+        {
+            if (Ut.Lines.FirstOrDefault(x => x.Id == s.Ut) is not UtLine l) return "?";
+            var e = l.Konce.ElementAtOrDefault(s.Koniec ?? 0);
+            return e != null && e.Oznaczenie.Length > 0 ? e.Oznaczenie : l.Numer;
+        }
+        if (r == ZobRodzaj.Przerwa) return "";
         var d = Ut.Devices.FirstOrDefault(x => x.Id == s.Ut);
         if (d == null) return "?";
         if (d.Kind == UtDevice.Semafor && d.Funkcja == UtDevice.FPk) return d.Name.StartsWith("PK") ? d.Name : "PK " + d.Name;
@@ -126,7 +147,8 @@ public partial class ZobView
         var c = new Point(s.P[0], s.P[1]);
         var grey = Grey; var bg = Bg;
         // symbol bez toru albo przypięty do usuniętego obiektu – czerwony (znacznik edytora)
-        if (tor == null || ZobSymbole.RodzajUt(Ut, s.Ut) != r) grey = B(0xff, 0x40, 0x40);
+        if (tor == null && ZobSymbole.NaLinii(r) || ZobSymbole.RodzajUt(Ut, s.Ut) != r) grey = B(0xff, 0x40, 0x40);
+        if (r is ZobRodzaj.Przejazd or ZobRodzaj.OpisOdcinka) ang = 0;      // linia przejazdu zawsze pionowo, opis poziomo
         dc.PushTransform(new RotateTransform(ang, c.X, c.Y));
         double cx = c.X, cy = c.Y;
         string label = Label(r, s); Brush lc = SwLabel; double ls = 9;
@@ -182,6 +204,59 @@ public partial class ZobView
                 dc.DrawRectangle(grey, null, new Rect(cx - 2.5, cy - 9, 5, 18));
                 if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 6, cy - 12, 12, 24));
                 break;
+            case ZobRodzaj.Przerwa:
+                {
+                    // przerwa izolacyjna – przerwa w linii toru jak na pulpicie (granica odcinków); kółko – znacznik edytora
+                    dc.DrawLine(new Pen(bg, 7) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, new Point(cx - 1.8, cy), new Point(cx + 1.8, cy));
+                    dc.DrawEllipse(null, NodePen, c, 4.5, 4.5);
+                    if (grey != Grey) dc.DrawEllipse(null, new Pen(grey, 1.2), c, 4.5, 4.5);
+                    if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 7, cy - 7, 14, 14));
+                    break;
+                }
+            case ZobRodzaj.NumerToru:
+                // numer toru w przerwie linii, na czarnym tle (PanelView: oznaczenia torów stacyjnych)
+                dc.DrawRectangle(bg, null, new Rect(cx - 10, cy - 6, 20, 12));
+                ls = 9.5;
+                if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 12, cy - 8, 24, 16));
+                break;
+            case ZobRodzaj.OpisOdcinka:
+                ls = 9; lc = grey == Grey ? SwLabel : grey;
+                if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - Math.Max(8, label.Length * 3) - 3, cy - 7, 2 * Math.Max(8, label.Length * 3) + 6, 14));
+                break;
+            case ZobRodzaj.Przejazd:
+                {
+                    // linia przejazdu w poprzek torów z „Y” na końcach (PanelView: DrawCrossMark), opis różowy
+                    int up = s.Zasieg?[0] ?? 28, down = s.Zasieg?[1] ?? 28;
+                    var pink = grey == Grey ? CrossPink : grey;
+                    var pp = new Pen(pink, 2.6);
+                    dc.DrawLine(new Pen(pink, 3), new Point(cx, cy - up + 14), new Point(cx, cy + down - 14));
+                    foreach (var (yy, side) in new[] { (cy - up, -1), (cy + down, 1) })
+                    {
+                        dc.DrawLine(pp, new Point(cx, yy), new Point(cx, yy - side * 14));
+                        dc.DrawLine(pp, new Point(cx, yy - side * 10), new Point(cx - 6, yy - side * 16));
+                        dc.DrawLine(pp, new Point(cx, yy - side * 10), new Point(cx + 6, yy - side * 16));
+                    }
+                    lc = pink; ls = 8;
+                    if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 9, cy - up - 3, 18, up + down + 6));
+                    break;
+                }
+            case ZobRodzaj.Szlak:
+                {
+                    // strzałka blokady w stanie zasadniczym: szara dwustronna, zielona kreska – szlak wolny i bez przebiegu (ROZWOJ § 2a);
+                    // oś wzdłuż toru, „+” – na zewnątrz posterunku
+                    dc.DrawLine(new Pen(bg, 9) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, new Point(cx - 18, cy), new Point(cx + 18, cy));
+                    var sg = grey == Grey ? Grey : grey;
+                    dc.DrawLine(new Pen(sg, 6) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, new Point(cx - 7, cy), new Point(cx + 7, cy));
+                    foreach (var dd in new[] { 1, -1 })
+                    {
+                        var g = new StreamGeometry();
+                        using (var cc = g.Open()) { cc.BeginFigure(new Point(cx + dd * 16, cy), true, true); cc.LineTo(new Point(cx + dd * 6, cy - 6.5), true, false); cc.LineTo(new Point(cx + dd * 6, cy + 6.5), true, false); }
+                        g.Freeze(); dc.DrawGeometry(sg, null, g);
+                    }
+                    lc = SigName; ls = 10;
+                    if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 19, cy - 9, 38, 18));
+                    break;
+                }
             case ZobRodzaj.Kozioł:
                 {
                     // nawias zamykający koniec toru, otwarty w stronę toru
@@ -211,6 +286,11 @@ public partial class ZobView
                 double py = z.Zas == "-" ? s.P[1] + (down ? 13 : -12) - 2 : o[1] - 2;
                 var plus = Txt("+", 8, White);
                 dc.DrawText(plus, new Point(px - plus.Width / 2, py - plus.Height / 2));
+            }
+            if (r == ZobRodzaj.Szlak)
+            {
+                // zielona kreska nad strzałką – szlak wolny, brak przebiegu na szlak (stan zasadniczy)
+                dc.DrawRectangle(Green, null, new Rect(o[0] - 6, o[1] - ft.Height / 2 - 5, 12, 3));
             }
             if (s.Opis != null && SelectedSym is var (sr, su) && sr == r && su == s.Ut)
                 dc.DrawLine(new Pen(Azure, 0.8) { DashStyle = DashStyles.Dot }, new Point(s.P[0], s.P[1]), new Point(o[0], o[1]));
@@ -245,6 +325,7 @@ public partial class ZobView
         foreach (ZobRodzaj r in Enum.GetValues<ZobRodzaj>())
             foreach (var s in ZobSymbole.Lista(Obraz, r).Where(s => s.P != null))
             {
+                if (r is ZobRodzaj.NumerToru or ZobRodzaj.Przerwa) continue;
                 var l = Label(r, s); if (l.Length == 0) continue;
                 var o = OpisAt(r, s); double w = Math.Max(8, l.Length * 6) / 2 + 2, h = 7;
                 if (Math.Abs(x - o[0]) <= w && Math.Abs(y - o[1]) <= h) return (r, s.Ut);
