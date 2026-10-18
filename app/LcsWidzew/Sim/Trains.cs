@@ -13,7 +13,7 @@ public class Train
     public bool Stop, DwellDone, Shunt, Loco, SzLimit, Gone, Derailed;
     public string State = "run";
     public TrainTerm Term;
-    public System.Windows.Media.Color Color;
+    public RgbColor Color;
     public HashSet<string> StopAt;                       // posterunki z postojem (null – każdy peron)
     public Dictionary<string, double> DepBy = new();     // odjazd wg rozkładu na posterunku
     public UnitDuty Duty;                                // jednostka z zaplecza: po wjeździe na tor peronowy staje się pociągiem
@@ -49,7 +49,7 @@ public class TimetableEntry
     public UnitDuty Duty;
 }
 
-public class CatDef { public double Len, VMax, Dwell; public System.Windows.Media.Color Color; }
+public class CatDef { public double Len, VMax, Dwell; public RgbColor Color; }
 
 /// <summary>Ruch pociągów i manewrów, posterunki sąsiednie, scenariusze, usterki.</summary>
 public partial class Trains
@@ -61,15 +61,15 @@ public partial class Trains
 
     public static readonly Dictionary<string, CatDef> Cats = new()
     {
-        ["ŁKA"] = new() { Len = 90, VMax = 100, Dwell = 40, Color = System.Windows.Media.Color.FromRgb(0x7f, 0xd4, 0xff) },
-        ["PR"] = new() { Len = 130, VMax = 100, Dwell = 45, Color = System.Windows.Media.Color.FromRgb(0x9c, 0xf0, 0x9c) },
-        ["IC"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = System.Windows.Media.Color.FromRgb(0xff, 0xd2, 0x7f) },
-        ["TOW"] = new() { Len = 480, VMax = 70, Dwell = 0, Color = System.Windows.Media.Color.FromRgb(0xd0, 0xb0, 0xff) },
-        ["MAN"] = new() { Len = 18, VMax = 25, Dwell = 0, Color = System.Windows.Media.Color.FromRgb(0xff, 0xff, 0xff) },
-        ["TLK"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = System.Windows.Media.Color.FromRgb(0xff, 0xd2, 0x7f) },
-        ["EIC"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = System.Windows.Media.Color.FromRgb(0xff, 0xd2, 0x7f) },
-        ["PRÓŻ"] = new() { Len = 190, VMax = 80, Dwell = 0, Color = System.Windows.Media.Color.FromRgb(0xc0, 0xc0, 0xc0) },
-        ["LUZ"] = new() { Len = 20, VMax = 80, Dwell = 0, Color = System.Windows.Media.Color.FromRgb(0xc0, 0xc0, 0xc0) }
+        ["ŁKA"] = new() { Len = 90, VMax = 100, Dwell = 40, Color = RgbColor.FromRgb(0x7f, 0xd4, 0xff) },
+        ["PR"] = new() { Len = 130, VMax = 100, Dwell = 45, Color = RgbColor.FromRgb(0x9c, 0xf0, 0x9c) },
+        ["IC"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = RgbColor.FromRgb(0xff, 0xd2, 0x7f) },
+        ["TOW"] = new() { Len = 480, VMax = 70, Dwell = 0, Color = RgbColor.FromRgb(0xd0, 0xb0, 0xff) },
+        ["MAN"] = new() { Len = 18, VMax = 25, Dwell = 0, Color = RgbColor.FromRgb(0xff, 0xff, 0xff) },
+        ["TLK"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = RgbColor.FromRgb(0xff, 0xd2, 0x7f) },
+        ["EIC"] = new() { Len = 260, VMax = 120, Dwell = 60, Color = RgbColor.FromRgb(0xff, 0xd2, 0x7f) },
+        ["PRÓŻ"] = new() { Len = 190, VMax = 80, Dwell = 0, Color = RgbColor.FromRgb(0xc0, 0xc0, 0xc0) },
+        ["LUZ"] = new() { Len = 20, VMax = 80, Dwell = 0, Color = RgbColor.FromRgb(0xc0, 0xc0, 0xc0) }
     };
 
     public Trains(Simulator s) { S = s; s.Trains = this; }

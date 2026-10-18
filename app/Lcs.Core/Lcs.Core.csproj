@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LcsWidzew</RootNamespace>
+    <AssemblyTitle>Rdzeń symulatora LCS</AssemblyTitle>
+    <Product>SUK</Product>
+    <Version>0.2.0</Version>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Jedna implementacja rdzenia. Ścieżki pozostają zgodne z kartami planu i historią projektu;
+         pulpit nie kompiluje ich ponownie. SelfTest jest wspólnym źródłem dwóch runnerów. -->
+    <Compile Include="..\LcsWidzew\Model\**\*.cs" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LcsWidzew\Sim\**\*.cs" Exclude="..\LcsWidzew\Sim\SelfTest.cs" Link="Sim\%(RecursiveDir)%(Filename)%(Extension)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

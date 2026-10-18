@@ -16,7 +16,7 @@ public partial class Rozklad
     {
         var res = new List<TimetableEntry>();
         // rozklad.json – pełny rozkład z GTFS (tools/gtfs_import.py), rozklad_ic.json – tylko PKP IC (tools/pkpic_import.py)
-        var dir = Path.GetDirectoryName(App.StationPath) ?? "";
+        var dir = S.DataDirectory;
         var path = Path.Combine(dir, "rozklad.json"); bool gtfs = File.Exists(path);
         if (!gtfs) path = Path.Combine(dir, "rozklad_ic.json");
         if (!File.Exists(path)) { S.Log("Zdarzenie", "Brak pliku rozkładu (tools/gtfs_import.py lub tools/pkpic_import.py)", "System", ""); return res; }

@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Lcs.Core/Lcs.Core.csproj" />
+  <Project Path="Lcs.Core.TestHost/Lcs.Core.TestHost.csproj" />
   <Project Path="Lcs.EdytorUT/Lcs.EdytorUT.csproj" />
   <Project Path="Lcs.EdytorZobrazowania/Lcs.EdytorZobrazowania.csproj" />
   <Project Path="Lcs.Logi/Lcs.Logi.csproj" />

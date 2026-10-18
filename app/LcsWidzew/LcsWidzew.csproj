@@ -13,8 +13,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
     <!-- Logi techniczne SUK (S01.01, rozdział 25): MEL + Serilog, ograniczona kolejka, JSONL w %LocalAppData%\SUK\LcsWidzew\Logs -->
     <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Model\**\*.cs;Sim\**\*.cs" />
+    <!-- Ten sam scenariusz regresji w pulpicie i neutralnym runnerze; silnik jest w Lcs.Core. -->
+    <Compile Include="Sim\SelfTest.cs" />
   </ItemGroup>
 
   <ItemGroup>
