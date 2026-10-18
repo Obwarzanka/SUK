@@ -1,8 +1,10 @@
 namespace Lcs.Model;
 
-/// <summary>Obiekt UT do umieszczenia na obrazie: grupa w panelu UT, id, opis, czy jest już na obrazie.</summary>
-/// <summary>Obiekt UT do umieszczenia na obrazie; <see cref="Czesc"/> – tor narysowany tylko w części (opis brakujących km).</summary>
-public record ZobUtObj(string Grupa, string Id, string Opis, bool NaObrazie, string Czesc = null);
+/// <summary>
+/// Obiekt UT do umieszczenia na obrazie: grupa w panelu UT, id, opis, czy jest już na obrazie; <see cref="Czesc"/> – tor narysowany
+/// tylko w części (opis brakujących km); <see cref="Obcy"/> – obiekt innego posterunku (może być na obrazie, „Sprawdź” go nie wymaga).
+/// </summary>
+public record ZobUtObj(string Grupa, string Id, string Opis, bool NaObrazie, string Czesc = null, bool Obcy = false);
 
 /// <summary>
 /// Obiekty UT obrazu (PLAN_EDYTOR_ZOBRAZOWANIA.md § 3–4): co z UT należy do posterunków obrazu i czy jest już narysowane.
@@ -50,6 +52,23 @@ public static class ZobUt
     static string TrNr(UtProject ut, string id) => ut.Tracks.FirstOrDefault(t => t.Id == id) is UtTrack t && t.Number.Length > 0 ? t.Number : "?";
 
     /// <summary>Lista obiektów UT obrazu po grupach, w kolejności panelu.</summary>
+    /// <summary>
+    /// Obiekty UT obrazu; <paramref name="inne"/> – także obiekty innych posterunków (oznaczone <see cref="ZobUtObj.Obcy"/>) – ten sam obiekt
+    /// może być na dwóch obrazach (decyzja właściciela 2026-10-17, plan § 9 pkt 6), np. wspólna głowica.
+    /// </summary>
+    public static List<ZobUtObj> Obiekty(UtProject ut, ZobObraz o, bool inne)
+    {
+        var own = Obiekty(ut, o);
+        if (!inne || !o.Posterunki.Any(id => ut.Posts.Any(p => p.Id == id))) return own;
+        var cale = new ZobObraz
+        {
+            Id = o.Id, Rodzaj = o.Rodzaj, Posterunki = new(), Tory = o.Tory, Zwrotnice = o.Zwrotnice, Sygnalizatory = o.Sygnalizatory, Wykolejnice = o.Wykolejnice,
+            Kozly = o.Kozly, Przerwy = o.Przerwy, Odcinki = o.Odcinki, NumeryTorow = o.NumeryTorow, Perony = o.Perony, Przejazdy = o.Przejazdy, Szlaki = o.Szlaki, Napisy = o.Napisy,
+        };
+        var ids = own.Select(x => (x.Grupa, x.Id)).ToHashSet();
+        return own.Concat(Obiekty(ut, cale).Where(x => !ids.Contains((x.Grupa, x.Id))).Select(x => x with { Obcy = true })).ToList();
+    }
+
     public static List<ZobUtObj> Obiekty(UtProject ut, ZobObraz o)
     {
         var tory = Tory(ut, o, out var szlaki);

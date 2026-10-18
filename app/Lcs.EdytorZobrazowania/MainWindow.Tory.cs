@@ -102,7 +102,7 @@ public partial class MainWindow
 
     /// <summary>Opis toru UT jak w panelu UT (np. „tor 1 (gz)”, „tor łączący 1/2”).</summary>
     string TorName(string utId) =>
-        ZobUt.Obiekty(Doc.Ut, Obraz).FirstOrDefault(x => x.Id == utId)?.Opis
+        ZobUt.Obiekty(Doc.Ut, Obraz, true).FirstOrDefault(x => x.Id == utId)?.Opis
         ?? (Doc.Ut.Tracks.FirstOrDefault(t => t.Id == utId) is UtTrack t && t.Number.Length > 0 ? $"tor {t.Number}" : "tor (spoza obrazu)");
 
     static string Km(double s) => s.ToString("0.##", CultureInfo.CurrentCulture);
@@ -157,7 +157,7 @@ public partial class MainWindow
     /// <summary>Tory UT obrazu jeszcze nie narysowane w całości; przy węźle toru obrazu – najpierw tory połączone z jego torem UT.</summary>
     public List<(string Id, string Opis)> TorCandidates(string torObrazu)
     {
-        var all = ZobUt.Obiekty(Doc.Ut, Obraz).Where(x => x.Grupa == ZobUt.GTory && !x.NaObrazie).ToList();
+        var all = ZobUt.Obiekty(Doc.Ut, Obraz, utInne).Where(x => x.Grupa == ZobUt.GTory && !x.NaObrazie).ToList();
         var near = torObrazu != null && Obraz.Tory.FirstOrDefault(t => t.Id == torObrazu)?.Ut?.Tor is string ut ? ZobTory.Sasiednie(Doc.Ut, ut, Styki()) : new HashSet<string>();
         return all.OrderBy(x => near.Contains(x.Id) ? 0 : 1).Select(x => (x.Id, x.Opis)).ToList();
     }
@@ -307,6 +307,7 @@ public partial class MainWindow
         var del = Btn("Usuń z obrazu", (s, e) => DeleteSelected(), "Zdejmij tor z obrazu (Del); w UT zostaje"); del.Margin = new Thickness(6, 0, 0, 0);
         btns.Children.Add(del);
         P.Children.Add(btns);
+        PrzypnijTor(P, t);
         P.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
     }
 

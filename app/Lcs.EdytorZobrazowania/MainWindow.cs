@@ -96,6 +96,9 @@ public partial class MainWindow : Window
         tb.Items.Add(Btn("Cały obraz", (s, e) => View.Fit(), "Cały obraz w oknie (Home)"));
         tb.Items.Add(Btn("1:1", (s, e) => View.Actual(), "Powiększenie 1 – jednostka obrazu = piksel monitora"));
         tb.Items.Add(new Separator());
+        tb.Items.Add(Btn("PNG…", (s, e) => ExportPng(), "Obraz jak na pulpicie do pliku PNG (1 j. = 1 piksel, bez siatki i znaczników edytora)"));
+        tb.Items.Add(Btn("Drukuj…", (s, e) => PrintObraz(), "Wydruk obrazu na jednej kartce, poziomo"));
+        tb.Items.Add(new Separator());
         ReloadUtBtn.Click += (s, e) => ReloadUt(); ReloadUtBtn.ToolTip = "Wczytaj projekt UT od nowa – po zmianach w edytorze UT (obraz zostaje)"; tb.Items.Add(ReloadUtBtn);
         var tools = new ToolBar { Background = ToolbarBg };
         tools.Items.Add(ToolBtn(ZobTool.Wskaz, "Wskaż", "Wskaż (V): klik na torze – zaznaczenie i panel; przeciągnięcie wierzchołka zaznaczonego toru; strzałki – przesunięcie o krok siatki; Del – zdjęcie z obrazu"));
@@ -126,6 +129,8 @@ public partial class MainWindow : Window
         var sp = new StackPanel { Margin = new Thickness(10) };
         sp.Children.Add(UtHeader);
         sp.Children.Add(UtInfo);
+        InneBox.Click += (s, e) => { utInne = InneBox.IsChecked == true; RefreshUt(); };
+        sp.Children.Add(InneBox);
         var dock = new DockPanel();
         dock.Children.Add(Dock(sp, System.Windows.Controls.Dock.Top));
         var prev = new StackPanel { Margin = new Thickness(10, 4, 10, 10) };
@@ -269,7 +274,9 @@ public partial class MainWindow : Window
     {
         BuildImgPanelContent();
         var o = Obraz; if (o == null) return;
-        if (!NameBox.IsKeyboardFocused) NameBox.Text = o.Nazwa;
+        // pole nazwy należy do jednego obrazu – po zmianie obrazu zawsze jego nazwa (inaczej zapis przeniósłby nazwę poprzedniego obrazu)
+        if (!NameBox.IsKeyboardFocused || nameFor != o.Id) NameBox.Text = o.Nazwa;
+        nameFor = o.Id;
         KindBox.SelectedIndex = Array.FindIndex(ZobObraz.Rodzaje, r => r.Key == o.Rodzaj);
         WidthBox.Text = o.Szer.ToString(CultureInfo.InvariantCulture); HeightBox.Text = o.Wys.ToString(CultureInfo.InvariantCulture);
         PostsPanel.Children.Clear();
@@ -294,22 +301,23 @@ public partial class MainWindow : Window
         UtTree.Items.Clear();
         var o = Obraz;
         if (Doc == null || o == null) { UtHeader.Text = "Obiekty UT"; UtInfo.Text = ""; return; }
-        var all = ZobUt.Obiekty(Doc.Ut, o);
+        var all = ZobUt.Obiekty(Doc.Ut, o, utInne);
+        var own = all.Where(x => !x.Obcy).ToList();
         var posts = o.Posterunki.Select(id => Doc.Ut.Posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Select(p => p.Kod).ToList();
         UtHeader.Text = "Obiekty UT – " + (posts.Count > 0 ? string.Join(", ", posts) : "cały obszar");
-        UtInfo.Text = $"Na obrazie {all.Count(x => x.NaObrazie)} z {all.Count}. Zielone – na obrazie, brązowe – tor w części, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
+        UtInfo.Text = $"Na obrazie {own.Count(x => x.NaObrazie)} z {own.Count}. Zielone – na obrazie, brązowe – tor w części, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
         foreach (var g in ZobUt.Grupy)
         {
             var items = all.Where(x => x.Grupa == g).ToList();
             if (items.Count == 0) continue;
-            var gi = new TreeViewItem { Header = $"{g} ({items.Count(x => x.NaObrazie)}/{items.Count})", IsExpanded = true, FontWeight = FontWeights.SemiBold };
+            var gi = new TreeViewItem { Header = $"{g} ({items.Count(x => x.NaObrazie && !x.Obcy)}/{items.Count(x => !x.Obcy)})", IsExpanded = true, FontWeight = FontWeights.SemiBold };
             foreach (var x in items)
             {
                 var it = new TreeViewItem
                 {
                     // obiekt wybrany ostatnio – pogrubiony (bez zaznaczania w drzewie: TreeView zgłosiłby to później jak klik)
-                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}", Tag = x, FontWeight = x.Id == utSelected ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
+                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}{(x.Obcy ? " (inny posterunek)" : "")}", Tag = x, FontWeight = x.Id == utSelected ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = x.Obcy ? (x.NaObrazie ? ObcyOnFg : Brushes.Gray) : x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
                 };
                 gi.Items.Add(it);
             }
@@ -332,9 +340,12 @@ public partial class MainWindow : Window
         Doc.Change(what, p => { var o = p.Obrazy.FirstOrDefault(x => x.Id == id); if (o != null) act(o); });
     }
 
+    /// <summary>Obraz, którego nazwę pokazuje pole nazwy.</summary>
+    string nameFor;
+
     void CommitName()
     {
-        if (refreshing || Obraz == null) return;
+        if (refreshing || Obraz == null || nameFor != Current) return;
         var n = NameBox.Text.Trim();
         if (n != Obraz.Nazwa) Ch("Nazwa obrazu", o => o.Nazwa = n);
     }

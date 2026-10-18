@@ -92,8 +92,8 @@ public partial class MainWindow
     // ------------------------------------------------------------------ perony
     void PickPeron(string prefer)
     {
-        var all = ZobUt.Obiekty(Doc.Ut, Obraz).Where(x => x.Grupa == ZobUt.GPerony).ToList();
-        PeronCurrent = all.FirstOrDefault(x => x.Id == prefer)?.Id ?? all.FirstOrDefault(x => !x.NaObrazie)?.Id;
+        var all = ZobUt.Obiekty(Doc.Ut, Obraz, true).Where(x => x.Grupa == ZobUt.GPerony).ToList();
+        PeronCurrent = all.FirstOrDefault(x => x.Id == prefer)?.Id ?? all.FirstOrDefault(x => !x.NaObrazie && !x.Obcy)?.Id;
         Message(PeronCurrent == null ? (all.Count == 0 ? "Peron: w UT obrazu nie ma peronów" : "Peron: wszystkie są już na obrazie (wybierz w panelu UT, żeby narysować ponownie)")
             : $"Peron: {all.First(x => x.Id == PeronCurrent).Opis} – przeciągnij prostokąt peronu (do siatki)");
     }

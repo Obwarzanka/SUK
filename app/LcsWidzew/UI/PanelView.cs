@@ -24,7 +24,8 @@ public class PanelView : FrameworkElement
     public IPulpitSource Sim { get => sim; set { sim = value; I = null; } }
     /// <summary>Geometria rysowana zamiast źródła meldunków (edytor: układ torowy albo zobrazowanie).</summary>
     public Station Geometry;
-    Station Lay => Geometry ?? sim?.L;
+    /// <summary>Geometria rysowana: edytora, a na pulpicie – widok bieżącej strony (obiekty na kilku obrazach), inaczej geometria główna.</summary>
+    Station Lay => Geometry ?? (!Overview && Page != null && sim?.L is Station l && l.PageViews.TryGetValue(Page.Id, out var pv) ? pv : sim?.L);
     /// <summary>Ostatni odebrany telegram stanu.</summary>
     Indication I;
     Indication Ind => I ??= sim?.Receive();

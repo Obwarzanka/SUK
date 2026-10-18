@@ -232,6 +232,8 @@ public class Station
     public Station Display;
     /// <summary>Zobrazowanie: symbole (sygnalizatory, wykolejnice, kozły – identyfikatory) ukryte na pulpicie, choć ich węzeł leży na torze obrazu.</summary>
     public HashSet<string> HiddenSyms = new();
+    /// <summary>Zobrazowanie: widok każdej strony z własną geometrią (obiekty narysowane na kilku obrazach); brak – geometria główna.</summary>
+    public Dictionary<string, Station> PageViews = new();
     /// <summary>
     /// Zobrazowanie: posterunki z PIP – wyświetlaczami numerów pociągów (Ie-104 § 8 pkt 26). Pole „pip” w sekcji „display”:
     /// true / brak – wszystkie, false – żaden, lista kodów posterunków – tylko te. Null – wszystkie.
@@ -289,51 +291,78 @@ public class Station
         st.OrientConflicts = orient.Conflicts;
         if (root?["display"] is System.Text.Json.Nodes.JsonObject disp)
         {
-            // geometria zobrazowania: węzły i tory z sekcji „display”, pozostałe – poza obrazami
-            var dn = disp["nodes"] as System.Text.Json.Nodes.JsonObject; var de = disp["edges"] as System.Text.Json.Nodes.JsonObject;
             root.Remove("display");
-            // napisy, perony i przejazdy pulpitu – własna kopia zobrazowania (brak – te same co na planie)
-            foreach (var k in new[] { "labels", "platforms", "crossings" }) if (disp[k] is System.Text.Json.Nodes.JsonArray da) root[k] = da.DeepClone();
-            foreach (var (id, n) in (System.Text.Json.Nodes.JsonObject)root["nodes"])
-            {
-                var p = dn?[id] as System.Text.Json.Nodes.JsonArray;
-                n["x"] = p != null ? p[0].GetValue<double>() : Hidden; n["y"] = p != null ? p[1].GetValue<double>() : Hidden;
-            }
-            foreach (var e in ((System.Text.Json.Nodes.JsonArray)root["edges"]).OfType<System.Text.Json.Nodes.JsonObject>())
-            {
-                var p = de?[(string)e["id"]] as System.Text.Json.Nodes.JsonArray;
-                e["pts"] = p != null && p.Count >= 2 ? p.DeepClone() : new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonArray(Hidden, Hidden), new System.Text.Json.Nodes.JsonArray(Hidden + 1, Hidden));
-            }
-            var d = ParseCore(root.ToJsonString(), true);
-            if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
-            // elementy z edytora zobrazowania (etap Z4): numery torów, opisy odcinków, strzałki blokady, odcinki bez kontroli niezajętości
-            if (disp["trackLabels"] is System.Text.Json.Nodes.JsonArray tl)
-                foreach (var x in tl.OfType<System.Text.Json.Nodes.JsonObject>())
-                    d.TrackLabels.Add(new LabelDef { Text = (string)x["text"], X = x["x"].GetValue<double>(), Y = x["y"].GetValue<double>(), Anchor = "middle" });
-            if (disp["secLabels"] is System.Text.Json.Nodes.JsonArray sl)
-                foreach (var x in sl.OfType<System.Text.Json.Nodes.JsonObject>())
-                    if ((string)x["sec"] is string sec) d.SecLabels.Add((sec, x["x"].GetValue<double>(), x["y"].GetValue<double>()));
-            if (disp["secLabelsMode"]?.GetValue<string>() is string slm) d.SecLabelsMode = slm;
-            if (disp["dashedEdges"] is System.Text.Json.Nodes.JsonArray dashE)
-                foreach (var x in dashE) if (x?.GetValue<string>() is string eid && d.Edges.TryGetValue(eid, out var ed)) ed.NoDetect = true;
-            if (disp["blockMarks"] is System.Text.Json.Nodes.JsonArray bm)
-                foreach (var x in bm.OfType<System.Text.Json.Nodes.JsonObject>())
-                    if ((string)x["block"] is string bid && d.Blocks.TryGetValue(bid, out var db) && x["end"]?.GetValue<int>() is int ei && ei >= 0 && ei < db.Ends.Count)
-                    { db.Ends[ei].MarkX = x["x"].GetValue<double>(); db.Ends[ei].MarkY = x["y"].GetValue<double>(); }
-            if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
-            else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
-            // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
-            foreach (var (k, sw) in st.Switches)
-            {
-                if (!d.Switches.TryGetValue(k, out var ds)) { d.Switches[k] = ds = new SwitchDef { Num = sw.Num, Node = sw.Node, Sec = sw.Sec, Label = sw.Label, Post = sw.Post, Manual = sw.Manual, VBok = sw.VBok, VProsto = sw.VProsto, TipDir = sw.TipDir }; d.Nodes[sw.Node].Switch = k; }
-                ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus; ds.Diverging = sw.Diverging; ds.BasicMinus = sw.BasicMinus;
-            }
+            // geometria każdej strony (edytor zobrazowania, plan § 10 pkt 5): obiekt narysowany na dwóch obrazach jest na pulpicie na obu
+            var pageGeo = disp["pageGeo"] as System.Text.Json.Nodes.JsonObject;
+            disp.Remove("pageGeo");
+            var baseRoot = (System.Text.Json.Nodes.JsonObject)root.DeepClone();
+            var d = BuildDisplay((System.Text.Json.Nodes.JsonObject)baseRoot.DeepClone(), disp, st);
+            if (pageGeo != null)
+                foreach (var (pid, pg) in pageGeo)
+                    if (pg is System.Text.Json.Nodes.JsonObject pgo)
+                    {
+                        if (pgo["pip"] == null && disp["pip"] != null) pgo["pip"] = disp["pip"].DeepClone();
+                        if (pgo["hiddenSyms"] == null && disp["hiddenSyms"] != null) pgo["hiddenSyms"] = disp["hiddenSyms"].DeepClone();
+                        d.PageViews[pid] = BuildDisplay((System.Text.Json.Nodes.JsonObject)baseRoot.DeepClone(), pgo, st);
+                    }
             st.Display = d;
         }
         st.Visual(st.Display ?? st);
-        if (st.Display != null) st.Display.Visual(st.Display, st);
+        if (st.Display != null)
+        {
+            st.Display.Visual(st.Display, st);
+            foreach (var pv in st.Display.PageViews.Values) pv.Visual(pv, st);
+        }
         return st;
     }
+
+    /// <summary>
+    /// Widok zobrazowania z sekcji „display” (albo z geometrii jednej strony – „pageGeo”): położenia węzłów i przebieg torów, napisy,
+    /// perony, przejazdy, elementy z edytora zobrazowania; topologia i zwrotnice z układu <paramref name="st"/>.
+    /// </summary>
+    static Station BuildDisplay(System.Text.Json.Nodes.JsonObject root, System.Text.Json.Nodes.JsonObject disp, Station st)
+    {
+        // geometria zobrazowania: węzły i tory z sekcji „display”, pozostałe – poza obrazami
+        var dn = disp["nodes"] as System.Text.Json.Nodes.JsonObject; var de = disp["edges"] as System.Text.Json.Nodes.JsonObject;
+        // napisy, perony i przejazdy pulpitu – własna kopia zobrazowania (brak – te same co na planie)
+        foreach (var k in new[] { "labels", "platforms", "crossings" }) if (disp[k] is System.Text.Json.Nodes.JsonArray da) root[k] = da.DeepClone();
+        foreach (var (id, n) in (System.Text.Json.Nodes.JsonObject)root["nodes"])
+        {
+            var p = dn?[id] as System.Text.Json.Nodes.JsonArray;
+            n["x"] = p != null ? p[0].GetValue<double>() : Hidden; n["y"] = p != null ? p[1].GetValue<double>() : Hidden;
+        }
+        foreach (var e in ((System.Text.Json.Nodes.JsonArray)root["edges"]).OfType<System.Text.Json.Nodes.JsonObject>())
+        {
+            var p = de?[(string)e["id"]] as System.Text.Json.Nodes.JsonArray;
+            e["pts"] = p != null && p.Count >= 2 ? p.DeepClone() : new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonArray(Hidden, Hidden), new System.Text.Json.Nodes.JsonArray(Hidden + 1, Hidden));
+        }
+        var d = ParseCore(root.ToJsonString(), true);
+        if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
+        // elementy z edytora zobrazowania (etap Z4): numery torów, opisy odcinków, strzałki blokady, odcinki bez kontroli niezajętości
+        if (disp["trackLabels"] is System.Text.Json.Nodes.JsonArray tl)
+            foreach (var x in tl.OfType<System.Text.Json.Nodes.JsonObject>())
+                d.TrackLabels.Add(new LabelDef { Text = (string)x["text"], X = x["x"].GetValue<double>(), Y = x["y"].GetValue<double>(), Anchor = "middle" });
+        if (disp["secLabels"] is System.Text.Json.Nodes.JsonArray sl)
+            foreach (var x in sl.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["sec"] is string sec) d.SecLabels.Add((sec, x["x"].GetValue<double>(), x["y"].GetValue<double>()));
+        if (disp["secLabelsMode"]?.GetValue<string>() is string slm) d.SecLabelsMode = slm;
+        if (disp["dashedEdges"] is System.Text.Json.Nodes.JsonArray dashE)
+            foreach (var x in dashE) if (x?.GetValue<string>() is string eid && d.Edges.TryGetValue(eid, out var ed)) ed.NoDetect = true;
+        if (disp["blockMarks"] is System.Text.Json.Nodes.JsonArray bm)
+            foreach (var x in bm.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["block"] is string bid && d.Blocks.TryGetValue(bid, out var db) && x["end"]?.GetValue<int>() is int ei && ei >= 0 && ei < db.Ends.Count)
+                { db.Ends[ei].MarkX = x["x"].GetValue<double>(); db.Ends[ei].MarkY = x["y"].GetValue<double>(); }
+        if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
+        else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
+        // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
+        foreach (var (k, sw) in st.Switches)
+        {
+            if (!d.Switches.TryGetValue(k, out var ds)) { d.Switches[k] = ds = new SwitchDef { Num = sw.Num, Node = sw.Node, Sec = sw.Sec, Label = sw.Label, Post = sw.Post, Manual = sw.Manual, VBok = sw.VBok, VProsto = sw.VProsto, TipDir = sw.TipDir }; d.Nodes[sw.Node].Switch = k; }
+            ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus; ds.Diverging = sw.Diverging; ds.BasicMinus = sw.BasicMinus;
+        }
+        return d;
+    }
+
 
     static Station ParseCore(string json, bool geo)
     {

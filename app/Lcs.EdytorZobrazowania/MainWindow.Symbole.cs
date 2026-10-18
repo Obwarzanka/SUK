@@ -58,8 +58,9 @@ public partial class MainWindow
     /// <summary>Narzędzie symbolu: obiekt UT – wybrany w panelu UT (gdy tego rodzaju), inaczej następny nieumieszczony.</summary>
     void PickSym(ZobRodzaj r, string prefer = null)
     {
-        var all = ZobUt.Obiekty(Doc.Ut, Obraz).Where(x => x.Grupa == Grupa(r) && ZobSymbole.RodzajUt(Doc.Ut, x.Id) == r).ToList();
-        SymCurrent = all.FirstOrDefault(x => x.Id == prefer)?.Id ?? all.FirstOrDefault(x => !x.NaObrazie)?.Id;
+        var all = ZobUt.Obiekty(Doc.Ut, Obraz, true).Where(x => x.Grupa == Grupa(r) && ZobSymbole.RodzajUt(Doc.Ut, x.Id) == r).ToList();
+        // następny nieumieszczony – tylko z posterunków obrazu; obiekt innego posterunku – gdy wybrany w panelu UT
+        SymCurrent = all.FirstOrDefault(x => x.Id == prefer)?.Id ?? all.FirstOrDefault(x => !x.NaObrazie && !x.Obcy)?.Id;
         var nazwa = NazwaNarzedzia(r);
         if (SymCurrent == null)
             Message(all.Count == 0 ? $"{nazwa}: w UT obrazu nie ma takich obiektów" : $"{nazwa}: wszystkie są już na obrazie (wybierz w panelu UT, żeby przestawić)");
@@ -187,6 +188,7 @@ public partial class MainWindow
         var del = Btn("Zdejmij z obrazu", (a, e) => DeleteSym(), "Zdejmij symbol z obrazu (Del); w UT zostaje"); del.Margin = new Thickness(s.Opis != null ? 6 : 0, 0, 0, 0);
         row.Children.Add(del);
         P.Children.Add(row);
+        PrzypnijSym(P, r, s);
         P.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
     }
 

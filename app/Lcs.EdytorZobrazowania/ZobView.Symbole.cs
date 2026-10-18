@@ -208,8 +208,8 @@ public partial class ZobView
                 {
                     // przerwa izolacyjna – przerwa w linii toru jak na pulpicie (granica odcinków); kółko – znacznik edytora
                     dc.DrawLine(new Pen(bg, 7) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat }, new Point(cx - 1.8, cy), new Point(cx + 1.8, cy));
-                    dc.DrawEllipse(null, NodePen, c, 4.5, 4.5);
-                    if (grey != Grey) dc.DrawEllipse(null, new Pen(grey, 1.2), c, 4.5, 4.5);
+                    if (!Czysty) dc.DrawEllipse(null, NodePen, c, 4.5, 4.5);
+                    if (!Czysty && grey != Grey) dc.DrawEllipse(null, new Pen(grey, 1.2), c, 4.5, 4.5);
                     if (sel) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(cx - 7, cy - 7, 14, 14));
                     break;
                 }

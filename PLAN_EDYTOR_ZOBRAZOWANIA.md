@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4 – 2026-10-19** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4 – § 10). Następny: Z5 – kilka obrazów, obraz poglądowy, „Sprawdź” (§ 3), wydruk / PNG.
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4 i Z5 – 2026-10-19** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4–Z5 – § 10). Następny: Z6 – podgląd „jak na pulpicie” (`PanelView`) w edytorze.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
@@ -176,4 +176,6 @@ Plan zaakceptowany z propozycjami z § 8:
 1. **Numery torów i strzałki blokady** stawia człowiek w edytorze zobrazowania; pulpit bierze ich miejsce z obrazu. Gdzie nie są postawione – pulpit liczy jak dotąd (numer na środku najdłuższego kawałka toru odcinka, strzałka za semaforem wjazdowym).
 2. **Opisy odcinków** – „do dostosowania w edytorze”: miejsce opisu każdego odcinka ustawia się w edytorze (domyślnie nad torem, Ie-104 § 8 ust. 1 pkt 3), a w obrazie jest ustawienie, czy opisy idą na pulpit (na żądanie wg Ie-104 § 5 ust. 2, zawsze, nie). *Odczytanie do potwierdzenia przez właściciela.*
 3. **Tor bez kontroli niezajętości** (linia przerywana, Ie-104 § 8 ust. 1) oznacza człowiek – pole w panelu toru obrazu; nie wynika samo z odcinków UT.
+4. **Obraz poglądowy na pulpicie – jak dotąd** (2026-10-19): zakładka „Obraz poglądowy” w symulatorze pokazuje pomniejszone obrazy szczegółowe; obraz poglądowy z edytora rysuje się i sprawdza w edytorze, „Do symulatora…” go nie przenosi.
+5. **Ten sam obiekt UT na dwóch obrazach szczegółowych – na pulpicie na obu** (2026-10-19): pulpit rysuje obiekt na każdym obrazie, na którym go narysowano; sterowanie wg obszaru sterowania posterunku (§ 9 pkt 6).
 

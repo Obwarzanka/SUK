@@ -55,6 +55,7 @@ public static partial class Test
                 log.AppendLine("== etap Z3: zwrotnice, sygnalizatory, kozły"); await RunZ3(w, shot);
                 log.AppendLine("== etap 9: do symulatora"); await RunSymulator(w);
                 log.AppendLine("== etap Z4: przerwy, opisy odcinków, numery torów, perony, przejazdy, szlaki, napisy"); await RunZ4(w, shot);
+                log.AppendLine("== etap Z5: dwa posterunki na dwóch obrazach, obraz poglądowy, PNG"); await RunZ5(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

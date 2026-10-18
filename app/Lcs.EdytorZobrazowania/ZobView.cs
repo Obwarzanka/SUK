@@ -19,6 +19,8 @@ public partial class ZobView : FrameworkElement
     public ZobObraz Obraz { get; set; }
     public int Siatka { get; set; } = 8;
     public bool ShowGrid { get; set; } = true;
+    /// <summary>Bez znaczników edytora (siatka, ramka, węzły, zaznaczenie) – wydruk i PNG obrazu, wygląd jak na pulpicie.</summary>
+    public bool Czysty { get; set; }
     /// <summary>Tekst na pustym płótnie (brak otwartego zobrazowania).</summary>
     public string EmptyText { get; set; }
 
@@ -174,6 +176,9 @@ public partial class ZobView : FrameworkElement
 
     /// <summary>Punkt obrazu [j.] na środku okna.</summary>
     public void CenterOn(double x, double y) => PanTo(new Point(ActualWidth / 2 - x * Zoom, ActualHeight / 2 - y * Zoom));
+
+    /// <summary>Powiększenie i położenie punktu (0, 0) obrazu wprost (wydruk, PNG).</summary>
+    public void SetView(double zoom, Point off) { Zoom = Math.Clamp(zoom, MinZoom, MaxZoom); Off = off; InvalidateVisual(); }
 
     /// <summary>Powiększenie 1 (1 j. = 1 piksel) wokół środka okna.</summary>
     public void Actual() => ZoomAt(new Point(ActualWidth / 2, ActualHeight / 2), 1 / Zoom);
@@ -343,7 +348,7 @@ public partial class ZobView : FrameworkElement
         dc.DrawRectangle(Bg, null, img);
         var vis = Rect.Intersect(img, all);
         if (ShowGrid && !vis.IsEmpty) DrawGrid(dc, vis);
-        dc.DrawRectangle(null, Frame, new Rect(Math.Round(img.X) - 0.5, Math.Round(img.Y) - 0.5, Math.Round(img.Width) + 1, Math.Round(img.Height) + 1));
+        if (!Czysty) dc.DrawRectangle(null, Frame, new Rect(Math.Round(img.X) - 0.5, Math.Round(img.Y) - 0.5, Math.Round(img.Width) + 1, Math.Round(img.Height) + 1));
         DrawTracks(dc);
         DrawZ4(dc);
         DrawSymbols(dc);
@@ -382,12 +387,13 @@ public partial class ZobView : FrameworkElement
             else dc.DrawGeometry(null, pen, g);
             // odcinek nie co 45° – znacznik edytora
             for (int i = 1; i < pts.Count; i++)
-                if (!ZobTory.Osiowy(pts[i - 1], pts[i])) dc.DrawLine(OddPen, ToScreen(pts[i - 1]), ToScreen(pts[i]));
+                if (!Czysty && !ZobTory.Osiowy(pts[i - 1], pts[i])) dc.DrawLine(OddPen, ToScreen(pts[i - 1]), ToScreen(pts[i]));
         }
         // węzły obrazu (końce torów) i wierzchołki zaznaczonego toru – tylko w edytorze
-        foreach (var t in Obraz.Tory.Where(t => t.Pkt.Count >= 2))
-            foreach (var q in new[] { t.Pkt[0], t.Pkt[^1] })
-                dc.DrawEllipse(NodeFill, NodePen, ToScreen(q), 3, 3);
+        if (!Czysty)
+            foreach (var t in Obraz.Tory.Where(t => t.Pkt.Count >= 2))
+                foreach (var q in new[] { t.Pkt[0], t.Pkt[^1] })
+                    dc.DrawEllipse(NodeFill, NodePen, ToScreen(q), 3, 3);
         if (Obraz.Tory.FirstOrDefault(t => t.Id == Selected) is ZobTor st)
             for (int i = 0; i < st.Pkt.Count; i++)
             {

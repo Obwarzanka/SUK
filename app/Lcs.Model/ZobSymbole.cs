@@ -118,6 +118,8 @@ public static class ZobSymbole
         return (Math.Sign(b[0] - a[0]) * k, Math.Sign(b[1] - a[1]) * k);
     }
 
+    static bool Same(int[] a, int[] b) => a != null && b != null && a[0] == b[0] && a[1] == b[1];
+
     /// <summary>Punkt leży na łamanej toru (do 0,5 j.).</summary>
     public static bool NaTorze(ZobTor t, int[] p) => t.Pkt.Count >= 2 && ZobTory.Rzut(t.Pkt, p[0], p[1]).Dist <= 0.5;
 
@@ -142,6 +144,10 @@ public static class ZobSymbole
     {
         var res = new List<ZobUwaga>();
         var obj = ZobUt.Obiekty(ut, o);
+        bool pogl = o.Rodzaj == ZobObraz.Pogladowy;
+        // obraz poglądowy (Ie-104 § 6 ust. 4): odcinki, rozjazdy, sygnalizatory pociągowe, blokady, przejazdy, bocznice, numery torów
+        if (pogl) obj = obj.Where(x => x.Grupa is ZobUt.GTory or ZobUt.GRozjazdy or ZobUt.GSzlaki or ZobUt.GPrzejazdy or ZobUt.GNumery
+            || x.Grupa == ZobUt.GSygnalizatory && ut.Devices.FirstOrDefault(d => d.Id == x.Id)?.Kind == UtDevice.Semafor).ToList();
         foreach (var x in obj.Where(x => !x.NaObrazie))
             res.Add(new(false, $"nie ma na obrazie: {(x.Grupa == ZobUt.GOdcinki ? "opis odcinka " : "")}{x.Opis}" + (x.Czesc != null ? $" ({x.Czesc})" : ""), x.Id, null));
         foreach (var t in o.Tory.Where(t => !ut.Tracks.Any(u => u.Id == t.Ut?.Tor)))
@@ -166,6 +172,45 @@ public static class ZobSymbole
                 if (TorSymbolu(ut, o, s) == null)
                     res.Add(new(true, $"{Nazwa(ut, s.Ut, s.Koniec)} nie leży na torze obrazu toru {trNr}" + (double.IsNaN(km) ? "" : $" w km {km:0}") + " (tor obrazu przesunięty albo kawałek bez tego km)", s.Ut, s.P));
             }
+        if (pogl)
+        {
+            // na obrazie poglądowym tylko symbole z Ie-104 § 6 ust. 4 (inne opisy – za zgodą PLK, § 6 ust. 5)
+            foreach (var s in o.Sygnalizatory.Where(s => ut.Devices.FirstOrDefault(d => d.Id == s.Ut)?.Kind is UtDevice.TarczaMan or UtDevice.TarczaOstrz))
+                res.Add(new(false, $"obraz poglądowy: {Nazwa(ut, s.Ut)} – na obrazie poglądowym tylko sygnalizatory pociągowe (Ie-104 § 6 ust. 4)", s.Ut, s.P));
+            foreach (var s in o.Wykolejnice) res.Add(new(false, $"obraz poglądowy: {Nazwa(ut, s.Ut)} – wykolejnic nie ma na obrazie poglądowym (Ie-104 § 6 ust. 4)", s.Ut, s.P));
+            foreach (var s in o.Odcinki) res.Add(new(false, $"obraz poglądowy: {Nazwa(ut, s.Ut)} – opisy odcinków tylko za zgodą PLK (Ie-104 § 6 ust. 5)", s.Ut, s.P));
+            foreach (var pr in o.Perony) res.Add(new(false, "obraz poglądowy: peron – perony tylko za zgodą PLK (Ie-104 § 6 ust. 4–5)", pr.Ut, pr.Prost?.Take(2).ToArray()));
+        }
+        // kawałki toru UT nie zachodzą na siebie (ten sam km dwa razy na jednym obrazie – § 3)
+        foreach (var g in o.Tory.Where(t => t.Ut?.Tor != null).GroupBy(t => t.Ut.Tor))
+        {
+            var l = g.Select(t => (A: Math.Min(t.Ut.S0, t.Ut.S1), B: Math.Max(t.Ut.S0, t.Ut.S1), T: t)).OrderBy(x => x.A).ToList();
+            for (int i = 1; i < l.Count; i++)
+                if (l[i - 1].B - l[i].A > 0.5)
+                    res.Add(new(true, $"tor {ut.Tracks.FirstOrDefault(x => x.Id == g.Key)?.Number ?? "?"}: km {l[i].A:0}–{Math.Min(l[i - 1].B, l[i].B):0} dwa razy na obrazie", g.Key, l[i].T.Pkt.FirstOrDefault()));
+        }
+        // odstęp torów przebiegowych ≥ 2 wysokości opisu (obraz poglądowy ≥ 1) – Ie-104 § 4 ust. 15 pkt 1; opis 10 j.
+        int minOdstep = pogl ? 10 : 20;
+        var poz = o.Tory.Where(t => t.Pkt.Count >= 2).SelectMany(t => t.Pkt.Zip(t.Pkt.Skip(1)).Where(x => x.First[1] == x.Second[1]).Select(x => (T: t, Y: x.First[1], X0: Math.Min(x.First[0], x.Second[0]), X1: Math.Max(x.First[0], x.Second[0])))).ToList();
+        var zgl = new HashSet<(string, string)>();
+        foreach (var a in poz)
+            foreach (var b in poz)
+                if (string.CompareOrdinal(a.T.Id, b.T.Id) < 0 && a.Y != b.Y && Math.Abs(a.Y - b.Y) < minOdstep && Math.Min(a.X1, b.X1) - Math.Max(a.X0, b.X0) > 16 && zgl.Add((a.T.Id, b.T.Id)))
+                    res.Add(new(false, $"tory {ut.Tracks.FirstOrDefault(x => x.Id == a.T.Ut?.Tor)?.Number ?? "?"} i {ut.Tracks.FirstOrDefault(x => x.Id == b.T.Ut?.Tor)?.Number ?? "?"} za blisko: {Math.Abs(a.Y - b.Y)} j. – co najmniej {minOdstep} j. ({(pogl ? "1" : "2")} × wysokość opisu, Ie-104 § 4 ust. 15 pkt 1)",
+                        a.T.Ut?.Tor, new[] { Math.Max(a.X0, b.X0), Math.Min(a.Y, b.Y) }));
+        // sąsiedztwo symboli w poziomie (Ie-104 § 4 ust. 15 pkt 3–4)
+        foreach (var tm in o.Sygnalizatory.Where(s => s.P != null && ut.Devices.FirstOrDefault(d => d.Id == s.Ut)?.Kind == UtDevice.TarczaMan))
+            foreach (var wk in o.Wykolejnice.Where(s => s.P != null && s.P[1] == tm.P[1] && Math.Abs(s.P[0] - tm.P[0]) < 24))
+                res.Add(new(false, $"{Nazwa(ut, tm.Ut)} obok {Nazwa(ut, wk.Ut)} – wykolejnicę umieść w odcinku zwrotnicowym podzielonym na dwie części (Ie-104 § 4 ust. 15 pkt 3)", wk.Ut, wk.P));
+        foreach (var sz in o.Szlaki.Where(s => s.P != null))
+            if (ut.Lines.FirstOrDefault(l => l.Id == sz.Ut) is UtLine line && line.Konce.ElementAtOrDefault(sz.Koniec ?? 0)?.Semafor is string sem
+                && o.Sygnalizatory.FirstOrDefault(s => s.Ut == sem) is ZobSymbol ss && Math.Abs(ss.P[0] - sz.P[0]) + Math.Abs(ss.P[1] - sz.P[1]) < 36)
+                res.Add(new(false, $"{Nazwa(ut, sz.Ut, sz.Koniec)} sąsiaduje z semaforem wjazdowym – strzałkę umieść w odstępie podzielonym na dwie części (Ie-104 § 4 ust. 15 pkt 4)", sz.Ut, sz.P));
+        // zwrotnica: tor odgałęźny narysowany na obrazie zaczyna się w jej punkcie (§ 3)
+        foreach (var zs in o.Zwrotnice.Where(s => s.P != null))
+            if (ut.Turnouts.FirstOrDefault(z => z.Id == zs.Ut) is UtTurnout z && o.Tory.Where(t => t.Ut?.Tor == z.Branch && t.Pkt.Count >= 2).ToList() is { Count: > 0 } br
+                && !br.Any(t => Same(t.Pkt[0], zs.P) || Same(t.Pkt[^1], zs.P)))
+                res.Add(new(false, $"{Nazwa(ut, zs.Ut)}: tor odgałęźny na obrazie nie zaczyna się w punkcie zwrotnicy", zs.Ut, zs.P));
         // kolejność wzdłuż toru obrazu taka jak km w UT (symbole w miejscu km obiektu)
         foreach (var t in o.Tory.Where(t => t.Pkt.Count >= 2))
         {
