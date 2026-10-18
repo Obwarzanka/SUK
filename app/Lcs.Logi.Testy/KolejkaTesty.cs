@@ -112,7 +112,7 @@ public class KolejkaTesty
         var s = SilnikLogow.Uruchom(Pom.Opcje(Pom.NowyKatalog("awaria"), sink));
         var log = s.Modul("Test.Awaria", "1.0.0");
         for (int i = 0; i < 50; i++) ZdarzeniaProcesu.Zatrzymano(log, i);
-        Thread.Sleep(300);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgModuluIPowodu.GetValueOrDefault("Test.Awaria|SINK_FAILED") == 50, 5000));
         var st = s.Stan();
         Assert.Equal(50, st.Przyjete);                       // nic nie wróciło do kolejki wejściowej
         Assert.Equal(0, st.WKolejce);
@@ -137,7 +137,7 @@ public class KolejkaTesty
         Assert.True(t.ElapsedMilliseconds < 300 + 150, $"zamknięcie {t.ElapsedMilliseconds} ms przy limicie 300 ms");
         Assert.False(st.ZamkniecieKompletne);
         sink.Brama.Set();                                    // worker wznawia się i liczy porzucone rekordy
-        SpinWait.SpinUntil(() => s.Stan().StratyWgPowodu.ContainsKey("SHUTDOWN_TIMEOUT"), 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgPowodu.GetValueOrDefault("SHUTDOWN_TIMEOUT") == 500, 5000));
         var k = s.Stan();
         Assert.Equal(500, k.StratyWgPowodu["SHUTDOWN_TIMEOUT"]);
         Pom.Pomiar("B04_zamkniecie", $"limit_ms=300 czas_ms={t.ElapsedMilliseconds} porzucone={k.StratyWgPowodu["SHUTDOWN_TIMEOUT"]}");

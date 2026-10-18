@@ -58,7 +58,7 @@ public class RedakcjaTesty
     }
 
     [Theory]
-    [InlineData("C:\\Users\\JohnE\\AppData\\Local\\SUK", "C:\\Users\\[UZYTKOWNIK]\\AppData\\Local\\SUK")]
+    [InlineData("C:\\Users\\Ktos\\AppData\\Local\\SUK", "C:\\Users\\[UZYTKOWNIK]\\AppData\\Local\\SUK")]
     [InlineData("/home/kacper/plik", "/home/[UZYTKOWNIK]/plik")]
     [InlineData("połączenie 192.168.1.5:47120 odrzucone", "połączenie [IP]:47120 odrzucone")]
     [InlineData("Microsoft Windows NT 10.0.26200.0", "Microsoft Windows NT 10.0.26200.0")]

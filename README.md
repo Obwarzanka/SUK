@@ -279,6 +279,7 @@ symulator/
 ├── app/Lcs.Model/             ← model układu torowego (tory, rozjazdy, urządzenia, odcinki, kontrola, PUWG 1992) – bez okien
 ├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe), katalog rozjazdów i baza symboli w Dane/
 ├── app/Lcs.Przechylka/        ← kalkulator przechyłki (Przechylka.exe)
+├── app/Lcs.Logi/              ← logi techniczne SUK (MEL + Serilog, JSONL, limity, redakcja) i testy w app/Lcs.Logi.Testy/
 └── app/LcsWidzew/             ← symulator C# / WPF (.NET 8)
     ├── Data/station.json      ← układ obszaru LCS
     ├── Data/kopie/            ← automatyczne kopie zapasowe układu
@@ -316,6 +317,18 @@ Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
 | `LcsWidzew.exe --screenshot zrzut.png 2 "#page=1" "E S1 Pociąg"` | zrzut pulpitu po poleceniach (`#page=N`, `#overview`, `@t`) |
 
 Opcja `--station plik.json` wczytuje inny układ, np. kopię z `Data/kopie/`.
+
+### Logi techniczne (od S01.01)
+
+Symulator zapisuje logi techniczne w formacie JSONL (jedna linia = jeden rekord JSON wg `kontrakty/logi/rekord_logu_v1.schema.json`) w `%LocalAppData%\SUK\LcsWidzew\Logs\LcsWidzew-RRRRMMDD.jsonl`. Działa bez internetu i konta. Pliki do 32 MiB, najwyżej 8 plików i 7 dni (starsze są usuwane), zapis przez osobny wątek – pulpit i cykl symulacji nie czekają na dysk; przy przepełnieniu kolejki rekordy są pomijane i liczone (rekord `LOG.DIAGNOSTICS_DROPPED`). Do logów trafiają: start i zamknięcie programu, nieobsłużone błędy (po redakcji: bez haseł, tokenów, kluczy, ścieżki profilu użytkownika, adresów IP) i kopia wpisów okna Zdarzenia bez ich treści (kategoria, typ i identyfikator obiektu, numer wpisu). Okno Zdarzenia, eksport `.zdarzenia` i `bledy.log` działają jak dotąd.
+
+| Opcja (z dowolnym trybem) | Co robi |
+|---|---|
+| `--logi katalog` | logi do podanego katalogu (testy na kopii danych) |
+| `--logi-raport plik.txt` | przy zamknięciu zapisuje stan logów: przyjęte, zapisane, pominięte wg powodu, gotowość zapisu |
+| `--logi-proba` | próba kontrolna: błąd z testowymi sekretami i CR/LF, pola niedozwolone, pomiar kosztu emisji (wynik w `--logi-raport`) |
+
+Testy biblioteki logów (Linux/VM z .NET SDK 10.0.402): `dotnet test --project app/Lcs.Logi.Testy/Lcs.Logi.Testy.csproj -c Release` (net8.0 i net10.0). Sprawdzenie plików logów kontraktem: `python3 kontrakty/testy/sprawdz_kontrakty.py --jsonl katalog_logów`.
 
 Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
 

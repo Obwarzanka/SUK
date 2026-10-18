@@ -16,7 +16,7 @@
       "id": "log.rekord",
       "nazwa": "Schemat rekordu logu JSONL",
       "wersja": 1,
-      "status": "wstepny",
+      "status": "zamrozony",
       "tworzy": "S00.03",
       "zamraza": "S01.01",
       "konsumenci": [
@@ -30,7 +30,7 @@
         "25 §4",
         "25 §7"
       ],
-      "opis": "JSON Schema Draft-07 rekordu diagnostyki (Serilog Compact + pola SUK): kontekst świata/KZ/grupy/kanału, korelacja, limity, zakazane nazwy pól.",
+      "opis": "JSON Schema Draft-07 rekordu diagnostyki (Serilog Compact + pola SUK): kontekst świata/KZ/grupy/kanału, korelacja, limity, zakazane nazwy pól. Zamrożony w S01.01 (18.10.2026): adapter Lcs.Logi wytwarza rekordy zgodne ze schematem bez jego zmiany.",
       "pliki": [
         {
           "plik": "kontrakty/logi/rekord_logu_v1.schema.json",
@@ -46,7 +46,7 @@
       "id": "log.zdarzenia",
       "nazwa": "Katalog eventId/eventCode",
       "wersja": 1,
-      "status": "wstepny",
+      "status": "zamrozony",
       "tworzy": "S00.03",
       "zamraza": "S01.01",
       "konsumenci": [
@@ -59,11 +59,11 @@
         "25 §3",
         "25 §8"
       ],
-      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B.",
+      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B. Zamrożony w S01.01 (18.10.2026): struktura i nadane kody stałe; nowe kody dopisuje zadanie tworzące moduł (zgodnie z zasadami pliku); S01.01 dodało podzakres 3600–3699 REJ i 13 kodów.",
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "8eb1e77732f59ac0972deed02697d1bd731dd60e307b88b3dbf3f8eb231206e3"
+          "sha256_lf": "ddb8c07a3722612b66dda8b4b4181da353c203337937e4769fa01a1e79b4a14f"
         }
       ]
     },
@@ -89,7 +89,7 @@
       "pliki": [
         {
           "plik": "kontrakty/logi/budzety_logow_v1.json",
-          "sha256_lf": "e7806999e28b2d625b96bc432de0979ed5eafc5d2ac9edc76cfed0c449d2e94e"
+          "sha256_lf": "a80ceb5d53fb850a18d31906d2bb8dd397c0623aa532946d8c718f98d7116394"
         }
       ]
     },
@@ -670,11 +670,11 @@
   "narzedzia": [
     {
       "plik": "kontrakty/testy/sprawdz_kontrakty.py",
-      "sha256_lf": "30679db01e210888f586a39c8d7c104636cdc77d7f11f1e86d780234d0763def"
+      "sha256_lf": "c8681e4c9a34d6cefd10a5c5cba6ded25cf05fcfbcc70027b7a1015ad78c3536"
     },
     {
       "plik": "kontrakty/testy/rekordy_poprawne.jsonl",
-      "sha256_lf": "9bf396c7f74c07a2fd5f2e9c1d464e241ff1b500f3e692e20d0756d620649729"
+      "sha256_lf": "9364e86355dea5337c7defef63853ada8af61fe322efaf8df8879b3075f135b7"
     },
     {
       "plik": "kontrakty/testy/przypadki_bledne.json",

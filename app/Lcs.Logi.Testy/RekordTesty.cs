@@ -146,6 +146,25 @@ public class RekordTesty
     }
 
     [Fact]
+    public void FasadaAplikacjiNieZatrzymujeProgramu()
+    {
+        Assert.Same(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, Diagnostyka.Modul("Test.Fasada", "1.0.0"));
+        Assert.False(Diagnostyka.Start(new OpcjeLogow { Aplikacja = "zła/nazwa", Katalog = Pom.NowyKatalog("fasada") }));
+        Assert.False(Diagnostyka.Start(null));
+        Assert.Null(Diagnostyka.Silnik);
+        var kat = Pom.NowyKatalog("fasada");
+        Assert.True(Diagnostyka.Start(Pom.Opcje(kat)));
+        var log = Diagnostyka.Modul("Test.Fasada", "1.0.0");
+        ZdarzeniaProcesu.Uruchomiono(log, "test");
+        var st = Diagnostyka.Zatrzymaj();
+        Assert.Equal(1, st.Przyjete);
+        Assert.Equal(1, st.PrzekazaneDoPliku);
+        Assert.Null(Diagnostyka.Zatrzymaj());
+        ZdarzeniaProcesu.Zatrzymano(log, 1);                         // logger po zatrzymaniu – bez wyjątku
+        Assert.Single(Pom.Rekordy(kat), x => x.Tekst("moduleId") == "Test.Fasada");
+    }
+
+    [Fact]
     public void HostMelZJednymDostawca()
     {
         var sink = new SinkTestowy();

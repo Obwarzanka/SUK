@@ -16,14 +16,14 @@ public static class Diagnostyka
 
     public static SilnikLogow Silnik => Volatile.Read(ref silnik);
 
-    /// <summary>Uruchamia silnik (raz na proces). Zwraca false, gdy opcje są błędne – program działa dalej bez logów.</summary>
+    /// <summary>Uruchamia silnik (raz na proces). Zwraca false, gdy nie da się go uruchomić – program działa dalej bez logów.</summary>
     public static bool Start(OpcjeLogow opcje)
     {
         lock (zamek)
         {
             if (silnik != null) return true;
             try { Volatile.Write(ref silnik, SilnikLogow.Uruchom(opcje)); return true; }
-            catch (ArgumentException) { return false; }
+            catch (Exception) { return false; }   // np. błędne opcje albo ścieżka – logi nie mogą zatrzymać programu
         }
     }
 

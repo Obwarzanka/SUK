@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Sprawdzenie kontraktów SUK (S00.03).
 
-Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt]
+Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt] [--jsonl ścieżka ...]
+--jsonl (S01.01): dodatkowo sprawdza pliki JSONL zapisane przez programy (plik albo katalog – rekurencyjnie *.jsonl):
+każda linia = jeden obiekt JSON zgodny ze schematem v1 i katalogiem zdarzeń, ≤ 8 KiB, bez znacznika testowego sekretu
+„SEKRET_TESTOWY”, recordSeq bez powtórzeń w obrębie processRunId.
 Wymaga: Python >= 3.8, pakiet jsonschema >= 3.2 (walidator Draft-07). Skrypt tylko czyta pliki repo;
 nie łączy się z siecią i niczego nie zapisuje poza opcjonalnym plikiem --wynik.
 Kod wyjścia 0 = brak błędów, 1 = co najmniej jeden błąd, 2 = brak wymaganego pakietu.
@@ -179,6 +182,62 @@ for i, c in enumerate(wczytaj(K / "testy" / "przypadki_bledne.json")["przypadki"
         blad(f"błędny #{i} „{c['opis']}”: PRZYJĘTY, oczekiwano odrzucenia ({oczek})")
     else:
         blad(f"błędny #{i} „{c['opis']}”: odrzucony z innego powodu {sorted(p)}, oczekiwano {oczek}")
+
+# ------------------------------------------------------------------ 5a. pliki JSONL z programów (S01.01, opcja --jsonl)
+if "--jsonl" in sys.argv:
+    i = sys.argv.index("--jsonl") + 1
+    sciezki = []
+    while i < len(sys.argv) and not sys.argv[i].startswith("--"):
+        sciezki.append(Path(sys.argv[i]))
+        i += 1
+    pliki = []
+    for sc in sciezki:
+        if sc.is_dir():
+            pliki += sorted(sc.rglob("*.jsonl"))
+        elif sc.is_file():
+            pliki.append(sc)
+        else:
+            blad(f"jsonl: brak ścieżki {sc}")
+    razem = 0
+    for p in pliki:
+        dane = p.read_bytes()
+        nazwa = p.as_posix()
+        if b"SEKRET_TESTOWY" in dane:
+            blad(f"jsonl: {nazwa}: zawiera znacznik testowego sekretu SEKRET_TESTOWY")
+        n = bl = 0
+        seq = {}
+        for nr, linia in enumerate(dane.decode("utf-8").split("\n"), 1):
+            linia = linia[:-1] if linia.endswith("\r") else linia
+            if not linia:
+                continue
+            n += 1
+            try:
+                r = json.loads(linia)
+            except json.JSONDecodeError as e:
+                bl += 1
+                if bl <= 5:
+                    blad(f"jsonl: {nazwa}:{nr}: nie jest jedną linią JSON: {e}")
+                continue
+            if not isinstance(r, dict):
+                bl += 1
+                if bl <= 5:
+                    blad(f"jsonl: {nazwa}:{nr}: nie jest obiektem")
+                continue
+            pw = ocen(r, linia)
+            klucz = (r.get("processRunId"), r.get("recordSeq"))
+            if klucz in seq:
+                pw["recordSeq"] = f"powtórzony recordSeq {klucz[1]} (linie {seq[klucz]} i {nr})"
+            seq[klucz] = nr
+            if pw:
+                bl += 1
+                if bl <= 5:
+                    blad(f"jsonl: {nazwa}:{nr} {r.get('eventCode')}: odrzucony: {pw}")
+        if bl > 5:
+            blad(f"jsonl: {nazwa}: łącznie {bl} błędnych rekordów (pokazano 5)")
+        if bl == 0:
+            ok(f"jsonl: {nazwa}: {n} rekordów zgodnych ze schematem v1 i katalogiem")
+        razem += n
+    ok(f"jsonl: {len(pliki)} plików, {razem} rekordów")
 
 # ------------------------------------------------------------------ 6. budżety a schemat
 ids = [b["id"] for b in budzety["budzety"]]

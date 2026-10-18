@@ -605,8 +605,8 @@ public sealed class SilnikLogow : IDisposable
         var nowy = proc < opcje.ProgOgraniczeniaProcent ? StanMiejsca.Ograniczenie : proc < opcje.ProgOstrzezeniaProcent ? StanMiejsca.Ostrzezenie : StanMiejsca.Normalny;
         var stary = stanMiejsca;
         if (nowy == stary) return;
-        stanMiejsca = nowy;
         poziom.MinimumLevel = nowy == StanMiejsca.Ograniczenie && poziomBazowy < LogEventLevel.Warning ? LogEventLevel.Warning : poziomBazowy;
+        stanMiejsca = nowy;   // stan po zmianie poziomu – kto widzi nowy stan, widzi już nowy próg
         if (stary == StanMiejsca.Nieznany && nowy == StanMiejsca.Normalny) return;
         var liczniki = new KeyValuePair<string, long>[] { new("freePercent", (long)Math.Floor(proc)), new("freeMiB", m.wolne >> 20) };
         var w = new KeyValuePair<string, object>[]

@@ -30,11 +30,15 @@ static partial class ZdarzeniaRejestratora
     public static void Wpis(ILogger log, Station L, EventRecord e, string obiektSurowy)
     {
         if (!log.IsEnabled(LogLevel.Information)) return;
-        var kat = e.Kategoria == "E-1758" ? "E1758" : Kategorie.Contains(e.Kategoria ?? "") ? e.Kategoria : "Inna";
-        var typ = string.IsNullOrEmpty(e.TypObiektu) ? null : TypyZIdentyfikatorem.Contains(e.TypObiektu) ? e.TypObiektu : "Inny";
-        var cel = typ != null && typ != "Inny" && !string.IsNullOrEmpty(e.Obiekt) ? e.Obiekt : null;
-        var post = string.IsNullOrEmpty(obiektSurowy) ? "" : Station.PostOf(obiektSurowy);
-        LogWpis(log, kat, typ, e.Id, cel, post != "" && L.Posts.ContainsKey(post) ? post : null);
+        try
+        {
+            var kat = e.Kategoria == "E-1758" ? "E1758" : Kategorie.Contains(e.Kategoria ?? "") ? e.Kategoria : "Inna";
+            var typ = string.IsNullOrEmpty(e.TypObiektu) ? null : TypyZIdentyfikatorem.Contains(e.TypObiektu) ? e.TypObiektu : "Inny";
+            var cel = typ != null && typ != "Inny" && !string.IsNullOrEmpty(e.Obiekt) ? e.Obiekt : null;
+            var post = string.IsNullOrEmpty(obiektSurowy) ? "" : Station.PostOf(obiektSurowy);
+            LogWpis(log, kat, typ, e.Id, cel, post != "" && L.Posts.ContainsKey(post) ? post : null);
+        }
+        catch (Exception) { }   // kopia w logach nie może przerwać cyklu symulacji ani zmienić dziennika pulpitu
     }
 
     [LoggerMessage(EventId = 3601, EventName = "REJ.EVENT_RECORDED", Level = LogLevel.Information, Message = "Wpis dziennika pulpitu ({kategoria})")]

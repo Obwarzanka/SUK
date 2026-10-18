@@ -37,7 +37,15 @@
       "etap_pomiaru": [
         "S01.01"
       ],
-      "wynik_pomiaru": null,
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Rekord 12 pól × 500 znaków 'ł' (~12 KB) skrócony do pól ≤ 128 znaków z truncated=true; 40 pól (~40 KB) zastąpiony LOG.RECORD_TOO_LARGE; wszystkie linie ≤ 8192 B; tekst > 512 znaków obcięty (counters.truncatedFields); @x ≤ 4096; pola spoza listy i zastrzeżone odrzucone (counters.rejectedFields); 10594 rekordów z testów zgodnych ze schematem v1 (jsonschema 3.2 i 4.23).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/RekordTesty, RedakcjaTesty; pomiary/ i jsonl/; ../sprawdz_kontrakty_js423.txt"
+        }
+      ],
       "uwaga": "maxProperties i maxExternalIdChars to propozycja S00.03 (25 §6 mówi o „ograniczonej liczbie właściwości” i limitach identyfikatorów klienta); egzekwowane przez schemat rekord_logu_v1 i narzędzie sprawdzające."
     },
     {
@@ -58,7 +66,15 @@
         "S01.01",
         "S13.02"
       ],
-      "wynik_pomiaru": null
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Profil Serwer 4096 rek./8 MiB: przy zablokowanym zapisie przyjęte dokładnie 3840 zwykłych (rezerwa 256 dla Error/Fatal), 12288 emisji – straty QUEUE_FULL policzone co do rekordu i zgłoszone sumą LOG.DIAGNOSTICS_DROPPED; max szacowanych bajtów 3794944; emisja przy pełnej kolejce p99 15,5–18,1 µs.",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/pomiary/L02_przepelnienie_Serwer_*.txt"
+        }
+      ]
     },
     {
       "id": "B03",
@@ -75,7 +91,22 @@
       "etap_pomiaru": [
         "S01.01"
       ],
-      "wynik_pomiaru": null
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Profil Klient 1024 rek./2 MiB: przyjęte dokładnie 960 + 64 rezerwy błędów; limit bajtów 64 KiB zadziałał przed limitem liczby (30 rekordów, QUEUE_BYTES); zalew 10000 wyjątków: 228 przyjętych (limit 2 MiB), przyrost pamięci GC 2,05–2,06 MB = 0,97–0,98 szacunku adaptera.",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/pomiary/L02_*.txt"
+        },
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "Windows właściciela (host referencyjny profil_pomiaru_v1: i7-9700K 8 rdzeni, 63,8 GB, Windows 11 Pro 26200, runtime .NET 8.0.32), LcsWidzew na wątku UI",
+          "wynik": "Program w trybie selftest/scenariuszy (pełna szybkość symulacji): 0 strat w 13 przebiegach, maks. zajętość kolejki 313 rekordów / 324894 B (ic_05, 59983 rekordy); zalew 5000 rekordów bez pauzy: przyjęte do limitu 960, straty 1910 i 398 policzone co do rekordu i zgłoszone LOG.DIAGNOSTICS_DROPPED.",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/przebieg1/logi_stan_*.txt, logi/"
+        }
+      ]
     },
     {
       "id": "B04",
@@ -93,7 +124,22 @@
       "etap_pomiaru": [
         "S01.01"
       ],
-      "wynik_pomiaru": null
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Zamknięcie: 3000 rekordów opróżnione w 6 ms; przy zablokowanym zapisie i limicie 300 ms Zatrzymaj wróciło po 300 ms, 500 rekordów policzonych jako SHUTDOWN_TIMEOUT + LOG.SHUTDOWN_FLUSH_INCOMPLETE. Grupowanie: Serilog.Sinks.File buffered + flushToDiskInterval 1 s (ustawione, opóźnienie zapisu nie mierzone).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/pomiary/B04_*.txt"
+        },
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "Windows właściciela (host referencyjny profil_pomiaru_v1: i7-9700K 8 rdzeni, 63,8 GB, Windows 11 Pro 26200, runtime .NET 8.0.32), LcsWidzew na wątku UI",
+          "wynik": "Zamknięcie programu (OnExit): 1,1–29,5 ms, zawsze kompletne (15 procesów).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/przebieg1/logi_stan_*.txt"
+        }
+      ]
     },
     {
       "id": "B05",
@@ -113,7 +159,22 @@
         "S01.01",
         "S13.02"
       ],
-      "wynik_pomiaru": null,
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Emisja typowego zdarzenia (4 pola) na wątku wywołującym przy działającym zapisie do pliku: p50 2,1–9,8 µs, p99 30–54 µs (przebieg końcowy 42–44 µs), max 0,7–2,5 ms (pojedyncze odchylenia), alokacje ~2,6 KB/rekord; przy zablokowanym zapisie (dysk stoi) p99 9–11 µs, tick z 10 emisjami p99 115–157 µs; rekord z wyjątkiem (ToString + redakcja) p99 ~0,21–0,23 ms. Cel p99 < 100 µs spełniony w VM dla zdarzenia bez wyjątku; narzut 1% ticku – do oceny na hoście referencyjnym (próba --logi-proba w S01.01_win.bat).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/pomiary/B05_*.txt"
+        },
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "Windows właściciela (host referencyjny profil_pomiaru_v1: i7-9700K 8 rdzeni, 63,8 GB, Windows 11 Pro 26200, runtime .NET 8.0.32), LcsWidzew na wątku UI",
+          "wynik": "Pomiar --logi-proba (wątek UI, zapis do pliku aktywny, rytm 100 rekordów / 2 ms): p50 8,9–9,6 µs, p99 77–79 µs, max 1,87–1,89 ms, ~2,6 KB alokacji/rekord; zalew 5000 rekordów: p99 6,5–20,1 µs. Cel p99 < 100 µs spełniony na hoście referencyjnym. Narzut względem ticku (timer 50 ms) przy typowym wolumenie wpisów pulpitu pomijalny; czas pełnych przebiegów scenariuszy +0,6–1,8 s względem S00.02 (w tym samym przebiegu niezmieniony EdytorUT trwał 2,2× dłużej – wpływ warunków hosta nie jest wykluczony).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/przebieg1/logi_stan_proba*.txt, status.txt"
+        }
+      ],
       "uwaga": "S01.01 mierzy na hoście z profil_pomiaru_v1 (bez ticku sieciowego); docelowy pomiar przy 40 klientach – S13.02."
     },
     {
@@ -157,7 +218,22 @@
       "etap_pomiaru": [
         "S01.01"
       ],
-      "wynik_pomiaru": null
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Rotacja rozmiarem (test: limit 16 KiB, 3 pliki): po 2000 rekordach zostają 3 pliki, każdy ≤ limit + jeden rekord (16732 B – Serilog kończy plik po przekroczeniu); retencja wieku 7 dni usuwa pliki 2020-01-0x, obce pliki (station.json, *.ut.json, Inny-*.jsonl) bez zmian; domyślne 32 MiB/8 plików/7 dni potwierdza LOG.STARTED.counters. Brak dostępu do katalogu: stan Niegotowy, straty SINK_FAILED co do rekordu; Serilog ponawia otwarcie pliku najpóźniej po 30 min.",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/pomiary/L03_*.txt; ../serilog_sinks_file_7.0.0_RollingFileSink.cs.txt"
+        },
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "Windows właściciela (host referencyjny profil_pomiaru_v1: i7-9700K 8 rdzeni, 63,8 GB, Windows 11 Pro 26200, runtime .NET 8.0.32), LcsWidzew na wątku UI",
+          "wynik": "Rzeczywista rotacja w programie: 4 pliki (32 MiB + 1 rekord, 32 MiB + 1 rekord, 18,6 MiB, 5,4 MiB) z 15 procesów; drugi proces działający równocześnie dostał osobny plik (_003) – brak pliku współdzielonego; katalog niemożliwy do utworzenia → stan Niegotowy (KATALOG_NIEDOSTEPNY_IO), 389 strat SINK_FAILED, wynik selftestu bez zmian; nic w %LOCALAPPDATA% (logi przez --logi).",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/przebieg1/logi_pliki.txt, logi_stan_bez_katalogu.txt, status.txt"
+        }
+      ]
     },
     {
       "id": "B08",
@@ -177,7 +253,15 @@
         "S01.01",
         "S06.02"
       ],
-      "wynik_pomiaru": null,
+      "wynik_pomiaru": [
+        {
+          "zadanie": "S01.01",
+          "data": "2026-10-18",
+          "host": "VM Linux budowania (2 vCPU, 3 GiB, .NET 8.0.32 i 10.0.13) – nie host referencyjny; testy net8/net10 równolegle",
+          "wynik": "Nadzór miejsca (źródło wstrzyknięte w teście): 8% → LOG.DISK_SPACE_LOW DISK_BELOW_LIMIT i tylko Warning+; 12% → DISK_BELOW_WARNING; 50% → LOG.DISK_SPACE_RESTORED. Sprawdzanie co 30 s na wątku workera (DriveInfo). Bezwzględna rezerwa audytu – S06.02.",
+          "dowod": "SUK - Dokumetacja nie gitowa/runner/wyniki/S01.01/vm/testy_koncowe/jsonl/B08_miejsce_*"
+        }
+      ],
       "uwaga": "Bezwzględną rezerwę dla audytu ustala S06.02 z modelu zdarzeń (nie sam procent)."
     },
     {

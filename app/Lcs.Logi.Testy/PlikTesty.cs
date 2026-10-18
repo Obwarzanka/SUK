@@ -37,14 +37,16 @@ public class PlikTesty
     [Fact]
     public void RetencjaWiekuNieDotykaInnychPlikow()
     {
-        var kat = Pom.NowyKatalog("retencja");
+        var rodzic = Pom.NowyKatalog("retencja");       // własny katalog nadrzędny – testy net8/net10 działają równolegle w jednym %TEMP%
+        var kat = Path.Combine(rodzic, "Logs");
+        Directory.CreateDirectory(kat);
         var stare = new[] { "Test-20200101.jsonl", "Test-20200102_001.jsonl" };
         foreach (var f in stare) File.WriteAllText(Path.Combine(kat, f), "{}\n");
         var obce = new[] { "station.json", "projekt.ut.json", "Inny-20200101.jsonl" };
         foreach (var f in obce) File.WriteAllText(Path.Combine(kat, f), "dane właściciela " + f);
         var sumy = obce.ToDictionary(f => f, f => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(kat, f)))));
-        var rodzic = Directory.GetParent(kat).FullName;
-        var przed = Directory.GetFileSystemEntries(rodzic).Length;
+        File.WriteAllText(Path.Combine(rodzic, "station.json"), "obok katalogu logów");
+        var przed = Directory.GetFileSystemEntries(rodzic, "*", SearchOption.AllDirectories).Where(f => !f.StartsWith(kat)).ToList();
 
         var o = Pom.Opcje(kat); o.MaxBajtowPliku = 16 * 1024; o.MaxWiekPliku = TimeSpan.FromDays(7);
         var s = SilnikLogow.Uruchom(o);
@@ -53,7 +55,7 @@ public class PlikTesty
 
         foreach (var f in stare) Assert.False(File.Exists(Path.Combine(kat, f)), $"{f} nie usunięty mimo wieku > 7 dni");
         foreach (var f in obce) Assert.Equal(sumy[f], Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(kat, f)))));
-        Assert.Equal(przed, Directory.GetFileSystemEntries(rodzic).Length);   // nic poza katalogiem logów
+        Assert.Equal(przed, Directory.GetFileSystemEntries(rodzic, "*", SearchOption.AllDirectories).Where(f => !f.StartsWith(kat)).ToList());   // nic poza katalogiem logów
     }
 
     [Fact]
@@ -67,7 +69,7 @@ public class PlikTesty
             var s = SilnikLogow.Uruchom(Pom.Opcje(Path.Combine(rodzic, "Logs")));
             var log = s.Modul("Test.Acl", "1.0.0");
             for (int i = 0; i < 20; i++) ZdarzeniaProcesu.Zatrzymano(log, i);   // emisja nie rzuca i nie czeka
-            SpinWait.SpinUntil(() => s.Stan().WKolejce == 0, 3000);
+            Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgModuluIPowodu.GetValueOrDefault("Test.Acl|SINK_FAILED") == 20, 5000));
             var st = s.Stan();
             Assert.Equal(StanZapisu.Niegotowy, st.Zapis);
             Assert.StartsWith("KATALOG_NIEDOSTEPNY", st.PowodNiegotowosci);
@@ -88,7 +90,7 @@ public class PlikTesty
         var s = SilnikLogow.Uruchom(Pom.Opcje(Pom.NowyKatalog("odzyskanie"), sink));
         var log = s.Modul("Test.Odzyskanie", "1.0.0");
         for (int i = 0; i < 10; i++) ZdarzeniaProcesu.Zatrzymano(log, i);
-        SpinWait.SpinUntil(() => s.Stan().WKolejce == 0, 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgModuluIPowodu.GetValueOrDefault("Test.Odzyskanie|SINK_FAILED") == 10, 5000));
         var awaria = s.Stan();
         Assert.Equal(StanZapisu.Niegotowy, awaria.Zapis);
         Assert.Equal("ZAPIS_NIEUDANY", awaria.PowodNiegotowosci);
@@ -117,10 +119,10 @@ public class PlikTesty
         var s = SilnikLogow.Uruchom(Pom.Opcje(Path.Combine(rodzic, "Logs")));
         var log = s.Modul("Test.Ponowienie", "1.0.0");
         ZdarzeniaProcesu.Zatrzymano(log, 1);
-        SpinWait.SpinUntil(() => s.Stan().WKolejce == 0, 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgModuluIPowodu.GetValueOrDefault("Test.Ponowienie|SINK_FAILED") == 1, 5000));
         File.SetUnixFileMode(rodzic, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         ZdarzeniaProcesu.Zatrzymano(log, 2);
-        SpinWait.SpinUntil(() => s.Stan().WKolejce == 0, 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().StratyWgModuluIPowodu.GetValueOrDefault("Test.Ponowienie|SINK_FAILED") == 2, 5000));
         var st = s.Zatrzymaj();
         Assert.Equal(StanZapisu.Niegotowy, st.Zapis);
         Assert.Equal(2, st.StratyWgModuluIPowodu["Test.Ponowienie|SINK_FAILED"]);
@@ -140,10 +142,10 @@ public class PlikTesty
         ZdarzeniaProcesu.Blad(log, new IOException("x"), "TEST_PROBE");       // Error – przyjęty
         Assert.Equal(1, s.Stan().Przyjete);
         Interlocked.Exchange(ref wolne, 12);
-        SpinWait.SpinUntil(() => s.Stan().Miejsce == StanMiejsca.Ostrzezenie, 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().Miejsce == StanMiejsca.Ostrzezenie, 5000));
         ZdarzeniaProcesu.Zatrzymano(log, 2);
         Interlocked.Exchange(ref wolne, 50);
-        SpinWait.SpinUntil(() => s.Stan().Miejsce == StanMiejsca.Normalny, 3000);
+        Assert.True(SpinWait.SpinUntil(() => s.Stan().Miejsce == StanMiejsca.Normalny, 5000));
         s.Zatrzymaj();
         Pom.Zachowaj(sink.Linie, "B08_miejsce");
         var r = sink.Rekordy();
