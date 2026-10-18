@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Lcs.EdytorZobrazowania</RootNamespace>
+    <AssemblyName>EdytorZobrazowania</AssemblyName>
+    <AssemblyTitle>Edytor zobrazowania LCS</AssemblyTitle>
+    <Product>Edytor zobrazowania LCS</Product>
+    <Version>0.1.0</Version>
+    <StartupObject>Lcs.EdytorZobrazowania.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="Testy\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Model\Lcs.Model.csproj" />
+  </ItemGroup>
+
+</Project>

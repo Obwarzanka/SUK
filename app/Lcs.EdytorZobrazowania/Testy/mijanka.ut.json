@@ -1,0 +1,492 @@
+{
+  "version": 1,
+  "name": "Mijanka testowa",
+  "crs": "EPSG:2180",
+  "drawingScale": 2000,
+  "notes": "",
+  "backgrounds": [],
+  "tracks": [
+    {
+      "id": "aa77aa83",
+      "number": "1",
+      "cat": "gz",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 432836.5955432661,
+          "y": 536983.2743823557,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432836.5955432661,
+            "y": 536983.2743823557,
+            "length": 689709.0367741177
+          }
+        },
+        {
+          "x": 433381.0122077942,
+          "y": 538051.7522475306,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433381.0122077942,
+            "y": 538051.7522475306,
+            "length": 690882.6165412547
+          }
+        }
+      ],
+      "openStart": true,
+      "openEnd": true,
+      "post": "40fde949",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "b7c63689",
+      "number": "2",
+      "cat": "gd",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 432841.04753437097,
+          "y": 536981.0059795869,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 432841.04753437097,
+            "y": 536981.0059795869,
+            "length": 689710.0646021492
+          }
+        },
+        {
+          "x": 433385.46419889905,
+          "y": 538049.4838447617,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433385.46419889905,
+            "y": 538049.4838447617,
+            "length": 690883.6426233506
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "40fde949",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "8b1e836d",
+      "number": "",
+      "cat": "",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 433018.0677647755,
+          "y": 537339.4336707474,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433018.0677647755,
+            "y": 537339.4336707474,
+            "length": 690100.22024945
+          }
+        },
+        {
+          "x": 433025.6056671764,
+          "y": 537354.227637189,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433025.6056671764,
+            "y": 537354.227637189,
+            "length": 690116.469244855
+          }
+        },
+        {
+          "x": 433050.4732832008,
+          "y": 537392.0271543636,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433050.4732832008,
+            "y": 537392.0271543636,
+            "length": 690161.5051999644
+          }
+        },
+        {
+          "x": 433058.011185586,
+          "y": 537406.8211207741,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433058.011185586,
+            "y": 537406.8211207741,
+            "length": 690177.754233756
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "40fde949",
+      "profile": [],
+      "terrain": []
+    },
+    {
+      "id": "39c96ce7",
+      "number": "",
+      "cat": "",
+      "elec": false,
+      "vmax": 0,
+      "vertices": [
+        {
+          "x": 433199.53998628486,
+          "y": 537695.592959139,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433199.53998628486,
+            "y": 537695.592959139,
+            "length": 690491.4135107032
+          }
+        },
+        {
+          "x": 433192.0020838839,
+          "y": 537680.7989926975,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433192.0020838839,
+            "y": 537680.7989926975,
+            "length": 690475.1641260309
+          }
+        },
+        {
+          "x": 433176.0384500689,
+          "y": 537638.4626699844,
+          "r": 190,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433176.0384500689,
+            "y": 537638.4626699844,
+            "length": 690432.1811948222
+          }
+        },
+        {
+          "x": 433168.50054768374,
+          "y": 537623.6687035739,
+          "r": 0,
+          "l": 0,
+          "h": 0,
+          "lockR": false,
+          "lOut": 0,
+          "p": {
+            "x": 433168.50054768374,
+            "y": 537623.6687035739,
+            "length": 690415.9318968666
+          }
+        }
+      ],
+      "openStart": false,
+      "openEnd": false,
+      "post": "40fde949",
+      "profile": [],
+      "terrain": []
+    }
+  ],
+  "turnouts": [
+    {
+      "id": "4bc27723",
+      "number": "1",
+      "type": "Rz 60E1-190-1:9",
+      "track": "aa77aa83",
+      "s": 400.0000000000481,
+      "dir": 1,
+      "side": -1,
+      "zas": "+",
+      "manual": false,
+      "branch": "8b1e836d",
+      "branchAtEnd": false,
+      "partner": "8e0136ac",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "8e0136ac",
+      "number": "2",
+      "type": "Rz 60E1-190-1:9",
+      "track": "b7c63689",
+      "s": 478.2300009649499,
+      "dir": -1,
+      "side": -1,
+      "zas": "+",
+      "manual": false,
+      "branch": "8b1e836d",
+      "branchAtEnd": true,
+      "partner": "4bc27723",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "224a297c",
+      "number": "3",
+      "type": "Rz 60E1-190-1:9",
+      "track": "aa77aa83",
+      "s": 799.9999999999922,
+      "dir": -1,
+      "side": 1,
+      "zas": "+",
+      "manual": false,
+      "branch": "39c96ce7",
+      "branchAtEnd": false,
+      "partner": "3f9a0367",
+      "branchLen": 0,
+      "single": false
+    },
+    {
+      "id": "3f9a0367",
+      "number": "4",
+      "type": "Rz 60E1-190-1:9",
+      "track": "b7c63689",
+      "s": 721.7700015444292,
+      "dir": 1,
+      "side": 1,
+      "zas": "+",
+      "manual": false,
+      "branch": "39c96ce7",
+      "branchAtEnd": true,
+      "partner": "224a297c",
+      "branchLen": 0,
+      "single": false
+    }
+  ],
+  "crossings": [],
+  "devices": [
+    {
+      "id": "05aa182e",
+      "kind": "koziol",
+      "name": "",
+      "track": "b7c63689",
+      "s": 0,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": true
+    },
+    {
+      "id": "b79156e6",
+      "kind": "koziol",
+      "name": "",
+      "track": "b7c63689",
+      "s": 1200,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "",
+      "litOrDefault": " ",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "directed": true
+    },
+    {
+      "id": "977c5e24",
+      "kind": "semafor",
+      "name": "A",
+      "track": "aa77aa83",
+      "s": 150,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "PCZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wjazdowy",
+      "directed": true
+    },
+    {
+      "id": "e92ab358",
+      "kind": "semafor",
+      "name": "B",
+      "track": "aa77aa83",
+      "s": 1050,
+      "dir": -1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "PCZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wjazdowy",
+      "directed": true
+    },
+    {
+      "id": "543b3c4a",
+      "kind": "semafor",
+      "name": "F",
+      "track": "b7c63689",
+      "s": 900,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "PCZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "wyjazdowy",
+      "directed": true
+    },
+    {
+      "id": "71697ed2",
+      "kind": "semafor",
+      "name": "S60",
+      "track": "aa77aa83",
+      "s": 60,
+      "dir": 1,
+      "side": 1,
+      "heads": 3,
+      "lightsOrDefault": "PCZ",
+      "litOrDefault": "C",
+      "mastOrDefault": "prosty",
+      "stripeZ": false,
+      "stripeP": false,
+      "w24": false,
+      "dwarf": false,
+      "funkcja": "odstepowy",
+      "directed": true
+    }
+  ],
+  "sections": [],
+  "platforms": [],
+  "levelCrossings": [],
+  "kmPoints": [
+    {
+      "id": "739feac5",
+      "line": "17",
+      "track": "aa77aa83",
+      "s": 300,
+      "km": 10000,
+      "dir": 1
+    }
+  ],
+  "posts": [
+    {
+      "id": "40fde949",
+      "kod": "MJ",
+      "nazwa": "Mijanka"
+    }
+  ],
+  "lines": [
+    {
+      "id": "b8b3cd5c",
+      "numer": "1A",
+      "linia": "17",
+      "tor": "",
+      "typ": "sbl",
+      "stawnosc": 4,
+      "konce": [
+        {
+          "track": "aa77aa83",
+          "atStart": true,
+          "sasiad": "Andrzejów",
+          "oznaczenie": ""
+        },
+        {
+          "semafor": "977c5e24",
+          "atStart": false,
+          "sasiad": "",
+          "oznaczenie": ""
+        }
+      ],
+      "samoczynna": true
+    },
+    {
+      "id": "bc5e217e",
+      "numer": "2A",
+      "linia": "",
+      "tor": "",
+      "typ": "sbl",
+      "stawnosc": 3,
+      "konce": [
+        {
+          "semafor": "e92ab358",
+          "atStart": false,
+          "sasiad": "",
+          "oznaczenie": ""
+        },
+        {
+          "track": "aa77aa83",
+          "atStart": false,
+          "sasiad": "Olechów",
+          "oznaczenie": ""
+        }
+      ],
+      "samoczynna": true
+    }
+  ],
+  "view": {
+    "x": 432972.69970939815,
+    "y": 537250.3938486495,
+    "mpp": 0.5,
+    "schemat": true,
+    "stretch": 4,
+    "showBg": false
+  },
+  "metresPerSheetMm": 0.5
+}

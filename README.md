@@ -5,6 +5,7 @@ Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowani
 - Obsługa wg **Ie-20**: polecenia, przebiegi, blokady liniowe, postępowanie przy usterkach.
 - Zobrazowanie wg **Ie-104**, wzorowane na pulpitach LCS (EbiScreen / SimRail).
 - Osobny program **edytor układu torowego** (`EdytorUT.exe`) do rysowania układu w rzeczywistej geometrii (PUWG 1992). Etapy 0–7 są gotowe, dane z niego nie trafiają jeszcze do symulatora. Plan: `PLAN_EDYTOR_UT.md`.
+- Osobny program **edytor zobrazowania** (`EdytorZobrazowania.exe`) do rysowania obrazów pulpitu przypiętych do UT – w budowie (szkielet). Plan: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
 - Osobny **kalkulator przechyłki** (`Przechylka.exe`).
 - **Rzeczywisty rozkład jazdy** z GTFS (IC, Polregio, ŁKA) z obiegiem jednostek ŁKA.
 
@@ -218,6 +219,21 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 Peron, Przejazd i km nie mają klawisza – wybiera się je przyciskiem na pasku.
 
 
+## Edytor zobrazowania
+
+Osobny program: `uruchom_edytor_zobrazowania.bat` albo `app/Lcs.EdytorZobrazowania/bin/Release/net8.0-windows/EdytorZobrazowania.exe [plik.zob.json | plik.ut.json]`. Rysuje obrazy pulpitu (wg Ie-104) do projektu UT. Plan i decyzje: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
+
+Stan (etap Z1 – szkielet; rysowania torów i symboli jeszcze nie ma):
+- **UT tylko do odczytu.** Tory, rozjazdy, urządzenia, odcinki i ich nazwy pochodzą z UT. Braki (np. numer zwrotnicy, funkcja semafora, posterunek) poprawia się w edytorze UT, a potem tu „Wczytaj UT ponownie”.
+- **Nowy…** wybiera projekt UT (`*.ut.json`) i tworzy obraz szczegółowy ze wszystkimi posterunkami UT. **Otwórz…** otwiera zobrazowanie (`*.zob.json`); wskazanie pliku `*.ut.json` też zaczyna nowe zobrazowanie. **Zapisz** zapisuje plik obok UT (`widzew.ut.json` → `widzew.zob.json`), poprzednia wersja zostaje jako `.bak`. Jeśli UT zapisano po ostatnim zapisie zobrazowania, program ostrzega przy otwarciu i na pasku stanu.
+- **Zakładki obrazów** (pod paskiem): klik pokazuje obraz, „+ obraz szczegółowy” (posterunki wybierasz w panelu obrazu), „+ obraz poglądowy” (cały obszar, rysowany osobno – Ie-104 § 6).
+- **Panel obiektów UT** (z lewej): obiekty posterunków obrazu po grupach – tory (także szlakowe), rozjazdy, sygnalizatory z funkcją, wykolejnice, kozły, przerwy izolacyjne, odcinki, perony, przejazdy, szlaki. Zielone – są na obrazie, czerwone – brak.
+- **Panel obrazu** (z prawej): nazwa, rodzaj (szczegółowy / poglądowy), posterunki na obrazie (bez posterunku – cały obszar), wymiary w jednostkach obrazu (domyślnie 1920 × 1080, zaokrąglane do siatki), kolejność zakładek ◀ ▶, „Usuń obraz”.
+- **Płótno:** czarne tło jak na pulpicie, siatka co 8 j. (co 40 j. grubsza; „Siatka” na pasku ją ukrywa). Kółko myszy przybliża wokół kursora, przeciąganie lewym albo środkowym przyciskiem przesuwa. „Cały obraz” (Home) i „1:1” (1 j. = 1 piksel). Pasek stanu pokazuje punkt siatki pod kursorem. Siatka, ramka i znacznik kursora są tylko w edytorze, nie na pulpicie.
+- Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S, Ctrl+Z / Ctrl+Y.
+
+Test: `EdytorZobrazowania.exe --test wynik.txt [zrzut.png]` (ostatnia linia `błędów: 0`).
+
 ## Wersje układu
 
 
@@ -279,15 +295,17 @@ symulator/
 ├── HISTORIA_EDYTOR_UT.md      ← szczegółowa historia prac nad edytorem UT
 ├── PODZIAL_MODULOW.md         ← podział symulatora na moduły
 ├── CLAUDE.md, AGENTS.md       ← instrukcje dla agentów AI
-├── uruchom.bat, uruchom_edytor_ut.bat, uruchom_przechylka.bat
+├── PLAN_EDYTOR_ZOBRAZOWANIA.md ← plan i decyzje – edytor zobrazowania
+├── uruchom.bat, uruchom_edytor_ut.bat, uruchom_edytor_zobrazowania.bat, uruchom_przechylka.bat
 ├── archiwum/                  ← stare materiały (PLAN.md v0.5, prototypy)
-├── projekty_ut/               ← projekty układu torowego (*.ut.json)
+├── projekty_ut/               ← projekty układu torowego (*.ut.json) i zobrazowania (*.zob.json)
 ├── Zrodla/                    ← Ie-20, Ie-104, materiały PKP PLK
 ├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), pdfr (strony PDF do PNG)
 ├── zrzuty/                    ← zrzuty ekranu
-├── app/Lcs.slnx               ← rozwiązanie: symulator, model UT, edytor UT
-├── app/Lcs.Model/             ← model układu torowego (tory, rozjazdy, urządzenia, odcinki, kontrola, PUWG 1992) – bez okien
+├── app/Lcs.slnx               ← rozwiązanie: symulator, model UT, edytor UT, edytor zobrazowania
+├── app/Lcs.Model/             ← model układu torowego (tory, rozjazdy, urządzenia, odcinki, posterunki, szlaki, kontrola, PUWG 1992) i zobrazowania (Zob*) – bez okien
 ├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe), katalog rozjazdów i baza symboli w Dane/
+├── app/Lcs.EdytorZobrazowania/ ← edytor zobrazowania (EdytorZobrazowania.exe), dane testowe w Testy/
 ├── app/Lcs.Przechylka/        ← kalkulator przechyłki (Przechylka.exe)
 ├── app/Lcs.Logi/              ← logi techniczne SUK (MEL + Serilog, JSONL, limity, redakcja) i testy w app/Lcs.Logi.Testy/
 └── app/LcsWidzew/             ← symulator C# / WPF (.NET 8)
