@@ -162,11 +162,26 @@ public class TaborPlik
     /// <summary>Katalog wspólny (obok programu, <c>Data/tabor.json</c>) uzupełniony plikiem układu <c>&lt;układ&gt;.tabor.json</c> – wpisy układu zastępują wspólne o tej samej serii / id.</summary>
     public static TaborPlik Wczytaj(string stationPath = null)
     {
-        var wsp = Path.Combine(AppContext.BaseDirectory, "Data", "tabor.json");
+        var wsp = SciezkaWspolna();
         var p = File.Exists(wsp) ? Load(wsp) : new TaborPlik();
         var wl = PlikUkladu(stationPath);
         if (wl != null && File.Exists(wl)) p.Uzupelnij(Load(wl));
         return p;
+    }
+
+    /// <summary>
+    /// Plik wspólny: w repozytorium <c>app/Lcs.Tabor/Data/tabor.json</c> (ten sam, który zapisuje edytor taboru – zmianę widać w symulatorze bez
+    /// przebudowania), poza repozytorium – kopia obok programu <c>Data/tabor.json</c>.
+    /// </summary>
+    public static string SciezkaWspolna()
+    {
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)
+            if (File.Exists(Path.Combine(d.FullName, "PLAN_EDYTOR_TABORU.md")))
+            {
+                var p = Path.Combine(d.FullName, "app", "Lcs.Tabor", "Data", "tabor.json");
+                if (File.Exists(p)) return p;
+            }
+        return Path.Combine(AppContext.BaseDirectory, "Data", "tabor.json");
     }
 
     public static string PlikUkladu(string stationPath) =>

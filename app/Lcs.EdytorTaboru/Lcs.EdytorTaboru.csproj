@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Edytor taboru (PLAN_EDYTOR_TABORU.md, etap B3): pojazdy, charakterystyki F(v), składy z sumami – plik tabor.json z Lcs.Tabor. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Lcs.EdytorTaboru</RootNamespace>
+    <AssemblyName>EdytorTaboru</AssemblyName>
+    <AssemblyTitle>Edytor taboru LCS</AssemblyTitle>
+    <Product>Edytor taboru LCS</Product>
+    <Version>0.1.0</Version>
+    <StartupObject>Lcs.EdytorTaboru.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,6 +1,6 @@
 # Edytor taboru i ruch pociągów z pochyleniami – plan do akceptacji
 
-Projekt z 2026-10-19. **Stan: zaakceptowany 2026-10-19 – wariant B (§ 8), odpowiedzi na pytania § 7 – propozycje agenta (§ 9). B1 zrobiony 2026-10-19 (`HISTORIA_EDYTOR_TABORU.md`), B2 zrobiony 2026-10-19 (jazda w symulatorze z pochyleniami), następny B3 – edytor taboru.**
+Projekt z 2026-10-19. **Stan: zaakceptowany 2026-10-19 – wariant B (§ 8), odpowiedzi na pytania § 7 – propozycje agenta (§ 9). B1 zrobiony 2026-10-19 (`HISTORIA_EDYTOR_TABORU.md`), B2 zrobiony 2026-10-19 (jazda w symulatorze z pochyleniami), B3 zrobiony 2026-10-19 (`EdytorTaboru.exe` – wersja podstawowa), następny B4 – wykresy i podgląd jazdy w edytorze.**
 
 Decyzje właściciela (2026-10-19):
 1. Pochylenia **mają wpływać** na ruch pociągów.
