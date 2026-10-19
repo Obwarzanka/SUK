@@ -453,3 +453,30 @@ Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --st
 ## Stacja testowa
 
 `Data/projekty/stacja_testowa.json` („Testowo”, wybór przy uruchomieniu): tor zasadniczy ze szlakami 1Z (SBL dwukierunkowa, 3 odstępy) i 1W (PBL dwukierunkowa), tory 2 i 3, bocznica 4 (kozioł, wykolejnica Wk1, tarcza Tm1), 5 rozjazdów, semafory A, B, D1–D3, F1–F3, perony, przejazd; plan schematyczny (lekko skośny, skala rzeczywista) i osobne zobrazowanie pulpitu.
+
+---
+
+## Dla następnego agenta – stan po commicie `9c88844` (2026-10-19)
+
+Najpierw przeczytaj `CLAUDE.md`, `ROZWOJ.md` i `PLAN_EDYTOR_UT.md`. Szczegóły tych prac są w `ROZWOJ.md` § 4 („Prędkość przebiegu ustalana ręcznie”) i w `HISTORIA_EDYTOR_UT.md` (wpisy z 2026-10-19).
+
+**Co zrobiono**
+1. **Prędkość przebiegu ustalana ręcznie (symulator `app/LcsWidzew`):**
+   - W „Tablicy przebiegów” jest pole „Prędkość przebiegu”. Zapis: `"v"` w `<układ>.zaleznosci.json` (`ZalPrzebieg.V`).
+   - Dozwolone wartości są w `Zaleznosci.Predkosci`: 40, 50, 60, 70, 80, 100, 120, 130. Pole dotyczy tylko przebiegów pociągowych.
+   - KZ (`KomputerZaleznosci.ApplyRules`): `VSet` bierze najpierw wartość z zależności, a gdy jej brak – z `routeRules[].vmax`. `VSet` **zastępuje** ograniczenia torów i zwrotnic na drodze przebiegu (`Trains.EdgeLimit`). Może być wyższy niż z układu – to decyzja właściciela.
+   - Sygnał dobiera `SignalDef.Dobor` (`Model/Station.cs`): klasa 40, 60 (pas P), 100 (pas Z), a wyższe prędkości przez W21. Gdy brakuje pasa lub W21, semafor podaje sygnał niższy z uwagą. Stan W21 jest w `SigState.W21` (podgląd KZ, `#stan`).
+   - `station.json` przy semaforze: `"stripes"` („P”, „Z”, „PZ”, „”) i `"w21"` („S” – świetlny, cyfra – tablica). Plik bez `"stripes"` działa po staremu.
+2. **Edytor UT / model:**
+   - `UtDevice.W21Swietlny` to pole „świetlny” przy W21 w panelu semafora. Eksport `"stripes"`/`"w21"` robi `Lcs.Model/DoSymulatora.cs`.
+   - Zamiana numerów rozjazdów i skrzyżowań przy zajętym numerze: `Rozjazdy.PlanNumbers` / `ApplyNumbers` (`Lcs.Model/UtTurnout.cs`) i `MainWindow.ApplyNumbers`. Edytor pyta „Zamienić numery?”, a Ctrl+Z cofa całość jednym krokiem.
+   - `MainWindow.CommitPending()` przyjmuje wpis z pola panelu przed zapisem, cofnięciem, „Sprawdź”, otwarciem projektu i zamknięciem. Wcześniej wpis bez Enter przepadał.
+
+**Testy (przeszły):** selftest `station_test.json` 25 z 26 / 4 z 4; `EdytorUT.exe --test` 0 błędów (538 sprawdzeń); `EdytorZobrazowania.exe --test` 0 błędów. Zrzuty: `zrzuty/Tablica_predkosc_przebiegu_*.png`, `zrzuty/Pulpit_predkosc_przebiegu_*.png`, `zrzuty/EdytorUT_zamiana_numerow.png`.
+
+**Nie sprawdzono / do zrobienia**
+- Obsługa prawdziwą myszą (wybór prędkości sprawdzono tylko w trybie zrzutu `#tablica=filtr;v=60`), gra sieciowa.
+- W21 nie jest rysowany na pulpicie ani na planie stacji. Dziś widać go tylko w podglądzie KZ i w `#stan`.
+- Pliki `Data/projekty/*.json` (np. `mijanka_testowa.json`) nie zostały ponownie wyeksportowane, więc nie mają pasów ani W21. Na mijance w UT żaden semafor nie ma pasów ani W21, więc po „Do symulatora…” przebieg 60 da sygnał 40 z uwagą. Pasy i W21 musi wpisać człowiek (zasada: zależności i obrazy projektuje człowiek).
+- Zmiana numeru rozjazdu w UT nie poprawia odwołań w zobrazowaniu. Po zmianie trzeba sprawdzić obraz.
+- Commit nie jest wypchnięty (`git push` dopiero na prośbę właściciela).
