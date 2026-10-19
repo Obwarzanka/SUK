@@ -9,7 +9,8 @@ namespace LcsWidzew.Sim;
 /// Pociąg: <c>t</c> – czas od początku [s], <c>numer</c>, <c>kat</c> (ŁKA, PR, IC, TOW…), <c>ze</c> – szlak, z którego przyjeżdża
 /// (posterunek sąsiedni spoza obszaru), albo <c>odcinek</c> + <c>kierunek</c> (±1 – A→B toru) – pociąg stoi na torze stacyjnym;
 /// <c>na</c> – szlak, na który ma odjechać (puste – kończy bieg); <c>postoj</c> – kody posterunków z postojem (brak – bez postoju,
-/// pusta lista – na każdym peronie); <c>odjazd</c> – czas odjazdu [s]; <c>lok</c> – lokomotywa manewrowa na <c>odcinek</c>.
+/// pusta lista – na każdym peronie); <c>odjazd</c> – czas odjazdu [s]; <c>lok</c> – lokomotywa manewrowa na <c>odcinek</c>;
+/// <c>sklad</c> – id składu z pliku taboru (jazda wg fizyki z pochyleniami, PLAN_EDYTOR_TABORU.md B2; brak – jak dotąd).
 /// </summary>
 public static class RozkladPlik
 {
@@ -33,7 +34,7 @@ public static class RozkladPlik
             {
                 T = Liczba(o["t"]) ?? 1, Num = (string)o["numer"], Cat = (string)o["kat"] ?? "PR", From = (string)o["ze"], To = Pusty((string)o["na"]),
                 StartSec = (string)o["odcinek"], StartDir = (int)(Liczba(o["kierunek"]) ?? 1), Loco = o["lok"] is JsonValue lv && lv.TryGetValue<bool>(out var lb) && lb,
-                Dep = Liczba(o["odjazd"]), Track = (string)o["tor"] ?? "",
+                Dep = Liczba(o["odjazd"]), Track = (string)o["tor"] ?? "", Sklad = Pusty((string)o["sklad"]),
             };
             if (q.Num == null || (q.From == null && q.StartSec == null)) continue;
             if (!Trains.Cats.ContainsKey(q.Cat)) q.Cat = "PR";

@@ -36,3 +36,28 @@ ET22 + 40 × Eaos ładowne (towarowy): 3320 t, 580,8 m, λ 73 % (G), Vmax 100 km
 
 - Regresja: build `Lcs.slnx` Release bez błędów, selftest `station_test.json` 25 z 26 / 4 z 4 (symulator bez zmian w kodzie).
 - Uwagi na B2: symulator ma zmienną klatkę – żeby ruch był powtarzalny, pociąg zbiera czas i liczy tylko pełne kroki 0,1 s (reszta przechodzi na następną klatkę). Na postoju pociąg nie stacza się wstecz (hamulec postojowy) – staczanie nie jest modelowane.
+
+## Etap B2 – jazda w symulatorze z pochyleniami
+
+**ZROBIONE 2026-10-19:**
+- `Lcs.Core` korzysta z `Lcs.Tabor` (warstwa świata; kontrola `--boundary` hosta testowego – OK, bez WPF).
+- **Rozkład:** pole `"sklad"` w `<układ>.rozklad.json` (`TimetableEntry.Sklad`, `RozkladPlik`). Pociąg ze składem dostaje fizykę (`Train.Fiz`, `Train.Jaz`), długość i Vmax ze składu. Nieznany skład – uwaga instruktora i ruch uproszczony. Pociąg bez składu – **jak dotąd** (decyzja § 9 pkt 1).
+- **Plik taboru w symulatorze:** `Trains.Tabor` – `Data/tabor.json` obok programu (kopiowany z `Lcs.Tabor`) uzupełniony `<układ>.tabor.json`.
+- **Ruch (`Sim/TrainsFizyka.cs`, `Trains.MoveFiz`):** kroki stałe 0,1 s z zapasem czasu między klatkami (ruch niezależny od klatki); pochylenie i opór łuku średnie pod całą długością składu (`Edge.Grad` ze znakiem wg kierunku jazdy, `Edge.Radius`); sieć z `elec` toru pod czołem – układ bez żadnego `elec` traktowany jako zelektryfikowany w całości (dzisiejsze pliki nie mają tych danych).
+- **Automatyczny maszynista:** prędkość dozwolona pod składem (tor, zwrotnice, prędkość przebiegu, Sz, manewry) minus 3 km/h; krzywe hamowania służbowego (70 %) do ograniczeń przed czołem i do miejsca zatrzymania z czasem napełniania hamulca i **średnim pochyleniem na drodze hamowania** (na spadku zaczyna hamować wcześniej); ostatnie metry do sygnału „Stój” z ok. 5 km/h; pociąg nigdy nie mija miejsca zatrzymania (ograniczenie drogi jak w ruchu uproszczonym). Zdarzenie „Pociąg … nie może ruszyć – za mała siła pociągowa na wzniesieniu …” / „brak sieci trakcyjnej”.
+- Wspólny kod ruchu: `Trains.Advance` (przesunięcie czoła, nowe kawałki toru, wyjazd z obszaru) – ruch uproszczony bez zmian w zachowaniu.
+- **Tryb zrzutu `#stan`:** przy pociągu ze składem – nazwa składu, masa, pochylenie pod składem, prędkość docelowa maszynisty, siła pociągowa, stopień zahamowania.
+- **Testy** `app/Lcs.Tabor.Testy/JazdaTesty.cs` (rdzeń bez okien, kopia mijanki testowej z pochyleniem toru 1 dopisanym w teście): EN57 pod górę / poziom / z góry, ciężki towarowy na spadku 10 ‰ staje przed A (bez minięcia „Stój”), na wzniesieniu 12 ‰ staje na szlaku i „nie może ruszyć”, pociąg bez składu – ten sam czas niezależnie od pochylenia, nieznany skład – uwaga. Razem z B1: **17 z 17**. Wynik:
+
+```
+EN57, mijanka (kopia z pochyleniem toru 1), od zatrzymania przed A do opuszczenia obszaru przez 1W:
+  pod górę 8 ‰: 144 s
+  poziom: 130 s
+  z góry 8 ‰: 119 s
+Prędkość najwyższa na szlaku przed A: 88 / 88 / 88 km/h
+```
+
+- **Zrzuty pulpitu** (kopia mijanki z pochyleniem ±8 ‰ i rozkładem ze składami EN57 i ET22 + 40 × Eaos): `zrzuty/Pulpit_fizyka_pod_gore_8.png`, `zrzuty/Pulpit_fizyka_z_gory_8.png`. Z `#stan`: EN57 pod górę 48 km/h przy 44 kN po 60 s, z góry 56 km/h; towarowy 3320 t pod górę 8 ‰ po zahamowaniu G luzuje hamulce ok. 50 s i dopiero rusza (360 kN przy oporze ok. 306 kN).
+- Regresja: selftest `station_test.json` 25 z 26 / 4 z 4, KZ na żywo 0 naruszeń, **dziennik zdarzeń identyczny jak przed B2**; `EdytorZobrazowania.exe --test` 0 błędów; `Lcs.Core.TestHost --boundary` OK. `EdytorUT` nie był przebudowany (program był otwarty u właściciela, blokował `Lcs.Model.dll`) – nie zależy od `Lcs.Tabor` ani rdzenia, kod bez zmian.
+- Nie sprawdzono: obsługa prawdziwą myszą (pulpit bez zmian), pliki właściciela (`Data/projekty/*.json`) nie mają `poch` ani `sklad` – jazda wg fizyki tylko tam, gdzie rozkład poda skład. Pochylenia dochodzą przez „Do symulatora…” z niwelety UT.
+

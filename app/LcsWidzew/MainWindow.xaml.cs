@@ -180,7 +180,9 @@ public partial class MainWindow : Window
             if (c == "#stan" && sim != null)
             {
                 var sg = sim.Sigs.Where(kv => kv.Value.Sig is not (null or "" or "S1")).Select(kv => $"{Station.Lbl(kv.Key)} {kv.Value.Sig}" + (kv.Value.W21 > 0 ? $"+W21 {kv.Value.W21}" : ""));
-                var tr = sim.Trains.List.Where(t => !t.Gone).Select(t => $"{t.Num} {t.V * 3.6:0} km/h ({string.Join(" ", t.Segs.Where(s => s.E != null).Select(s => Station.Lbl(station.Edges[s.E].Sec)).Distinct())})");
+                var tr = sim.Trains.List.Where(t => !t.Gone).Select(t => $"{t.Num} {t.V * 3.6:0} km/h ({string.Join(" ", t.Segs.Where(s => s.E != null).Select(s => Station.Lbl(station.Edges[s.E].Sec)).Distinct())})"
+                    // jazda wg fizyki (PLAN_EDYTOR_TABORU.md B2): skład, masa, pochylenie pod składem, prędkość docelowa maszynisty, siła i hamowanie
+                    + (t.Fiz != null ? $" [{t.Fiz.Nazwa}, {t.Fiz.Masa:0} t, {t.IPod:+0.#;-0.#;0} ‰, cel {t.VCel * 3.6:0} km/h, F {t.Jaz.F:0} kN, ham {t.Jaz.H * 100:0} %]" : ""));
                 File.AppendAllText(ShotPath + ".txt", $"@{sim.T:0} sygnały: {string.Join(", ", sg)}; pociągi: {string.Join(", ", tr)}\n");
                 continue;
             }

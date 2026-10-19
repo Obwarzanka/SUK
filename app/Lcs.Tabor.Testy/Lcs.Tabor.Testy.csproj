@@ -19,6 +19,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
+    <!-- B2: jazda w symulatorze (rdzeń bez WPF) -->
+    <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
+    <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

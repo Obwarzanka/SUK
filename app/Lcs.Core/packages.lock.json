@@ -21,6 +21,9 @@
         "type": "Transitive",
         "resolved": "10.0.13",
         "contentHash": "M2pJpnFHrk43r1ukjr7yxVcoPwjGna7Vzt9731iaZjXdADXXIiW5MmMvR/2t4eoimuwICB2W4kLJjesCTB58FA=="
+      },
+      "lcs.tabor": {
+        "type": "Project"
       }
     }
   }

@@ -18,6 +18,14 @@ public class Train
     public Dictionary<string, double> DepBy = new();     // odjazd wg rozkładu na posterunku
     public UnitDuty Duty;                                // jednostka z zaplecza: po wjeździe na tor peronowy staje się pociągiem
     public bool LoggedStuck;
+    /// <summary>Skład z pliku taboru – jazda wg fizyki (Sim/TrainsFizyka.cs); null – ruch uproszczony (stałe przyspieszenie i hamowanie).</summary>
+    public Lcs.Tabor.Pociag Fiz;
+    public Lcs.Tabor.StanJazdy Jaz;
+    /// <summary>Czas jeszcze nie przeliczony fizyką (kroki stałe 0,1 s, reszta przechodzi na następną klatkę).</summary>
+    public double Zapas;
+    /// <summary>Ostatnie wartości do podglądu: pochylenie pod składem [‰], prędkość docelowa maszynisty [m/s].</summary>
+    public double IPod, VCel;
+    public bool LoggedNieRusza;
     public double WaitingSince(double now) => StoppedSince > 0 ? now - StoppedSince : 0;
 }
 
@@ -44,6 +52,8 @@ public class TimetableEntry
     public bool Loco;         // lokomotywa manewrowa
     public string Name, Veh;  // nazwa pociągu, pojazd (rozkład rzeczywisty)
     public double? Len;
+    /// <summary>Id składu z pliku taboru (<c>tabor.json</c>); null – ruch uproszczony jak dotąd.</summary>
+    public string Sklad;
     public HashSet<string> StopAt;
     public Dictionary<string, double> DepBy;
     public UnitDuty Duty;
@@ -99,6 +109,7 @@ public partial class Trains
         };
         if (q.Len is double ln) t.Len = ln;
         if (q.DepBy != null) t.DepBy = new(q.DepBy);
+        Fizyka(t, q.Sklad);
         List.Add(t);
         return t;
     }
@@ -107,7 +118,7 @@ public partial class Trains
     public void SpawnFromSzlak(TimetableEntry q)
     {
         var b = S.L.Blocks[q.From]; int inward = -b.Ends[0].Outward;
-        var t = NewTrain(q); t.V = t.VMax * 0.8;
+        var t = NewTrain(q); t.V = t.VMax * 0.8; if (t.Jaz != null) t.Jaz.V = t.V;
         t.Segs.Add(new Seg { E = null, From = null, To = b.Far, Len = t.Len + 5, Dir = inward });
         t.Head = t.Len + 5;
         S.Log("Ruch", $"Pociąg {t.Num} ({t.Cat}) wyprawiony z posterunku {b.Nbr} na szlak {q.From}", "Pociąg", t.Num);
@@ -296,6 +307,12 @@ public partial class Trains
             return;
         }
         var la = Lookahead(t);
+        if (t.Fiz != null)
+        {
+            // jazda wg fizyki: ruch odbywa się w krokach 0,1 s w MoveFiz; tu tylko obsługa postoju jak w ruchu uproszczonym
+            la = MoveFiz(t, dt, la);
+            if (t.Gone || !(t.V < 0.05 && la.D < 1)) return;
+        }
         double vmax = t.VMax;
         if (t.SzLimit) vmax = Math.Min(vmax, VSz / 3.6);
         if (t.Shunt) vmax = Math.Min(vmax, VShunt / 3.6);
@@ -303,7 +320,7 @@ public partial class Trains
         vt = Math.Min(vt, vmax);
         vt = Math.Min(vt, SpeedLimit(t));
         if (la.D < 0.5) vt = 0;
-        t.V = Math.Min(t.V + Acc * dt, vt);
+        if (t.Fiz == null) t.V = Math.Min(t.V + Acc * dt, vt);
         if (t.V < 0.05 && la.D < 1)
         {
             if (t.V > 0 || t.StoppedSince <= 0) t.StoppedSince = S.T;
@@ -330,6 +347,12 @@ public partial class Trains
         t.WaitingAt = null;
         double mv = t.V * dt;
         if (double.IsFinite(la.D)) mv = Math.Min(mv, Math.Max(0, la.D));
+        Advance(t, mv);
+    }
+
+    /// <summary>Przesunięcie czoła o mv [m]: nowe kawałki toru przed czołem, zdjęcie przejechanych za końcem, wyjazd na szlak poza obszar.</summary>
+    void Advance(Train t, double mv)
+    {
         t.Head += mv;
         for (int g = 0; g < 10 && t.Head > Total(t); g++)
             if (!Extend(t)) { t.Head = Total(t); t.V = 0; break; }
