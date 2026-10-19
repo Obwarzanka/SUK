@@ -2,7 +2,7 @@
   "kontrakt": "stos.wersje",
   "wersja": 1,
   "status": "zamrozony",
-  "data_weryfikacji": "2026-10-18",
+  "data_weryfikacji": "2026-10-19",
   "znaczenie_statusow": {
     "zamrozony": "punkt wyjścia dla kolejnych zadań; zmiana tylko osobnym zadaniem z testami zgodności/ABI/migracji",
     "kandydat": "wersja zaobserwowana, wybór należy do wskazanego etapu",
@@ -18,16 +18,17 @@
   "aktywne_pliki": {
     "sdk": "app/global.json",
     "nuget": "app/Directory.Packages.props",
-    "zrodla_nuget": "app/nuget.config"
+    "zrodla_nuget": "app/nuget.config",
+    "runtime_i_jezyk": "app/Directory.Build.props"
   },
   "dotnet": {
     "sdk": {
       "wersja": "10.0.402",
-      "rollForward": "latestFeature",
+      "rollForward": "disable",
       "allowPrerelease": false,
       "wydanie": "2026-10-13",
       "poprawka_bezpieczenstwa": true,
-      "znaczenie": "minimum 10.0.402; dozwolone nowsze pasma 10.0.x; SDK 10 buduje też obecne projekty net8.0-windows",
+      "znaczenie": "Dokładnie SDK 10.0.402; wszystkie 10 projektów app/Lcs.slnx net10.0 lub net10.0-windows. Zmiana SDK wymaga ponownego odbioru locków i regresji.",
       "test_runner": "Microsoft.Testing.Platform (global.json: test.runner) – wymagane przez xunit.v3 4.x przy dotnet test na SDK 10"
     },
     "runtime_docelowy": {
@@ -39,14 +40,15 @@
       "wydanie": "2026-10-13"
     },
     "runtime_obecny": {
-      "wersja": "8.0.32",
-      "tfm": "net8.0-windows / net8.0",
-      "wsparcie_do": "2026-11-10",
-      "migracja": "S01.03"
+      "wersja": "10.0.13",
+      "tfm": "net10.0-windows / net10.0",
+      "wsparcie_do": "2028-11-14",
+      "migracja": "S01.03 odtworzony 2026-10-19 na HEAD de06f192b80133bcc6c6a8783f553c6ed1340c63",
+      "polityka": "RuntimeFrameworkVersion 10.0.13 / RollForward LatestPatch: minimum 10.0.13, tylko poprawki 10.0.x. Przy self-contained dokładna paczkowana wersja."
     },
     "csharp": {
       "docelowo": "C# 14 – domyślny dla net10.0; nie ustawiamy LangVersion=latest",
-      "obecnie": "C# 12 – domyślny dla net8.0; bez zmian w S00.03"
+      "obecnie": "C# 14.0 przypięty w app/Directory.Build.props."
     }
   },
   "nuget": {

@@ -1,5 +1,7 @@
 # Plan rozwoju – dla agentów AI i programistów
 
+**Odtworzenie S01.03, 2026-10-19:** aktualny HEAD `de06f19` ma 10 projektów, nowe zobrazowanie i zależności specjalne. Migrację odtworzono na tym kodzie: .NET 10 / C# 14, SDK dokładnie 10.0.402, runtime minimum 10.0.13 (poprawki 10.0.x), 10 locków i pięć launcherów. Zachowano nowsze funkcje; poprawiono również uruchamianie aktualnego symulatora z edytora zobrazowania. Świeża baza .NET 8 z tego samego HEAD: 36/36 zgodnych porównań; selftest 25/26, zależności 4/4 i specjalne 7/7; UT 520/0, zobrazowanie 137/0, Przechyłka 10/10, Komputerownia 16/16. Logi i ograniczenia: `SUK_plan_multiplayer/raporty/S01.03.md`; B05 nie jest stabilnie spełniony. Stare artefakty S01.03 są historyczne. Nowe dowody: `artifacts/2026-10-19-S01.03-odtworzenie/`. Następcy S02.01/S03.01 pozostają osobnymi zleceniami.
+
 Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest **źródłem prawdy o kierunku prac** i ma pierwszeństwo przed przestarzałym `archiwum/PLAN.md` (v0.4–0.5).
 
 Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT), `PLAN_EDYTOR_ZOBRAZOWANIA.md` (etap 8 – edytor zobrazowania, zaakceptowany 2026-10-17), `HISTORIA_EDYTOR_UT.md` (szczegółowe opisy zrobionych prac nad edytorem UT i kalkulatorem przechyłki), `PODZIAL_MODULOW.md` (podział `Simulator` na moduły), `README.md` (obsługa programów).
@@ -19,7 +21,7 @@ Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako 
 **Ogólny symulator szkoleniowy komputerowych urządzeń srk w Lokalnych Centrach Sterowania (LCS)** – pulpitów EbiScreen i komputerów zależności EBILock – wg instrukcji PKP PLK **Ie-20** (obsługa) i **Ie-104** (zobrazowanie).
 
 - Pierwszy obszar to LCS Łódź Widzew (ŁW, ŁF, ŁN), ale **nie jest to symulator jednej stacji**. W kodzie nie zaszywa się nazw stacji, kodów posterunków (LW/LF/LN) ani tytułów. Wszystko pochodzi z wczytanego układu (`station.json`).
-- Aplikacja na Windows: C# / WPF / .NET 8, w `app/LcsWidzew/` (nazwa katalogu historyczna).
+- Aplikacja na Windows: C# 14 / WPF / .NET 10, w `app/LcsWidzew/` (nazwa katalogu historyczna).
 - Właściciel jest praktykiem (dyżurny ruchu / srk). Wymaga realizmu, a wzorem wyglądu jest SimRail LCS i EbiScreen. Gdy czegoś nie wiesz o zasadach lub symbolach – **pytaj właściciela**, nie zgaduj.
 
 ## 2. Zasady pracy (ustalenia z właścicielem – obowiązują)
@@ -79,7 +81,7 @@ Moduły wydzielone z `Simulator` (etap 7, kroki 1–3; `Simulator` tworzy je w k
 
 Pozostałe elementy:
 - **Rdzeń bez WPF (S01.02):** `app/Lcs.Core` linkuje `LcsWidzew/Model` i `LcsWidzew/Sim` poza `SelfTest`; WPF ma `ProjectReference` i wyłącza te źródła ze swojej kompilacji. Biblioteka zna wyłącznie BCL i MEL Abstractions. `SimulatorOptions` przekazuje katalog rozkładu i logger, `Station.SourcePath` (bez serializacji) pozwala ustalić domyślny katalog. `App.Core.cs` jest adapterem WPF do istniejących logów. `app/Lcs.Core.TestHost` to neutralny runner wspólnego `SelfTest`, kontroli adapterów i porównania pełnych dzienników. Sieć/Dispatcher pozostają w aplikacji WPF; dotychczasowe KZ i algorytmy nie są w tym kroku przepisywane.
-- **Logi techniczne (S01.01, plan MP rozdz. 25):** `app/Lcs.Logi` (net8.0/net10.0) – moduły dostają `ILogger` (MEL) przez `Diagnostyka.Modul(moduleId, wersja)`; most Serilog kieruje zdarzenia do jednego ujścia w pamięci (lista dozwolonych pól, redakcja, ograniczona kolejka 1024 rekordy / 2 MiB, `TryWrite` bez czekania), osobny wątek zapisuje JSONL przez Serilog.Sinks.File + CompactJsonFormatter (rotacja, retencja, nadzór miejsca). Kody zdarzeń w `kontrakty/logi/katalog_zdarzen_v1.json` (definicje `DefinicjaZdarzenia` + `[LoggerMessage]`). W symulatorze: `App` (start/stop/błędy), `Rejestrator` → `Sim/ZdarzeniaRejestratora.cs` (kopia wpisu bez treści). Nowy moduł: własny podzakres/kody w katalogu, logger przez `Diagnostyka.Modul`, test limitów i redakcji. Testy: `app/Lcs.Logi.Testy` (xUnit v3).
+- **Logi techniczne (S01.01, plan MP rozdz. 25):** `app/Lcs.Logi` (net10.0) – moduły dostają `ILogger` (MEL) przez `Diagnostyka.Modul(moduleId, wersja)`; most Serilog kieruje zdarzenia do jednego ujścia w pamięci (lista dozwolonych pól, redakcja, ograniczona kolejka 1024 rekordy / 2 MiB, `TryWrite` bez czekania), osobny wątek zapisuje JSONL przez Serilog.Sinks.File + CompactJsonFormatter (rotacja, retencja, nadzór miejsca). Kody zdarzeń w `kontrakty/logi/katalog_zdarzen_v1.json` (definicje `DefinicjaZdarzenia` + `[LoggerMessage]`). W symulatorze: `App` (start/stop/błędy), `Rejestrator` → `Sim/ZdarzeniaRejestratora.cs` (kopia wpisu bez treści). Nowy moduł: własny podzakres/kody w katalogu, logger przez `Diagnostyka.Modul`, test limitów i redakcji. Testy: `app/Lcs.Logi.Testy` (xUnit v3).
 - **Sieć:** `Net/LcsNet.cs` – `LcsServer` przy komputerze zależności i `RemoteSession` na stanowisku. JSON w liniach przez TCP, port 47120.
 - **Model układu (symulator):** `Model/Station.cs` – wczytany `station.json`, tylko do odczytu. Nowy model UT: `app/Lcs.Model` (`UtProject`, `UtDocument`, `Geo`).
 - **Edytor układu torowego:** osobny program `app/Lcs.EdytorUT` (`EdytorUT.exe`), plan w `PLAN_EDYTOR_UT.md`, historia prac w `HISTORIA_EDYTOR_UT.md`. W symulatorze nie ma już edytora.
@@ -87,10 +89,10 @@ Pozostałe elementy:
   - `Lcs.EdytorUT`: `MainWindow*.cs` (okno, panele), `UtView*.cs` (płótno i narzędzia), `LivePreview`, `Pobieranie`, `ImageCache`, `TileMapWindow`, `ProfilWindow`, `Eksport`, `SymbolPainter`, dane w `Dane/` (`rozjazdy.json`, `symbole_ig10.json`), test w `Test*.cs`.
 - **Kalkulator przechyłki:** osobny program `app/Lcs.Przechylka` (`Przechylka.exe`), na razie niezależny od edytora.
 - **Podgląd komputera zależności:** `UI/KzWindow.cs` (przebiegi, utwierdzenia, liczniki czasu, blokady, łącze).
-- **Testy bez okna** (z `bin/Release/net8.0-windows`):
+- **Testy bez okna** (z `bin/Release/net10.0-windows`):
   - `--selftest out.txt` – scenariusz z automatycznym dyżurnym (postęp w `out.txt.postep`);
   - `--screenshot p.png 3 "#page=1" "E S1 Pociąg"` – zrzut pulpitu (też `#serve=`, `#join=`, `#fault=`, `#start=`, `#via=`, `#kz=`).
-  - edytor UT: `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe --test wynik.txt [zrzut.png]`, oczekiwane „błędów: 0”.
+  - edytor UT: `app/Lcs.EdytorUT/bin/Release/net10.0-windows/EdytorUT.exe --test wynik.txt [zrzut.png]`, oczekiwane „błędów: 0”.
   - Selftest uruchamiaj na stałej kopii testowej: `--station app/LcsWidzew/Testy/station_test.json` (kopia układu z 2026-10-15; `Data/kopie/` rotuje się – trzyma 30 ostatnich zapisów).
   - Scenariusz selftestu (`SelfTest.Run`) nie zna nazw stacji: z tablicy przebiegów bierze po jednym przebiegu wyjazdowym na każdy szlak (z Wbl i Pzk), po jednym wjeździe z każdego semafora wjazdowego i jeden manewr. Każdy przebieg czeka na sygnał zezwalający, potem jest zwalniany (ZDP/ZDM). Do tego kontrola zależności: drugi przebieg z zajętego sygnalizatora musi zostać odrzucony. Wynik w linii `WYNIK:`, braki w liniach `NIE NASTAWIONO` z przyczyną.
   - Na kopii testowej oczekiwane: **`nastawione 25 z 26`, `kontrola zależności 4 z 4`**, `OCHRONA BOCZNA … kontrola 4 z 4`, `ZALEŻNOŚCI SPECJALNE: kontrola 7 z 7`, `KARTY ZWROTNIC: kontrola 8 z 8`, `SYGNAŁY: kontrola 9 z 9`, `ZASILANIE: kontrola 8 z 8`, `PIP: numer w oknie pociągu 1526 z 1526`, `KONTROLA KZ NA ŻYWO: … naruszeń: 0`, `wykrywanie celowych naruszeń: 2 z 2`. Jedyny brak – 2A: odstęp 2A-1 zajęty przez pociąg z rozkładu (prawidłowe odrzucenie Wbl).
@@ -117,7 +119,7 @@ Model danych `station.json`:
 
 ### Plan multiplayer – S01 (podkroki)
 
-S01.01 (fundament logów) i S01.02 (wspólny rdzeń bez WPF) mają osobne raporty odbioru w `SUK_plan_multiplayer/raporty/`. S01.02 obejmuje bibliotekę używaną przez pulpit i neutralny host oraz pełną regresję wszystkich aplikacji. S01 jako całość nadal wymaga S01.03 – migracji runtime. Kolejne ID wykonuje się po osobnym zleceniu; aktualny wynik i minimalny kontekst są w `raporty/S01.02.md`. Dalsze granice KZ/Ada i hosta pozostają według zatwierdzonego planu.
+S01.01, S01.02 i odtworzony S01.03 mają raporty w `SUK_plan_multiplayer/raporty/`. Bieżąca migracja obejmuje wszystkie 10 projektów na HEAD de06f19, nowy edytor zobrazowania i zachowane zależności specjalne. Starsze artefakty S01.03 nie stanowią odbioru nowszego kodu. Aktualny wynik i minimalny kontekst: `raporty/S01.03.md`; następcy S02.01 i S03.01 wymagają osobnego zlecenia. Granice KZ/Ada i hosta pozostają według planu.
 
 ### Etap 1 – Edytor układu torowego od nowa (od 2026-10-16)
 Decyzja właściciela (2026-10-16): edytory UT i zobrazowania budujemy od nowa jako osobne programy. Stare usunięte, bez przerabiania. **Plan, decyzje i etapy: `PLAN_EDYTOR_UT.md`** (XYZ w PUWG 1992, dwa widoki skali, parabola 3°, katalog rozjazdów KZN + `Zrodla/rozjazdy_1.pdf`, wysokości z NMT).

@@ -1,5 +1,7 @@
 # Nowy edytor układu torowego (UT) – plan
 
+**Stan techniczny po odtworzeniu S01.03 (2026-10-19):** wszystkie 10 projektów, w tym oba edytory, model UT i kalkulator, mają .NET 10 / C# 14. SDK dokładnie 10.0.402, runtime minimum 10.0.13 z poprawkami 10.0.x; pięć launcherów buduje i uruchamia przez ten sam lokalny/systemowy `dotnet`. Na bieżącym HEAD `de06f19` zbudowano świeżą bazę .NET 8 i przebadano całość po migracji: UT **520 OK, błędów: 0**, zobrazowanie **137 OK, błędów: 0**, geometria/formaty zachowane. Wcześniejsze artefakty dotyczą starszego kodu. Szczegóły, jawne różnice usług mapowych i ograniczenia: `SUK_plan_multiplayer/raporty/S01.03.md`; bieżące dowody `artifacts/2026-10-19-S01.03-odtworzenie/`. Migracja nie dodaje nowych funkcji UT ani zobrazowania.
+
 Projekt z 2026-10-16, po decyzji właściciela: edytory UT i zobrazowania budujemy od nowa, jako osobne aplikacje. Zaczynamy od UT. Starych edytorów nie przerabiamy, tylko je usuwamy (zostają w historii git).
 
 Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT do modułów symulatora.**

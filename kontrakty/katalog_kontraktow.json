@@ -111,15 +111,15 @@
       "rozdzialy": [
         "20"
       ],
-      "opis": "SDK 10.0.402 (global.json), CPM z 29 wersjami pakietów (w tym 3 przypięte przechodnie dla poprawek bezpieczeństwa), źródło nuget.org z mapowaniem, PostgreSQL 18, kandydaci S10/S12/S13.",
+      "opis": "SDK dokładnie 10.0.402; wspólny runtime minimum 10.0.13/LatestPatch i C#14; CPM z przypiętymi wersjami i lockami wszystkich10projektów; NuGet z mapowaniem. Pozostałe technologie wdrażane zgodnie z planem.",
       "pliki": [
         {
           "plik": "kontrakty/stos/wersje_stosu.json",
-          "sha256_lf": "ff45f4b17264510c4e1584fe10e9cdb8e07a3d00fb5ac0100bf2f2ceb915e727"
+          "sha256_lf": "577a8c89027f3fffbb4f03c89ec98f4dd37be8ff9031d4e99720fec4ef8d47f6"
         },
         {
           "plik": "app/global.json",
-          "sha256_lf": "71e8cdb6d581b3ddcb6c6737c319820058eba6674b4905e3cbcd9f42ab217db6"
+          "sha256_lf": "ab4eed8da9aaee0671a10b49fe4ff1b27b3341b264f317ee88785607c0711e9a"
         },
         {
           "plik": "app/Directory.Packages.props",
@@ -128,6 +128,10 @@
         {
           "plik": "app/nuget.config",
           "sha256_lf": "f90f7c39a006e496a30ca7e3765f72793cc8c81c8203fbafd5d71fd81b16e140"
+        },
+        {
+          "plik": "app/Directory.Build.props",
+          "sha256_lf": "ed3efb756f8b29c2d5df95fa0724e1e7d06af0e32b8604c8b46ac47d6336ea27"
         }
       ]
     },
@@ -197,11 +201,11 @@
       "rozdzialy": [
         "20"
       ],
-      "opis": "Stan net8 framework-dependent; docelowo klient self-contained win-x64 (testy po net10 bez runtime u właściciela – decyzja S01.03), serwer jako usługi Windows.",
+      "opis": "Stan po odtworzeniu S01.03:10projektów net10 framework-dependent,5launcherów z lokalnym SDK. Docelowe self-contained, serwer i usługi mają osobny odbiór.",
       "pliki": [
         {
           "plik": "kontrakty/profile/profil_wdrozenia_v1.json",
-          "sha256_lf": "c4921a6fd4bd712157063d05dd15bf4f96d074fd5c47b3cc8d86ebb2572ecee1"
+          "sha256_lf": "992f4cd847a21ee42f317fc6d5e8869200d761f8457bcff37b704b2fca58bf2a"
         }
       ]
     },

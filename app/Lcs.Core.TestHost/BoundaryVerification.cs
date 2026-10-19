@@ -13,7 +13,7 @@ internal static class BoundaryVerification
     {
         var core = typeof(Simulator).Assembly;
         string target = core.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
-        if (target != ".NETCoreApp,Version=v8.0") throw new InvalidOperationException("Rdzeń nie ma neutralnego celu .NET 8: " + target);
+        if (target != ".NETCoreApp,Version=v10.0") throw new InvalidOperationException("Rdzeń nie ma neutralnego celu .NET 10: " + target);
         var visited = new SortedSet<string>(StringComparer.Ordinal);
         var pending = new Queue<Assembly>();
         pending.Enqueue(core);
@@ -32,14 +32,15 @@ internal static class BoundaryVerification
         using (var document = JsonDocument.Parse(File.ReadAllText(runtimeConfig)))
         {
             var options = document.RootElement.GetProperty("runtimeOptions");
-            if (options.GetProperty("tfm").GetString() != "net8.0") throw new InvalidOperationException("Host wymaga celu net8.0.");
+            if (options.GetProperty("tfm").GetString() != "net10.0") throw new InvalidOperationException("Host wymaga celu net10.0.");
             if (File.ReadAllText(runtimeConfig).Contains("WindowsDesktop", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Host wymaga WindowsDesktop.");
         }
         var report = new StringBuilder();
         report.AppendLine("GRANICA RDZENIA: OK");
         report.AppendLine("TargetFramework rdzenia: " + target);
-        report.AppendLine("TargetFramework hosta: net8.0; WindowsDesktop: brak");
+        report.AppendLine("TargetFramework hosta: net10.0; WindowsDesktop: brak");
+        report.AppendLine("Uruchomiony runtime: " + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
         report.AppendLine("Sprawdzone referencje przechodnie rdzenia: " + visited.Count);
         foreach (string assembly in visited) report.AppendLine("  " + assembly);
         return report.ToString();

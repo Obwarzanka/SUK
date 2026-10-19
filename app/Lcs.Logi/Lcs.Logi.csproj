@@ -4,13 +4,12 @@
     Fundament logów SUK (S01.01, rozdział 25 planu): adapter Microsoft.Extensions.Logging -> Serilog,
     redakcja i lista dozwolonych pól, ograniczona kolejka w pamięci i osobny worker plików JSONL
     (Serilog.Sinks.File + CompactJsonFormatter). Wersje pakietów: app/Directory.Packages.props (CPM).
-    net8.0 – obecne aplikacje; net10.0 – docelowy runtime (S01.03).
+    net10.0 – wspólny runtime aplikacji po migracji S01.03.
   -->
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>12</LangVersion>
     <RootNamespace>Lcs.Logi</RootNamespace>
     <AssemblyTitle>Logi i diagnostyka SUK</AssemblyTitle>
     <Product>SUK</Product>

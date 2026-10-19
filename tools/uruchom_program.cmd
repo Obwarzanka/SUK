@@ -20,8 +20,8 @@ echo Budowanie aktualnej wersji %SUK_EXE%...
 set "SUK_RESULT=%errorlevel%"
 if not "%SUK_RESULT%"=="0" goto build_failed
 
-rem Apphost uruchamia program na systemowym Desktop Runtime 8; SDK jest tylko do budowania.
-start "" /wait "%CD%\%SUK_PROJECT%\bin\Release\net8.0-windows\%SUK_EXE%.exe" %*
+rem Ten sam dotnet buduje i uruchamia DLL, takze z lokalnym runtime bez instalacji systemowej.
+start "" /wait "%SUK_DOTNET%" "%CD%\%SUK_PROJECT%\bin\Release\net10.0-windows\%SUK_EXE%.dll" %*
 set "SUK_RESULT=%errorlevel%"
 if not "%SUK_RESULT%"=="0" goto run_failed
 popd
@@ -30,7 +30,7 @@ exit /b 0
 :sdk_missing
 echo.
 echo Nie znaleziono SDK wymaganego przez app\global.json.
-echo Zainstaluj .NET SDK 10.0.402 lub zgodne nowsze SDK 10.
+echo Zainstaluj dokladnie .NET SDK 10.0.402 wskazane przez app\global.json.
 echo https://dotnet.microsoft.com/download/dotnet/10.0
 echo Obslugiwana jest tez lokalna kopia SDK w .tools\dotnet.
 set "SUK_RESULT=1"

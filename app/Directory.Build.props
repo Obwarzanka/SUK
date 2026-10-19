@@ -1,0 +1,13 @@
+<Project>
+  <!-- Wspólne środowisko wszystkich aplikacji i bibliotek SUK (S01.03).
+       SDK przypina global.json; pakiety i ich graf przypinają CPM i locki. -->
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <!-- Framework-dependent: minimum 10.0.13, tylko poprawki 10.0.x.
+         Przy przyszłym self-contained to dokładna paczkowana wersja runtime,
+         wymagająca aktualizacji przy wydaniu poprawek bezpieczeństwa. -->
+    <RuntimeFrameworkVersion>10.0.13</RuntimeFrameworkVersion>
+    <RollForward>LatestPatch</RollForward>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
