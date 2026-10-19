@@ -8,7 +8,8 @@ namespace Lcs.EdytorUT;
 
 /// <summary>
 /// Test usuwania kawałka toru i zaznaczania kilku elementów, jak użytkownik: tor prosta – łuk R 500 – prosta klikami, liczniki osi;
-/// menu PPM toru: „Usuń ten kawałek” (łuk) i „Rozetnij tor tutaj”; Ctrl + klik dwóch liczników + Del; Shift + prostokąt + Del; Esc.
+/// menu PPM toru: „Usuń ten kawałek” (łuk) i „Rozetnij tor tutaj” (na prostej i w łuku); Ctrl + klik dwóch liczników + Del;
+/// Shift + prostokąt + Del; Esc; Shift + klik dwóch torów i Ctrl+J (styk, wstawka z łukami odwrotnymi); szybkość przy 400 torach.
 /// </summary>
 public static partial class Test
 {
@@ -58,10 +59,9 @@ public static partial class Test
         Ok(d.P.Tracks.Count == 1 && d.P.Devices.Count == 3, "Ctrl+Z – tor i liczniki wróciły");
 
         // --- „Rozetnij tor tutaj” na prostej km 150; w łuku – niedostępne
-        cm = w.BuildTrackMenu(t.Id, sArc);
-        Ok(cm.Items.OfType<MenuItem>().First(x => x.Header as string == "Rozetnij tor tutaj").IsEnabled == false, "w łuku „Rozetnij tor tutaj” wyłączone (wielobok styczny nie zaczyna się w łuku)");
+        MenuItem CutItem(ContextMenu m) => m.Items.OfType<MenuItem>().First(x => (x.Header as string)?.StartsWith("Rozetnij tor tutaj") == true);
         cm = w.BuildTrackMenu(t.Id, 150);
-        cm.Items.OfType<MenuItem>().First(x => x.Header as string == "Rozetnij tor tutaj").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        CutItem(cm).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         tB = d.P.Tracks.FirstOrDefault(x => x.Id != t.Id); rA = w.View.Geometry(d.P.Tracks.First(x => x.Id == t.Id)); rB = tB != null ? w.View.Geometry(tB) : null;
         Ok(d.P.Tracks.Count == 2 && Math.Abs(rA.Length - 150) < 0.01 && Math.Abs(rA.Length + rB.Length - r.Length) < 0.01 && XY.Dist(rA.At(rA.Length).P, rB.At(0).P) < 1e-6
             && d.P.Devices.Count(x => x.Track == tB.Id) == 2,
@@ -97,6 +97,79 @@ public static partial class Test
         UtView.TestMods = ModifierKeys.Shift; w.View.SimDrag(p0, p1); UtView.TestMods = ModifierKeys.None;
         w.View.SimClick(new Point(5, 5));
         Ok(w.View.Multi.Count == 0, "zwykły klik obok – koniec zaznaczenia kilku");
+
+        // --- „Rozetnij tor tutaj” w środku łuku: łuk dzieli się na dwa, kształt bez zmian; licznik lo2 (w miejscu cięcia) na nowym torze
+        cm = w.BuildTrackMenu(t.Id, sArc);
+        Ok(CutItem(cm).IsEnabled, $"w łuku „{CutItem(cm).Header}” dostępne");
+        CutItem(cm).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        tA = d.P.Tracks.First(x => x.Id == t.Id); tB = d.P.Tracks.FirstOrDefault(x => x.Id != t.Id);
+        rA = w.View.Geometry(tA); rB = tB != null ? w.View.Geometry(tB) : null;
+        double shape = rB == null ? 99 : new[] { 0.0, 10, 50, 100, rB.Length }.Max(x => XY.Dist(rB.At(x).P, r.At(sArc + x).P));
+        Ok(d.P.Tracks.Count == 2 && Math.Abs(rA.Length - sArc) < 0.01 && Math.Abs(rA.Length + rB.Length - r.Length) < 0.01 && shape < 1e-3 && rA.Notes.Count == 0 && rB.Notes.Count == 0,
+            $"rozcięty w łuku km {sArc:0.00}: {rA.Length:0.00} + {rB?.Length:0.00} m, kształt bez zmian (odchyłka {shape * 1000:0.###} mm) – {w.LastMessage}");
+        Ok(d.P.Devices.Count(x => x.Track == tB?.Id) == 2 && d.P.Devices.Any(x => x.Name == "lo3" && Math.Abs(x.S - (sAfter - sArc)) < 0.01), "lo2 i lo3 na nowym torze, km od jego początku");
+
+        // --- Shift + klik obu części, Ctrl+J – z powrotem jeden tor, urządzenia na swoich miejscach
+        w.View.FitPoints(new[] { a, o, e30, c });
+        UtView.TestMods = ModifierKeys.Shift;
+        w.View.SimClick(S(rA.At(50).P)); w.View.SimClick(S(rB.At(rB.Length - 50).P));
+        UtView.TestMods = ModifierKeys.None;
+        Ok(w.View.Multi.Count == 2 && w.View.InMulti(Kontrola.KTor, tA.Id) && w.View.InMulti(Kontrola.KTor, tB.Id)
+            && Find<Button>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Połącz tory (2)") == true) != null,
+            $"Shift + klik dwóch torów – zaznaczone {w.View.Multi.Count}, w panelu „Połącz tory (2)”");
+        var cmJ = w.BuildTrackMenu(tA.Id, 50);
+        Ok(cmJ.Items.OfType<MenuItem>().Any(x => (x.Header as string)?.StartsWith("Połącz zaznaczone tory (2)") == true), "PPM na zaznaczonym torze: „Połącz zaznaczone tory (2)”");
+        Ok(w.JoinSelected(), $"Ctrl+J: {w.LastMessage}");
+        var tj = d.P.Tracks.SingleOrDefault(); var rj = tj != null ? w.View.Geometry(tj) : null;
+        Ok(tj?.Id == t.Id && tj.Number == "7" && Math.Abs(rj.Length - r.Length) < 0.01 && rj.Notes.Count == 0 && new[] { 0.0, 200, sArc, 500, r.Length }.All(x => XY.Dist(rj.At(x).P, r.At(x).P) < 1e-3),
+            $"jeden tor 7 jak przed rozcięciem ({rj?.Length:0.00} m, {tj?.Vertices.Count} wierzchołki)");
+        Ok(d.P.Devices.All(x => x.Track == t.Id) && d.P.Devices.Any(x => x.Name == "lo3" && Math.Abs(x.S - sAfter) < 0.01) && d.P.Devices.Any(x => x.Name == "lo2" && Math.Abs(x.S - sArc) < 0.01),
+            "liczniki wróciły na tor 7 z kilometrażem jak przed rozcięciem");
+        w.DoUndo(); Ok(d.P.Tracks.Count == 2, "Ctrl+Z – znowu dwa tory");
+        w.DoUndo(); Ok(d.P.Tracks.Count == 1, "Ctrl+Z – tor przed rozcięciem");
+
+        // --- łączenie ze wstawką: tor P (200 m) i tor Q narysowany od dalszego końca, 60 m dalej, przesunięty o 4,5 m – łuki odwrotne, Q odwrócony
+        var b0 = Go(o, lineAz - 90, 400); var b1 = Go(b0, lineAz, 200);
+        var q1 = Go(Go(b1, lineAz, 60), lineAz + 90, 4.5); var q2 = Go(q1, lineAz, 200);
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta; w.NewRBox.Text = "300";
+        Look(b0, 1.5); w.View.SimClick(S(b0)); Look(b1, 1.5); w.View.SimClick(S(b1)); w.View.SimClick(S(b1), MouseButton.Right);
+        Look(q2, 1.5); w.View.SimClick(S(q2)); Look(q1, 1.5); w.View.SimClick(S(q1)); w.View.SimClick(S(q1), MouseButton.Right);
+        var tP = d.P.Tracks[^2]; var tQ = d.P.Tracks[^1];
+        Ok(d.P.Tracks.Count == 3 && XY.Dist(tQ.Vertices[0].P, q2) < 0.05, "narysowane tory P i Q (Q od dalszego końca)");
+        w.SetTool(UtTool.Wskaz); w.View.FitPoints(new[] { b0, q2 });
+        // klik P (zwykłe zaznaczenie), Shift + klik Q – oba
+        w.View.SimClick(S(Go(b0, lineAz, 100)));
+        UtView.TestMods = ModifierKeys.Shift; w.View.SimClick(S(Go(q1, lineAz, 100))); UtView.TestMods = ModifierKeys.None;
+        Ok(w.View.Multi.Count == 2 && w.View.InMulti(Kontrola.KTor, tP.Id) && w.View.InMulti(Kontrola.KTor, tQ.Id), $"klik P, Shift + klik Q – zaznaczone {w.View.Multi.Count}");
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool okJ = w.JoinSelected(); sw.Stop();
+        var tPQ = d.P.Tracks.FirstOrDefault(x => x.Id == tP.Id); var rPQ = tPQ != null ? w.View.Geometry(tPQ) : null;
+        double maxKink = 0;
+        if (rPQ != null) for (int i = 1; i < rPQ.Elements.Count; i++) maxKink = Math.Max(maxKink, Math.Abs(Math.IEEERemainder(rPQ.Elements[i].Az0 - rPQ.Elements[i - 1].At(rPQ.Elements[i - 1].Len).Az, 2 * Math.PI)));
+        Ok(okJ && d.P.Tracks.Count == 2 && rPQ != null && rPQ.Notes.Count == 0 && maxKink < 1e-6 && XY.Dist(rPQ.At(0).P, b0) < 0.05 && XY.Dist(rPQ.At(rPQ.Length).P, q2) < 0.05,
+            $"P + Q: jeden tor od P do dalszego końca Q, styczny (załamanie {maxKink:0.0e0} rad), {rPQ?.Length:0.00} m, {sw.ElapsedMilliseconds} ms – {w.LastMessage}");
+        if (shotRails != null) { w.View.Select(tP.Id); w.View.FitPoints(new[] { b1, q1 }); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_laczenie.png")); }
+        w.DoUndo(); Ok(d.P.Tracks.Count == 3, "Ctrl+Z – P i Q osobno");
+
+        // --- szybkość: 400 torów, trafianie myszą i prostokąt (ramki z pamięci zamiast przeliczania osi)
+        var many = Enumerable.Range(0, 400).Select(i =>
+        {
+            var s0 = Go(Go(o, lineAz + 90, 300 + (i % 20) * 6), lineAz, (i / 20) * 260); var s1 = Go(s0, lineAz, 250);
+            return new UtTrack { Number = $"p{i}", Vertices = new() { new UtVertex { X = s0.X, Y = s0.Y }, new UtVertex { X = s1.X, Y = s1.Y } } };
+        }).ToList();
+        d.Change("Dużo torów", p => p.Tracks.AddRange(many));
+        Look(Go(Go(o, lineAz + 90, 330), lineAz, 2000), 2);
+        var hp = S(Go(Go(o, lineAz + 90, 300 + 5 * 6), lineAz, 7 * 260 + 100));
+        w.View.HitTrack(hp);
+        sw.Restart(); string hit = null; for (int i = 0; i < 2000; i++) hit = w.View.HitTrack(hp); sw.Stop();
+        Ok(hit == many[7 * 20 + 5].Id && sw.ElapsedMilliseconds < 2000, $"2000 × trafienie toru wśród {d.P.Tracks.Count}: {sw.ElapsedMilliseconds} ms");
+        w.View.FitPoints(many.SelectMany(x => x.Vertices.Select(v => v.P)).ToList());
+        var mm = many.SelectMany(x => x.Vertices.Select(v => S(v.P))).ToList();
+        sw.Restart();
+        UtView.TestMods = ModifierKeys.Shift; w.View.SimDrag(new Point(mm.Min(q => q.X) - 10, mm.Min(q => q.Y) - 10), new Point(mm.Max(q => q.X) + 10, mm.Max(q => q.Y) + 10)); UtView.TestMods = ModifierKeys.None;
+        sw.Stop();
+        Ok(many.All(x => w.View.InMulti(Kontrola.KTor, x.Id)) && sw.ElapsedMilliseconds < 2000, $"prostokąt przez 400 torów: zaznaczone wszystkie ({w.View.Multi.Count} elementów z torami obok), {sw.ElapsedMilliseconds} ms");
+        KeyPress(w, Key.Escape); w.DoUndo();
         await Task.CompletedTask;
     }
 }

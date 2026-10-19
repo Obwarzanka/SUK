@@ -243,7 +243,12 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.Wskaz && HitObj(p) is var (ok, oid)) { SelectObj(ok, oid); ObjMenu?.Invoke(ok, oid); return true; }
             if (tool == UtTool.Wskaz && HitDevice(p) is string md) { SelectDevice(md); DeviceMenu?.Invoke(md); return true; }
             if (tool == UtTool.Wskaz && HitTurnout(p) is string mt) { SelectTurnout(mt); TurnoutMenu?.Invoke(mt); return true; }
-            if (tool == UtTool.Wskaz && HitTrack(p) is string mtr && Track(mtr) is UtTrack mtt) { Multi.Clear(); Select(mtr); TrackMenu?.Invoke(mtr, Geometry(mtt).Nearest(ToWorld(p), 0.2).S); return true; }
+            if (tool == UtTool.Wskaz && HitTrack(p) is string mtr && Track(mtr) is UtTrack mtt)
+            {
+                // PPM na jednym z zaznaczonych torów – zaznaczenie zostaje (menu: połącz zaznaczone)
+                if (!InMulti(Kontrola.KTor, mtr)) { Multi.Clear(); Select(mtr); }
+                TrackMenu?.Invoke(mtr, Geometry(mtt).Nearest(ToWorld(p), 0.2).S); return true;
+            }
             if (tool == UtTool.Rownolegly) { if (parD != null) parD = null; else parSrc = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukPunkty && fitArc != null) { if (!FitApply()) { fitArc = null; FitPts.Clear(); InvalidateVisual(); } return true; }

@@ -119,16 +119,18 @@ public partial class UtView
     void DrawDevices(DrawingContext dc, double dpi)
     {
         if (Doc == null) return;
+        // sygnalizatory wiszące na wspólnej konstrukcji (bramka, wysięgnik nad kilkoma torami) – bez własnego masztu
+        var hang = Urzadzenia.Konstrukcje(Doc.P).SelectMany(x => x.M).Select(x => x.Id).ToHashSet();
         foreach (var d0 in Doc.P.Devices)
         {
             var d = d0;
             if (!Shown(LayerOf(d0.Kind))) continue;
-            if (devDrag is var (did, _, ds) && did == d0.Id) d = new UtDevice { Id = d0.Id, Kind = d0.Kind, Name = d0.Name, Track = d0.Track, S = ds, Dir = d0.Dir, Side = d0.Side, Heads = d0.Heads, Dwarf = d0.Dwarf };
+            if (devDrag is var (did, _, ds) && did == d0.Id) { d = d0.Copy(); d.S = ds; }
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p);
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
             if (d.Id == SelectedDevice && !PrintMode) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
-            DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn);
+            DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn, hang.Contains(d0.Id));
             var notes = Urzadzenia.Check(Doc.P, d0);
             if (notes.Count > 0) { dc.DrawEllipse(null, ErrP, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
         }
@@ -219,45 +221,26 @@ public partial class UtView
     /// <summary>Długość znaku semafora na bramce od belki [mm arkusza] (do słupów bramki).</summary>
     static double HangingLen(UtDevice dv) => 1.2 + 2 * UtDevice.ParseLights(dv.LightsOrDefault).Count + (!string.IsNullOrEmpty(dv.W21) ? 1.6 : 0) + (dv.StripeP ? 1 : 0) + (dv.StripeZ ? 1 : 0);
 
-    /// <summary>Bramki: grupy semaforów „na bramce” w tym samym miejscu (do 8 m wzdłuż toru, do 40 m w poprzek, ten sam kierunek).</summary>
-    public List<List<UtDevice>> GantryGroups()
-    {
-        var res = new List<List<UtDevice>>(); if (Doc == null) return res;
-        var g = Doc.P.Devices.Where(d => d.MastOrDefault == UtDevice.MastBramka && d.Kind is UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan)
-            .Select(d => (D: d, Pos: Urzadzenia.Pos(Doc.P, d))).Where(x => x.Pos != null).ToList();
-        var used = new HashSet<string>();
-        foreach (var a in g)
-        {
-            if (used.Contains(a.D.Id)) continue;
-            var grp = new List<UtDevice> { a.D }; used.Add(a.D.Id);
-            var (pa, aza, _) = a.Pos.Value; var da = Element.Dir(aza + (a.D.Dir < 0 ? Math.PI : 0)); double ka = KAt(pa);
-            foreach (var b in g)
-            {
-                if (used.Contains(b.D.Id)) continue;
-                var (pb, azb, _) = b.Pos.Value; var db = Element.Dir(azb + (b.D.Dir < 0 ? Math.PI : 0));
-                var w = pb - pa; double along = Math.Abs(w.X * da.X + w.Y * da.Y) / ka, across = Math.Abs(w.X * da.Y - w.Y * da.X) / ka;
-                if (da.X * db.X + da.Y * db.Y > 0.98 && along < 8 && across < 40) { grp.Add(b.D); used.Add(b.D.Id); }
-            }
-            res.Add(grp);
-        }
-        return res;
-    }
+    /// <summary>Bramki: grupy sygnalizatorów na jednej bramce (połączone albo w tym samym miejscu – <see cref="Urzadzenia.Konstrukcje"/>).</summary>
+    public List<List<UtDevice>> GantryGroups() => Doc == null ? new() : Urzadzenia.Konstrukcje(Doc.P).Where(k => k.Mast == UtDevice.MastBramka).Select(k => k.M).ToList();
 
     /// <summary>
-    /// Belki i słupy bramek (Semaforek, Łódź Widzew): belka w poprzek torów w miejscu semaforów, poza skrajne tory; na obu końcach
-    /// słup – odcinek równoległy do torów w stronę komór, długi jak najdłuższy znak, zakończony kreską stopy.
+    /// Belki i słupy konstrukcji (Semaforek, Łódź Widzew): belka w poprzek torów w miejscu sygnalizatorów, poza skrajne tory; słup – odcinek
+    /// równoległy do torów w stronę komór, długi jak najdłuższy znak, zakończony kreską stopy. Bramka – słupy na obu końcach, wysięgnik
+    /// wspólny – jeden słup; liczbę słupów, stronę jedynego słupa i tory, nad którymi belka przechodzi bez sygnalizatora, ustawia projektant
+    /// (<see cref="Urzadzenia.Ustawienia"/>; jeden słup bez wyboru strony – po stronie większości sygnalizatorów).
     /// </summary>
     void DrawGantries(DrawingContext dc)
     {
         if (Doc == null || !Shown(LayerOf(UtDevice.Semafor))) return;
         double k = DevK; var pen = new Pen(DevInk, Math.Max(1, 0.18 * k));
-        foreach (var grp in GantryGroups())
+        foreach (var (mast, grp) in Urzadzenia.Konstrukcje(Doc.P))
         {
             // położenie członków: punkt na osi toru, kierunek komór (ekran), normalna, strona
             var m = new List<(Point B, Vector D, UtDevice Dv)>();
             foreach (var dv in grp)
             {
-                var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = new UtDevice { Id = dv.Id, Kind = dv.Kind, Track = dv.Track, S = ds, Dir = dv.Dir, Side = dv.Side }; }
+                var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = dv.Copy(); d.S = ds; }
                 if (Urzadzenia.Pos(Doc.P, d) is var (p, az, _)) m.Add((ToScreen(p), ScreenDir(az), dv));
             }
             if (m.Count == 0) continue;
@@ -270,10 +253,20 @@ public partial class UtView
                 double c = (b - o) * nrm, sy = dv.Side * (2.4 + 1 + 1.5) * k;
                 lo = Math.Min(lo, Math.Min(c - 1.5 * k, c + sy)); hi = Math.Max(hi, Math.Max(c + 1.5 * k, c + sy));
             }
+            var (slupy, strona, tory) = Urzadzenia.Ustawienia(mast, grp);
+            var pw = Urzadzenia.Pos(Doc.P, grp[0]).Value.P;                                  // miejsce konstrukcji w terenie
+            foreach (var tid in tory)
+            {
+                if (Doc.P.Tracks.FirstOrDefault(t => t.Id == tid) is not UtTrack t) continue;
+                var rt = Geometry(t); if (rt.Elements.Count == 0) continue;
+                double c = (ToScreen(rt.At(rt.Nearest(pw, 0.25).S).P) - o) * nrm;          // oś toru pod belką
+                lo = Math.Min(lo, c - 1.5 * k); hi = Math.Max(hi, c + 1.5 * k);
+            }
             double len = m.Max(q => HangingLen(q.Dv)) * k + 1 * k;
             Point Q(double a, double c) => o + dir * a + nrm * c;
             dc.DrawLine(pen, Q(along, lo), Q(along, hi));                                       // belka
-            foreach (var c in new[] { lo, hi })
+            var posts = slupy == 2 ? new[] { lo, hi } : new[] { (strona != 0 ? strona : m.Sum(q => q.Dv.Side)) >= 0 ? hi : lo };
+            foreach (var c in posts)
             {
                 dc.DrawLine(pen, Q(along, c), Q(along + len, c));                               // słup (w stronę komór)
                 dc.DrawLine(pen, Q(along + len, c - 0.8 * k), Q(along + len, c + 0.8 * k));    // stopa
@@ -285,7 +278,7 @@ public partial class UtView
     /// Znak urządzenia w punkcie <paramref name="b"/> na osi toru: x – w kierunku działania <paramref name="d"/>, y – w stronę urządzenia
     /// (Side), w mm arkusza × <paramref name="k"/>. Komory sygnalizatora od masztu w stronę jazdy (+x), nazwa za stopą (−x).
     /// </summary>
-    static void DrawDevice(DrawingContext dc, UtDevice dv, Point b, Vector d, double k, Brush ink, double dpi, bool labels)
+    static void DrawDevice(DrawingContext dc, UtDevice dv, Point b, Vector d, double k, Brush ink, double dpi, bool labels, bool hanging = false)
     {
         var n = new Vector(-d.Y, d.X) * dv.Side;
         Point P(double x, double y) => b + d * (x * k) + n * (y * k);
@@ -318,9 +311,9 @@ public partial class UtView
                 // zasadniczym – gruba kreska; światło stałe lub pulsujące – 2 kreski na obwodzie, tylko pulsujące – 4 (PulseTicks).
                 var lamps = UtDevice.ParseLights(dv.LightsOrDefault); char lit = dv.LitOrDefault; string mast = dv.MastOrDefault;
                 double x = 0, yy = Y;
-                bool gantry = mast == UtDevice.MastBramka;
+                bool gantry = mast == UtDevice.MastBramka || hanging;      // wisi na belce (bramka albo wspólny wysięgnik)
                 if (!gantry) L(0, Y - 1, 0, Y + 1);                // stopa (na bramce – bez: semafor wisi na belce)
-                if (mast == UtDevice.MastWysiegnik)
+                if (mast == UtDevice.MastWysiegnik && !gantry)
                 {
                     L(0, Y, 3, Y); L(3, Y, 3, Y - 0.8); L(3, Y - 0.8, 4, Y - 0.8);
                     x = 4; yy = Y - 0.8;

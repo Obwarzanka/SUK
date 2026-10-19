@@ -32,18 +32,72 @@ public partial class UtView
     const double SnapPx = 10, HandlePx = 7, HitPx = 6;
 
     // ---- geometria torów (pamięć podręczna wg wierzchołków)
-    readonly Dictionary<string, (string Sig, TrasaResult Res, List<(XY P, double Az)> Pts)> geo = new();
-    static string Sig(UtTrack t) => string.Join(";", t.Vertices.Select(v => FormattableString.Invariant($"{v.X:R},{v.Y:R},{v.R:R},{v.L:R},{v.L2:R}")))
-        + (t.Align is UtAlign a ? FormattableString.Invariant($"|{a.X:R},{a.Y:R},{a.Az:R}|") + string.Join(";", a.Els.Select(e => FormattableString.Invariant($"{e.Len:R},{e.R0:R},{e.R1:R}"))) : "");
+    /// <summary>Geometria toru z pamięci: podpis (liczby wierzchołków / elementów), trasa, punkty osi co 0,5 m, ramka w układzie.</summary>
+    sealed class GeoCache
+    {
+        public double[] Sig; public TrasaResult Res; public List<(XY P, double Az)> Pts;
+        public double X0, Y0, X1, Y1;
+    }
+    readonly Dictionary<string, GeoCache> geo = new();
+
+    // podpis bez napisów i bez przydziału pamięci przy porównaniu (dawniej string.Join przy każdym rysowaniu każdego toru)
+    static int SigLen(UtTrack t) => 1 + t.Vertices.Count * 5 + 1 + (t.Align is UtAlign a ? 3 + a.Els.Count * 3 : 0);
+    static IEnumerable<double> SigVals(UtTrack t)
+    {
+        yield return t.Vertices.Count;
+        foreach (var v in t.Vertices) { yield return v.X; yield return v.Y; yield return v.R; yield return v.L; yield return v.L2 ?? double.NaN; }
+        yield return t.Align is UtAlign a ? a.Els.Count : -1;
+        if (t.Align is UtAlign b) { yield return b.X; yield return b.Y; yield return b.Az; foreach (var e in b.Els) { yield return e.Len; yield return e.R0; yield return e.R1; } }
+    }
+    /// <summary>Krótki podpis toru do pamięci wyników liczonych z całego projektu (odcinki, drogi szlaków): id i skrót liczb osi.</summary>
+    static string Sig(UtTrack t)
+    {
+        var h = new HashCode(); foreach (var x in SigVals(t)) h.Add(x);
+        return t.Id + ":" + h.ToHashCode().ToString("x8");
+    }
+    static bool SameSig(UtTrack t, double[] sig)
+    {
+        if (sig.Length != SigLen(t)) return false;
+        var vs = t.Vertices; if (sig[0] != vs.Count) return false;
+        int j = 1;
+        for (int i = 0; i < vs.Count; i++)
+        {
+            var v = vs[i];
+            if (!sig[j].Equals(v.X) || !sig[j + 1].Equals(v.Y) || !sig[j + 2].Equals(v.R) || !sig[j + 3].Equals(v.L) || !sig[j + 4].Equals(v.L2 ?? double.NaN)) return false;
+            j += 5;
+        }
+        if (t.Align is not UtAlign a) return sig[j] == -1;
+        if (sig[j] != a.Els.Count || !sig[j + 1].Equals(a.X) || !sig[j + 2].Equals(a.Y) || !sig[j + 3].Equals(a.Az)) return false;
+        j += 4;
+        foreach (var e in a.Els) { if (!sig[j].Equals(e.Len) || !sig[j + 1].Equals(e.R0) || !sig[j + 2].Equals(e.R1)) return false; j += 3; }
+        return true;
+    }
 
     public TrasaResult Geometry(UtTrack t) => Cached(t).Res;
-    (string Sig, TrasaResult Res, List<(XY P, double Az)> Pts) Cached(UtTrack t)
+    GeoCache Cached(UtTrack t)
     {
-        var sig = Sig(t);
-        if (geo.TryGetValue(t.Id, out var c) && c.Sig == sig) return c;
+        if (geo.TryGetValue(t.Id, out var c) && SameSig(t, c.Sig)) return c;
         var r = Trasa.Compute(t);
-        c = (sig, r, r.Sample(0.5));
+        c = new GeoCache { Sig = SigVals(t).ToArray(), Res = r, Pts = r.Sample(0.5), X0 = double.MaxValue, Y0 = double.MaxValue, X1 = double.MinValue, Y1 = double.MinValue };
+        foreach (var (p, _) in c.Pts) { c.X0 = Math.Min(c.X0, p.X); c.Y0 = Math.Min(c.Y0, p.Y); c.X1 = Math.Max(c.X1, p.X); c.Y1 = Math.Max(c.Y1, p.Y); }
         geo[t.Id] = c; return c;
+    }
+
+    /// <summary>Ramka toru na ekranie (z ramki w układzie – przekształcenie jest afiniczne, więc obejmuje całą oś).</summary>
+    Rect ScreenBox(GeoCache c)
+    {
+        if (c.Pts.Count == 0) return Rect.Empty;
+        var a = ToScreen(new XY(c.X0, c.Y0)); var b = ToScreen(new XY(c.X1, c.Y0)); var d = ToScreen(new XY(c.X0, c.Y1)); var e = ToScreen(new XY(c.X1, c.Y1));
+        double x0 = Math.Min(Math.Min(a.X, b.X), Math.Min(d.X, e.X)), x1 = Math.Max(Math.Max(a.X, b.X), Math.Max(d.X, e.X));
+        double y0 = Math.Min(Math.Min(a.Y, b.Y), Math.Min(d.Y, e.Y)), y1 = Math.Max(Math.Max(a.Y, b.Y), Math.Max(d.Y, e.Y));
+        return new Rect(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    /// <summary>Punkt ekranu może leżeć najwyżej <paramref name="px"/> od osi toru (odsiew przed dokładnym szukaniem).</summary>
+    bool NearBox(UtTrack t, Point s, double px)
+    {
+        var b = ScreenBox(Cached(t)); if (b.IsEmpty) return false;
+        b.Inflate(px, px); return b.Contains(s);
     }
 
     UtTrack Track(string id) => Doc?.P.Tracks.FirstOrDefault(t => t.Id == id);
@@ -76,7 +130,7 @@ public partial class UtView
         if (best != null) return best;
         foreach (var t in Doc.P.Tracks)
         {
-            if (t.Id == skipTrack) continue;
+            if (t.Id == skipTrack || !NearBox(t, s, bd)) continue;
             var r = Geometry(t); if (r.Elements.Count == 0) continue;
             var (sKm, dist) = r.Nearest(w);
             var q = r.At(sKm).P; double sd = (ToScreen(q) - s).Length;
@@ -296,9 +350,9 @@ public partial class UtView
         return false;
     }
 
-    /// <summary>Tor, który można wchłonąć przy połączeniu (nie związany z rozjazdem ani skrzyżowaniem).</summary>
-    bool MergeOk(UtTrack b) => Doc != null && b.Id != extendId &&
-        !Doc.P.Turnouts.Any(t => t.Track == b.Id || t.Branch == b.Id) && !Doc.P.Crossings.Any(c => c.TrackA == b.Id || c.TrackB == b.Id);
+    /// <summary>Tor, który można wchłonąć przy połączeniu: nic na nim nie leży (inaczej zostaje osobno – łączenie z przeniesieniem
+    /// obiektów: zaznacz oba tory i Ctrl+J, <see cref="Laczenie"/>).</summary>
+    bool MergeOk(UtTrack b) => Doc != null && b.Id != extendId && Laczenie.Free(Doc.P, b);
 
     /// <summary>Koniec rysowania; <paramref name="join"/> – połączenie z końcem innego toru (scalenie, jeśli wolno).</summary>
     public void FinishDraft(SnapResult join = null)
@@ -409,6 +463,7 @@ public partial class UtView
         var w = ToWorld(s); string best = null; double bd = HitPx;
         foreach (var t in Doc.P.Tracks)
         {
+            if (!NearBox(t, s, bd)) continue;
             var r = Geometry(t); if (r.Elements.Count == 0) continue;
             double d = (ToScreen(r.At(r.Nearest(w).S).P) - s).Length;
             if (d < bd) { bd = d; best = t.Id; }
@@ -499,9 +554,12 @@ public partial class UtView
         foreach (var t in Doc.P.Tracks)
         {
             var src = Dragged(t);
-            var (_, res, pts) = Cached(src);
+            var c = Cached(src);
+            // poza ekranem – pomiń (ramka z pamięci, bez przeliczania wszystkich punktów)
+            var bx = ScreenBox(c);
+            if (bx.IsEmpty || bx.Right < -20 || bx.Left > ActualWidth + 20 || bx.Bottom < -20 || bx.Top > ActualHeight + 20) continue;
             bool sel = t.Id == SelectedTrack;
-            DrawAxis(dc, src, res, pts, sel, dpi);
+            DrawAxis(dc, src, c.Res, c.Pts, sel, dpi);
         }
         if (Track(SelectedTrack) is UtTrack st && !PrintMode) DrawTrackEdit(dc, st, dpi);
         if (tool == UtTool.Tor) DrawDraft(dc, dpi);
@@ -548,10 +606,6 @@ public partial class UtView
     void DrawAxis(DrawingContext dc, UtTrack t, TrasaResult res, List<(XY P, double Az)> pts, bool sel, double dpi)
     {
         if (pts.Count < 2) return;
-        // poza ekranem – pomiń
-        double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
-        foreach (var (p, _) in pts) { var s = ToScreen(p); minX = Math.Min(minX, s.X); maxX = Math.Max(maxX, s.X); minY = Math.Min(minY, s.Y); maxY = Math.Max(maxY, s.Y); }
-        if (maxX < -20 || minX > ActualWidth + 20 || maxY < -20 || minY > ActualHeight + 20) return;
         var ink = TrackInk;
         double wpx = AxisPx(t);
         if (sel && !PrintMode) dc.DrawGeometry(null, new Pen(SelGlow, wpx + 7) { LineJoin = PenLineJoin.Round }, Line(pts, 0));

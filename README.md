@@ -5,7 +5,8 @@ Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowani
 - Obsługa wg **Ie-20**: polecenia, przebiegi, blokady liniowe, postępowanie przy usterkach.
 - Zobrazowanie wg **Ie-104**, wzorowane na pulpitach LCS (EbiScreen / SimRail).
 - Osobny program **edytor układu torowego** (`EdytorUT.exe`) do rysowania układu w rzeczywistej geometrii (PUWG 1992). Etapy 0–7 są gotowe, dane z niego nie trafiają jeszcze do symulatora. Plan: `PLAN_EDYTOR_UT.md`.
-- Osobny program **edytor zobrazowania** (`EdytorZobrazowania.exe`) do rysowania obrazów pulpitu przypiętych do UT – w budowie (szkielet). Plan: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
+- Osobny program **edytor zobrazowania** (`EdytorZobrazowania.exe`) do rysowania obrazów pulpitu przypiętych do UT (etapy Z1–Z6). Plan: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
+- Osobny program **edytor taboru** (`EdytorTaboru.exe`) – pojazdy, charakterystyki F(v), składy, wykresy i przejazd próbny po profilu. Pociąg ze składem jedzie w symulatorze wg fizyki (pochylenia, łuki, sieć). Plan: `PLAN_EDYTOR_TABORU.md`.
 - Osobny **kalkulator przechyłki** (`Przechylka.exe`).
 - **Rzeczywisty rozkład jazdy** z GTFS (IC, Polregio, ŁKA) z obiegiem jednostek ŁKA.
 
@@ -177,8 +178,9 @@ Stan (etapy 1–7 i Z0 – posterunki, szlaki, funkcja semafora; edytor zobrazow
   - promień za mały dla Vmax;
   - przejściowa krótsza niż wynika z prędkości.
 - **Przejściowe z prędkości** (przycisk w panelu toru): dla każdego łuku program liczy przechyłkę h i długość krzywej przejściowej L ze wzorów kalkulatora przechyłki (Vmax toru, R łuku, rozstaw szyn 1435 mm) i wpisuje je. Wierzchołek odsuwa się tak, żeby środek łuku został na miejscu, czyli na zdjęciu. Ostrzega, gdy promień jest za mały dla tej prędkości albo gdy L się nie mieści. Wartości dopuszczalne są przykładowe, jak w kalkulatorze. Najpierw wpisz Vmax toru.
-- **Usunięcie kawałka toru:** PPM na torze we Wskaż otwiera menu: „Usuń ten kawałek” usuwa prostą albo cały łuk pod kursorem, a tor rozcina się na dwa (albo skraca, gdy to koniec). „Rozetnij tor tutaj” (tylko na prostej) daje dwa tory stykające się w tym miejscu. Wszystko, co leży za cięciem (rozjazdy, urządzenia, odcinki, perony, przejazdy, punkty km, profil), przechodzi na nowy tor z kilometrażem od jego początku. Co leżało w usuniętym kawałku, znika. Program nie tnie w obrębie rozjazdu ani toru łączącego łącznika.
-- **Zaznaczanie kilku elementów (Wskaż):** Ctrl + klik dodaje element do zaznaczenia albo go zdejmuje: tor, rozjazd, skrzyżowanie, urządzenie, odcinek, peron, przejazd, punkt km. Shift + przeciągnięcie od pustego miejsca zaznacza prostokątem wszystko, co leży w nim w całości. Panel pokazuje listę zaznaczonych. Del albo „Usuń zaznaczone” usuwa wszystkie naraz, a jedno Ctrl+Z je przywraca. Esc albo zwykły klik kończy zaznaczenie.
+- **Usunięcie kawałka toru:** PPM na torze we Wskaż otwiera menu: „Usuń ten kawałek” usuwa prostą albo cały łuk pod kursorem, a tor rozcina się na dwa (albo skraca, gdy to koniec). „Rozetnij tor tutaj” daje dwa tory stykające się w tym miejscu – także w łuku (łuk dzieli się na dwa o tym samym R, kształt się nie zmienia; łuku z krzywymi przejściowymi nie rozetniesz w środku). Wszystko, co leży za cięciem (rozjazdy, urządzenia, odcinki, perony, przejazdy, punkty km, profil), przechodzi na nowy tor z kilometrażem od jego początku. Co leżało w usuniętym kawałku, znika. Program nie tnie w obrębie rozjazdu ani toru łączącego łącznika.
+- **Zaznaczanie kilku elementów (Wskaż):** Shift + klik (albo Ctrl + klik) dodaje element do zaznaczenia albo go zdejmuje: tor, rozjazd, skrzyżowanie, urządzenie, odcinek, peron, przejazd, punkt km. Zwykły klik na torze, potem Shift + klik na drugim – zaznaczone oba. Shift + przeciągnięcie zaznacza prostokątem wszystko, co leży w nim w całości. Panel pokazuje listę zaznaczonych. Del albo „Usuń zaznaczone” usuwa wszystkie naraz, a jedno Ctrl+Z je przywraca. Esc albo zwykły klik kończy zaznaczenie.
+- **Łączenie torów:** zaznacz dwa albo więcej torów (Shift + klik) i wciśnij Ctrl+J, „Połącz tory” w panelu albo „Połącz zaznaczone tory” z menu PPM. Program łączy po kolei najbliższe końce: stykające się – wprost (przy załamaniu daje łuk R z paska w miejscu styku), oddalone – stycznie łukiem R z paska albo łukami odwrotnymi, gdy tory są przesunięte (R zmniejsza się, gdy większy się nie mieści). Zostaje tor, do którego się dołącza (numer, rozjazdy, urządzenia). Wszystko, co leżało na drugim, przechodzi na tor wynikowy z kilometrażem od jego początku. Gdy tory mają przeciwne kierunki, odwraca się ten, na którym nic nie leży. Nie łączy się torów z elementów, torów łączących łączników ani początku odgałęzienia rozjazdu. Jedno Ctrl+Z cofa łączenie.
 - **Uchwyt łuku:** zaznaczony tor ma kółko w środku każdego łuku. Przeciągnięcie zmienia promień, a R widać na żywo. Przeciągnięcie do wierzchołka usuwa łuk (R 0). Załamanie bez łuku ma kreskowane kółko po wewnętrznej stronie kąta: odciągnięcie go tworzy łuk.
 - **R 0 na pasku:** w trybie Łuk łuk przechodzi przez punkt pod kursorem, a promień wynika z miejsca kliknięcia. Z Alt powstaje załamanie bez łuku.
 - **Edycja:** klik zaznacza tor i otwiera panel z numerem, kategorią, elektryfikacją, Vmax, długością w terenie, listą elementów oraz R i L każdego wierzchołka. Wierzchołki przeciąga się myszą. Dwuklik na boku dodaje wierzchołek, Del usuwa wierzchołek albo tor. W panelu jest też „Tor równoległy” (międzytorze, strona) i „Odwróć kierunek”. Błędy geometrii, np. łuk nie mieści się między wierzchołkami, widać jako czerwone kółko i opis w panelu.
@@ -192,6 +194,8 @@ Stan (etapy 1–7 i Z0 – posterunki, szlaki, funkcja semafora; edytor zobrazow
 - **Urządzenie (U):** rodzaj wybierasz z listy na pasku: semafor świetlny, tarcza ostrzegawcza, tarcza manewrowa, wykolejnica, kozioł oporowy, licznik osi, złącze izolowane, ukres. Wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi. Kozioł przyciąga się do końca toru. Licznik, złącze i ukres stawiasz kliknięciem. Program podpowiada nazwę (A, B…, Tm1, Wk1, lo1). We Wskaż urządzenie przeciągasz wzdłuż toru albo przesuwasz strzałkami. PPM daje menu (strona, kierunek, usuń), a w panelu są nazwa i km.
 - **Konfiguracja semafora i tarczy** (panel, znaki wg BSK ISDR „Oznaczenia urządzeń srk”): układ gotowy (2-, 3-, 4- i 5-komorowy, tarcza ostrzegawcza, tarcza manewrowa karzełkowa albo wysoka) albo komory po kolei od masztu. Każda komora ma kolor (czerwona, zielona, pomarańczowa, biała, niebieska) i znacznik „pulsuje”, kolejność zmieniasz ↑ ↓, jest też ✕ i „+ komora”. Komory można też wpisać tekstem, np. `B*PCZ*`. Ustawiasz ponadto, która komora świeci w stanie zasadniczym, oraz mocowanie: na maszcie (słup), na wysięgniku, na bramce albo karzełkowy. Semafor może też mieć pas pomarańczowy, pas zielony, W24 i W21 z cyfrą prędkości (np. 6 = 60 km/h). Wszystko to jest w polu „Konfiguracja semafora”.
 - **Semafory na bramce** (mocowanie „na bramce”): rysunek jak na planach schematycznych (Semaforek, Łódź Widzew – L3 / L5, S1 / S3, D / E). Semafory na bramce w tym samym miejscu (do 8 m wzdłuż toru, ten sam kierunek) tworzą jedną bramkę: belkę w poprzek wszystkich ich torów, na obu końcach słup w stronę komór zakończony kreską stopy. Semafor na bramce nie ma własnej stopy, tylko wisi na belce. Przy belce jest komora górna i kreska W24, a na drugim końcu W21, pasy świetlne i nazwa.
+- **Łączenie bramek i wysięgników**: w panelu sygnalizatora (pole „Wspólna konstrukcja”) albo w menu PPM wybierz „Połącz z…” i sygnalizator w pobliżu (ten sam kierunek, do 60 m) – zawiśnie na tej samej belce, a dołączony przesunie się na swoim torze w miejsce konstrukcji. Na wysięgniku powstaje wspólny wysięgnik nad torami z jednym słupem, na bramce – jedna bramka. „Odłącz” daje osobną konstrukcję. Zmiana mocowania bramka ↔ wysięgnik dotyczy całej konstrukcji, „na maszcie” odłącza.
+- **Słupy i zasięg bramki**: w polu „Konstrukcja” wybierasz słupy – dwa (po obu stronach), jeden po lewej albo jeden po prawej (patrząc w kierunku jazdy) – i tory, nad którymi belka przechodzi bez sygnalizatora (np. bramka z jednym semaforem nad dwoma torami). Dołączony sygnalizator przejmuje te ustawienia.
 - **Światło komory** (panel semafora, lista przy każdej komorze): stałe (bez kresek), stałe lub pulsujące (2 kreski na obwodzie), tylko pulsujące (4 kreski). W zapisie tekstem „*” po literze oznacza stałe lub pulsujące, a „**” tylko pulsujące, np. „B**PCZ*”.
 - **Licznik osi, złącze izolowane, ukres** (urządzenia bez kierunku): przy wstawianiu stają po tej stronie toru, po której klikniesz. Później PPM „Zmień stronę”. Licznik osi rysuje się tuż przy torze, więc nie wchodzi na komory semafora w tym samym miejscu. Jego nazwa jest po drugiej stronie toru.
 - **Znaki Ig-10:** rozjazd ma kreskę początku, numer i czarny klin w kącie między torami, po stronie kierunku zamkniętego, jak w Ig-10 zał. 8 i na planach schematycznych. Klin liczony jest z geometrii rozjazdu. Rozjazd krzyżowy ma dwa kliny w kątach ostrych przy punkcie matematycznym. Wzory znaków są w bazie `Dane/symbole_ig10.json`. Przycisk „Symbole Ig-10…” pokazuje wszystkie znaki. Po poprawkach w pliku użyj „Wczytaj ponownie”.
@@ -238,7 +242,8 @@ Wymiary a i b rozjazdów w katalogu są przybliżone, katalogowe wpisz w `Dane/r
 | Shift (w narzędziu Tor) | łuk kończy się równolegle do osi schematu |
 | Ctrl (w narzędziu Tor) | bez przyciągania |
 | Ctrl + przeciągnięcie | przesunięcie zaznaczonego toru razem z rozjazdami |
-| Ctrl + klik (Wskaż) | dodaj element do zaznaczenia kilku / zdejmij |
+| Shift + klik / Ctrl + klik (Wskaż) | dodaj element do zaznaczenia kilku / zdejmij |
+| Ctrl+J | połącz zaznaczone tory w jeden |
 | Shift + przeciągnięcie od pustego miejsca (Wskaż) | zaznaczenie prostokątem |
 | PPM na torze (Wskaż) | menu: usuń kawałek (prostą / łuk), wygładź łuk, podziel łuk (tutaj / na części), rozetnij tor, usuń tor |
 | Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S | nowy / otwórz / zapisz / zapisz jako |
@@ -282,6 +287,17 @@ Test: `EdytorZobrazowania.exe --test wynik.txt [zrzut.png]` (ostatnia linia `bł
 - TG: tory 1, 2 (gz), 3, 4 (gd, perony), bocznica 6 (rozjazd 8, wykolejnica Wk1, tarcze Tm1 / Tm2, kozioł); łączniki 1/2, 6/7, 9/10, 14/15; łącznik 3/5 z toru 1 na tor 4 przez **rozjazd krzyżowy podwójny 4 (Rkpd, zwrotnice 4ab / 4cd)** na torze 2; łącznik 11/13 z toru 3 na tor 2 przez **rozjazd krzyżowy pojedynczy 12 (Rkp, 12ab / 12cd, przejazd z toru 3 na tor 1)** na torze 1; wjazdowe A, B, F, G, wyjazdowe C1–C4, D1–D4.
 - TW: tory 1–4, łączniki 1/2, 3/4, 5/6, 7/8, 9/10, 11/12, przejazd kat. C, perony.
 - „Sprawdź” – bez uwag w UT i na obu obrazach. Rozkład testowy `lcs_testowe.rozklad.json` (pociągi przez obie stacje, ŁKA 90501 na torze 3 TG, lokomotywa SM42 na bocznicy 6). Nazwy są przykładowe. Uruchomienie: `uruchom.bat --station app\LcsWidzew\Data\projekty\lcs_testowe.json`. Dwóch dyżurnych: jeden prowadzi serwer, drugi łączy się i przejmuje obszar drugiej stacji (rozdział „Gra wieloosobowa”) – na tym układzie przez sieć jeszcze nie sprawdzone.
+
+## Edytor taboru
+
+Osobny program: `uruchom_edytor_taboru.bat` albo `app/Lcs.EdytorTaboru/bin/Release/net8.0-windows/EdytorTaboru.exe [plik.json]`. Bez pliku otwiera wspólny katalog `app/Lcs.Tabor/Data/tabor.json`, który czyta też symulator (zmiana zapisana w edytorze działa w symulatorze bez przebudowy). Plan i decyzje: `PLAN_EDYTOR_TABORU.md`, historia: `HISTORIA_EDYTOR_TABORU.md`.
+
+- **Pojazdy:** seria, rodzaj (EZT, BZT, lokomotywa, wagon…), długość, masy, Vmax, opory a + b·v + c·v², masy hamujące G / P / R, hamulec ED, źródło danych i znacznik „do potwierdzenia”. Charakterystyki „sieć” / „spalinowa” jako punkty F(v) w polu tekstowym albo na wykresie: przeciągnięcie punktu, dwuklik dodaje punkt, prawy przycisk usuwa. „Z mocy” podpowiada krzywą F = min(F0, P/v).
+- **Składy:** pojazdy od czoła (seria, liczba, załadowanie), nastawienie hamulca. Sumy (długość, masa, λ, Vmax) i podgląd jazdy liczone kodem fizyki symulatora: rozpędzanie, hamowanie nagłe, ruszanie na wzniesieniu, wykres sił i oporów (prędkość równowagi), wykres v(s) / v(t).
+- **Przejazd próbny:** profil z tekstu („długość pochylenie Vmax [sieć]”) albo „Profil z układu…” (tor z `station.json`, w obie strony); wynik – czas, prędkości, „NIE DOJECHAŁ” z powodem.
+- „✔ Sprawdź” (F7), Ctrl+Z / Ctrl+Y / Ctrl+S / Ctrl+O. Zapis zostawia `.bak`.
+- W symulatorze pociąg dostaje skład polem `"sklad"` w `<układ>.rozklad.json`; bez tego pola jedzie jak dotąd.
+- **Dane katalogu są przybliżone – do potwierdzenia przez właściciela.**
 
 ## Wersje układu
 
@@ -458,29 +474,30 @@ Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --st
 
 ---
 
-## Dla następnego agenta – stan po commicie `9c88844` (2026-10-19)
+## Dla następnego agenta – stan na 2026-10-19
 
-Najpierw przeczytaj `CLAUDE.md`, `ROZWOJ.md` i `PLAN_EDYTOR_UT.md`. Szczegóły tych prac są w `ROZWOJ.md` § 4 („Prędkość przebiegu ustalana ręcznie”) i w `HISTORIA_EDYTOR_UT.md` (wpisy z 2026-10-19).
+Najpierw przeczytaj `CLAUDE.md`, `ROZWOJ.md`, `PLAN_EDYTOR_UT.md` i `PLAN_EDYTOR_TABORU.md`. Szczegóły prac są w `HISTORIA_EDYTOR_UT.md` i `HISTORIA_EDYTOR_TABORU.md` (wpisy z 2026-10-19).
 
-**Co zrobiono**
-1. **Prędkość przebiegu ustalana ręcznie (symulator `app/LcsWidzew`):**
-   - W „Tablicy przebiegów” jest pole „Prędkość przebiegu”. Zapis: `"v"` w `<układ>.zaleznosci.json` (`ZalPrzebieg.V`).
-   - Dozwolone wartości są w `Zaleznosci.Predkosci`: 40, 50, 60, 70, 80, 100, 120, 130. Pole dotyczy tylko przebiegów pociągowych.
-   - KZ (`KomputerZaleznosci.ApplyRules`): `VSet` bierze najpierw wartość z zależności, a gdy jej brak – z `routeRules[].vmax`. `VSet` **zastępuje** ograniczenia torów i zwrotnic na drodze przebiegu (`Trains.EdgeLimit`). Może być wyższy niż z układu – to decyzja właściciela.
-   - Sygnał dobiera `SignalDef.Dobor` (`Model/Station.cs`): klasa 40, 60 (pas P), 100 (pas Z), a wyższe prędkości przez W21. Gdy brakuje pasa lub W21, semafor podaje sygnał niższy z uwagą. Stan W21 jest w `SigState.W21` (podgląd KZ, `#stan`).
-   - `station.json` przy semaforze: `"stripes"` („P”, „Z”, „PZ”, „”) i `"w21"` („S” – świetlny, cyfra – tablica). Plik bez `"stripes"` działa po staremu.
-2. **Edytor UT / model:**
-   - `UtDevice.W21Swietlny` to pole „świetlny” przy W21 w panelu semafora. Eksport `"stripes"`/`"w21"` robi `Lcs.Model/DoSymulatora.cs`.
-   - Zamiana numerów rozjazdów i skrzyżowań przy zajętym numerze: `Rozjazdy.PlanNumbers` / `ApplyNumbers` (`Lcs.Model/UtTurnout.cs`) i `MainWindow.ApplyNumbers`. Edytor pyta „Zamienić numery?”, a Ctrl+Z cofa całość jednym krokiem.
-   - `MainWindow.CommitPending()` przyjmuje wpis z pola panelu przed zapisem, cofnięciem, „Sprawdź”, otwarciem projektu i zamknięciem. Wcześniej wpis bez Enter przepadał.
+**Co zrobiono 2026-10-19**
+1. **Prędkość przebiegu ustalana ręcznie** (symulator): pole „Prędkość przebiegu” w „Tablicy przebiegów” (`"v"` w `<układ>.zaleznosci.json`, wartości z `Zaleznosci.Predkosci`). `VSet` w KZ bierze najpierw tę wartość, potem `routeRules[].vmax`, i zastępuje ograniczenia torów i zwrotnic. Sygnał dobiera `SignalDef.Dobor`: 40, 60 (pas P), 100 (pas Z), wyżej W21; brak pasa / W21 – sygnał niższy z uwagą. `station.json`: `"stripes"`, `"w21"` (eksport z UT w `Lcs.Model/DoSymulatora.cs`).
+2. **Edytor UT:**
+   - zamiana numerów rozjazdów i skrzyżowań przy zajętym numerze (jedno Ctrl+Z), `CommitPending()` – wpis bez Enter nie przepada;
+   - **łączenie bramek i wysięgników** (`UtDevice.Konstrukcja`): „Połącz z…” / „Odłącz” w panelu i menu PPM, wspólny wysięgnik z jednym słupem, kontrola w „Sprawdź”;
+   - **słupy i zasięg bramki**: jeden / dwa słupy, strona słupa, belka nad torami bez sygnalizatora (`Slupy`, `SlupStrona`, `NadTorami`);
+   - **Shift + klik** – zaznaczanie kilku torów i elementów, prostokąt także od toru;
+   - **rozcinanie toru w łuku** (łuk dzieli się na dwa o tym samym R) i **łączenie torów** Ctrl+J (`Lcs.Model/UtLaczenie.cs`) – styk wprost, odstęp łukiem albo łukami odwrotnymi, obiekty wchłoniętego toru przechodzą na wynikowy;
+   - narzędzie Tor wchłania przy łączeniu tylko pusty tor (wcześniej obiekty zostawały z nieistniejącym torem);
+   - szybsze płótno: pamięć geometrii bez budowania napisów, odsiewanie torów ramką przy trafianiu, rysowaniu i zaznaczaniu (400 torów – 2000 trafień ok. 0,2 s).
+3. **Edytor zobrazowania:** „Kopiuj obraz”.
+4. **Tabor i fizyka jazdy (etapy B1–B4):** biblioteka `app/Lcs.Tabor` (pojazdy, składy, fizyka, maszynista wspólny z symulatorem, przejazd próbny), jazda w symulatorze z pochyleniami i łukami dla pociągów z `"sklad"`, edytor taboru `app/Lcs.EdytorTaboru` z wykresami (opis wyżej, „Edytor taboru”).
 
-**Testy (przeszły):** selftest `station_test.json` 25 z 26 / 4 z 4; `EdytorUT.exe --test` 0 błędów (538 sprawdzeń); `EdytorZobrazowania.exe --test` 0 błędów. Zrzuty: `zrzuty/Tablica_predkosc_przebiegu_*.png`, `zrzuty/Pulpit_predkosc_przebiegu_*.png`, `zrzuty/EdytorUT_zamiana_numerow.png`.
+**Testy (ostatnie przebiegi):** selftest `station_test.json` 25 z 26 / 4 z 4, dziennik zdarzeń bez zmian; `EdytorUT.exe --test` – sprawdzenia bramek, zaznaczania i łączenia bez błędów (551 sprawdzeń w przebiegu z bramkami); część przebiegów miała błędy tylko przy pobieraniu kafelków ortofotomapy z Geoportalu (sieć, zmienne między przebiegami); `EdytorZobrazowania.exe --test` 0 błędów; `Lcs.Tabor.Testy` 20 z 20; `EdytorTaboru.exe --test` 42 sprawdzenia, 0 błędów. Zrzuty w `zrzuty/` (`EdytorUT_wysiegnik_wspolny.png`, `EdytorUT_bramka_*.png`, `EdytorUT_laczenie_torow.png`, `EdytorTaboru_*.png`, `Pulpit_fizyka_*.png`).
 
 **Nie sprawdzono / do zrobienia**
-- Obsługa prawdziwą myszą (wybór prędkości sprawdzono tylko w trybie zrzutu `#tablica=filtr;v=60`), gra sieciowa.
-- W21 nie jest rysowany na pulpicie ani na planie stacji. Dziś widać go tylko w podglądzie KZ i w `#stan`.
-- Pliki `Data/projekty/*.json` (np. `mijanka_testowa.json`) nie zostały ponownie wyeksportowane, więc nie mają pasów ani W21. Na mijance w UT żaden semafor nie ma pasów ani W21, więc po „Do symulatora…” przebieg 60 da sygnał 40 z uwagą. Pasy i W21 musi wpisać człowiek (zasada: zależności i obrazy projektuje człowiek).
-- Zmiana numeru rozjazdu w UT nie poprawia odwołań w zobrazowaniu. Po zmianie trzeba sprawdzić obraz.
-- Commit nie jest wypchnięty (`git push` dopiero na prośbę właściciela).
-
-**Dopisek 2026-10-19 (po `da7897c`):** w edytorze zobrazowania przycisk „Kopiuj obraz” w panelu obrazu (`ZobObraz.Kopia`, `MainWindow.CopyImage`); test w `Test.Z5.cs` (`EdytorZobrazowania.exe --test` 255 sprawdzeń, 0 błędów), zrzut `zrzuty/EdytorZobrazowania_kopia_obrazu.png`. Regresja: selftest 25 z 26 / 4 z 4, `EdytorUT.exe --test` 0 błędów. Z listy „Dalej” zostaje ruch pociągów z pochyleniami (do ustalenia z właścicielem).
+- Obsługa prawdziwą myszą i klawiaturą (testy wołają metody okna i symulują modyfikatory).
+- W21 nie jest rysowany na pulpicie ani na planie stacji (widać go w podglądzie KZ i `#stan`).
+- Wspólna konstrukcja (bramka / wysięgnik) nie trafia do symulatora – eksport bez zmian (`mount`).
+- Pliki `Data/projekty/*.json` nie zostały ponownie wyeksportowane: brak pasów, W21, `poch` i `sklad`. Wpisuje je człowiek.
+- Zmiana numeru rozjazdu w UT nie poprawia odwołań w zobrazowaniu – po zmianie sprawdź obraz.
+- Tabor: dane katalogu i kalibracja (`kalibracja_tabor.txt`) do oceny właściciela; etapy T5–T6 planu (składy domyślne kategorii, GTFS → seria, scenariusz instruktora) do ustalenia.
+- Commity nie są wypchnięte (`git push` dopiero na prośbę właściciela).

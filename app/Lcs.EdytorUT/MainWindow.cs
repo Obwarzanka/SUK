@@ -463,6 +463,7 @@ public partial class MainWindow : Window
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
+        else if (!inText && ctrl && e.Key == Key.J) { JoinSelected(); e.Handled = true; }
         else if (!inText && ctrl && (e.Key == Key.Y || (e.Key == Key.Z && shift))) { DoRedo(); e.Handled = true; }
         else if (!inText && ctrl && e.Key == Key.Z) { DoUndo(); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.Escape)

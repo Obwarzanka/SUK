@@ -85,6 +85,18 @@ public partial class MainWindow
         cm.Items.Add(new MenuItem { Header = $"{UtDevice.KindInfo(d.Kind).Name} {d.Name}", IsEnabled = false, FontWeight = FontWeights.SemiBold });
         Item("Zmień stronę", () => ChDevice(id, "Strona urządzenia", x => x.Side = -x.Side));
         Item("Odwróć kierunek", () => ChDevice(id, "Kierunek urządzenia", x => x.Dir = -x.Dir), d.Directed);
+        if (Urzadzenia.Sygnalizator(d))
+        {
+            // wspólna bramka / wysięgnik: dołącz sygnalizator w pobliżu albo odłącz
+            var join = new MenuItem { Header = "Połącz na wspólnej bramce / wysięgniku z" };
+            foreach (var x in Urzadzenia.DoPolaczenia(Doc.P, d))
+            {
+                var mi = new MenuItem { Header = $"{UtDevice.KindInfo(x.Kind).Name.ToLower()} {x.Name}" }; var oid = x.Id;
+                mi.Click += (s, e) => JoinStructure(id, oid); join.Items.Add(mi);
+            }
+            join.IsEnabled = join.Items.Count > 0; cm.Items.Add(join);
+            Item("Odłącz od wspólnej konstrukcji", () => ChDevice(id, "Odłączenie od konstrukcji", Urzadzenia.Odlacz), Urzadzenia.KonstrukcjaOf(Doc.P, id) is { M.Count: >= 2 });
+        }
         cm.Items.Add(new Separator());
         Item("Usuń", () => { View.SelectDevice(id); DeleteDevice(); });
         return cm;
@@ -124,6 +136,83 @@ public partial class MainWindow
         P.Children.Add(SmallBtn("Usuń", () => { View.SelectDevice(d.Id); DeleteDevice(); }, "Usuń urządzenie (Del)"));
         P.Children.Add(new Separator { Margin = new Thickness(0, 8, 0, 10) });
     }
+    /// <summary>
+    /// Wspólna konstrukcja: z kim sygnalizator wisi na bramce / wysięgniku, „Połącz z…” (sygnalizatory w pobliżu, ten sam kierunek)
+    /// i „Odłącz”. Połączenie przesuwa dołączane sygnalizatory w miejsce konstrukcji.
+    /// </summary>
+    void StructureConfig(StackPanel P, UtDevice d)
+    {
+        var k = Urzadzenia.KonstrukcjaOf(Doc.P, d.Id);
+        bool joined = k is { M.Count: >= 2 };
+        string what = (k?.Mast ?? d.MastOrDefault) == UtDevice.MastWysiegnik ? "wysięgniku" : "bramce";
+        P.Children.Add(Label("Konstrukcja (bramka, wysięgnik nad torami)"));
+        if (joined)
+            P.Children.Add(new TextBlock { Text = $"Na wspólnym {what}: " + string.Join(", ", k.Value.M.Select(x => Doc.P.Tracks.FirstOrDefault(t => t.Id == x.Track) is UtTrack t && t.Number.Length > 0 ? $"{x.Name} (tor {t.Number})" : x.Name)),
+                                           TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) });
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+        var cand = Urzadzenia.DoPolaczenia(Doc.P, d);
+        var cb = new ComboBox { MinWidth = 150, ToolTip = "Sygnalizator w pobliżu (do 60 m, ten sam kierunek) – zawiśnie na tej samej belce; przesunie się na swoim torze w miejsce konstrukcji" };
+        cb.Items.Add(cand.Count > 0 ? "Połącz z…" : "(brak sygnalizatorów w pobliżu)");
+        foreach (var x in cand)
+        {
+            var tn = Doc.P.Tracks.FirstOrDefault(t => t.Id == x.Track)?.Number;
+            cb.Items.Add($"{UtDevice.KindInfo(x.Kind).Name.ToLower()} {x.Name}" + (string.IsNullOrEmpty(tn) ? "" : $" (tor {tn})"));
+        }
+        cb.SelectedIndex = 0; cb.IsEnabled = cand.Count > 0;
+        cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex > 0) JoinStructure(d.Id, cand[cb.SelectedIndex - 1].Id); };
+        row.Children.Add(cb);
+        if (joined) row.Children.Add(SmallBtn("Odłącz", () => { ChDevice(d.Id, "Odłączenie od konstrukcji", Urzadzenia.Odlacz); Message($"{d.Name} odłączony – osobna konstrukcja"); }, "Sygnalizator na własnej bramce / własnym wysięgniku"));
+        P.Children.Add(row);
+        if (k is not var (mast, m)) return;              // pojedynczy wysięgnik – własny maszt, bez ustawień konstrukcji
+
+        // słupy: dwa (bramka) albo jeden – po lewej / po prawej patrząc w kierunku jazdy; belka także nad torami bez sygnalizatora
+        var ids = m.Select(x => x.Id).ToHashSet();
+        void SetAll(string what, Action<UtDevice> act) => Doc.Change(what, p => { foreach (var x in p.Devices.Where(x => ids.Contains(x.Id))) act(x); });
+        var (slupy, strona, tory) = Urzadzenia.Ustawienia(mast, m);
+        if (strona == 0) strona = m.Sum(x => x.Side) >= 0 ? 1 : -1;
+        P.Children.Add(Label("Słupy konstrukcji"));
+        var posts = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+        foreach (var (txt, n, side) in new[] { ("dwa (po obu stronach)", 2, 0), ("jeden po lewej", 1, -1), ("jeden po prawej", 1, 1) })
+        {
+            var rb = new RadioButton { Content = txt, GroupName = "slupy" + d.Id, IsChecked = slupy == n && (n == 2 || strona == side), Margin = new Thickness(0, 0, 10, 2),
+                                       ToolTip = n == 2 ? "Bramka: belka na dwóch słupach" : "Belka na jednym słupie (jak wysięgnik), po tej stronie patrząc w kierunku jazdy" };
+            rb.Click += (s, e) => SetAll("Słupy konstrukcji", x => { x.Slupy = n; x.SlupStrona = n == 1 ? side : null; });
+            posts.Children.Add(rb);
+        }
+        P.Children.Add(posts);
+        var near = Urzadzenia.ToryPrzyKonstrukcji(Doc.P, m);
+        if (near.Count == 0 && tory.Count == 0) return;
+        P.Children.Add(Label("Belka także nad torem (bez sygnalizatora)"));
+        var trs = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+        foreach (var (t, dist) in near.Take(6))
+        {
+            var cb2 = new CheckBox { Content = $"tor {(t.Number.Length > 0 ? t.Number : "(bez numeru)")} ({dist:0.0} m)", IsChecked = tory.Contains(t.Id), Margin = new Thickness(0, 0, 10, 2) };
+            var tid = t.Id;
+            cb2.Click += (s, e) =>
+            {
+                var nt = tory.ToList(); if (cb2.IsChecked == true) nt.Add(tid); else nt.Remove(tid);
+                SetAll("Belka nad torem", x => x.NadTorami = nt.Count > 0 ? nt.ToList() : null);
+            };
+            trs.Children.Add(cb2);
+        }
+        P.Children.Add(trs);
+    }
+
+    /// <summary>Połączenie sygnalizatora <paramref name="otherId"/> (z jego konstrukcją) z konstrukcją <paramref name="id"/>.</summary>
+    public void JoinStructure(string id, string otherId)
+    {
+        int n = 0;
+        Doc.Change("Połączenie konstrukcji", p =>
+        {
+            var a = p.Devices.FirstOrDefault(x => x.Id == id); var b = p.Devices.FirstOrDefault(x => x.Id == otherId);
+            if (a != null && b != null) n = Urzadzenia.Polacz(p, a, b);
+        });
+        var d = Doc.P.Devices.FirstOrDefault(x => x.Id == id); var k = Urzadzenia.KonstrukcjaOf(Doc.P, id);
+        if (d != null && k != null)
+            Message($"Wspólna {(k.Value.Mast == UtDevice.MastWysiegnik ? "konstrukcja – wysięgnik" : "bramka")}: {string.Join(", ", k.Value.M.Select(x => x.Name))} (dołączone przesunięte w miejsce {d.Name}; Ctrl+Z cofa)");
+        View.SelectDevice(id);
+    }
+
     /// <summary>
     /// Konfiguracja sygnalizatora świetlnego (BSK ISDR „Oznaczenia urządzeń srk”): układ gotowy, komory od masztu (kolor, pulsowanie,
     /// kolejność), komora świecąca w stanie zasadniczym, maszt, pasy świetlne, W24, W21, zapis komór tekstem.
@@ -200,10 +289,24 @@ public partial class MainWindow
         {
             var rb = new RadioButton { Content = m.Name, GroupName = "mast" + d.Id, IsChecked = m.Key == d.MastOrDefault, Margin = new Thickness(0, 0, 10, 2) };
             var key = m.Key;
-            rb.Click += (s, e) => ChDevice(d.Id, "Mocowanie sygnalizatora", x => { x.Mast = key; x.Dwarf = key == UtDevice.MastKarzel; });
+            // na wspólnej konstrukcji bramka ↔ wysięgnik zmienia całą konstrukcję; maszt i karzeł – odłącza od niej
+            rb.Click += (s, e) =>
+            {
+                var ids = Urzadzenia.KonstrukcjaOf(Doc.P, d.Id) is { M.Count: >= 2 } kk && key is UtDevice.MastBramka or UtDevice.MastWysiegnik
+                    ? kk.M.Select(x => x.Id).ToHashSet() : new HashSet<string> { d.Id };
+                Doc.Change("Mocowanie sygnalizatora", p =>
+                {
+                    foreach (var x in p.Devices.Where(x => ids.Contains(x.Id)))
+                    {
+                        x.Mast = key; x.Dwarf = key == UtDevice.MastKarzel;
+                        if (key is UtDevice.MastProsty or UtDevice.MastKarzel) x.Konstrukcja = null;
+                    }
+                });
+            };
             mounts.Children.Add(rb);
         }
         P.Children.Add(mounts);
+        StructureConfig(P, d);
 
         if (d.Kind != UtDevice.Semafor) return;          // pasy, W24, W21 – tylko na semaforach
         P.Children.Add(Label("Wskaźniki i pasy świetlne"));
