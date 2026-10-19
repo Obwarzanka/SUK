@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Point = System.Windows.Point;
 using Lcs.Tabor;
 
 namespace Lcs.EdytorTaboru;
@@ -20,6 +21,8 @@ public partial class MainWindow
     public readonly CheckBox DoPotwBox = new() { Content = "dane do potwierdzenia (przykład, nie z karty pojazdu)", Margin = new Thickness(0, 6, 0, 2) };
     /// <summary>Sekcje charakterystyk: [0] – sieć, [1] – spalinowy.</summary>
     public readonly CharSekcja[] Chary = new CharSekcja[2];
+    /// <summary>Wykres F(v) zaznaczonego pojazdu z uchwytami punktów (etap B4).</summary>
+    public readonly Wykres WykresFv = new() { Width = 900, HorizontalAlignment = HorizontalAlignment.Left, Tytul = "Charakterystyka trakcyjna", OsX = "v [km/h]", OsY = "F [kN]" };
 
     public class CharSekcja
     {
@@ -83,6 +86,23 @@ public partial class MainWindow
         var chRow = new StackPanel { Orientation = Orientation.Horizontal };
         for (int i = 0; i < 2; i++) { Chary[i] = BuildChar(i == 0 ? Zasilanie.Siec : Zasilanie.Spalinowy); chRow.Children.Add(Chary[i].Panel); }
         g.Children.Add(chRow);
+        WykresFv.PunktPrzesuniety += (s, i, pt) => { var z = (string)s.Tag; ChP("Punkt F(v)", p => p.Char(z).Punkty[i] = new[] { pt.X, pt.Y }); Message($"Punkt {i + 1} ({z}): {F(pt.X)} km/h, {F(pt.Y)} kN"); };
+        WykresFv.PunktDodany += (s, pt) =>
+        {
+            var z = (string)s.Tag;
+            if (Pojazd.Char(z).Punkty.Any(q => Math.Abs(q[0] - pt.X) < 0.5)) { Message($"Punkt przy {F(pt.X)} km/h już jest"); return; }
+            ChP("Nowy punkt F(v)", p => { var l = p.Char(z).Punkty; l.Add(new[] { pt.X, pt.Y }); l.Sort((a, b) => a[0].CompareTo(b[0])); });
+            Message($"Nowy punkt ({z}): {F(pt.X)} km/h, {F(pt.Y)} kN");
+        };
+        WykresFv.PunktUsuniety += (s, i) =>
+        {
+            var z = (string)s.Tag;
+            if (Pojazd.Char(z).Punkty.Count <= 1) { Message("Charakterystyka musi mieć co najmniej jeden punkt"); return; }
+            ChP("Usunięcie punktu F(v)", p => p.Char(z).Punkty.RemoveAt(i));
+            Message($"Usunięto punkt {i + 1} ({z})");
+        };
+        g.Children.Add(new TextBlock { Text = "Wykres: przeciągnij punkt (kwadrat), dwuklik – nowy punkt na najbliższej charakterystyce, prawy przycisk na punkcie – usunięcie. Linie przerywane: przyczepność (sucho) i opory samego pojazdu.", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 2) });
+        g.Children.Add(WykresFv);
 
         g.Children.Add(Header("Źródło danych"));
         Wiersz(g, "Źródło", Txt("Źródło", p => p.Zrodlo, (p, v) => p.Zrodlo = v, 560));
@@ -170,7 +190,7 @@ public partial class MainWindow
         Wiersz(c.Panel, "F0 [kN]", c.F0, c.ZMocy);
         c.Panel.Children.Add(new TextBlock { Text = "Punkty F(v): v [km/h]  F [kN]", Margin = new Thickness(0, 4, 0, 2) });
         c.Punkty = new TextBox { AcceptsReturn = true, Height = 170, Width = 220, HorizontalAlignment = HorizontalAlignment.Left, FontFamily = new FontFamily("Consolas"), VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        Action commit = () => { if (!refreshing) ChPunkty(c); };
+        Action commit = () => { if (!refreshing) { pokazane[c.Punkty] = c.Punkty.Text; ChPunkty(c); } };
         c.Punkty.Tag = commit;
         c.Punkty.LostFocus += (s, e) => commit();
         c.Panel.Children.Add(c.Punkty);
@@ -221,6 +241,46 @@ public partial class MainWindow
         Message($"Krzywa F(v): F0 {F(f0)} kN, moc {F(ch.Moc)} kW, {pts.Count} punktów do {F(vmax)} km/h – popraw wg karty pojazdu");
     }
 
+    static readonly Color KolorSiec = Color.FromRgb(0x1f, 0x5f, 0xc0), KolorSpal = Color.FromRgb(0xd0, 0x70, 0x10);
+
+    /// <summary>Serie wykresu F(v): charakterystyki z uchwytami, przedłużenie P/v za ostatnim punktem, przyczepność, opory pojazdu na 0 i 10 ‰.</summary>
+    void WykresPojazdu(Pojazd p)
+    {
+        var w = WykresFv; w.Serie.Clear();
+        double vmax = Math.Max(10, p.VMax);
+        foreach (var c in p.Trakcja)
+        {
+            var kol = c.Zasilanie == Zasilanie.Siec ? KolorSiec : KolorSpal; var nazwa = c.Zasilanie == Zasilanie.Siec ? "sieć" : "spalinowa";
+            w.Serie.Add(new Wykres.Seria { Nazwa = "F(v) " + nazwa, Kolor = kol, Uchwyty = true, Tag = c.Zasilanie, Grubosc = 2, Punkty = c.Punkty.Select(q => new Point(q[0], q[1])).ToList() });
+            double cv = c.VMax > 0 ? c.VMax : p.VMax;
+            if (c.Moc > 0 && c.Punkty.Count > 0 && c.Punkty[^1][0] < cv)
+            {
+                var ext = new Wykres.Seria { Nazwa = "", Kolor = kol, Przerywana = true };
+                for (double v = c.Punkty[^1][0]; v <= cv + 1e-9; v += 2) ext.Punkty.Add(new Point(v, c.F(v)));
+                w.Serie.Add(ext);
+            }
+        }
+        if (p.MasaNapedna > 0)
+        {
+            var ad = new Wykres.Seria { Nazwa = "przyczepność (sucho)", Kolor = Colors.Gray, Przerywana = true, Grubosc = 1.2 };
+            for (double v = 0; v <= vmax + 1e-9; v += 2) ad.Punkty.Add(new Point(v, Pociag.Mi(v, 1) * p.MasaNapedna * Pociag.G));
+            w.Serie.Add(ad);
+        }
+        try
+        {
+            var poc = new Pociag(new Sklad { Id = "_", Pojazdy = { new PozycjaSkladu { Seria = p.Seria } } }, Doc.P);
+            foreach (var (i, kol) in new[] { (0.0, Color.FromRgb(0x50, 0x90, 0x50)), (10.0, Color.FromRgb(0xb0, 0x30, 0x20)) })
+            {
+                var r = new Wykres.Seria { Nazwa = $"opór pojazdu {i:0} ‰", Kolor = kol, Przerywana = true, Grubosc = 1.2 };
+                for (double v = 0; v <= vmax + 1e-9; v += 2) r.Punkty.Add(new Point(v, poc.Opor(v) + poc.OporProfilu(i)));
+                w.Serie.Add(r);
+            }
+        }
+        catch { }
+        w.XMax = vmax; w.YMax = 0;
+        w.Odswiez();
+    }
+
     // ------------------------------------------------------------------ lista i operacje
     void RefreshPojazdy()
     {
@@ -253,6 +313,7 @@ public partial class MainWindow
                 if (ch == null) c.F0.Text = "";
                 Set(c.Punkty, ch != null ? PunktyTekst(ch) : "");
             }
+            WykresPojazdu(p);
         }
         finally { refreshing = was; }
     }

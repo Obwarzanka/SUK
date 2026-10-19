@@ -115,6 +115,25 @@ public static class Test
         Ok(P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty.Count == 4, "punkty F(v) wpisane ręcznie");
         if (shot != null) { await Settle(w); Save(w, Shot(shot, "_pojazdy.png")); }
 
+        // --- B4: wykres F(v) – przeciąganie, dwuklik, prawy przycisk (te same ścieżki co mysz)
+        var seria = w.WykresFv.Serie.First(s => s.Uchwyty);
+        Ok(w.WykresFv.Serie.Count(s => s.Uchwyty) == 1 && w.WykresFv.Serie.Any(s => s.Nazwa.StartsWith("przyczepność")) && w.WykresFv.Serie.Count(s => s.Nazwa.StartsWith("opór pojazdu")) == 2,
+            "wykres F(v): charakterystyka z uchwytami, przyczepność, opory na 0 i 10 ‰");
+        w.WykresFv.SimPrzeciagnij(seria, 2, new System.Windows.Point(40, 120));
+        Ok(P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty[2] is [40, 120], "przeciągnięcie punktu 3 na 120 kN");
+        seria = w.WykresFv.Serie.First(s => s.Uchwyty);
+        w.WykresFv.SimPrzeciagnij(seria, 1, new System.Windows.Point(80, -5));
+        Ok(P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty[1] is [39.5, 0], $"punkt nie przechodzi za sąsiada ani poniżej zera ({string.Join(" ", P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty[1])})");
+        w.DoUndo(); w.DoUndo();
+        Ok(P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty[2] is [40, 100] && P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty[1] is [20, 200], "Ctrl+Z ×2 – punkty jak przedtem");
+        w.WykresFv.Width = 900; w.WykresFv.Measure(new Size(900, 300)); w.WykresFv.Arrange(new Rect(0, 0, 900, 300));
+        w.WykresFv.SimDwuklik(new System.Windows.Point(60, 70));
+        var pts = P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty;
+        Ok(pts.Count == 5 && Math.Abs(pts[3][0] - 60) < 1 && Math.Abs(pts[3][1] - 70) < 2, $"dwuklik – nowy punkt w kolejności po v ({string.Join("; ", pts.Select(q => $"{q[0]:0.#} {q[1]:0.#}"))})");
+        w.WykresFv.SimPrawy(w.WykresFv.Serie.First(s => s.Uchwyty), 3);
+        Ok(P().Pojazd("SM42").Char(Zasilanie.Spalinowy).Punkty.Count == 4, "prawy przycisk – punkt usunięty");
+        if (shot != null) { w.WykresFv.BringIntoView(); await Settle(w); Save(w, Shot(shot, "_pojazdy_wykres.png")); }
+
         // --- zmiana serii 111A → 111Ax poprawia składy; Ctrl+Z
         w.PojazdList.SelectedIndex = P().Pojazdy.FindIndex(p => p.Seria == "111A");
         Type(w.SeriaBox, "111Ax");
@@ -164,6 +183,30 @@ public static class Test
         w.DoUndo(); w.DoUndo(); w.DoUndo();
         Ok(P().Sklady.Count == 5 && w.Sprawdz().Count == 0, "Ctrl+Z ×3 – pusty skład usunięty");
         if (shot != null) { w.SkladList.SelectedIndex = P().Sklady.FindIndex(s => s.Id == "SM42+3x111A"); await Settle(w); Save(w, Shot(shot, "_sklady.png")); Save(w, shot); }
+
+        // --- B4: wykresy składu i przejazd próbny
+        w.SkladList.SelectedIndex = P().Sklady.FindIndex(s => s.Id == "SM42+3x111A"); await Settle(w);
+        Ok(w.WykresSily.Serie.Count == 5 && w.WykresJazdy.Serie.Count == 4 && w.WykresJazdy.OsX == "droga [m]", "wykres siły i oporów (4 pochylenia), wykres jazdy v(s)");
+        w.OsJazdy.SelectedIndex = 1;
+        Ok(w.WykresJazdy.OsX == "czas [s]" && w.WykresJazdy.Serie[0].Punkty[^1].X < 200, "wykres jazdy v(t)");
+        if (shot != null) { w.WykresSily.BringIntoView(); await Settle(w); Save(w, Shot(shot, "_sklady_wykresy.png")); }
+        var pz = w.Przejedz();
+        Ok(pz is { Dojechal: true } && w.PrzejazdWynik.Text.StartsWith("Dojechał") && w.WykresPrzejazdu.Serie.Count == 2 && w.WykresProfilu.Serie.Count == 1, $"przejazd próbny po profilu domyślnym: {w.PrzejazdWynik.Text.Split((char)10)[0]}");
+        w.ProfilBox.Text = "3000 20 90"; var pg = w.Przejedz();
+        w.ProfilBox.Text = "3000 -20 90"; var pd = w.Przejedz();
+        Ok(pg.Czas > pd.Czas, $"pod górę 20 ‰ dłużej ({pg.Czas:0} s, do {pg.Probki.Max(q => q.V):0} km/h) niż z góry ({pd.Czas:0} s)");
+        w.ProfilBox.Text = "3000 x 90";
+        Ok(w.Przejedz() == null && w.LastMessage.StartsWith("Profil: wiersz 1"), $"zły profil – komunikat ({w.LastMessage})");
+        var mij = Path.Combine(dir, "mijanka.json");
+        var src = TaborPlik.SciezkaWspolna(); src = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(src)))!, "LcsWidzew", "Data", "projekty", "mijanka_testowa.json");
+        var jj = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(src)); foreach (var e in jj["edges"].AsArray()) e["poch"] = 6; File.WriteAllText(mij, jj.ToJsonString());
+        Ok(w.ProfilZUkladu(mij, "1", false) && w.ProfilBox.Text.Contains("tor 1"), $"profil z układu: {w.LastMessage}");
+        var ab = w.Przejedz();
+        Ok(w.ProfilZUkladu(mij, "1", true) && w.ProfilBox.Text.Contains("(B → A)"), "profil z układu w przeciwną stronę");
+        var ba = w.Przejedz();
+        Ok(ab.Dojechal && ba.Dojechal && ab.Probki.Skip(5).All(q => q.I > 5.9) && ba.Probki.Skip(5).All(q => q.I < -5.9) && ab.Czas != ba.Czas,
+            $"mijanka (6 ‰): A → B pod górę {ab.Czas:0} s, B → A z góry {ba.Czas:0} s");
+        if (shot != null) { w.WykresPrzejazdu.BringIntoView(); await Settle(w); Save(w, Shot(shot, "_przejazd.png")); }
 
         // --- zapis, odczyt
         Ok(w.SaveDoc(false), "zapis");

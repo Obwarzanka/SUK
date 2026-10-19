@@ -181,3 +181,51 @@ public class TaborTesty
         Assert.Contains("EN57", sb.ToString());
     }
 }
+
+/// <summary>Etap B4: przejazd próbny po profilu (ten sam maszynista co w symulatorze) i profil z układu symulatora.</summary>
+public class PrzejazdTesty
+{
+    static readonly TaborPlik Kat = TaborPlik.Load(Path.Combine(AppContext.BaseDirectory, "Data", "tabor.json"));
+    static List<OdcinekProfilu> Prof(double i) => new() { new() { Dlugosc = 500, VMax = 100 }, new() { Dlugosc = 3000, Pochylenie = i, VMax = 100 }, new() { Dlugosc = 500, VMax = 60 } };
+
+    [Fact]
+    public void PodGoreDluzejIStajeNaKoncu()
+    {
+        var p = Pociag.Z(Kat, "EN57");
+        var g = Przejazd.Przejedz(p, Prof(10)); var z = Przejazd.Przejedz(p, Prof(0)); var d = Przejazd.Przejedz(p, Prof(-10));
+        Assert.True(g.Dojechal && z.Dojechal && d.Dojechal);
+        Assert.True(g.Czas > z.Czas && z.Czas > d.Czas, $"{g.Czas} > {z.Czas} > {d.Czas}");
+        Assert.Equal(4000 - p.Dlugosc, z.Droga, 1);
+        // nie przekracza prędkości dozwolonej (60 km/h na ostatnim kawałku)
+        Assert.All(z.Probki, q => Assert.True(q.V <= q.VDoz + 0.5, $"{q.V} > {q.VDoz} przy s = {q.S}"));
+    }
+
+    [Fact]
+    public void CiezkiTowarowyNieRusza()
+    {
+        var w = Przejazd.Przejedz(Pociag.Z(Kat, "ET22+40xEaos"), new List<OdcinekProfilu> { new() { Dlugosc = 3000, Pochylenie = 12, VMax = 80 } });
+        Assert.False(w.Dojechal);
+        Assert.Contains("nie może ruszyć", w.Uwaga);
+    }
+
+    [Fact]
+    public void ProfilTekstIUklad()
+    {
+        var l = Przejazd.Parsuj("# komentarz\n500 0 100\n1000 8,5 80 0\n", out var err);
+        Assert.Null(err); Assert.Equal(2, l.Count); Assert.Equal(8.5, l[1].Pochylenie); Assert.False(l[1].Siec);
+        Assert.Null(Przejazd.Parsuj("500 x 100", out err)); Assert.Contains("wiersz 1", err);
+        Assert.Equal(l.Count, Przejazd.Parsuj(Przejazd.Tekst(l), out _).Count);
+        // układ symulatora: mijanka z pochyleniem dopisanym w kopii
+        var src = Path.Combine(JazdaTesty.RepoDir(), "app", "LcsWidzew", "Data", "projekty", "mijanka_testowa.json");
+        var j = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(src));
+        foreach (var e in j["edges"].AsArray()) e["poch"] = 6;
+        var f = Path.Combine(Directory.CreateTempSubdirectory("profil").FullName, "m.json"); File.WriteAllText(f, j.ToJsonString());
+        var tory = ProfilUkladu.Tory(f);
+        Assert.Equal("1", tory[0].Numer);
+        var ab = ProfilUkladu.Profil(f, "1"); var ba = ProfilUkladu.Profil(f, "1", true);
+        Assert.Equal(tory[0].Dlugosc, ab.Sum(x => x.Dlugosc), 3);
+        Assert.All(ab, x => Assert.Equal(6, x.Pochylenie)); Assert.All(ba, x => Assert.Equal(-6, x.Pochylenie));
+        var p = Pociag.Z(Kat, "EN57");
+        Assert.True(Przejazd.Przejedz(p, ab).Czas > Przejazd.Przejedz(p, ba).Czas);
+    }
+}

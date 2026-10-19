@@ -230,6 +230,21 @@ public static class Jazda
         return d;
     }
 
+    /// <summary>Ślad jazdy do wykresu: (czas [s], droga [m], prędkość [km/h]) co ok. 1 s od prędkości v0 [km/h] przy stałym sterowaniu, aż do warunku końca (najwyżej tMax).</summary>
+    public static List<(double T, double S, double V)> Slad(Pociag p, double v0, Sterowanie u, Func<StanJazdy, bool> koniec, double tMax = 900)
+    {
+        var s = new StanJazdy { V = v0 / 3.6 }; var l = new List<(double, double, double)> { (0, 0, v0) };
+        double t = 0, d = 0, next = 1;
+        while (t < tMax)
+        {
+            d += Krok(p, s, u, Pociag.Krok); t += Pociag.Krok;
+            bool end = koniec(s) || s.NieRusza;
+            if (t >= next - 1e-9 || end) { l.Add((t, d, s.V * 3.6)); next += 1; }
+            if (end) break;
+        }
+        return l;
+    }
+
     /// <summary>Prędkość równowagi [km/h] pełną nastawą na pochyleniu (siła = opory); 0 – nie rusza.</summary>
     public static double PredkoscRownowagi(Pociag p, double pochylenie, bool siec = true, double warunki = 1)
     {

@@ -12,6 +12,7 @@ namespace Lcs.Tabor.Testy;
 /// </summary>
 public class JazdaTesty
 {
+    public static string RepoDir() => Repo();
     static string Repo()
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)

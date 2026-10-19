@@ -197,7 +197,7 @@ public partial class MainWindow : Window
     TextBox Pole(Action<string> commit, double width = 90, string tip = null)
     {
         var tb = new TextBox { Width = width, Margin = new Thickness(0, 2, 8, 2), ToolTip = tip };
-        Action a = () => { if (!refreshing) commit(tb.Text); };
+        Action a = () => { if (!refreshing) { pokazane[tb] = tb.Text; commit(tb.Text); } };
         tb.Tag = a;
         tb.LostFocus += (s, e) => a();
         tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) a(); };
@@ -206,6 +206,14 @@ public partial class MainWindow : Window
 
     /// <summary>Odświeżenie po cofnięciu / ponowieniu – nadpisuje także pole z fokusem.</summary>
     static bool wymus;
-    /// <summary>Tekst pola bez nadpisywania wpisu, który użytkownik właśnie pisze.</summary>
-    static void Set(TextBox tb, string text) { if (wymus || !tb.IsKeyboardFocused) tb.Text = text; }
+    /// <summary>Tekst ostatnio pokazany albo zatwierdzony w polu – pole z fokusem, w którym nic nie dopisano, też dostaje stan pliku.</summary>
+    readonly Dictionary<TextBox, string> pokazane = new();
+    /// <summary>
+    /// Tekst pola bez nadpisywania wpisu, który użytkownik właśnie pisze (pole z fokusem i tekstem innym niż pokazany).
+    /// Inaczej pole z fokusem zachowałoby stary tekst po zmianie z innego miejsca (wykres, cofnięcie) i zapisało go ponownie.
+    /// </summary>
+    void Set(TextBox tb, string text)
+    {
+        if (wymus || !tb.IsKeyboardFocused || !pokazane.TryGetValue(tb, out var p) || p == tb.Text) { tb.Text = text; pokazane[tb] = text; }
+    }
 }

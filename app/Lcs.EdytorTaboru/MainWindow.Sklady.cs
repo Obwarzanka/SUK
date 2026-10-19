@@ -57,6 +57,7 @@ public partial class MainWindow
         g.Children.Add(dodaj);
         g.Children.Add(Header("Sumy i podgląd jazdy"));
         g.Children.Add(Sumy);
+        BuildPodglad(g);
 
         var dock = new DockPanel { Margin = new Thickness(8) };
         dock.Children.Add(Dock(left, System.Windows.Controls.Dock.Left));
@@ -107,6 +108,7 @@ public partial class MainWindow
             NastawienieBox.SelectedIndex = Array.FindIndex(Nastawienia, n => n.Key == s.Nastawienie);
             for (int i = 0; i < s.Pojazdy.Count; i++) PozycjePanel.Children.Add(Pozycja(i, s.Pojazdy[i]));
             Sumy.Text = SumyTekst(s);
+            WykresySkladu(s);
         }
         finally { refreshing = was; }
     }

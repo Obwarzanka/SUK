@@ -4,20 +4,13 @@ using LcsWidzew.Model;
 namespace LcsWidzew.Sim;
 
 /// <summary>
-/// Jazda wg fizyki (PLAN_EDYTOR_TABORU.md, etap B2): pociąg ze składem z pliku taboru – siła pociągowa, opory, pochylenia toru pod składem
+/// Jazda wg fizyki (PLAN_EDYTOR_TABORU.md, etapy B2, B4 – maszynista wspólny z przejazdem próbnym edytora taboru, <see cref="Maszynista"/>): pociąg ze składem z pliku taboru – siła pociągowa, opory, pochylenia toru pod składem
 /// (<c>poch</c> z UT), łuki (<c>Edge.Radius</c>), sieć trakcyjna (<c>elec</c>), hamowanie z masy hamującej. Prowadzi automatyczny maszynista:
 /// prędkość dozwolona z zapasem, krzywe hamowania do ograniczeń i do sygnału „Stój” z pochyleniem na drodze hamowania.
 /// Kroki stałe 0,1 s (<see cref="Pociag.Krok"/>) – ruch nie zależy od długości klatki.
 /// </summary>
 public partial class Trains
 {
-    /// <summary>Zapas maszynisty poniżej prędkości dozwolonej [m/s] (decyzja § 9 pkt 3: ok. 3 km/h).</summary>
-    const double ZapasV = 3 / 3.6;
-    /// <summary>Hamowanie służbowe – część pełnego (§ 9 pkt 3).</summary>
-    const double HamSluzbowe = 0.7;
-    /// <summary>Dojazd do miejsca zatrzymania [m/s] – ostatnie metry przed sygnałem „Stój” / końcem postoju.</summary>
-    const double DojazdV = 5 / 3.6;
-
     TaborPlik tabor;
     bool? elecDane;
 
@@ -102,20 +95,7 @@ public partial class Trains
         return l;
     }
 
-    /// <summary>Najwyższa prędkość [m/s], z której pociąg zatrzyma się / zwolni do <paramref name="lim"/> na drodze <paramref name="d"/>, hamując służbowo na średnim pochyleniu <paramref name="i"/>.</summary>
-    double VZHamowania(Train t, double d, double lim, double i, bool siec)
-    {
-        var p = t.Fiz;
-        double v = t.V * 3.6;
-        double b = (HamSluzbowe * p.SilaHamowania(v, siec) + p.Opor(0) + p.OporProfilu(i)) / p.MasaZastepcza;   // kN / t = m/s²
-        b = Math.Max(b, 0.05);
-        double T = p.CzasNapelniania;
-        d = Math.Max(0, d);
-        // v·T/2 (napełnianie) + (v² − lim²) / 2b = d
-        return (-b * T + Math.Sqrt(b * b * T * T + 4 * (lim * lim + 2 * b * d))) / 2;
-    }
-
-    /// <summary>Prędkość docelowa maszynisty [m/s]: dozwolona pod składem z zapasem i krzywe hamowania do ograniczeń przed czołem oraz do miejsca zatrzymania.</summary>
+    /// <summary>Prędkość docelowa maszynisty [m/s] (<see cref="Maszynista.Docelowa"/>): dozwolona pod składem, ograniczenia przed czołem, miejsce zatrzymania.</summary>
     double Docelowa(Train t, (double D, string Sig, bool Dwell, bool End) la, bool siec)
     {
         double vmax = t.VMax;
@@ -123,19 +103,8 @@ public partial class Trains
         if (t.Shunt) vmax = Math.Min(vmax, VShunt / 3.6);
         double pod = 1e4, pos = 0, tail = t.Head - t.Len;
         foreach (var sg in t.Segs) { double a = pos, b = pos + sg.Len; pos = b; if (sg.E != null && b > tail && a < t.Head) pod = Math.Min(pod, EdgeLimit(sg.E)); }
-        double cel = Math.Max(Math.Min(vmax, pod) - ZapasV, Math.Min(vmax, pod) * 0.9);
-        var przed = Przed(t);
-        double ISr(double d)
-        {
-            double s = 0, w = 0;
-            foreach (var k in przed) { double ov = Math.Min(k.Od + k.Len, d) - k.Od; if (ov <= 0) break; s += ov * k.I; w += ov; }
-            return w > 0 ? s / w : 0;
-        }
-        foreach (var k in przed)
-            if (k.Lim < 1e3 && k.Lim < cel) cel = Math.Min(cel, VZHamowania(t, k.Od, Math.Max(0, k.Lim - ZapasV), ISr(k.Od), siec));
-        // miejsce zatrzymania: krzywa hamowania, a ostatnie metry dojazd z ok. 5 km/h (maszynista nie staje kilka metrów przed sygnałem)
-        if (double.IsFinite(la.D)) cel = Math.Min(cel, la.D > 2 ? Math.Max(VZHamowania(t, la.D - 1, 0, ISr(la.D), siec), DojazdV) : VZHamowania(t, la.D - 1, 0, ISr(la.D), siec));
-        return Math.Max(0, cel);
+        var przed = Przed(t).Select(k => new Maszynista.Przed(k.Od, k.Len, k.I, k.Lim)).ToList();
+        return Maszynista.Docelowa(t.Fiz, t.Jaz.V, Math.Min(vmax, pod), przed, la.D, siec);
     }
 
     /// <summary>Ruch pociągu ze składem przez dt [s] w krokach 0,1 s; zwraca stan przed czołem po ruchu.</summary>
@@ -153,11 +122,7 @@ public partial class Trains
             double cel = Docelowa(t, la, siec);
             t.IPod = ip; t.VCel = cel;
             var u = new Sterowanie { Pochylenie = ip, OporLuku = rp, Siec = siec, Warunki = 1 };
-            double v = t.Jaz.V;
-            if (la.D < 0.5) u.Hamowanie = 1;
-            else if (v > cel + 0.3) u.Hamowanie = Math.Clamp(0.4 + (v - cel) * 0.5, 0, 1);
-            else if (v > cel) { /* wybieg */ }
-            else u.Nastawa = Math.Clamp((cel - v) / 0.5, 0, 1);
+            Maszynista.Steruj(ref u, t.Jaz.V, cel, la.D);
             double d = Jazda.Krok(t.Fiz, t.Jaz, u, Pociag.Krok);
             // miejsce zatrzymania (sygnał „Stój”, postój, koniec drogi) – pociąg go nie mija
             if (double.IsFinite(la.D) && d >= la.D) { d = Math.Max(0, la.D); t.Jaz.V = 0; }
