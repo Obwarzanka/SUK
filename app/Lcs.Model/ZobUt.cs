@@ -17,8 +17,15 @@ public static class ZobUt
     public static readonly string[] Grupy = { GTory, GRozjazdy, GSygnalizatory, GWykolejnice, GKozly, GPrzerwy, GOdcinki, GNumery, GPerony, GPrzejazdy, GSzlaki };
 
     /// <summary>Tory UT obrazu: tory posterunków obrazu i tory szlaków, które dochodzą do nich (wartość – szlak albo null).</summary>
-    public static Dictionary<string, UtLine> Tory(UtProject ut, ZobObraz o, out List<UtLine> szlaki)
+    public static Dictionary<string, UtLine> Tory(UtProject ut, ZobObraz o, out List<UtLine> szlaki) => Tory(ut, o, out szlaki, out _);
+
+    /// <summary>
+    /// Jak wyżej; <paramref name="zakresy"/> – tory innych posterunków, przez które biegnie szlak obrazu (np. szlak wewnętrzny
+    /// kończący się semaforem wjazdowym w głębi toru sąsiedniej stacji): na obrazie potrzebny tylko ten zakres km i obiekty w nim.
+    /// </summary>
+    public static Dictionary<string, UtLine> Tory(UtProject ut, ZobObraz o, out List<UtLine> szlaki, out Dictionary<string, List<SzlakKawalek>> zakresy)
     {
+        zakresy = new();
         var posts = o.Posterunki.Where(id => ut.Posts.Any(x => x.Id == id)).ToHashSet();
         bool all = posts.Count == 0;
         var res = new Dictionary<string, UtLine>();
@@ -30,7 +37,17 @@ public static class ZobUt
         foreach (var l in szlaki)
             if (drogi.TryGetValue(l.Id, out var dr))
                 foreach (var k in dr.Kawalki)
-                    if (!res.ContainsKey(k.Track) || res[k.Track] == null && ut.Tracks.First(t => t.Id == k.Track).Post == null) res[k.Track] = l;
+                {
+                    var post = ut.Tracks.First(t => t.Id == k.Track).Post;
+                    bool own = res.ContainsKey(k.Track) && res[k.Track] == null && !zakresy.ContainsKey(k.Track);
+                    if (!own && post != null && !posts.Contains(post))
+                    {
+                        if (k.S1 - k.S0 < 0.5) continue;       // semafor wjazdowy sąsiada na samym styku – nic z jego toru
+                        if (!zakresy.TryGetValue(k.Track, out var zk)) zakresy[k.Track] = zk = new();
+                        zk.Add(k);
+                    }
+                    if (!res.ContainsKey(k.Track) || res[k.Track] == null && post == null) res[k.Track] = l;
+                }
         return res;
     }
 
@@ -71,7 +88,9 @@ public static class ZobUt
 
     public static List<ZobUtObj> Obiekty(UtProject ut, ZobObraz o)
     {
-        var tory = Tory(ut, o, out var szlaki);
+        var tory = Tory(ut, o, out var szlaki, out var zakresy);
+        // miejsce toru na obrazie: tor posterunku obrazu albo wnętrze zakresu szlaku na torze innego posterunku (bez semafora końca szlaku)
+        bool In(string track, double s) => tory.ContainsKey(track) && (!zakresy.TryGetValue(track, out var zk) || zk.Any(k => k.Contains(s, 0.5)));
         var res = new List<ZobUtObj>();
         // tory z numerem po numerze, potem tory bez numeru (np. tor łączący łącznika – opis z numerów rozjazdów)
         foreach (var t in ut.Tracks.Where(t => tory.ContainsKey(t.Id)).OrderBy(t => t.Number.Length == 0).ThenBy(t => t.Number.Length).ThenBy(t => t.Number))
@@ -82,15 +101,20 @@ public static class ZobUt
             var nm = t.Number.Length > 0 ? $"tor {t.Number}" : rz.Count == 2 ? $"tor łączący {rz[0]}/{rz[1]}" : rz.Count == 1 ? $"tor bez numeru (za rozjazdem {rz[0]})" : "tor bez numeru";
             // na obrazie = cały kilometraż toru narysowany (kawałkami); część – brakujące km
             double len = Trasa.Compute(t).Length;
-            var luki = ZobTory.Luki(o, t.Id, len);
+            var luki = ZobTory.Luki(o, t.Id, len, ut: ut);
+            if (zakresy.TryGetValue(t.Id, out var zt))
+                luki = luki.SelectMany(l => zt.Select(k => (A: Math.Max(l.A, k.S0), B: Math.Min(l.B, k.S1)))).Where(l => l.B - l.A > 0.5).ToList();
             string czesc = luki.Count > 0 && o.Tory.Any(x => x.Ut?.Tor == t.Id) ? "brak km " + string.Join(", ", luki.Select(x => $"{x.A:0}–{x.B:0}")) : null;
             res.Add(new(GTory, t.Id, $"{nm}{cat}{sz}", luki.Count == 0, czesc));
         }
-        foreach (var z in ut.Turnouts.Where(z => tory.ContainsKey(z.Track)).Select(z => (z.Id, z.Number, "rozjazd"))
-                     .Concat(ut.Crossings.Where(c => tory.ContainsKey(c.TrackA)).Select(c => (c.Id, c.Number, "skrzyżowanie")))
-                     .OrderBy(x => x.Number.Length).ThenBy(x => x.Number))
-            res.Add(new(GRozjazdy, z.Id, $"{z.Item3} {(z.Number.Length > 0 ? z.Number : "(bez numeru)")}", o.Zwrotnice.Any(x => x.Ut == z.Id)));
-        foreach (var d in ut.Devices.Where(d => tory.ContainsKey(d.Track)).OrderBy(d => d.Name))
+        // rozjazdy; rozjazd krzyżowy – dwa końce (ab, cd) jak dwie zwrotnice; skrzyżowanie torów (St) nie ma symbolu (krzyż z torów obrazu)
+        foreach (var z in ut.Turnouts.Where(z => In(z.Track, z.S)).Select(z => (z.Id, z.Number, Opis: $"rozjazd {(z.Number.Length > 0 ? z.Number : "(bez numeru)")}"))
+                     .Concat(ut.Crossings.Where(c => Krzyzowe.Rodzaj(c) != RozjazdTyp.St).SelectMany(c => Krzyzowe.Konce
+                         .Where(k => Krzyzowe.Miejsce(ut, c, k) is var (tr, ks) && In(tr, ks))
+                         .Select(k => (Id: Krzyzowe.Id(c.Id, k), c.Number, Opis: $"rozjazd krzyżowy {(c.Number.Length > 0 ? c.Number : "(bez numeru)")} – koniec {k} ({Krzyzowe.Rodzaj(c)})"))))
+                     .OrderBy(x => x.Number.Length).ThenBy(x => x.Number).ThenBy(x => x.Id))
+            res.Add(new(GRozjazdy, z.Id, z.Opis, o.Zwrotnice.Any(x => x.Ut == z.Id)));
+        foreach (var d in ut.Devices.Where(d => In(d.Track, d.S)).OrderBy(d => d.Name))
         {
             var (g, lista) = d.Kind switch
             {
@@ -107,14 +131,14 @@ public static class ZobUt
             bool on = lista != null ? lista.Any(x => x.Ut == d.Id) : o.Przerwy.Any(x => x.Ut == d.Id);
             res.Add(new(g, d.Id, g == GKozly ? nm : $"{nm} – {kind}", on));
         }
-        foreach (var s in ut.Sections.Where(s => tory.ContainsKey(s.Track)).OrderBy(s => s.Name))
+        foreach (var s in ut.Sections.Where(s => In(s.Track, s.S)).OrderBy(s => s.Name))
             res.Add(new(GOdcinki, s.Id, s.Name.Length > 0 ? s.Name : "(bez nazwy)", o.Odcinki.Any(x => x.Ut == s.Id)));
-        foreach (var pl in ut.Platforms.Where(x => tory.ContainsKey(x.Track)).OrderBy(x => x.Name))
+        foreach (var pl in ut.Platforms.Where(x => In(x.Track, (x.S0 + x.S1) / 2)).OrderBy(x => x.Name))
             res.Add(new(GPerony, pl.Id, $"peron {(pl.Name.Length > 0 ? pl.Name : "(bez numeru)")}", o.Perony.Any(x => x.Ut == pl.Id)));
-        foreach (var c in ut.LevelCrossings.Where(x => tory.ContainsKey(x.Track)))
+        foreach (var c in ut.LevelCrossings.Where(x => In(x.Track, x.S)))
             res.Add(new(GPrzejazdy, c.Id, $"{UtLevelCrossing.CatName(c.Cat)}{(c.Name.Length > 0 ? " – " + c.Name : "")}", o.Przejazdy.Any(x => x.Ut == c.Id)));
         // numery torów stacyjnych (Ie-104 § 5 ust. 2 – widoczne stale): tory z numerem, nie szlakowe
-        foreach (var t in ut.Tracks.Where(t => tory.ContainsKey(t.Id) && tory[t.Id] == null && t.Number.Length > 0).OrderBy(t => t.Number.Length).ThenBy(t => t.Number))
+        foreach (var t in ut.Tracks.Where(t => tory.ContainsKey(t.Id) && tory[t.Id] == null && !zakresy.ContainsKey(t.Id) && t.Number.Length > 0).OrderBy(t => t.Number.Length).ThenBy(t => t.Number))
             res.Add(new(GNumery, t.Id, $"numer toru {t.Number}", o.NumeryTorow.Any(x => x.Ut == t.Id)));
         foreach (var l in szlaki)
         {

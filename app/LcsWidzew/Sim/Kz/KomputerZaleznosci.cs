@@ -120,6 +120,8 @@ public partial class KomputerZaleznosci
                     if (depth > 80 || cands.Count > 800) return;
                     foreach (var o in Forward(nid, s.Dir, from))
                     {
+                        // rozjazd krzyżowy pojedynczy: bez jazdy przez brakujący przejazd
+                        if (L.NoPass.Count > 0 && L.NoPass.Any(p => p.A == o.Edge && edges.Contains(p.B) || p.B == o.Edge && edges.Contains(p.A))) continue;
                         var e2 = new List<string>(edges) { o.Edge };
                         var r2 = o.Num != null ? new List<(string, string)>(reqs) { (o.Num, o.Pos) } : reqs;
                         var nn = L.Other(o.Edge, nid);

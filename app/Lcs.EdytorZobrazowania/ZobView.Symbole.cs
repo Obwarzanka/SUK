@@ -44,7 +44,7 @@ public partial class ZobView
         if (t == null) return (1, 0, null);
         int utDir = r switch
         {
-            ZobRodzaj.Zwrotnica => Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Dir ?? 1,
+            ZobRodzaj.Zwrotnica => Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Dir ?? (Krzyzowe.Parse(Ut, s.Ut) is var (kc, kk) ? Krzyzowe.Dir(Ut, kc, kk) : 1),
             _ => Ut.Devices.FirstOrDefault(d => d.Id == s.Ut)?.Dir ?? 1,
         };
         if (r == ZobRodzaj.Szlak) { var (sx, sy) = ZobSymbole.NaZewnatrz(Ut, Obraz, s); return (sx, sy, t); }
@@ -64,8 +64,20 @@ public partial class ZobView
     /// <summary>Gałąź zwrotnicy na obrazie: kierunek toru odgałęźnego od punktu zwrotnicy (null – tor odgałęźny nie narysowany).</summary>
     (int Dx, int Dy)? Branch(ZobSymbol s)
     {
+        if (Ut != null && Obraz != null && Krzyzowe.Parse(Ut, s.Ut) is var (kc, kk)) return BranchKrzyzowy(kc, kk, s);
         var z = Ut?.Turnouts.FirstOrDefault(x => x.Id == s.Ut); if (z == null || Obraz == null) return null;
         foreach (var t in Obraz.Tory.Where(t => t.Ut?.Tor == z.Branch && t.Pkt.Count >= 2))
+        {
+            if (Same(t.Pkt[0], s.P)) return (Math.Sign(t.Pkt[1][0] - s.P[0]), Math.Sign(t.Pkt[1][1] - s.P[1]));
+            if (Same(t.Pkt[^1], s.P)) return (Math.Sign(t.Pkt[^2][0] - s.P[0]), Math.Sign(t.Pkt[^2][1] - s.P[1]));
+        }
+        return null;
+    }
+
+    /// <summary>Ramię zwrotnicy końca rozjazdu krzyżowego na obrazie: tor B, który kończy się w punkcie zwrotnicy.</summary>
+    (int Dx, int Dy)? BranchKrzyzowy(UtCrossing c, string k, ZobSymbol s)
+    {
+        foreach (var t in Obraz.Tory.Where(t => t.Ut?.Tor == c.TrackB && t.Pkt.Count >= 2))
         {
             if (Same(t.Pkt[0], s.P)) return (Math.Sign(t.Pkt[1][0] - s.P[0]), Math.Sign(t.Pkt[1][1] - s.P[1]));
             if (Same(t.Pkt[^1], s.P)) return (Math.Sign(t.Pkt[^2][0] - s.P[0]), Math.Sign(t.Pkt[^2][1] - s.P[1]));
@@ -106,7 +118,7 @@ public partial class ZobView
     string Label(ZobRodzaj r, ZobSymbol s)
     {
         if (Ut == null) return "";
-        if (r == ZobRodzaj.Zwrotnica) return Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Number ?? Ut.Crossings.FirstOrDefault(c => c.Id == s.Ut)?.Number ?? "?";
+        if (r == ZobRodzaj.Zwrotnica) return Ut.Turnouts.FirstOrDefault(z => z.Id == s.Ut)?.Number ?? (Krzyzowe.Parse(Ut, s.Ut) is var (kc, kk) ? Krzyzowe.Numer(kc, kk) : "?");
         if (r == ZobRodzaj.NumerToru) return Ut.Tracks.FirstOrDefault(t => t.Id == s.Ut)?.Number ?? "?";
         if (r == ZobRodzaj.OpisOdcinka) return Ut.Sections.FirstOrDefault(x => x.Id == s.Ut) is UtSection sc ? (sc.Name.Length > 0 ? sc.Name : "?") : "?";
         if (r == ZobRodzaj.Przejazd) return Ut.LevelCrossings.FirstOrDefault(x => x.Id == s.Ut) is UtLevelCrossing lc ? (lc.Name.Length > 0 ? lc.Name : UtLevelCrossing.CatName(lc.Cat)) : "?";

@@ -33,7 +33,7 @@ public static class ZobSymbole
     public static ZobRodzaj? RodzajUt(UtProject ut, string id)
     {
         if (id == null) return null;
-        if (ut.Turnouts.Any(z => z.Id == id) || ut.Crossings.Any(c => c.Id == id)) return ZobRodzaj.Zwrotnica;
+        if (ut.Turnouts.Any(z => z.Id == id) || Krzyzowe.Parse(ut, id) != null) return ZobRodzaj.Zwrotnica;
         if (ut.Tracks.Any(t => t.Id == id)) return ZobRodzaj.NumerToru;
         if (ut.LevelCrossings.Any(c => c.Id == id)) return ZobRodzaj.Przejazd;
         if (ut.Lines.Any(l => l.Id == id)) return ZobRodzaj.Szlak;
@@ -49,13 +49,13 @@ public static class ZobSymbole
     }
 
     /// <summary>
-    /// Tor UT i km obiektu (zwrotnica – PR na torze zasadniczym, skrzyżowanie – środek na torze A, szlak – koniec <paramref name="koniec"/>,
+    /// Tor UT i km obiektu (zwrotnica – PR na torze zasadniczym, koniec rozjazdu krzyżowego – zwrotnica (Rkpd – na torze A), szlak – koniec <paramref name="koniec"/>,
     /// odcinek – miejsce nazwy w UT); numer toru – km NaN (dowolny kawałek toru).
     /// </summary>
     public static (string Track, double S)? Miejsce(UtProject ut, string id, int koniec = 0)
     {
         if (ut.Turnouts.FirstOrDefault(z => z.Id == id) is UtTurnout z) return (z.Track, z.S);
-        if (ut.Crossings.FirstOrDefault(c => c.Id == id) is UtCrossing c) return (c.TrackA, c.SA);
+        if (Krzyzowe.Parse(ut, id) is var (c, k)) return Krzyzowe.Miejsce(ut, c, k);
         if (ut.Devices.FirstOrDefault(d => d.Id == id) is UtDevice d) return (d.Track, d.S);
         if (ut.LevelCrossings.FirstOrDefault(x => x.Id == id) is UtLevelCrossing lc) return (lc.Track, lc.S);
         if (ut.Sections.FirstOrDefault(x => x.Id == id) is UtSection sc) return (sc.Track, sc.S);
@@ -75,7 +75,7 @@ public static class ZobSymbole
     public static string Nazwa(UtProject ut, string id, int? koniec = null)
     {
         if (ut.Turnouts.FirstOrDefault(z => z.Id == id) is UtTurnout z) return $"zwrotnica {(z.Number.Length > 0 ? z.Number : "(bez numeru)")}";
-        if (ut.Crossings.FirstOrDefault(c => c.Id == id) is UtCrossing c) return $"rozjazd krzyżowy {(c.Number.Length > 0 ? c.Number : "(bez numeru)")}";
+        if (Krzyzowe.Parse(ut, id) is var (c, kon)) return $"rozjazd krzyżowy {(c.Number.Length > 0 ? c.Number : "(bez numeru)")} – koniec {kon}";
         if (ut.Tracks.FirstOrDefault(t => t.Id == id) is UtTrack t) return $"numer toru {(t.Number.Length > 0 ? t.Number : "?")}";
         if (ut.LevelCrossings.FirstOrDefault(x => x.Id == id) is UtLevelCrossing lc) return UtLevelCrossing.CatName(lc.Cat) + (lc.Name.Length > 0 ? $" {lc.Name}" : "");
         if (ut.Sections.FirstOrDefault(x => x.Id == id) is UtSection sc) return $"opis odcinka {(sc.Name.Length > 0 ? sc.Name : "(bez nazwy)")}";
@@ -211,6 +211,24 @@ public static class ZobSymbole
             if (ut.Turnouts.FirstOrDefault(z => z.Id == zs.Ut) is UtTurnout z && o.Tory.Where(t => t.Ut?.Tor == z.Branch && t.Pkt.Count >= 2).ToList() is { Count: > 0 } br
                 && !br.Any(t => Same(t.Pkt[0], zs.P) || Same(t.Pkt[^1], zs.P)))
                 res.Add(new(false, $"{Nazwa(ut, zs.Ut)}: tor odgałęźny na obrazie nie zaczyna się w punkcie zwrotnicy", zs.Ut, zs.P));
+        // rozjazd krzyżowy: tor B na obrazie dochodzi do punktu zwrotnicy końca (ab / cd) – tam jest węzeł symulatora
+        foreach (var zs in o.Zwrotnice.Where(s => s.P != null))
+            if (Krzyzowe.Parse(ut, zs.Ut) is var (kc, kk) && Krzyzowe.Wezly(ut, kc, kk) is { Count: 2 } w)
+            {
+                var (tb, sb) = w[1];
+                var konce = o.Tory.Where(t => t.Ut?.Tor == tb && t.Pkt.Count >= 2)
+                    .SelectMany(t => new[] { (t.Ut.S0, t.Pkt[0]), (t.Ut.S1, t.Pkt[^1]) }).Where(x => Math.Abs(x.Item1 - sb) < 0.5).ToList();
+                if (konce.Count > 0 && !konce.Any(x => Same(x.Item2, zs.P)))
+                    res.Add(new(false, $"{Nazwa(ut, zs.Ut)}: tor {ut.Tracks.FirstOrDefault(x => x.Id == tb)?.Number ?? "?"} na obrazie nie kończy się w punkcie zwrotnicy (Ie-104 § 8 pkt 9 – dwa rozjazdy zwrócone ostrzami)", zs.Ut, zs.P));
+            }
+        // skrzyżowanie: oba tory narysowane w km środka krzyżują się na obrazie (Ie-104 § 8 pkt 2)
+        foreach (var c in ut.Crossings.Where(c => Krzyzowe.Rodzaj(c) == RozjazdTyp.St))
+        {
+            var ka = Kawalki(o, c.TrackA, c.SA).ToList(); var kb = Kawalki(o, c.TrackB, c.SB).ToList();
+            if (ka.Count == 0 || kb.Count == 0) continue;
+            if (!ka.Any(a => kb.Any(b => ZobTory.Przeciecie(a.Pkt, b.Pkt) != null)))
+                res.Add(new(false, $"skrzyżowanie {c.Number}: tory {ut.Tracks.FirstOrDefault(x => x.Id == c.TrackA)?.Number ?? "?"} i {ut.Tracks.FirstOrDefault(x => x.Id == c.TrackB)?.Number ?? "?"} nie krzyżują się na obrazie", c.Id, ka[0].Pkt[0]));
+        }
         // kolejność wzdłuż toru obrazu taka jak km w UT (symbole w miejscu km obiektu)
         foreach (var t in o.Tory.Where(t => t.Pkt.Count >= 2))
         {

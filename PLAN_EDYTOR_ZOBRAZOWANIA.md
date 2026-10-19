@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4–Z6 – 2026-10-19 – plan wykonany** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4–Z6 – § 10). Dalej: etap 9 (rozjazdy krzyżowe, pochylenia, przycisk „Opisy” na pulpicie).
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4–Z6 – 2026-10-19 – plan wykonany** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4–Z6 – § 10). Etap 9 – rozjazdy krzyżowe, pochylenia, przycisk „Opisy” na pulpicie – zrobione 2026-10-19 (decyzje – § 11).
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
@@ -179,4 +179,11 @@ Plan zaakceptowany z propozycjami z § 8:
 4. **Obraz poglądowy na pulpicie – jak dotąd** (2026-10-19): zakładka „Obraz poglądowy” w symulatorze pokazuje pomniejszone obrazy szczegółowe; obraz poglądowy z edytora rysuje się i sprawdza w edytorze, „Do symulatora…” go nie przenosi.
 5. **Ten sam obiekt UT na dwóch obrazach szczegółowych – na pulpicie na obu** (2026-10-19): pulpit rysuje obiekt na każdym obrazie, na którym go narysowano; sterowanie wg obszaru sterowania posterunku (§ 9 pkt 6).
 6. **Podgląd „jak na pulpicie” (Z6) w samym edytorze kodem pulpitu** (2026-10-19): edytor korzysta z kodu symulatora (`Lcs.Core`, `PanelView`), obraz ze stanem zasadniczym i przykładowym przebiegiem.
+
+## 11. Decyzje właściciela – rozjazdy krzyżowe i skrzyżowania (2026-10-19)
+
+1. **Rkpd** – jak w układzie Widzewa (17ab / 17cd): dwie zwrotnice na końcach rozjazdu zwrócone do siebie ostrzami (Ie-104 § 8 pkt 9), „ab” na końcu od mniejszego km toru A, „cd” na drugim; łącznik między ostrzami, cały rozjazd w jednym odcinku. *Który koniec to „ab” – przyjęte przez agenta, do potwierdzenia.*
+2. **Rkp** – po wzorze pulpitu LCS od właściciela (18ab / 18cd: oba tory poziomo, drugi tor nawiasami „[” „]” do zwrotnic) **zmiana tego samego dnia:** na obrazie i w symulatorze jak Rkpd – dwie zwrotnice ab / cd zwrócone ostrzami; komputer zależności nie dopuszcza jazdy przez brakujący przejazd (pole `noPass` w pliku symulatora). Pierwsza wersja (krzyż i dwie zwrotnice z torem przejazdu) wycofana.
+3. **Skrzyżowanie St** – w symulatorze przez krzyż tylko na wprost (Ie-104 § 8 pkt 2); w jednym odcinku (jak w UT); opis „K” + numer tylko przy osobnej kontroli niezajętości (nie rysowany).
+4. **Zakres:** edytor zobrazowania (końce ab / cd narzędziem Zwrotnica) i „Do symulatora…” naraz.
 

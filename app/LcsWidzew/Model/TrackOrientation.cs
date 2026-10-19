@@ -205,14 +205,22 @@ public static class TrackOrientation
             }
 
         // odwrócenie torów: końce, punkty, punkty zobrazowania, pole dir
-        var dispEdges = (root["display"] as JsonObject)?["edges"] as JsonObject;
+        // punkty zobrazowania: geometria główna i geometria każdej strony (pageGeo – edytor zobrazowania)
+        var disp = root["display"] as JsonObject;
+        var dispEdges = new List<JsonObject>();
+        if (disp?["edges"] is JsonObject de0) dispEdges.Add(de0);
+        if (disp?["pageGeo"] is JsonObject pgs) foreach (var (_, pg) in pgs) if (pg?["edges"] is JsonObject pe) dispEdges.Add(pe);
         foreach (var (e, v) in o)
         {
             if (v > 0) continue;
             var a = e["a"]?.DeepClone(); e["a"] = e["b"]?.DeepClone(); e["b"] = a;
             if (e["pts"] is JsonArray pa) e["pts"] = new JsonArray(pa.Reverse().Select(p => p?.DeepClone()).ToArray());
-            if (dispEdges != null && Sv(e["id"]) is string id && dispEdges[id] is JsonArray da) dispEdges[id] = new JsonArray(da.Reverse().Select(p => p?.DeepClone()).ToArray());
+            if (Sv(e["id"]) is string id)
+                foreach (var de in dispEdges)
+                    if (de[id] is JsonArray da) de[id] = new JsonArray(da.Reverse().Select(p => p?.DeepClone()).ToArray());
             if (e["dir"] != null) { int d = (int)D(e["dir"]); if (d != 0) e["dir"] = -d; }
+            // pochylenie [‰] liczone od A do B – po odwróceniu przeciwny znak
+            if (e["poch"] is JsonValue pv && pv.TryGetValue<double>(out var poch)) e["poch"] = -poch;
         }
         // ±1 po zmianie: względem A→B
         foreach (var (s, e, back) in sigAhead) { var n = Sv(s["node"]); int d = Cur(e, n); s["dir"] = back ? -d : d; }

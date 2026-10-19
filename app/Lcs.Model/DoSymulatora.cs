@@ -58,7 +58,42 @@ public static class DoSymulatora
             swNode[z.Id] = id; nodeKind[id] = ("switch", z.Number);
             Put(z.Branch, z.BranchAtEnd ? r[z.Branch].Length : 0, id);
         }
-        if (ut.Crossings.Count > 0) uw.Add($"rozjazdy krzyżowe i skrzyżowania ({ut.Crossings.Count}) – jeszcze nie przenoszone do symulatora");
+
+        // rozjazdy krzyżowe i skrzyżowania (decyzje właściciela 2026-10-19, UtKrzyzowe.cs): St – węzeł krzyża na obu torach; Rkpd i Rkp –
+        // zwrotnice „Nab” / „Ncd” na końcach zwrócone ostrzami (węzeł na obu torach), wnętrze toru B pominięte; Rkp – zakaz jazdy przez brakujący przejazd
+        var krSw = new List<(UtCrossing C, string K, string Node, string Track, double S)>();
+        var krRkp = new List<(UtCrossing C, string Ab, string Cd)>();
+        var skip = new List<(string Track, double A, double B)>();
+        foreach (var c in ut.Crossings.Where(c => pts.ContainsKey(c.TrackA) && pts.ContainsKey(c.TrackB)))
+        {
+            var kind = Krzyzowe.Rodzaj(c);
+            var nr = c.Number.Length > 0 ? c.Number : "X";
+            if (c.Number.Length == 0) uw.Add($"{(kind == RozjazdTyp.St ? "skrzyżowanie" : "rozjazd krzyżowy")} bez numeru (tor {Nr(c.TrackA)} km {c.SA:0}) – w symulatorze „{nr}”; wpisz numer w UT");
+            if (kind == RozjazdTyp.St)
+            {
+                var x = NodeOn(c.TrackA, c.SA, $"{Kod(c.TrackA)}:kr{nr}");
+                Put(c.TrackB, c.SB, x); nodeKind[x] = ("crossing", nr);
+            }
+            if (kind == RozjazdTyp.St) continue;
+            var kn = new Dictionary<string, string>();
+            foreach (var k in Krzyzowe.Konce)
+            {
+                var w = Krzyzowe.Wezly(ut, c, k);
+                double Cl(string tr, double s)
+                {
+                    double len = r[tr].Length;
+                    if (s < -Tol || s > len + Tol) uw.Add($"rozjazd krzyżowy {nr}{k}: koniec poza torem {Nr(tr)} (km {s:0.#}, długość {len:0.#}) – przesunięty na koniec toru");
+                    return Math.Clamp(s, 0, len);
+                }
+                var id = NodeOn(w[0].Track, Cl(w[0].Track, w[0].S), $"{Kod(w[0].Track)}:sw{nr}{k}");
+                foreach (var (tr, s) in w.Skip(1)) Put(tr, Cl(tr, s), id);
+                nodeKind[id] = ("switch", nr + k);
+                krSw.Add((c, k, id, w[0].Track, w[0].S));
+                kn[k] = id;
+            }
+            double a = Krzyzowe.A(c); skip.Add((c.TrackB, c.SB - a, c.SB + a));
+            if (kind == RozjazdTyp.Rkp) krRkp.Add((c, kn[Krzyzowe.Ab], kn[Krzyzowe.Cd]));
+        }
 
         // styki końców torów (połączenia bez rozjazdu)
         foreach (var st in styki.Where(s => pts.ContainsKey(s.Track) && pts.ContainsKey(s.Other)))
@@ -135,6 +170,12 @@ public static class DoSymulatora
             {
                 double s0 = l[i - 1].S, s1 = l[i].S; if (s1 - s0 < 0.01) continue;
                 double mid = (s0 + s1) / 2;
+                // wnętrze rozjazdu krzyżowego podwójnego na torze B – w symulatorze łącznik ab–cd to kawałek toru A
+                if (skip.Any(k => k.Track == t.Id && mid > k.A && mid < k.B))
+                {
+                    if (i > 1 && l[i - 1].S > skip.First(k => k.Track == t.Id && mid > k.A && mid < k.B).A + Tol) uw.Add($"tor {Nr(t.Id)} km {l[i - 1].S:0}: węzeł wewnątrz rozjazdu krzyżowego – pominięty");
+                    continue;
+                }
                 var sec = SecName(t.Id, mid, out bool szlak, out var line);
                 var id = $"e{ne++}";
                 var pl = new JsonArray();
@@ -148,6 +189,12 @@ public static class DoSymulatora
                 };
                 if (t.Elec) e["elec"] = true;
                 if (t.Vmax > 0) e["vmax"] = t.Vmax;
+                // pochylenie [‰] od A do B (rosnący km) – średnie z niwelety UT na kawałku; bez niwelety – brak pola
+                if (t.Profile is { Count: >= 2 } prof)
+                {
+                    double z0 = Profil.Z(prof, s0), z1 = Profil.Z(prof, s1);
+                    if (!double.IsNaN(z0) && !double.IsNaN(z1)) e["poch"] = Math.Round((z1 - z0) / (s1 - s0) * 1000, 1);
+                }
                 if (szlak)
                 {
                     e["szlak"] = true;
@@ -159,6 +206,18 @@ public static class DoSymulatora
                 edges.Add(e);
                 edgeInfo.Add((id, t.Id, s0, s1, l[i - 1].N, l[i].N));
             }
+        }
+
+        // Rkp: pary torów bez przejazdu (w obie strony) – ramię zwrotnicy ab i ramię zwrotnicy cd po stronach brakującego łuku
+        var noPass = new JsonArray();
+        foreach (var (c, nab, ncd) in krRkp)
+        {
+            if (Krzyzowe.BrakPrzejazdu(c) is not var (tAb, tCd)) continue;
+            string Arm(string node, string tr, string other) =>
+                edgeInfo.FirstOrDefault(e => e.Track == tr && (e.A == node || e.B == node) && e.A != other && e.B != other).Id;
+            var x = Arm(nab, tAb, ncd); var y = Arm(ncd, tCd, nab);
+            if (x != null && y != null) noPass.Add(new JsonArray(x, y));
+            else uw.Add($"rozjazd krzyżowy {c.Number}: nie znaleziono ramion brakującego przejazdu – w symulatorze jak Rkpd (wszystkie jazdy)");
         }
 
         // ---------- węzły ----------
@@ -186,6 +245,18 @@ public static class DoSymulatora
             if (typ != null) { o["radius"] = typ.R; o["ratio"] = $"1:{typ.N:0.##}".Replace('.', ','); if (typ.Vbok > 0) o["vbok"] = typ.Vbok; }
             if (z.Zas == "-") o["zas"] = "-";
             if (z.Manual) o["manual"] = true;
+            switches[key] = o;
+        }
+
+        // zwrotnice rozjazdów krzyżowych: koniec ab / cd (Ie-104 § 8 pkt 9), w odcinku rozjazdu
+        foreach (var (c, k, node, tr, s) in krSw)
+        {
+            var label = Krzyzowe.Numer(c, k);
+            var key = $"{Kod(tr)}:{label}";
+            if (c.Number.Length == 0 || switches.ContainsKey(key)) { uw.Add($"rozjazd krzyżowy bez numeru albo z powtórzonym numerem ({key}) – zwrotnica pominięta"); continue; }
+            var typ = Katalog.Find(c.Type);
+            var o = new JsonObject { ["num"] = key, ["node"] = node, ["label"] = label, ["sec"] = SecName(c.TrackA, c.SA, out _, out _), ["post"] = Kod(tr), ["kind"] = c.Type };
+            if (typ != null) { o["radius"] = typ.R; o["ratio"] = $"1:{typ.N:0.##}".Replace('.', ','); if (typ.Vbok > 0) o["vbok"] = typ.Vbok; }
             switches[key] = o;
         }
 
@@ -380,6 +451,7 @@ public static class DoSymulatora
             ["sections"] = sections, ["platforms"] = platforms, ["labels"] = new JsonArray(), ["crossings"] = crossings, ["dashed"] = new JsonArray(),
             ["routeRules"] = new JsonArray(),
         };
+        if (noPass.Count > 0) root["noPass"] = noPass;
         if (display != null) root["display"] = display;
         return new Wynik(root, uw);
     }
@@ -402,6 +474,14 @@ public static class DoSymulatora
             foreach (var s in ZobSymbole.Lista(ob, rd))
                 if (s.P != null && ZobSymbole.Miejsce(ut, s) is var (tr, km) && tr == zt.Ut.Tor && ZobSymbole.NaTorze(zt, s.P))
                     anchors.Add((km, ZobTory.Rzut(zt.Pkt, s.P[0], s.P[1]).Frac));
+        // środek skrzyżowania (St) – w punkcie, w którym tory obrazu się krzyżują
+        foreach (var c in ut.Crossings.Where(c => Krzyzowe.Rodzaj(c) == RozjazdTyp.St && (c.TrackA == zt.Ut.Tor || c.TrackB == zt.Ut.Tor)))
+        {
+            bool onA = c.TrackA == zt.Ut.Tor; double km = onA ? c.SA : c.SB, kmO = onA ? c.SB : c.SA;
+            if (km < Math.Min(zt.Ut.S0, zt.Ut.S1) || km > Math.Max(zt.Ut.S0, zt.Ut.S1)) continue;
+            foreach (var o2 in ZobSymbole.Kawalki(ob, onA ? c.TrackB : c.TrackA, kmO))
+                if (ZobTory.Przeciecie(zt.Pkt, o2.Pkt) is var (ix, iy)) { anchors.Add((km, ZobTory.Rzut(zt.Pkt, ix, iy).Frac)); break; }
+        }
         anchors = anchors.OrderBy(a => a.Km).ToList();
         return km =>
         {

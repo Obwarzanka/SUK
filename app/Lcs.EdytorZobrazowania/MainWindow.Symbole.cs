@@ -113,6 +113,14 @@ public partial class MainWindow
                 .Where(q => ZobSymbole.NaTorze(t, q)).OrderBy(q => Math.Abs(q[0] - p[0]) + Math.Abs(q[1] - p[1])).ToList();
             if (ends.Count > 0 && Math.Abs(ends[0][0] - p[0]) + Math.Abs(ends[0][1] - p[1]) <= 3 * g) p = new[] { ends[0][0], ends[0][1] };
         }
+        else if (r == ZobRodzaj.Zwrotnica && Krzyzowe.Parse(Doc.Ut, ut) is var (kc, kk) && Krzyzowe.Wezly(Doc.Ut, kc, kk) is { Count: 2 } w)
+        {
+            // rozjazd krzyżowy: przyciąganie do końca narysowanego toru B w km tego końca (do 3 kroków siatki)
+            var ends = Obraz.Tory.Where(x => x.Ut?.Tor == w[1].Track && x.Pkt.Count >= 2)
+                .SelectMany(x => new[] { (x.Ut.S0, x.Pkt[0]), (x.Ut.S1, x.Pkt[^1]) }).Where(q => Math.Abs(q.Item1 - w[1].S) < 0.5 && ZobSymbole.NaTorze(t, q.Item2))
+                .Select(q => q.Item2).OrderBy(q => Math.Abs(q[0] - p[0]) + Math.Abs(q[1] - p[1])).ToList();
+            if (ends.Count > 0 && Math.Abs(ends[0][0] - p[0]) + Math.Abs(ends[0][1] - p[1]) <= 3 * g) p = new[] { ends[0][0], ends[0][1] };
+        }
         else if (r == ZobRodzaj.Szlak && Doc.Ut.Lines.FirstOrDefault(l => l.Id == ut) is UtLine line && line.Konce[koniec.Value].Semafor is string semId
                  && Doc.Ut.Devices.FirstOrDefault(d => d.Id == semId) is UtDevice sd)
         {
@@ -171,6 +179,13 @@ public partial class MainWindow
         }
         if (Doc.Ut.Turnouts.FirstOrDefault(z => z.Id == ut) is UtTurnout z)
             lines.Add($"położenie zasadnicze: {(z.Zas == "-" ? "na zwrot (−)" : "na wprost (+)")}" + (z.Manual ? ", zwrotnica ręczna" : ""));
+        if (Krzyzowe.Parse(Doc.Ut, ut) is var (kc, kk))
+        {
+            var kind = Krzyzowe.Rodzaj(kc);
+            lines.Add($"{kc.Type}; koniec {kk} – w symulatorze zwrotnica {Krzyzowe.Numer(kc, kk)}");
+            lines.Add("dwie zwrotnice zwrócone ostrzami (Ie-104 § 8 pkt 9) – tor B rysuj do punktu zwrotnicy ab i od punktu cd (np. nawiasami „[” „]”)"
+                + (kind == RozjazdTyp.Rkp ? "; Rkp – jeden przejazd, jazdy przez brakujący komputer zależności nie dopuszcza" : ""));
+        }
         if (Doc.Ut.Lines.FirstOrDefault(l => l.Id == ut) is UtLine line)
             lines.Add($"koniec szlaku: {Szlaki.Opis(Doc.Ut, line.Konce[Math.Clamp(s.Koniec ?? 0, 0, line.Konce.Count - 1)])}; blokada: {UtLine.Typy.FirstOrDefault(x => x.Key == line.Typ).Name}");
         if (r is not (ZobRodzaj.OpisOdcinka or ZobRodzaj.NumerToru)) lines.Add("kierunek symbolu wynika z UT i z kierunku km toru obrazu");

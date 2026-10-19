@@ -61,7 +61,7 @@ public partial class MainWindow
         if (t == ZobTool.Peron && Doc != null && Obraz != null) PickPeron(utSelected);
         // tor wybrany w panelu UT i jeszcze nie cały na obrazie – od razu jego brakujący kawałek
         if (t == ZobTool.Tor && Doc != null && Obraz != null && utSelected != null && Doc.Ut.Tracks.Any(x => x.Id == utSelected)
-            && ZobTory.Luki(Obraz, utSelected, UtLen(utSelected)).Count > 0) StartTor(utSelected);
+            && ZobTory.Luki(Obraz, utSelected, UtLen(utSelected), ut: Doc.Ut).Count > 0) StartTor(utSelected);
     }
 
     void ToolShown()
@@ -131,7 +131,7 @@ public partial class MainWindow
     /// <summary>Narzędzie Tor dla toru UT: kawałek = pierwszy jeszcze nie narysowany przedział km.</summary>
     public bool StartTor(string utId)
     {
-        var luki = ZobTory.Luki(Obraz, utId, UtLen(utId));
+        var luki = ZobTory.Luki(Obraz, utId, UtLen(utId), ut: Doc.Ut);
         if (luki.Count == 0)
         {
             View.DraftUt = null;
@@ -181,7 +181,7 @@ public partial class MainWindow
     void OnTorDone(List<int[]> pts)
     {
         var ut = View.DraftUt; if (ut == null || Obraz == null) return;
-        var luki = ZobTory.Luki(Obraz, ut, UtLen(ut));
+        var luki = ZobTory.Luki(Obraz, ut, UtLen(ut), ut: Doc.Ut);
         if (luki.Count == 0) { Message($"{TorName(ut)} jest już na obrazie w całości"); return; }
         var (a, b) = luki[0];
         // kierunek km: z toru UT, z którym styka się węzeł początkowy albo końcowy rysowania (jak w poprzednim edytorze – tor od węzła)
@@ -206,7 +206,7 @@ public partial class MainWindow
         var rb = ZobTory.Rzut(B.Pkt, qb[0], qb[1]);
         if (B.Pkt[rb.Seg][1] != B.Pkt[rb.Seg + 1][1]) { Message("Łącznik rysuje się między torami poziomymi – tu narysuj tor łączący narzędziem Tor"); return; }
         int yB = B.Pkt[rb.Seg][1];
-        var cands = ZobTory.Laczniki(Doc.Ut, A.Ut.Tor, B.Ut.Tor).Where(c => ZobTory.Luki(Obraz, c.Track, UtLen(c.Track)).Count > 0).ToList();
+        var cands = ZobTory.Laczniki(Doc.Ut, A.Ut.Tor, B.Ut.Tor).Where(c => ZobTory.Luki(Obraz, c.Track, UtLen(c.Track), ut: Doc.Ut).Count > 0).ToList();
         if (cands.Count == 0) { Message($"Między torami UT {TorName(A.Ut.Tor)} i {TorName(B.Ut.Tor)} nie ma toru łączącego dwóch rozjazdów, który nie jest jeszcze na obrazie"); return; }
         // tor łącznika: wybrany w panelu UT, inaczej ten, którego rozjazd na torze A leży najbliżej km wskazanego miejsca
         var pick = cands.FirstOrDefault(c => c.Track == utSelected);

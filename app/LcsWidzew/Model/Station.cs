@@ -203,6 +203,8 @@ public class Station
     public Dictionary<string, TrackEndDef> TrackEnds = new();
     /// <summary>Kozły oporowe – tylko symbol na końcu toru (bez funkcji końca przebiegu).</summary>
     public HashSet<string> Bumpers = new();
+    /// <summary>Pary torów, przez które nie ma jazdy (w obie strony): rozjazd krzyżowy pojedynczy – brakujący przejazd (pole „noPass”).</summary>
+    public List<(string A, string B)> NoPass = new();
     public Dictionary<string, string> Posts = new();
     public List<PageDef> Pages = new();
     public List<PlatformDef> Platforms = new();
@@ -247,6 +249,28 @@ public class Station
     public Station View => Display ?? this;
 
     public string Other(string eid, string nid) { var e = Edges[eid]; return e.A == nid ? e.B : e.A; }
+
+    /// <summary>Kierunek toru od węzła (jednostkowy, z punktów toru).</summary>
+    public (double X, double Y) Tangent(string eid, string nid)
+    {
+        var e = Edges[eid]; var p = e.A == nid ? e.Pts : Enumerable.Reverse(e.Pts).ToList();
+        for (int i = 1; i < p.Count; i++)
+        {
+            double dx = p[i].X - p[0].X, dy = p[i].Y - p[0].Y, l = Math.Sqrt(dx * dx + dy * dy);
+            if (l > 1e-6) return (dx / l, dy / l);
+        }
+        return (1, 0);
+    }
+
+    /// <summary>
+    /// Skrzyżowanie torów (węzeł bez zwrotnicy z więcej niż dwoma torami – krzyż St / Rkp, Ie-104 § 8 pkt 2): z toru <paramref name="from"/>
+    /// dalej tylko tor na jego przedłużeniu (najbardziej przeciwny kierunek od węzła).
+    /// </summary>
+    public string Straight(string nid, string from, IEnumerable<string> cands)
+    {
+        var (fx, fy) = Tangent(from, nid);
+        return cands.OrderBy(e => { var (x, y) = Tangent(e, nid); return x * fx + y * fy; }).FirstOrDefault();
+    }
     /// <summary>Węzły ze sprzeczną orientacją torów (trójkąt torowy, pętla) – do kontroli układu.</summary>
     public List<string> OrientConflicts = new();
     /// <summary>Geometria pulpitu: kierunek w poziomie z rysunku (zobrazowanie). Układ torowy – kierunek wg orientacji A→B.</summary>
@@ -455,6 +479,8 @@ public class Station
         }
         foreach (var p in r.GetProperty("boundaries").EnumerateObject()) st.Boundaries[p.Name] = p.Value.GetProperty("szlak").GetString();
         foreach (var p in r.GetProperty("farEnds").EnumerateObject()) st.FarEnds[p.Name] = (p.Value.GetProperty("szlak").GetString(), p.Value.GetProperty("nbr").GetString());
+        if (r.TryGetProperty("noPass", out var np) && np.ValueKind == JsonValueKind.Array)
+            foreach (var p in np.EnumerateArray()) if (p.GetArrayLength() == 2) st.NoPass.Add((p[0].GetString(), p[1].GetString()));
         if (r.TryGetProperty("bumpers", out var bmp) && bmp.ValueKind == JsonValueKind.Object)
             foreach (var p in bmp.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.Bumpers.Add(p.Name);
         foreach (var p in r.GetProperty("trackEnds").EnumerateObject())

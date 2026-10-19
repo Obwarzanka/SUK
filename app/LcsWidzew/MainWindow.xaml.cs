@@ -175,6 +175,7 @@ public partial class MainWindow : Window
         {
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (sim != null) while (sim.T < until) { sim.Tick(0.1); server?.Push(); } else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
+            if (c == "#opisy") { SetOpisy(true); continue; }
             if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':', 2); sim.Instruktor.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
             if (c.StartsWith("#page=")) { ShowPage(int.Parse(c[6..])); continue; }
             if (c.StartsWith("#serwis=")) { var er = StartSerwis(int.Parse(c[8..]), sim); File.AppendAllText(ShotPath + ".txt", $"serwis: {er ?? "OK"}{(char)10}"); continue; }
@@ -699,6 +700,15 @@ public partial class MainWindow : Window
         if (v == 0) { paused = !paused; } else { speed = v; paused = false; }
     }
     void FitStation_Click(object s, RoutedEventArgs e) => Panel.FitPage();
+    void Opisy_Click(object s, RoutedEventArgs e) => SetOpisy(!Panel.ShowOpisy);
+    // opisy odcinków na żądanie (Ie-104 § 5 ust. 2) – przycisk podświetlony, gdy są włączone
+    void SetOpisy(bool on)
+    {
+        Panel.ShowOpisy = on;
+        BtnOpisy.Background = on ? new SolidColorBrush(Color.FromRgb(0x5a, 0x5a, 0x5a)) : new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26));
+        BtnOpisy.BorderBrush = on ? Brushes.Gray : new SolidColorBrush(Color.FromRgb(0x4a, 0x4a, 0x4a));
+        Panel.InvalidateVisual();
+    }
     void FitAll_Click(object s, RoutedEventArgs e) => Panel.FitPage();
     void Plan_Click(object s, RoutedEventArgs e) => new PlanWindow(ses) { Owner = this }.Show();
     void Routes_Click(object s, RoutedEventArgs e) => new RoutesWindow(ses.RouteTable, ses.IsHost ? sim : null) { Owner = this }.Show();
