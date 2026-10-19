@@ -124,18 +124,48 @@ public static partial class Test
             // zmiana numeru wstawionego rozjazdu (Enter) i powrót
             var nb = Find<TextBox>(w.TrackPanel, x => x.Text == "5"); nb.Text = "15"; Enter(nb);
             Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && Find<TextBlock>(w.TrackPanel, x => x.Text == "Rozjazd 15") != null, "numer rozjazdu 5 → 15 w panelu (Enter)");
+            // numer zajęty (1, rozjazd łącznika 1/2) – pytanie o zamianę: „Nie” – bez zmian, „Tak” – zamiana w jednym kroku
+            var z1id = d.P.Turnouts.First(x => x.Number == "1").Id; string asked = null;
+            w.ConfirmForTest = q => { asked = q; return false; };
             nb = Find<TextBox>(w.TrackPanel, x => x.Text == "15"); nb.Text = "1"; Enter(nb);
-            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && w.LastMessage.Contains("zajęty"), "numer zajęty (1) – odrzucony z komunikatem");
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && asked?.Contains("rozjazd 1 → 15") == true && w.LastMessage.Contains("nie został zmieniony")
+                && Find<TextBox>(w.TrackPanel, x => x.Text == "15") != null, $"numer zajęty (1) – pytanie o zamianę, „Nie”: bez zmian ({asked?.Replace("\n", " ")})");
+            w.ConfirmForTest = _ => true; var undoBefore = d.UndoName;
+            nb = Find<TextBox>(w.TrackPanel, x => x.Text == "15"); nb.Text = "1"; Enter(nb);
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "1" && d.P.Turnouts.First(x => x.Id == z1id).Number == "15" && d.UndoName == "Numer rozjazdu"
+                && Kontrola.Run(d.P).All(u => !u.Text.Contains("powtórzony")), $"„Tak” – zamiana: rozjazd 5 ma numer 1, dawny 1 (łącznik) – 15 ({w.LastMessage})");
+            w.DoUndo();
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "15" && d.P.Turnouts.First(x => x.Id == z1id).Number == "1" && d.UndoName == undoBefore, "Ctrl+Z – zamiana cofnięta jednym krokiem");
+            w.ConfirmForTest = null;
             nb = Find<TextBox>(w.TrackPanel, x => x.Text == "15"); Type(nb, "5");
             Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "5", "numer rozjazdu 15 → 5 (wyjście z pola)");
+            // wpis bez Enter i bez wyjścia z pola – przyjęty przed zapisem (Ctrl+S / „Zapisz” nie zdejmują fokusu z pola) i przed „Cofnij”
+            nb = Find<TextBox>(w.TrackPanel, x => x.Text == "5"); nb.Text = "25"; FocusManager.SetFocusedElement(w, nb);
+            w.SaveDoc(false);
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "25" && !d.Dirty && UtDocument.Load(d.Path).P.Turnouts.First(x => x.Id == z5.Id).Number == "25", "numer 25 wpisany bez Enter – przyjęty i zapisany przy zapisie");
+            nb = Find<TextBox>(w.TrackPanel, x => x.Text == "25"); nb.Text = "26"; FocusManager.SetFocusedElement(w, nb);
+            Click(w.UndoBtn);
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "25" && d.RedoName == "Numer rozjazdu", "wpis 26 bez Enter, „Cofnij” – wpis przyjęty i cofnięty (Ponów przywraca 26)");
+            w.DoUndo();
+            Ok(d.P.Turnouts.First(x => x.Id == z5.Id).Number == "5", "Ctrl+Z – znowu 5");
             // menu PPM łącznika: oba numery naraz, zamiana miejscami; zajęty numer odrzucony
             var q3 = d.P.Turnouts.First(x => x.Number == "3"); var q4 = d.P.Turnouts.First(x => x.Number == "4");
             var rn = w.BuildTurnoutMenu(q3.Id).Items.OfType<MenuItem>().FirstOrDefault(x => (x.Header as string)?.StartsWith("Zmień numery") == true);
             w.AskNumbersForTest = def => def.Length == 2 && def[0] == "3" && def[1] == "4" ? new[] { "4", "3" } : null;
             rn?.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Ok(rn != null && d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "3", "menu „Zmień numery łącznika…”: 3/4 → 4/3 (zamiana miejscami)");
-            w.AskNumbersForTest = _ => new[] { "1", "3" }; w.RenumberTurnout(q3.Id);
-            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && w.LastMessage.Contains("zajęty"), "numer 1 zajęty – numery łącznika bez zmian");
+            // łącznik 4/3 → 1/5: 1 zajęty (rozjazd 1) – zamiana, rozjazd 1 dostaje zwolniony 4; „Nie” – bez zmian
+            w.ConfirmForTest = _ => false;
+            w.AskNumbersForTest = _ => new[] { "1", "5" }; w.RenumberTurnout(q3.Id);
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && w.LastMessage.Contains("nie został zmieniony"), "łącznik: numer 1 zajęty, „Nie” – numery łącznika bez zmian");
+            w.ConfirmForTest = _ => true; w.RenumberTurnout(q3.Id);
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "1" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "5" && d.P.Turnouts.First(x => x.Id == z1id).Number == "4"
+                && Kontrola.Run(d.P).All(u => !u.Text.Contains("powtórzony")), $"łącznik 4/3 → 1/5, „Tak” – rozjazd 1 dostał 4 ({w.LastMessage})");
+            if (shotRails != null) { w.SetTool(UtTool.Wskaz); w.View.SelectTurnout(q3.Id); Look(Rozjazdy.Geometry(d.P, q3).PR, 0.25); Save(w, shotRails.Replace("_szyny.png", "_zamiana_numerow.png")); }
+            w.DoUndo(); w.ConfirmForTest = null;
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && d.P.Turnouts.First(x => x.Id == z1id).Number == "1", "Ctrl+Z – zamiana w łączniku cofnięta");
+            w.AskNumbersForTest = _ => new[] { "", "3" }; w.RenumberTurnout(q3.Id);
+            Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "4" && w.LastMessage.Contains("puste"), "pusty numer – odrzucony");
             w.DoUndo(); w.AskNumbersForTest = null;
             Ok(d.P.Turnouts.First(x => x.Id == q3.Id).Number == "3" && d.P.Turnouts.First(x => x.Id == q4.Id).Number == "4", "Ctrl+Z – numery łącznika 3/4 wróciły");
             if (shotRails != null) { w.SetTool(UtTool.Wskaz); w.View.SelectTurnout(q3.Id); Look(Rozjazdy.Geometry(d.P, q3).PR, 0.25); Save(w, shotRails.Replace("_szyny.png", "_numer_lacznika.png")); }

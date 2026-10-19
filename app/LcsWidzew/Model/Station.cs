@@ -105,6 +105,29 @@ public class SignalDef
     public bool ForShunts => Type is "wjazdowy" or "tm" || (Type == "wyjazdowy" && !NoShunt);
     /// <summary>Obowiązuje manewry (sygnał „Stój” zatrzymuje także skład manewrowy) – może kończyć przebieg manewrowy.</summary>
     public bool StopsShunts => ForShunts || Type == "wyjazdowy";
+    /// <summary>Pasy świetlne semafora: „P” – pomarańczowy (60 km/h), „Z” – zielony (100 km/h); null – plik bez tej informacji (wszystkie prędkości jak dotąd).</summary>
+    public string Stripes;
+    /// <summary>Wskaźnik W21: „S” – świetlny (liczba z prędkości przebiegu), cyfra – tablica odblaskowa (dziesiątki km/h), null – brak.</summary>
+    public string W21;
+
+    /// <summary>
+    /// Dobór sygnału do prędkości przebiegu v [km/h] (Ie-1 § 4: pasy świetlne, W21 – podwyższenie prędkości z sygnału 40 / 60 / 100):
+    /// klasa sygnału (0 – największa dozwolona), liczba na W21 (0 – nie świeci / brak), prędkość sygnalizowana i uwaga, gdy semafor
+    /// nie może zasygnalizować v (wtedy niższy sygnał – decyzja właściciela 2026-10-19). Plik bez pasów – klasa jak dotąd (w górę do 40 / 60 / 100).
+    /// </summary>
+    public (int Klasa, int W21, double V, string Uwaga) Dobor(double v)
+    {
+        if (Stripes == null) { int kl = v <= 0 ? 0 : v <= 40 ? 40 : v <= 60 ? 60 : v <= 100 ? 100 : 0; return (kl, 0, kl == 0 ? v : Math.Min(v, kl), null); }
+        if (v <= 0) return (0, 0, 0, null);
+        int k = v >= 100 && Stripes.Contains('Z') ? 100 : v >= 60 && Stripes.Contains('P') ? 60 : 40;
+        if (v <= k) return (k, 0, v, null);
+        if (W21 == "S") { int n = (int)(v / 10); return (k, n, n * 10, n * 10 < v ? $"W21 pokaże {n} – prędkość {n * 10} zamiast {v:0} km/h" : null); }
+        if (int.TryParse(W21, out var t) && t * 10 > k)
+            return (k, t, t * 10, t * 10 > v ? $"tablica W21 „{t}” zezwala na {t * 10} km/h, więcej niż prędkość przebiegu {v:0}" : t * 10 < v ? $"tablica W21 „{t}” – sygnalizowane {t * 10} zamiast {v:0} km/h" : null);
+        if (int.TryParse(W21, out var t2)) return (k, 0, k, $"tablica W21 „{t2}” na semaforze {Label} nie podwyższa prędkości ponad {k} – sygnał {k} km/h zamiast {v:0}");
+        var brak = v >= 100 && !Stripes.Contains('Z') ? "pasa zielonego ani W21" : v >= 60 && !Stripes.Contains('P') && k < 60 ? "pasa pomarańczowego ani W21" : "W21";
+        return (k, 0, k, $"semafor {Label} nie ma {brak} – sygnał {k} km/h zamiast {v:0}");
+    }
 }
 
 public class DerailerDef { public string Name, Node, Sec, Label, Post; }
@@ -461,7 +484,7 @@ public class Station
             {
                 Name = p.Name, Node = S(v, "node"), Dir = v.GetProperty("dir").GetInt32(), Type = S(v, "type"), Szlak = S(v, "szlak"), Track = S(v, "track"),
                 Label = S(v, "label", Lbl(p.Name)), Repeats = S(v, "repeats"), Post = S(v, "post", PostOf(p.Name)),
-                PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"), Side = S(v, "side", "P"),
+                PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"), Side = S(v, "side", "P"), Stripes = S(v, "stripes"), W21 = S(v, "w21"),
                 Lamps = v.TryGetProperty("lamps", out var lm) && lm.ValueKind == JsonValueKind.Number ? lm.GetInt32() : v.TryGetProperty("lamps", out var lm2) && lm2.ValueKind == JsonValueKind.String && int.TryParse(lm2.GetString(), out var lmi) ? lmi : 0,
                 NoShunt = v.TryGetProperty("shunt", out var sh) && (sh.ValueKind == JsonValueKind.False || (sh.ValueKind == JsonValueKind.String && sh.GetString() == "false"))
             };

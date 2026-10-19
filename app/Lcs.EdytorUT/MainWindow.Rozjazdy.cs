@@ -104,7 +104,7 @@ public partial class MainWindow
 
     /// <summary>
     /// Nowy numer wstawionego rozjazdu (w łączniku – obu rozjazdów naraz, więc można je zamienić miejscami).
-    /// Numer nie może być pusty ani zajęty w posterunku.
+    /// Numer zajęty w posterunku – po potwierdzeniu zamiana z tamtym rozjazdem.
     /// </summary>
     public void RenumberTurnout(string id)
     {
@@ -113,20 +113,46 @@ public partial class MainWindow
         var all = pa != null ? new[] { t, pa } : new[] { t };
         var nums = AskNumbers(pa != null ? $"Łącznik {t.Number}/{pa.Number} – numery" : $"Rozjazd {t.Number} – numer",
             all.Select(x => $"Numer rozjazdu (teraz {x.Number})").ToArray(), all.Select(x => x.Number).ToArray());
-        if (nums == null || nums.SequenceEqual(all.Select(x => x.Number))) return;
-        if (nums.Any(n => n.Length == 0)) { Message("Numer nie może być pusty"); return; }
-        if (nums.Distinct().Count() != nums.Length) { Message("Numery zwrotnic łącznika muszą być różne"); return; }
-        // numery zmieniane razem nie zajmują się nawzajem – sprawdzane bez nich
-        var old = all.Select(x => x.Number).ToArray();
-        foreach (var x in all) x.Number = "";
-        var taken = nums.Where((n, i) => Rozjazdy.NumberUsed(Doc.P, n, null, all[i].Track)).ToList();
-        for (int i = 0; i < all.Length; i++) all[i].Number = old[i];
-        if (taken.Count > 0) { Message($"Numer {taken[0]} jest już zajęty – numer nie został zmieniony"); return; }
-        Doc.Change(pa != null ? "Numery łącznika" : "Numer rozjazdu", p =>
+        if (nums == null) return;
+        ApplyNumbers(pa != null ? "Numery łącznika" : "Numer rozjazdu", all.Select(x => x.Id).ToArray(), nums);
+    }
+
+    /// <summary>Test: odpowiedź na pytanie o zamianę numerów zamiast okna (null – okno, przy NoPrompt – tak).</summary>
+    public Func<string, bool> ConfirmForTest;
+    bool Confirm(string text, string title)
+    {
+        if (ConfirmForTest != null) return ConfirmForTest(text);
+        if (NoPrompt) return true;
+        return MessageBox.Show(this, text, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+    }
+
+    bool numBusy;
+    /// <summary>
+    /// Nowe numery rozjazdów / skrzyżowań (jedno Ctrl+Z); numer zajęty w posterunku – pytanie o zamianę (<see cref="Rozjazdy.PlanNumbers"/>).
+    /// False – nic się nie zmieniło (ten sam numer, błąd, rezygnacja).
+    /// </summary>
+    public bool ApplyNumbers(string what, string[] ids, string[] nums)
+    {
+        if (numBusy) return false;      // okno pytania zdejmuje fokus z pola – drugie zatwierdzenie z LostFocus
+        numBusy = true;
+        try
         {
-            for (int i = 0; i < all.Length; i++) { var x = p.Turnouts.FirstOrDefault(q => q.Id == all[i].Id); if (x != null) x.Number = nums[i]; }
-        });
-        Message($"Rozjazd {string.Join("/", old)} → {string.Join("/", nums)} (Ctrl+Z przywraca)");
+            string Num(string id) => Doc.P.Turnouts.FirstOrDefault(x => x.Id == id)?.Number ?? Doc.P.Crossings.FirstOrDefault(x => x.Id == id)?.Number ?? "";
+            var olds = ids.Select(Num).ToArray();
+            nums = nums.Select(n => (n ?? "").Trim()).ToArray();
+            if (nums.SequenceEqual(olds)) return false;
+            var plan = Rozjazdy.PlanNumbers(Doc.P, ids, nums);
+            if (plan.Blad != null) { Message(plan.Blad + " – numer nie został zmieniony"); return false; }
+            if (plan.Zamiany.Count > 0 && !Confirm(
+                    $"Numer {string.Join(", ", nums.Where((n, i) => n != olds[i] && n.Length > 0))} jest już zajęty w tym posterunku.\n\nZamienić numery?\n" +
+                    string.Join("\n", plan.Zamiany.Select(z => "  " + z)), "Zamiana numerów"))
+            { Message("Numer nie został zmieniony"); return false; }
+            Doc.Change(what, p => Rozjazdy.ApplyNumbers(p, plan));
+            Message($"{(ids.Length > 1 ? "Rozjazdy" : "Numer")} {string.Join("/", olds)} → {string.Join("/", nums)}" +
+                    (plan.Zamiany.Count > 0 ? "; zamiana: " + string.Join(", ", plan.Zamiany) : "") + " (Ctrl+Z przywraca)");
+            return true;
+        }
+        finally { numBusy = false; }
     }
 
     /// <summary>Numery z okna (domyślnie kolejne wolne albo <paramref name="def"/>); null – rezygnacja.</summary>
@@ -266,11 +292,10 @@ public partial class MainWindow
         void CommitNum()
         {
             var n = num.Text.Trim(); if (n == t.Number) return;
-            if (n.Length == 0 || Rozjazdy.NumberUsed(Doc.P, n, t.Id)) { Message(n.Length == 0 ? "Numer nie może być pusty" : $"Numer {n} jest już zajęty"); num.Text = t.Number; return; }
-            ChTurnout(t.Id, "Numer rozjazdu", x => x.Number = n);
+            if (!ApplyNumbers("Numer rozjazdu", new[] { t.Id }, new[] { n })) num.Text = Doc.P.Turnouts.FirstOrDefault(x => x.Id == t.Id)?.Number ?? t.Number;
         }
         num.LostFocus += (s, e) => CommitNum(); num.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitNum(); };
-        P.Children.Add(Label("Numer rozjazdu (Enter – zastosuj)")); P.Children.Add(num);
+        P.Children.Add(Label("Numer rozjazdu (Enter – zastosuj; zajęty – zamiana)")); P.Children.Add(num);
         if (partner != null)
             P.Children.Add(SmallBtn($"Zmień numery łącznika {t.Number}/{partner.Number}…", () => RenumberTurnout(t.Id), "Oba numery naraz – można je też zamienić miejscami"));
 
@@ -350,8 +375,7 @@ public partial class MainWindow
         void CommitNum()
         {
             var n = num.Text.Trim(); if (n == c.Number) return;
-            if (n.Length == 0 && typ?.Kind != RozjazdTyp.St || Rozjazdy.NumberUsed(Doc.P, n, c.Id)) { Message(n.Length == 0 ? "Numer rozjazdu krzyżowego nie może być pusty" : $"Numer {n} jest już zajęty"); num.Text = c.Number; return; }
-            Doc.Change("Numer skrzyżowania", p => p.Crossings.First(x => x.Id == c.Id).Number = n);
+            if (!ApplyNumbers("Numer skrzyżowania", new[] { c.Id }, new[] { n })) num.Text = Doc.P.Crossings.FirstOrDefault(x => x.Id == c.Id)?.Number ?? c.Number;
         }
         num.LostFocus += (s, e) => CommitNum(); num.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitNum(); };
         P.Children.Add(Label("Numer (zwrotnice: numer + a, b, c, d)")); P.Children.Add(num);

@@ -46,6 +46,8 @@ public class UtDevice
     public bool W24 { get; set; }
     /// <summary>Wskaźnik W21 z cyfrą (np. „5”, BSK ss6); puste – brak.</summary>
     public string W21 { get; set; }
+    /// <summary>W21 świetlny: zapala się z sygnałem zezwalającym i pokazuje prędkość przebiegu (Ie-1); false – tablica odblaskowa z cyfrą <see cref="W21"/>.</summary>
+    public bool W21Swietlny { get; set; }
 
     public const string MastProsty = "prosty", MastWysiegnik = "wysiegnik", MastBramka = "bramka", MastKarzel = "karzel";
     /// <summary>Mocowanie sygnalizatora: na maszcie (słup), na wysięgniku, na bramce sygnałowej nad torem, karzełkowy (na podłożu).</summary>

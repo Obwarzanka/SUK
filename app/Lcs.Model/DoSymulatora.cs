@@ -350,7 +350,13 @@ public static class DoSymulatora
             }
             if (type == "wjazdowy" && !lineOfEntry.ContainsKey(d.Id)) uw.Add($"semafor wjazdowy {d.Name} nie jest końcem żadnego szlaku w UT");
             var lights = UtDevice.ParseLights(d.LightsOrDefault);
-            if (d.Kind == UtDevice.Semafor) o["lamps"] = lights.Count;
+            if (d.Kind == UtDevice.Semafor)
+            {
+                o["lamps"] = lights.Count;
+                // pasy świetlne i W21 – dobór sygnału do prędkości przebiegu (Ie-1); „S” – W21 świetlny, cyfra – tablica
+                o["stripes"] = (d.StripeP ? "P" : "") + (d.StripeZ ? "Z" : "");
+                if (d.W21Swietlny) o["w21"] = "S"; else if (!string.IsNullOrEmpty(d.W21)) o["w21"] = d.W21;
+            }
             if (type == "wyjazdowy" && !lights.Any(x => x.C == 'B')) o["shunt"] = false;
             if (d.Side < 0) o["side"] = "L";
             if (d.MastOrDefault is UtDevice.MastWysiegnik or UtDevice.MastBramka or UtDevice.MastKarzel) o["mount"] = d.MastOrDefault;

@@ -566,6 +566,66 @@ public static class Rozjazdy
         return p.Turnouts.Any(t => t.Number == n && t.Id != exceptId && Same(t.Track)) || p.Crossings.Any(c => c.Number == n && c.Id != exceptId && Same(c.TrackA));
     }
 
+    /// <summary>Plan zmiany numerów: nowe numery (id → numer, też zamienione), opis zamian dla projektanta, błąd (wtedy nic się nie zmienia).</summary>
+    public record Przenumerowanie(List<(string Id, string Number)> Zmiany, List<string> Zamiany, string Blad);
+
+    /// <summary>
+    /// Nowe numery rozjazdów / skrzyżowań <paramref name="ids"/> (np. oba rozjazdy łącznika). Numer zajęty w posterunku przez inny
+    /// rozjazd albo skrzyżowanie – zamiana: tamten dostaje numer zwolniony przez zmieniany (najpierw jego dawny), więc przenumerowanie
+    /// stacji nie wymaga numerów tymczasowych. Numer nie może być pusty (poza skrzyżowaniem zwyczajnym) ani powtórzony w <paramref name="nums"/>.
+    /// </summary>
+    public static Przenumerowanie PlanNumbers(UtProject p, IList<string> ids, IList<string> nums)
+    {
+        Przenumerowanie Err(string e) => new(new(), new(), e);
+        string Track(string id) => p.Turnouts.FirstOrDefault(t => t.Id == id)?.Track ?? p.Crossings.FirstOrDefault(c => c.Id == id)?.TrackA;
+        string Old(string id) => p.Turnouts.FirstOrDefault(t => t.Id == id)?.Number ?? p.Crossings.FirstOrDefault(c => c.Id == id)?.Number ?? "";
+        bool Needs(string id) => p.Crossings.FirstOrDefault(c => c.Id == id) is not UtCrossing c || Katalog.Find(c.Type)?.Kind != RozjazdTyp.St;
+        string Opis(string id) => p.Crossings.FirstOrDefault(c => c.Id == id) is UtCrossing c
+            ? (Katalog.Find(c.Type)?.Kind == RozjazdTyp.St ? "skrzyżowanie" : "rozjazd krzyżowy") + (c.Number.Length > 0 ? " " + c.Number : "")
+            : $"rozjazd {Old(id)}";
+        nums = nums.Select(n => (n ?? "").Trim()).ToList();
+        for (int i = 0; i < ids.Count; i++)
+            if (nums[i].Length == 0 && Needs(ids[i])) return Err(ids.Count > 1 ? "Numery nie mogą być puste" : "Numer nie może być pusty");
+        var filled = nums.Where(n => n.Length > 0).ToList();
+        if (filled.Distinct().Count() != filled.Count) return Err("Numery muszą być różne");
+        var olds = ids.Select(Old).ToList();
+        var zm = ids.Select((id, i) => (id, nums[i])).ToList();
+        var zam = new List<string>();
+        var freed = olds.Where(o => o.Length > 0 && !nums.Contains(o)).ToList();
+        var mine = ids.ToHashSet();
+        var others = p.Turnouts.Select(t => (t.Id, t.Number, Track: t.Track)).Concat(p.Crossings.Select(c => (c.Id, c.Number, Track: c.TrackA))).Where(x => !mine.Contains(x.Id)).ToList();
+        for (int i = 0; i < ids.Count; i++)
+        {
+            if (nums[i].Length == 0 || nums[i] == olds[i]) continue;
+            string g = Posterunki.Grupa(p, Track(ids[i]));
+            foreach (var o in others.Where(x => x.Number == nums[i] && Posterunki.Grupa(p, x.Track) == g))
+            {
+                string give = freed.Contains(olds[i]) ? olds[i] : freed.FirstOrDefault();
+                if (give == null)
+                {
+                    if (Needs(o.Id)) return Err($"Numer {nums[i]} ma {Opis(o.Id)}, a nie zwalnia się żaden numer do zamiany");
+                    give = "";
+                }
+                else freed.Remove(give);
+                if (give.Length > 0 && others.Any(x => x.Id != o.Id && x.Number == give && Posterunki.Grupa(p, x.Track) == Posterunki.Grupa(p, o.Track)))
+                    return Err($"Numer {nums[i]} ma {Opis(o.Id)}, a numer {give} do zamiany ma jeszcze inny rozjazd");
+                zm.Add((o.Id, give));
+                zam.Add($"{Opis(o.Id)} → {(give.Length > 0 ? give : "bez numeru")}");
+            }
+        }
+        return new(zm, zam, null);
+    }
+
+    /// <summary>Zastosowanie planu z <see cref="PlanNumbers"/> (w jednej zmianie dokumentu).</summary>
+    public static void ApplyNumbers(UtProject p, Przenumerowanie plan)
+    {
+        foreach (var (id, n) in plan.Zmiany)
+        {
+            if (p.Turnouts.FirstOrDefault(t => t.Id == id) is UtTurnout t) t.Number = n;
+            else if (p.Crossings.FirstOrDefault(c => c.Id == id) is UtCrossing c) c.Number = n;
+        }
+    }
+
     /// <summary>
     /// Rozjazd zwyczajny z nowym odgałęzieniem; przed dodaniem do projektu. <paramref name="offset"/> = 0 – samo odgałęzienie PR – ŚR – KR;
     /// &gt; 0 – tor odgałęźny równoległy do zasadniczego w odstępie <paramref name="offset"/> [m]: skos rozjazdu, łuk zwrotny

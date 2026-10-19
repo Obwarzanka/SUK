@@ -41,6 +41,8 @@ public class SigState
     public bool Closed, LampFault, NoData, FailAlarm, Dark;
     /// <summary>Sygnał zlecany karcie wg Ie-1 (S1…S13a, Sz, Ms1, Ms2, „” – ciemny); null – sygnalizator bez karty (PK, tarcza ostrzegawcza, powtarzacz).</summary>
     public string Sig;
+    /// <summary>Liczba na wskaźniku W21 przy sygnale zezwalającym (dziesiątki km/h); 0 – nie świeci / brak.</summary>
+    public int W21;
     /// <summary>Status karty: sygnał wyświetlany w terenie.</summary>
     public string Wyswietlany;
     public double SzUntil;

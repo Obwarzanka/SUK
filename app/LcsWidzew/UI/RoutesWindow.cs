@@ -58,8 +58,19 @@ public class RoutesWindow : DarkWindow
     public void Pokaz(string filtr)
     {
         f.Text = filtr; UpdateLayout();
-        var row = g.Items.Cast<Row>().FirstOrDefault(r => r.Zal != "" || r.Ochronna.EndsWith('*')) ?? g.Items.Cast<Row>().FirstOrDefault();
+        var row = g.Items.Cast<Row>().FirstOrDefault(r => r.R.VSet > 0) ?? g.Items.Cast<Row>().FirstOrDefault(r => r.Zal != "" || r.Ochronna.EndsWith('*')) ?? g.Items.Cast<Row>().FirstOrDefault();
         if (row != null) { g.SelectedItem = row; g.ScrollIntoView(row); }
+    }
+
+    /// <summary>Tryb zrzutu: wpis prędkości (0 – usunięcie) dla pierwszego przebiegu pociągowego z filtra i zapis jak przyciskiem „Zapisz zależności”.</summary>
+    public void UstawV(string filtr, int v)
+    {
+        f.Text = filtr; UpdateLayout();
+        var row = g.Items.Cast<Row>().FirstOrDefault(r => r.R.Type == "P");
+        if (row == null || sim == null) return;
+        g.SelectedItem = row; Select(row.R);
+        vSel.SelectedItem = v > 0 ? v.ToString() : "z układu";
+        Save(false);
     }
 
     void Filter() => g.ItemsSource = all.Where(r => f.Text == "" || (r.Od + " " + r.Do).Contains(f.Text, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -76,6 +87,8 @@ public class RoutesWindow : DarkWindow
     readonly TextBlock edStatus = T("", 11, Brushes.Gray);
     readonly CheckBox onlyVar = new() { Content = "tylko ten wariant (położenia zwrotnic)", Foreground = Brushes.White, Margin = new Thickness(0, 0, 16, 0) };
     readonly CheckBox noOv = new() { Content = "bez drogi ochronnej", Foreground = Brushes.White };
+    readonly ComboBox vSel = new() { Width = 150, Margin = new Thickness(6, 0, 16, 0), ToolTip = "Prędkość przebiegu pociągowego ustalona przez projektanta (wartości wskaźników prędkości wg Ie-1). Semafor sygnalizuje ją zamiast wyliczonej z torów i zwrotnic, pociąg jedzie nią w granicach stacji. „z układu” – bez wpisu." };
+    readonly TextBlock vInfo = T("", 11, Brushes.Gray);
     ListEd edOv, edExcl, edAllow, edFlAdd, edFlDel, edCond;
     FrameworkElement edBody;
 
@@ -103,6 +116,9 @@ public class RoutesWindow : DarkWindow
         sp.Children.Add(edTitle);
         var body = new StackPanel();
         var opt = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) }; opt.Children.Add(onlyVar); opt.Children.Add(noOv); body.Children.Add(opt);
+        vSel.SelectionChanged += (a, b) => VInfo();
+        var vp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        vp.Children.Add(T("Prędkość przebiegu [km/h]:", 11.5, Brushes.White, true)); vp.Children.Add(vSel); vp.Children.Add(vInfo); body.Children.Add(vp);
         var wp = new WrapPanel();
         edOv = MakeList(wp, "Droga ochronna – warianty", "Wariant: odcinki i zwrotnice z położeniem oddzielone spacją, np. MT:Z1/2 MT:2+. Kolejność = pierwszeństwo.");
         edExcl = MakeList(wp, "Przebiegi sprzeczne (dodatkowe)", "Przebieg, z którym ten się wyklucza (obustronnie)");
@@ -136,6 +152,9 @@ public class RoutesWindow : DarkWindow
         edTitle.Text = $"Zależności specjalne: {r.Key}" + (r.Variant > 0 ? $" (wariant {r.Variant}: {r.SwText})" : "");
         var z = Entry(r) ?? new ZalPrzebieg();
         onlyVar.IsChecked = !string.IsNullOrEmpty(z.Sw); noOv.IsChecked = z.BezOchronnej;
+        vSel.ItemsSource = new[] { "z układu" }.Concat(Zaleznosci.Predkosci.Select(v => v.ToString())).ToList();
+        vSel.SelectedItem = z.V > 0 ? z.V.ToString() : "z układu"; vSel.IsEnabled = r.Type == "P";
+        VInfo();
         edOv.Set(z.DrogaOchronna.Select(w => string.Join(" ", w.Odcinki.Concat(w.Zwrotnice))));
         edExcl.Set(z.Sprzeczne); edAllow.Set(z.Dopuszczone); edFlAdd.Set(z.OchronaDodaj); edFlDel.Set(z.OchronaUsun); edCond.Set(z.Warunki);
         // podpowiedzi – obiekty układu (droga ochronna z układu na początku listy)
@@ -155,9 +174,23 @@ public class RoutesWindow : DarkWindow
         edStatus.Text = r.Flank.Count > 0 ? "Ochrona boczna z układu: " + r.FlankText : "";
     }
 
+    /// <summary>Opis prędkości: z torów i zwrotnic, ustalona, a dla wybranej wartości – sygnał semafora początkowego (pasy, W21) i uwaga.</summary>
+    void VInfo()
+    {
+        var r = cur; if (r == null) return;
+        if (r.Type != "P") { vInfo.Text = "przebieg manewrowy – 25 km/h"; vInfo.Foreground = Brushes.Gray; return; }
+        var d = sim.L.Signals[r.Start];
+        double v = int.TryParse(vSel.SelectedItem as string, out var vz) ? vz : r.VSet > 0 && Entry(r)?.V is not > 0 ? r.VSet : sim.SignalSpeed(new RouteDef { Edges = r.Edges });
+        var (k, w21, vs, uw) = d.Dobor(v);
+        vInfo.Text = $"z torów i zwrotnic {r.VCalc:0}" + (r.VSet > 0 ? $", obowiązuje {r.VSet:0} (ustalona)" : "") + $"; semafor {d.Label}: sygnał " + (k == 0 ? "Vmax" : $"{k}") + (w21 > 0 ? $" + W21 „{w21}”" : "")
+                     + (d.Stripes == null ? " (plik bez pasów i W21)" : $" (pasy: {(d.Stripes == "" ? "brak" : d.Stripes)}, W21: {(d.W21 == "S" ? "świetlny" : d.W21 ?? "brak")})") + (uw != null ? " – UWAGA: " + uw : "");
+        vInfo.Foreground = uw != null ? Brushes.Orange : Brushes.Gray;
+    }
+
     List<string> Check() => sim.L.Zal.Sprawdz(sim.L, Keys);
 
-    void Save()
+    /// <summary>Zapis wpisu wybranego przebiegu; pytaj = false (tryb zrzutu) – bez okna pytania, uwagi w wierszu stanu.</summary>
+    void Save(bool pytaj = true)
     {
         if (cur == null) return;
         var r = cur; var Z = sim.L.Zal;
@@ -169,16 +202,17 @@ public class RoutesWindow : DarkWindow
                 if (t.Length > 1 && t[^1] is '+' or '-' && sim.L.Switches.ContainsKey(t[..^1])) w.Zwrotnice.Add(t); else w.Odcinki.Add(t);
             z.DrogaOchronna.Add(w);
         }
+        z.V = r.Type == "P" && int.TryParse(vSel.SelectedItem as string, out var vz) ? vz : 0;
         z.Sprzeczne = edExcl.Items; z.Dopuszczone = edAllow.Items; z.OchronaDodaj = edFlAdd.Items; z.OchronaUsun = edFlDel.Items; z.Warunki = edCond.Items;
         var old = Z.Przebiegi.ToList();
         Z.Przebiegi.RemoveAll(p => p.Type == z.Type && p.Start == z.Start && p.End == z.End && p.Sw == z.Sw);
         if (!z.Pusty) Z.Przebiegi.Add(z);
         var uw = Check();
-        if (uw.Count > 0 && MessageBox.Show(this, "Uwagi do zależności specjalnych:" + Environment.NewLine + string.Join(Environment.NewLine, uw.Take(12)) + Environment.NewLine + Environment.NewLine + "Zapisać mimo to?", "Zależności specjalne", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        if (uw.Count > 0 && pytaj && MessageBox.Show(this, "Uwagi do zależności specjalnych:" + Environment.NewLine + string.Join(Environment.NewLine, uw.Take(12)) + Environment.NewLine + Environment.NewLine + "Zapisać mimo to?", "Zależności specjalne", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         { Z.Przebiegi.Clear(); Z.Przebiegi.AddRange(old); return; }
         try { Z.Zapisz(); }
         catch (Exception ex) { Z.Przebiegi.Clear(); Z.Przebiegi.AddRange(old); edStatus.Text = "Nie zapisano: " + ex.Message; return; }
-        edStatus.Text = $"Zapisano {System.IO.Path.GetFileName(Z.Plik)} (poprzednia wersja w .bak). " + Recalc();
+        edStatus.Text = $"Zapisano {System.IO.Path.GetFileName(Z.Plik)} (poprzednia wersja w .bak). " + Recalc() + (uw.Count > 0 ? " Uwagi: " + string.Join("; ", uw.Take(3)) : "");
     }
 
     string Recalc()

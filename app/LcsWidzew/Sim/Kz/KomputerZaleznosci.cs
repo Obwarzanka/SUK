@@ -75,7 +75,9 @@ public partial class KomputerZaleznosci
             foreach (var r in list)
             {
                 r.Off = L.RouteRules.Any(q => q.Off && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey);
-                r.VSet = L.RouteRules.FirstOrDefault(q => q.VMax > 0 && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey)?.VMax ?? 0;
+                // prędkość ustalona przez projektanta: zależności specjalne (wpis dla wariantu przed wpisem dla wszystkich wariantów), potem routeRules z pliku układu
+                var zv = r.Type == "P" ? L.Zal.Dla(r.Type, r.Start, r.End, r.SwKey).Where(z => z.V > 0).OrderBy(z => string.IsNullOrEmpty(z.Sw)).FirstOrDefault()?.V ?? 0 : 0;
+                r.VSet = zv > 0 ? zv : L.RouteRules.FirstOrDefault(q => q.VMax > 0 && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey)?.VMax ?? 0;
                 r.VCalc = RouteSpeed(r);
                 ApplySpecial(r);
             }
@@ -381,6 +383,9 @@ public partial class KomputerZaleznosci
     /// albo prędkość ustalona ręcznie (VSet); 0 – bez ograniczenia (największa dozwolona). Domyślne 60 km/h torów stacyjnych symulatora
     /// sygnału nie obniża.
     /// </summary>
+    /// <summary>Dobór sygnału semafora początkowego do prędkości przebiegu: klasa, W21, prędkość sygnalizowana, uwaga.</summary>
+    public (int Klasa, int W21, double V, string Uwaga) Sygnalizowana(RouteDef r) => L.Signals[r.Start].Dobor(SignalSpeed(r));
+
     public double SignalSpeed(RouteDef r)
     {
         if (r.VSet > 0) return r.VSet;
@@ -424,7 +429,7 @@ public partial class KomputerZaleznosci
         if (memo.TryGetValue(n, out var m)) return m;
         var d = L.Signals[n]; var s = Sigs[n];
         if (!Urzadzenia.MaKarte(d)) return null;
-        string res;
+        string res; s.W21 = 0;
         if (d.Type == "odstepowy" && s.Dark) res = "";
         else switch (s.Aspect)
         {
@@ -441,7 +446,9 @@ public partial class KomputerZaleznosci
                 else
                 {
                     var r = s.Route != null && Routes.TryGetValue(s.Route, out var rr) ? rr : null;
-                    klasa = r != null ? Sygnaly.Klasa(SignalSpeed(r)) : 0;
+                    // klasa z pasów świetlnych semafora, wyższa prędkość – W21 (Ie-1); plik bez pasów – jak dotąd
+                    var dob = r != null ? d.Dobor(SignalSpeed(r)) : default;
+                    klasa = dob.Klasa; s.W21 = dob.W21;
                     next = r != null ? NextAfterRoute(r) : null;
                     if (r?.EndKind == "szlak" && L.Blocks.TryGetValue(r.End, out var b)) stawnosc = b.Aspects; else if (r?.EndKind != "szlak") stawnosc = 3;
                 }

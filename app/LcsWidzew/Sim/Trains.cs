@@ -360,8 +360,15 @@ public partial class Trains
         var e = S.L.Edges[eid];
         double v = e.VMax > 0 ? e.VMax : StationEdge(eid) ? VStation : 1e4;
         if (e.SwLimit > 0) v = Math.Min(v, e.SwLimit);
-        // przebieg pociągowy ustalony z prędkością (edytor – reguła przebiegu)
-        foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) v = Math.Min(v, r.VSet);
+        // przebieg pociągowy z prędkością ustaloną przez projektanta (zależności specjalne albo reguła przebiegu) – w granicach stacji
+        // zastępuje ograniczenia toru i zwrotnic, także gdy jest wyższa (decyzja właściciela 2026-10-19); maszynista nie przekracza
+        // prędkości z sygnału (semafor bez pasa / W21 – sygnał niższy)
+        if (!e.Szlak)
+        {
+            double vr = 1e4;
+            foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) vr = Math.Min(vr, Math.Min(r.VSet, S.Sygnalizowana(r).V));
+            if (vr < 1e4) v = vr;
+        }
         return v / 3.6;
     }
 

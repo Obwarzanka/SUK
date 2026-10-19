@@ -232,6 +232,11 @@ public partial class MainWindow
             ChDevice(d.Id, "Wskaźnik W21", x => x.W21 = v.Length > 0 ? v : null);
         };
         w21.Children.Add(w21b);
+        // W21 świetlny (Ie-1): zapala się z sygnałem zezwalającym i pokazuje prędkość przebiegu – w symulatorze liczba z prędkości przebiegu
+        var w21s = new CheckBox { Content = "świetlny", IsChecked = d.W21Swietlny, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
+                                  ToolTip = "W21 świetlny – liczba z prędkości przebiegu (symulator); bez zaznaczenia – tablica odblaskowa z wpisaną cyfrą" };
+        w21s.Click += (s, e) => ChDevice(d.Id, "Wskaźnik W21 świetlny", x => x.W21Swietlny = w21s.IsChecked == true);
+        w21.Children.Add(w21s);
         P.Children.Add(w21);
     }
 }

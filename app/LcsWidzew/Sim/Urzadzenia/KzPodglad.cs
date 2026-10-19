@@ -133,7 +133,7 @@ public static class KzPodglad
         {
             n++;
             var nast = s.Urzadzenia.Sygnalizatory.ContainsKey(r.End) ? s.Sigs[r.End].Sig : null;
-            var ocz = Sygnaly.Dobierz(Sygnaly.Klasa(s.SignalSpeed(r)), Sygnaly.Kolumna(nast));
+            var ocz = Sygnaly.Dobierz(s.Sygnalizowana(r).Klasa, Sygnaly.Kolumna(nast));
             if (s.Sigs[r.Start].Sig != ocz) Nar($"{r.Id}: sygnał {s.Sigs[r.Start].Sig}, a wg Ie-1 (prędkość {s.SignalSpeed(r):0}, następny {L(r.End)} {nast ?? "„Stój”"}) – {ocz}");
         }
         // 6. karta wyświetla sygnał zlecony przez KZ (bez usterki, rozkaz starszy niż 0,5 s)
@@ -165,8 +165,8 @@ public static class KzPodglad
             {
                 Id = r.Id, Typ = r.Type == "P" ? "pociągowy" : "manewrowy", Zwrotnice = r.SwText + (r.Ders.Count > 0 ? " " + string.Join(" ", r.Ders.Select(L)) : ""),
                 Odcinki = string.Join(" ", r.Secs.Select(L)), Boczna = r.FlankText,
-                V = $"{r.VMax:0}" + (r.Type == "P" ? $", sygnalizowana {(s.SignalSpeed(r) > 0 ? s.SignalSpeed(r).ToString("0") : "Vmax")}" : ""),
-                Sygnal = r.Type == "M" ? "Ms2" : r.EndKind == "sig" ? $"{Sygnaly.Dobierz(Sygnaly.Klasa(s.SignalSpeed(r)), "Stoj")} … {Sygnaly.Dobierz(Sygnaly.Klasa(s.SignalSpeed(r)), "Vmax")} (zależnie od {L(r.End)})" : Sygnaly.Dobierz(Sygnaly.Klasa(s.SignalSpeed(r)), "Vmax"),
+                V = $"{r.VMax:0}" + (r.Type == "P" ? $", sygnalizowana {(s.Sygnalizowana(r).V > 0 ? s.Sygnalizowana(r).V.ToString("0") : "Vmax")}" + (s.Sygnalizowana(r).W21 > 0 ? $" (W21 {s.Sygnalizowana(r).W21})" : "") + (s.Sygnalizowana(r).Uwaga is string u ? " – " + u : "") : ""),
+                Sygnal = r.Type == "M" ? "Ms2" : r.EndKind == "sig" ? $"{Sygnaly.Dobierz(s.Sygnalizowana(r).Klasa, "Stoj")} … {Sygnaly.Dobierz(s.Sygnalizowana(r).Klasa, "Vmax")} (zależnie od {L(r.End)})" : Sygnaly.Dobierz(s.Sygnalizowana(r).Klasa, "Vmax"),
                 Stan = act != null ? "aktywny: " + act.State : "",
             };
             if (act == null) t.Przeszkody = s.WhyNot(r);
