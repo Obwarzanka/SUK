@@ -139,6 +139,30 @@ public partial class MainWindow
         P.Children.Add(cb);
     }
 
+    // ------------------------------------------------------------------ semafor powtarzany (tarcza ostrzegawcza, powtarzacz)
+    void PowtarzaCombo(StackPanel P, UtDevice d)
+    {
+        var p = Doc.P;
+        P.Children.Add(Label("Powtarza (semafor albo szlak)"));
+        var opts = new List<(string Id, string Name)> { (null, "(nie wskazano)") };
+        opts.AddRange(p.Devices.Where(x => x.Id != d.Id && x.Kind == UtDevice.Semafor && !x.Powtarzajacy && x.Funkcja != UtDevice.FPk && x.Name.Length > 0)
+            .Select(x => (x.Id, Urzadzenia.PowtarzaOpis(p, x.Id))).OrderBy(x => x.Item2, StringComparer.CurrentCulture));
+        opts.AddRange(p.Lines.Where(l => l.Numer.Length > 0).Select(l => (l.Id, $"szlak {l.Numer}")).OrderBy(x => x.Item2, StringComparer.CurrentCulture));
+        if (!string.IsNullOrEmpty(d.Powtarza) && !opts.Any(x => x.Id == d.Powtarza)) opts.Add((d.Powtarza, Urzadzenia.PowtarzaOpis(p, d.Powtarza) ?? "(usunięty)"));
+        var cb = new ComboBox { Margin = new Thickness(0, 2, 0, 2), ToolTip = "Semafor, którego sygnał powtarza (na pulpicie zielony, gdy semafor podaje sygnał zezwalający), albo szlak – informacja z sąsiedniej stacji" };
+        foreach (var o in opts) cb.Items.Add(o.Name);
+        cb.SelectedIndex = Math.Max(0, opts.FindIndex(x => x.Id == d.Powtarza));
+        cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex >= 0 && opts[cb.SelectedIndex].Id != d.Powtarza) ChDevice(d.Id, "Semafor powtarzany", x => x.Powtarza = opts[cb.SelectedIndex].Id); };
+        P.Children.Add(cb);
+        P.Children.Add(SmallBtn("Zaproponuj", () =>
+        {
+            var m = Urzadzenia.Propozycja(p, d);
+            if (m == null) { Message($"{d.Name}: w kierunku działania (do 3 km) nie ma semafora – wskaż z listy"); return; }
+            ChDevice(d.Id, "Semafor powtarzany", x => x.Powtarza = m.Id);
+            Message($"{d.Name} powtarza {Urzadzenia.PowtarzaOpis(p, m.Id)} – propozycja: pierwszy semafor w kierunku działania; sprawdź");
+        }, "Pierwszy semafor przed urządzeniem w kierunku jego działania – tylko propozycja, sprawdź ją"));
+    }
+
     // ------------------------------------------------------------------ panele
     void BuildPostPanel(UtPost x)
     {

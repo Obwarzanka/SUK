@@ -178,6 +178,31 @@ public static partial class Test
         w.DoUndo();
         Ok(Kontrola.Run(d.P).Count == 0, $"Ctrl+Z ×3 – znowu bez uwag ({string.Join("; ", Kontrola.Run(d.P).Select(u => u.Text))})");
 
+        // --- tarcza ostrzegawcza To1 przed semaforem A: „Powtarza” z propozycji, „Sprawdź”, eksport do symulatora (repeats)
+        Kind(UtDevice.TarczaOstrz);
+        w.AskNameForTest = _ => "To1"; PlaceDir(t1, 100, 1, 1); w.AskNameForTest = null;
+        UtDevice To1() => d.P.Devices.FirstOrDefault(x => x.Name == "To1");
+        var to1 = To1();
+        Ok(to1 != null && to1.Kind == UtDevice.TarczaOstrz && to1.Dir == 1, "tarcza ostrzegawcza To1 przeciągnięciem (km 100, dla jazdy do A)");
+        Ok(Kontrola.Run(d.P).Any(u => u.Text.Contains("To1") && u.Text.Contains("nie wskazano semafora powtarzanego")), "„Sprawdź”: To1 – nie wskazano semafora powtarzanego");
+        Ok(Urzadzenia.Propozycja(d.P, to1)?.Name == "A", "propozycja dla To1: A (pierwszy semafor w kierunku działania; S60 leży za tarczą)");
+        w.SetTool(UtTool.Wskaz); w.View.SelectDevice(to1.Id);
+        var pcb = Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(nie wskazano)"));
+        Ok(pcb != null && pcb.Items.Contains("semafor A (MJ)") && pcb.Items.Contains("szlak 1A") && !pcb.Items.Contains("semafor To1 (MJ)"), "panel To1: lista „Powtarza” – semafory i szlaki");
+        Click(BtnIn(w.TrackPanel, "Zaproponuj"));
+        Ok(To1().Powtarza == Dev("A").Id && d.UndoName == "Semafor powtarzany" && w.LastMessage.Contains("powtarza semafor A (MJ)"), $"„Zaproponuj” – To1 powtarza A ({w.LastMessage})");
+        Ok(!Kontrola.Run(d.P).Any(), $"„Sprawdź” bez uwag z To1 ({string.Join("; ", Kontrola.Run(d.P).Select(u => u.Text))})");
+        var wyn = DoSymulatora.Buduj(d.P, null);
+        Ok(wyn.Json["signals"]?["MJ:To1"]?["repeats"]?.ToString() == "MJ:A" && wyn.Json["signals"]?["MJ:To1"]?["type"]?.ToString() == "to", "„Do symulatora”: MJ:To1 typ to, repeats MJ:A");
+        // szlak z listy, potem usunięty semafor – uwaga
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(nie wskazano)")).SelectedItem = "szlak 1A";
+        Ok(To1().Powtarza == l1.Id && DoSymulatora.Buduj(d.P, null).Json["signals"]?["MJ:To1"]?["repeats"]?.ToString() == "1A", "„Powtarza”: szlak 1A z listy → repeats 1A");
+        w.DoUndo();
+        d.Change("Usunięcie A (test)", q => q.Devices.RemoveAll(x => x.Name == "A"));
+        Ok(Kontrola.Run(d.P).Any(u => u.Text.Contains("To1") && u.Text.Contains("usunięty")), "A usunięty – To1: semafor powtarzany usunięty");
+        w.DoUndo();
+        Ok(To1().Powtarza == Dev("A").Id && !Kontrola.Run(d.P).Any(), "Ctrl+Z – A wrócił, bez uwag");
+
         // --- zapis i odczyt
         Ok(w.SaveDoc(false), "zapis projektu z posterunkiem i szlakami");
         var back = UtDocument.Load(d.Path);

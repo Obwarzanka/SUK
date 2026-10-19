@@ -105,6 +105,7 @@ public partial class MainWindow
         name.LostFocus += (s, e) => CommitName(); name.KeyDown += (s, e) => { if (e.Key == Key.Enter) CommitName(); };
         P.Children.Add(Label("Nazwa")); P.Children.Add(name);
         if (d.Kind == UtDevice.Semafor) FunkcjaCombo(P, d);
+        if (d.Powtarzajacy) PowtarzaCombo(P, d);
         var tr = Doc.P.Tracks.FirstOrDefault(x => x.Id == d.Track);
         if (Posterunki.Of(Doc.P, d.Track) is UtPost post) P.Children.Add(new TextBlock { Text = $"Posterunek {PostName(post)} (z toru)", Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
         P.Children.Add(Label($"Tor {(tr?.Number.Length > 0 ? tr.Number : "(bez numeru)")} – km [m od początku toru]"));

@@ -105,6 +105,15 @@ public class UtDevice
     };
     public static string FunkcjaName(string f) => Funkcje.FirstOrDefault(x => x.Key == f).Name ?? "";
 
+    /// <summary>
+    /// Tarcza ostrzegawcza albo powtarzacz (Sp): id semafora powtarzanego albo id szlaku (<see cref="UtLine"/>, informacja z sąsiedniej
+    /// stacji); puste – nie wskazano („Sprawdź” przypomina). Wskazuje projektant, program może tylko zaproponować
+    /// (<see cref="Urzadzenia.Propozycja"/>). W symulatorze – <c>repeats</c>.
+    /// </summary>
+    public string Powtarza { get; set; }
+    /// <summary>Urządzenie powtarza sygnał innego semafora: tarcza ostrzegawcza albo semafor – powtarzacz.</summary>
+    public bool Powtarzajacy => Kind == TarczaOstrz || (Kind == Semafor && Funkcja == FPowtarzacz);
+
     public const string Semafor = "semafor", TarczaOstrz = "to", TarczaMan = "tm", Koziol = "koziol", Wykolejnica = "wk",
         LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5";
 
@@ -173,6 +182,61 @@ public static class Urzadzenia
         if (d.Name.Length > 0 && NameTaken(p, d.Name, d.Track, d.Id)) res.Add($"nazwa „{d.Name}” powtórzona");
         if (d.Kind == UtDevice.Semafor && string.IsNullOrEmpty(d.Funkcja)) res.Add("funkcja semafora nie określona (wjazdowy, wyjazdowy…)");
         if (d.Kind == UtDevice.Koziol && Math.Min(d.S, r.Length - d.S) > 1) res.Add("kozioł nie stoi na końcu toru");
+        if (d.Powtarzajacy)
+        {
+            if (string.IsNullOrEmpty(d.Powtarza)) res.Add("nie wskazano semafora powtarzanego (pole „Powtarza”, przycisk „Zaproponuj”)");
+            else if (p.Devices.FirstOrDefault(x => x.Id == d.Powtarza) is UtDevice m)
+            {
+                if (m.Kind != UtDevice.Semafor || m.Powtarzajacy || m.Funkcja == UtDevice.FPk) res.Add($"powtarza {UtDevice.KindInfo(m.Kind).Name.ToLower()} {m.Name} – to nie jest semafor z sygnałem do powtórzenia");
+            }
+            else if (!p.Lines.Any(x => x.Id == d.Powtarza)) res.Add("semafor powtarzany (albo szlak) usunięty – wskaż na nowo");
+        }
         return res;
+    }
+
+    /// <summary>Opis tego, co powtarza urządzenie (do paneli i list): „semafor A (MJ)”, „szlak 1A”; null – nic albo usunięte.</summary>
+    public static string PowtarzaOpis(UtProject p, string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        if (p.Devices.FirstOrDefault(x => x.Id == id) is UtDevice m)
+            return $"semafor {m.Name}" + (Posterunki.Of(p, m.Track) is UtPost post && post.Kod.Length > 0 ? $" ({post.Kod})" : "");
+        return p.Lines.FirstOrDefault(x => x.Id == id) is UtLine l ? $"szlak {l.Numer}" : null;
+    }
+
+    /// <summary>
+    /// Propozycja semafora powtarzanego (tylko podpowiedź – zatwierdza projektant): pierwszy semafor przed urządzeniem w kierunku jego
+    /// działania, zwrócony w tę samą stronę (bez powtarzaczy i PK), do <paramref name="maxLen"/> m. Po torze zasadniczym (przez rozjazdy
+    /// na wprost), dalej przez styki końców torów. Null – brak w zasięgu.
+    /// </summary>
+    public static UtDevice Propozycja(UtProject p, UtDevice d, double maxLen = 3000, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        if (!r.ContainsKey(d.Track)) return null;
+        string track = d.Track; double s = d.S; int dir = d.Dir >= 0 ? 1 : -1; double done = 0;
+        var seen = new HashSet<string>();
+        for (int k = 0; k < 200 && done < maxLen; k++)
+        {
+            var len = r[track].Length;
+            var cand = p.Devices.Where(x => x.Id != d.Id && x.Track == track && x.Kind == UtDevice.Semafor && !x.Powtarzajacy && x.Funkcja != UtDevice.FPk
+                    && x.Dir == dir && (dir > 0 ? x.S > s + 1e-6 : x.S < s - 1e-6))
+                .OrderBy(x => Math.Abs(x.S - s)).FirstOrDefault();
+            if (cand != null) return done + Math.Abs(cand.S - s) <= maxLen ? cand : null;
+            double se = dir > 0 ? len : 0;
+            done += Math.Abs(se - s);
+            if (!seen.Add(track + (dir > 0 ? "+" : "-"))) return null;
+            bool atStart = dir < 0;
+            var rt = r[track]; var az = rt.At(se).Az + (dir < 0 ? Math.PI : 0);
+            // dalej: tor dochodzący końcem do tego końca albo tor, w który ten koniec wchodzi (np. koniec odgałęzienia na torze zasadniczym)
+            var dalej = styki.Where(x => x.Other == track && x.OtherEnd && Math.Abs(x.OtherS - se) < 0.06).Select(x => (T: x.Track, S: x.AtStart ? 0.0 : r[x.Track].Length, D: x.AtStart ? 1 : -1))
+                .Concat(styki.Where(x => x.Track == track && x.AtStart == atStart).Select(x =>
+                {
+                    var oaz = r[x.Other].At(x.OtherS).Az;
+                    return (T: x.Other, S: x.OtherS, D: Math.Cos(oaz - az) >= 0 ? 1 : -1);
+                }))
+                .Where(x => x.T != track && r.ContainsKey(x.T)).ToList();
+            if (dalej.Count == 0) return null;
+            (track, s, dir) = dalej[0];
+        }
+        return null;
     }
 }

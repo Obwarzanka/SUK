@@ -365,3 +365,17 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 - Regresja: selftest `station_test.json` 25 z 26 / 4 z 4 i pozostałe kontrole bez zmian; `EdytorUT.exe --test` i `EdytorZobrazowania.exe --test` – **0 błędów** (z katalogów Release).
 - Zrzuty: `zrzuty/LCS_testowe_UT.png`, `LCS_testowe_UT_Rkpd.png`, `LCS_testowe_zobrazowanie_TG.png`, `_TG_glowice_2x.png`, `_TG_wschod_2x.png`, `_TW.png`, `LCS_testowe_pulpit_TG_Rkpd_Rkp.png` (A → C2 przez Rkpd, F → D3 przez Rkp), `_TG_wyjazd_1GW.png`, `_TW_90501.png`.
 - Nie sprawdzono: dwa stanowiska przez sieć na tym układzie (podział obszaru TG / TW), obsługa prawdziwą myszą. Nazwy i numeracja są przykładowe – do poprawienia przez właściciela.
+
+## Tarcze ostrzegawcze i powtarzacze – semafor powtarzany w UT
+
+**ZROBIONE 2026-10-19** (etap 9, właściciel: „chciałbym coś dalej z zobrazowaniem i UT”):
+- **Brak, który usunięto:** symulator rysuje tarczę ostrzegawczą (`to`) i powtarzacz (`sp`) wg semafora z pola `repeats` (`PanelView`: zielona – semafor powtarzany podaje sygnał zezwalający, szara – nie, biała – brak danych). UT nie miał tej informacji, więc z „Do symulatora…” tarcza zawsze była biała.
+- **Model:** `UtDevice.Powtarza` – id semafora UT albo id szlaku (`UtLine`, informacja z sąsiedniej stacji, jak `repeats` na szlak w `station.json`); `UtDevice.Powtarzajacy` – tarcza ostrzegawcza albo semafor z funkcją „powtarzacz”. `Urzadzenia.Propozycja` – pierwszy semafor przed urządzeniem w kierunku działania, zwrócony w tę samą stronę (bez powtarzaczy i PK), po torze (przez rozjazdy na wprost) i dalej przez styki końców torów, do 3 km. To tylko propozycja (zasada: zależności projektuje człowiek). `Urzadzenia.PowtarzaOpis` – „semafor A (MJ)” / „szlak 1A”.
+- **„Sprawdź”** (`Urzadzenia.Check`): nie wskazano semafora powtarzanego; wskazany semafor / szlak usunięty; wskazane urządzenie nie jest semaforem z sygnałem (np. inny powtarzacz, PK).
+- **Edytor UT:** w panelu urządzenia lista „Powtarza (semafor albo szlak)” i przycisk „Zaproponuj” (komunikat na pasku stanu: co zaproponowano, „sprawdź”); zmiana z cofaniem („Semafor powtarzany”).
+- **Edytor zobrazowania:** w panelu symbolu linia „powtarza: …”.
+- **`DoSymulatora`:** `signals[…].repeats` – nazwa sygnalizatora w symulatorze (`KOD:nazwa`) albo numer szlaku; bez wskazania – uwaga po eksporcie.
+- **Test** (`Test.Posterunki.cs`, jak użytkownik): tarcza To1 przeciągnięciem na km 100 przed A (za odstępowym S60), uwaga w „Sprawdź”, propozycja A, lista w panelu (semafory i szlaki, bez samej tarczy), „Zaproponuj” → A, „Sprawdź” bez uwag, eksport `MJ:To1` typ `to`, `repeats` `MJ:A`; szlak 1A z listy → `repeats` `1A`; usunięty A → uwaga; Ctrl+Z.
+- **Na pulpicie:** kopia mijanki testowej w katalogu tymczasowym z tarczą ToA przed A (km 550, eksport tym samym `DoSymulatora.Buduj`): bez przebiegu ToA szara, po „A C1 Pociąg” zielona – `zrzuty/Pulpit_tarcza_ostrzegawcza_przed.png`, `Pulpit_tarcza_ostrzegawcza_A-C1.png`. Plików mijanki i „LCS testowe” nie zmieniano (nie mają tarcz ostrzegawczych).
+- Regresja: selftest `station_test.json` 25 z 26 / 4 z 4 i pozostałe kontrole bez zmian; `EdytorZobrazowania.exe --test` 0 błędów; `EdytorUT.exe --test` – nowe sprawdzenia bez błędów; w dwóch przebiegach pojedyncze błędy niezwiązane ze zmianą (strzałki klawiatury przy otwartym drugim edytorze UT, za drugim razem OK; pobieranie kafelków Geoportalu).
+- Nie sprawdzono: obsługa prawdziwą myszą; tarcza na granicy dwóch posterunków (semafor powtarzany na sąsiedniej stacji LCS).

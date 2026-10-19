@@ -314,6 +314,7 @@ public static class DoSymulatora
 
         // ---------- sygnalizatory, wykolejnice, kozły ----------
         var signals = new JsonObject(); var derailers = new JsonObject(); var bumpers = new JsonObject();
+        var sigKey = new Dictionary<string, string>();      // id urządzenia UT → nazwa sygnalizatora w symulatorze (do „repeats”)
         foreach (var d in ut.Devices.Where(d => devNode.ContainsKey(d.Id)))
         {
             var node = devNode[d.Id]; var post = Kod(d.Track);
@@ -353,7 +354,16 @@ public static class DoSymulatora
             if (type == "wyjazdowy" && !lights.Any(x => x.C == 'B')) o["shunt"] = false;
             if (d.Side < 0) o["side"] = "L";
             if (d.MastOrDefault is UtDevice.MastWysiegnik or UtDevice.MastBramka or UtDevice.MastKarzel) o["mount"] = d.MastOrDefault;
-            signals[key] = o;
+            signals[key] = o; sigKey[d.Id] = key;
+        }
+        // tarcze ostrzegawcze i powtarzacze: semafor powtarzany (albo szlak – informacja z sąsiedniej stacji)
+        foreach (var d in ut.Devices.Where(d => d.Powtarzajacy && sigKey.ContainsKey(d.Id)))
+        {
+            var o = (JsonObject)signals[sigKey[d.Id]];
+            if (string.IsNullOrEmpty(d.Powtarza)) { uw.Add($"{ZobSymbole.Nazwa(ut, d.Id)}: nie wskazano semafora powtarzanego – na pulpicie bez wskazania (ustaw „Powtarza” w UT)"); continue; }
+            if (sigKey.TryGetValue(d.Powtarza, out var mk)) o["repeats"] = mk;
+            else if (ut.Lines.FirstOrDefault(l => l.Id == d.Powtarza) is UtLine pl && blocks.ContainsKey(pl.Numer)) o["repeats"] = pl.Numer;
+            else uw.Add($"{ZobSymbole.Nazwa(ut, d.Id)}: semafor powtarzany (albo szlak) nie trafia do symulatora – pominięty");
         }
 
         // ---------- plan: perony, przejazdy ----------

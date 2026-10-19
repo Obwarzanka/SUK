@@ -174,6 +174,7 @@ public partial class MainWindow
         if (Doc.Ut.Devices.FirstOrDefault(d => d.Id == ut) is UtDevice d)
         {
             if (d.Kind == UtDevice.Semafor) lines.Add("funkcja: " + (string.IsNullOrEmpty(d.Funkcja) ? "nie określona (popraw w edytorze UT)" : UtDevice.FunkcjaName(d.Funkcja)));
+            if (d.Powtarzajacy) lines.Add("powtarza: " + (Urzadzenia.PowtarzaOpis(Doc.Ut, d.Powtarza) ?? "nie wskazano (popraw w edytorze UT)"));
             if (d.Kind is UtDevice.Semafor or UtDevice.TarczaMan or UtDevice.TarczaOstrz) lines.Add($"komory: {d.LightsOrDefault}" + (d.Kind == UtDevice.Semafor ? (d.LightsOrDefault.Contains('B') ? " – z sygnalizacją manewrową (grot za trójkątem)" : " – bez sygnalizacji manewrowej") : ""));
             if (d.Kind != UtDevice.Koziol) lines.Add($"kierunek działania w UT: {(d.Dir > 0 ? "w stronę rosnącego km" : "w stronę malejącego km")} toru");
         }
