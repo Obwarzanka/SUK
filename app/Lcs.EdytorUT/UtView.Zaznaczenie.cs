@@ -6,8 +6,8 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>
-/// Zaznaczanie kilku elementów naraz (Wskaż): Ctrl + klik dodaje / zdejmuje element (tor, rozjazd, skrzyżowanie, urządzenie,
-/// odcinek, peron, przejazd, punkt km), Shift + przeciągnięcie od pustego miejsca – prostokąt (wszystko, co leży w nim w całości).
+/// Zaznaczanie kilku elementów naraz (Wskaż): Shift + klik albo Ctrl + klik dodaje / zdejmuje element (tor, rozjazd, skrzyżowanie,
+/// urządzenie, odcinek, peron, przejazd, punkt km), Shift + przeciągnięcie – prostokąt (wszystko, co leży w nim w całości).
 /// Del usuwa wszystkie (jedno Ctrl+Z), Esc albo zwykły klik – koniec zaznaczenia. Do tego menu PPM na torze: usunięcie kawałka
 /// (prosta albo łuk pod kursorem) i rozcięcie toru (<see cref="Ciecie"/>).
 /// </summary>
@@ -39,7 +39,7 @@ public partial class UtView
 
     void ClearSingle() { SelectedTrack = null; SelectedVertex = -1; SelectedTurnout = null; SelectedCrossing = null; SelectedDevice = null; SelectedObj = null; }
 
-    /// <summary>Ctrl + klik: element pod kursorem do zaznaczenia albo z niego (pojedyncze zaznaczenie wchodzi do zbioru).</summary>
+    /// <summary>Shift / Ctrl + klik: element pod kursorem do zaznaczenia albo z niego (pojedyncze zaznaczenie wchodzi do zbioru).</summary>
     public void ToggleMulti(Point s)
     {
         if (HitAny(s) is not var (k, id)) return;
@@ -80,7 +80,8 @@ public partial class UtView
     public string MultiInfo()
     {
         var n = Multi.GroupBy(x => x.Kind).Select(g => $"{KindName(g.Key, g.Count())} {g.Count()}");
-        return $"Zaznaczone: {Multi.Count} ({string.Join(", ", n)}) – Del usuwa wszystkie, Ctrl + klik dodaje / zdejmuje, Esc – koniec";
+        return $"Zaznaczone: {Multi.Count} ({string.Join(", ", n)}) – Shift + klik dodaje / zdejmuje, Del usuwa wszystkie" +
+            (Multi.Count(x => x.Kind == Kontrola.KTor) >= 2 ? ", Ctrl+J łączy tory" : "") + ", Esc – koniec";
     }
 
     public static string KindName(string kind, int n) => kind switch
@@ -96,7 +97,7 @@ public partial class UtView
         _ => kind,
     };
 
-    /// <summary>Wciśnięcie we Wskaż z Ctrl (zaznaczanie) albo z Shift od pustego miejsca (prostokąt); zwykły klik kończy zaznaczenie kilku.</summary>
+    /// <summary>Wciśnięcie we Wskaż z Ctrl (zaznaczanie) albo z Shift (klik – zaznaczanie, przeciągnięcie – prostokąt); zwykły klik kończy zaznaczenie kilku.</summary>
     bool PressMulti(Point s)
     {
         bool ctrl = Mods.HasFlag(ModifierKeys.Control), shift = Mods.HasFlag(ModifierKeys.Shift);
@@ -106,7 +107,7 @@ public partial class UtView
             if (Multi.Count == 0 && SelectedTrack != null && HitTrack(s) == SelectedTrack) return false;
             ctrlClick = s; return true;
         }
-        if (shift && HitAny(s) == null) { boxFrom = boxTo = s; return true; }
+        if (shift) { boxFrom = boxTo = s; return true; }
         if (Multi.Count > 0) { Multi.Clear(); SelectionChanged?.Invoke(); InvalidateVisual(); }
         return false;
     }
@@ -123,7 +124,7 @@ public partial class UtView
         if (boxFrom is not Point a) return false;
         boxFrom = boxTo = null;
         var r = new Rect(a, s);
-        if (r.Width < 3 && r.Height < 3) { InvalidateVisual(); return true; }
+        if ((s - a).Length <= ClickTol) { InvalidateVisual(); ToggleMulti(s); return true; }      // Shift + klik
         SetMulti(Multi.Concat(InBox(r)));
         if (Multi.Count == 1) { var (k1, i1) = Multi[0]; Multi.Clear(); SelectKind(k1, i1); }
         else DraftInfo?.Invoke(Multi.Count == 0 ? "Prostokąt: nic nie leży w nim w całości" : MultiInfo());
@@ -135,7 +136,12 @@ public partial class UtView
     {
         var res = new List<(string, string)>(); if (Doc == null) return res;
         bool In(XY p) => r.Contains(ToScreen(p));
-        foreach (var t in Doc.P.Tracks) { var g = Geometry(t); if (g.Elements.Count > 0 && g.Sample(2).All(q => In(q.P))) res.Add((Kontrola.KTor, t.Id)); }
+        foreach (var t in Doc.P.Tracks)
+        {
+            // ramka toru w prostokącie – cały tor w nim; ramka obok – na pewno nie; inaczej punkty osi z pamięci
+            var c = Cached(t); var b = ScreenBox(c); if (b.IsEmpty || !r.IntersectsWith(b)) continue;
+            if (r.Contains(b) || c.Pts.All(q => In(q.P))) res.Add((Kontrola.KTor, t.Id));
+        }
         foreach (var z in Doc.P.Turnouts) if (Rozjazdy.Geometry(Doc.P, z) is TurnoutGeo g && In(g.PR) && In(g.KRMain)) res.Add((Kontrola.KRozjazd, z.Id));
         foreach (var c in Doc.P.Crossings) if (Rozjazdy.CrossGeo(Doc.P, c) is var (cp, _, _, _) && In(cp)) res.Add((Kontrola.KSkrzyzowanie, c.Id));
         XY? At(string track, double s) => Track(track) is UtTrack t && Geometry(t) is var g && g.Elements.Count > 0 ? g.At(Math.Clamp(s, 0, g.Length)).P : null;
@@ -165,7 +171,7 @@ public partial class UtView
         var hl = new Pen(new SolidColorBrush(Color.FromArgb(0x70, 0xff, 0x90, 0x00)), 9) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
         foreach (var (k, id) in Multi)
         {
-            if (k == Kontrola.KTor && Track(id) is UtTrack t) { dc.DrawGeometry(null, hl, Line(Geometry(t).Sample(1), 0)); continue; }
+            if (k == Kontrola.KTor && Track(id) is UtTrack t) { dc.DrawGeometry(null, hl, Line(Cached(t).Pts, 0)); continue; }
             XY? p = k switch
             {
                 Kontrola.KRozjazd => Doc.P.Turnouts.FirstOrDefault(x => x.Id == id) is UtTurnout z ? Rozjazdy.Geometry(Doc.P, z)?.SR : null,

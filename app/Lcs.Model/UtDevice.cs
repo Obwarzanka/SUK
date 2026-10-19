@@ -46,6 +46,22 @@ public class UtDevice
     public bool W24 { get; set; }
     /// <summary>Wskaźnik W21 z cyfrą (np. „5”, BSK ss6); puste – brak.</summary>
     public string W21 { get; set; }
+    /// <summary>W21 świetlny: zapala się z sygnałem zezwalającym i pokazuje prędkość przebiegu (Ie-1); false – tablica odblaskowa z cyfrą <see cref="W21"/>.</summary>
+    public bool W21Swietlny { get; set; }
+
+    /// <summary>
+    /// Wspólna konstrukcja (bramka albo wysięgnik nad kilkoma torami): sygnalizatory z tym samym kluczem wiszą na jednej belce, niezależnie
+    /// od odległości. Puste – bramka z sąsiadami w tym samym miejscu (do 8 m), wysięgnik – własny maszt. Łączy projektant („Połącz z…”).
+    /// </summary>
+    public string Konstrukcja { get; set; }
+    /// <summary>Konstrukcja: liczba słupów (1 albo 2; null – bramka 2, wysięgnik 1). Ustawiana na wszystkich członkach konstrukcji.</summary>
+    public int? Slupy { get; set; }
+    /// <summary>Jedyny słup konstrukcji: +1 – po prawej, −1 – po lewej patrząc w kierunku jazdy; null – po stronie większości sygnalizatorów.</summary>
+    public int? SlupStrona { get; set; }
+    /// <summary>Tory, nad którymi belka przechodzi dodatkowo (bez sygnalizatora na nich), np. bramka nad dwoma torami z jednym semaforem.</summary>
+    public List<string> NadTorami { get; set; }
+    /// <summary>Kopia (podgląd przesuwania).</summary>
+    public UtDevice Copy() => (UtDevice)MemberwiseClone();
 
     public const string MastProsty = "prosty", MastWysiegnik = "wysiegnik", MastBramka = "bramka", MastKarzel = "karzel";
     /// <summary>Mocowanie sygnalizatora: na maszcie (słup), na wysięgniku, na bramce sygnałowej nad torem, karzełkowy (na podłożu).</summary>
@@ -105,6 +121,15 @@ public class UtDevice
     };
     public static string FunkcjaName(string f) => Funkcje.FirstOrDefault(x => x.Key == f).Name ?? "";
 
+    /// <summary>
+    /// Tarcza ostrzegawcza albo powtarzacz (Sp): id semafora powtarzanego albo id szlaku (<see cref="UtLine"/>, informacja z sąsiedniej
+    /// stacji); puste – nie wskazano („Sprawdź” przypomina). Wskazuje projektant, program może tylko zaproponować
+    /// (<see cref="Urzadzenia.Propozycja"/>). W symulatorze – <c>repeats</c>.
+    /// </summary>
+    public string Powtarza { get; set; }
+    /// <summary>Urządzenie powtarza sygnał innego semafora: tarcza ostrzegawcza albo semafor – powtarzacz.</summary>
+    public bool Powtarzajacy => Kind == TarczaOstrz || (Kind == Semafor && Funkcja == FPowtarzacz);
+
     public const string Semafor = "semafor", TarczaOstrz = "to", TarczaMan = "tm", Koziol = "koziol", Wykolejnica = "wk",
         LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5";
 
@@ -162,6 +187,119 @@ public static class Urzadzenia
         for (int i = 1; ; i++) if (!used.Contains(pre + i)) return pre + i;
     }
 
+    /// <summary>Sygnalizator, który może wisieć na wspólnej konstrukcji (semafor, tarcza ostrzegawcza, tarcza manewrowa).</summary>
+    public static bool Sygnalizator(UtDevice d) => d.Kind is UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan;
+
+    /// <summary>
+    /// Konstrukcje wsporcze: bramki (każda, także z jednym semaforem) i wysięgniki wspólne (połączone, co najmniej 2 sygnalizatory).
+    /// Najpierw połączone przez projektanta (<see cref="UtDevice.Konstrukcja"/>), potem bramki bez klucza w tym samym miejscu (do 8 m
+    /// wzdłuż toru, do 40 m w poprzek, ten sam kierunek). Rodzaj – mocowanie pierwszego członka.
+    /// </summary>
+    public static List<(string Mast, List<UtDevice> M)> Konstrukcje(UtProject p)
+    {
+        var res = new List<(string, List<UtDevice>)>();
+        var g = p.Devices.Where(d => Sygnalizator(d) && d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik)
+            .Select(d => (D: d, Pos: Pos(p, d))).Where(x => x.Pos != null).ToList();
+        foreach (var grp in g.Where(x => !string.IsNullOrEmpty(x.D.Konstrukcja)).GroupBy(x => x.D.Konstrukcja))
+        {
+            var m = grp.Select(x => x.D).ToList(); var mast = m[0].MastOrDefault;
+            if (mast == UtDevice.MastBramka || m.Count >= 2) res.Add((mast, m));
+        }
+        var free = g.Where(x => string.IsNullOrEmpty(x.D.Konstrukcja) && x.D.MastOrDefault == UtDevice.MastBramka).ToList();
+        var used = new HashSet<string>();
+        foreach (var a in free)
+        {
+            if (used.Contains(a.D.Id)) continue;
+            var grp = new List<UtDevice> { a.D }; used.Add(a.D.Id);
+            var (pa, aza, ka) = a.Pos.Value; var da = Element.Dir(aza);
+            foreach (var b in free)
+            {
+                if (used.Contains(b.D.Id)) continue;
+                var (pb, azb, _) = b.Pos.Value; var db = Element.Dir(azb);
+                var w = pb - pa; double along = Math.Abs(w.X * da.X + w.Y * da.Y) / ka, across = Math.Abs(w.X * da.Y - w.Y * da.X) / ka;
+                if (da.X * db.X + da.Y * db.Y > 0.98 && along < 8 && across < 40) { grp.Add(b.D); used.Add(b.D.Id); }
+            }
+            res.Add((UtDevice.MastBramka, grp));
+        }
+        return res;
+    }
+
+    /// <summary>Konstrukcja, na której wisi sygnalizator (null – własny maszt).</summary>
+    public static (string Mast, List<UtDevice> M)? KonstrukcjaOf(UtProject p, string id)
+    {
+        foreach (var k in Konstrukcje(p)) if (k.M.Any(x => x.Id == id)) return k;
+        return null;
+    }
+
+    /// <summary>
+    /// Sygnalizatory, z którymi można połączyć <paramref name="d"/> we wspólną konstrukcję: ten sam kierunek, do 60 m wzdłuż i w poprzek,
+    /// jeszcze nie na tej samej konstrukcji; najbliższe pierwsze.
+    /// </summary>
+    public static List<UtDevice> DoPolaczenia(UtProject p, UtDevice d)
+    {
+        if (Pos(p, d) is not var (pa, aza, ka)) return new();
+        var da = Element.Dir(aza);
+        var mine = KonstrukcjaOf(p, d.Id)?.M.Select(x => x.Id).ToHashSet() ?? new HashSet<string> { d.Id };
+        return p.Devices.Where(x => Sygnalizator(x) && !mine.Contains(x.Id))
+            .Select(x => (D: x, Pos: Pos(p, x))).Where(x => x.Pos != null)
+            .Select(x =>
+            {
+                var (pb, azb, _) = x.Pos.Value; var db = Element.Dir(azb); var w = pb - pa;
+                return (x.D, Dot: da.X * db.X + da.Y * db.Y, Along: Math.Abs(w.X * da.X + w.Y * da.Y) / ka, Across: Math.Abs(w.X * da.Y - w.Y * da.X) / ka);
+            })
+            .Where(x => x.Dot > 0.9 && x.Along < 60 && x.Across < 60).OrderBy(x => x.Along + x.Across).Select(x => x.D).ToList();
+    }
+
+    /// <summary>
+    /// Połączenie we wspólną konstrukcję: <paramref name="other"/> (z całą swoją konstrukcją) przechodzi na konstrukcję <paramref name="d"/>
+    /// – ten sam klucz i mocowanie (bramka albo wysięgnik; z masztu – bramka), a dołączane sygnalizatory przesuwają się na swoich torach
+    /// w miejsce konstrukcji (najbliższy punkt toru) – wszystkie stoją w jednym miejscu. Zwraca liczbę dołączonych.
+    /// </summary>
+    public static int Polacz(UtProject p, UtDevice d, UtDevice other)
+    {
+        var a = KonstrukcjaOf(p, d.Id)?.M ?? new List<UtDevice> { d };
+        var b = KonstrukcjaOf(p, other.Id)?.M ?? new List<UtDevice> { other };
+        var mast = d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik ? d.MastOrDefault : UtDevice.MastBramka;
+        var key = a.Select(x => x.Konstrukcja).FirstOrDefault(x => !string.IsNullOrEmpty(x)) ?? Guid.NewGuid().ToString("N")[..8];
+        if (Pos(p, d) is not var (pa, _, _)) return 0;
+        var (slupy, strona, tory) = Ustawienia(mast, a);
+        bool set = a.Any(x => x.Slupy != null || x.SlupStrona != null || x.NadTorami != null);
+        foreach (var x in a) { x.Konstrukcja = key; x.Mast = mast; x.Dwarf = false; }
+        foreach (var x in b.Where(x => !a.Contains(x)))
+        {
+            x.Konstrukcja = key; x.Mast = mast; x.Dwarf = false;
+            // ustawienia konstrukcji (słupy, belka nad torami) – z konstrukcji, do której dołącza
+            if (set) { x.Slupy = slupy; x.SlupStrona = strona == 0 ? null : strona; x.NadTorami = tory.Count > 0 ? tory.ToList() : null; }
+            else { x.Slupy = null; x.SlupStrona = null; x.NadTorami = null; }
+            if (p.Tracks.FirstOrDefault(t => t.Id == x.Track) is UtTrack t && Trasa.Compute(t) is var r && r.Elements.Count > 0)
+                x.S = Math.Round(Math.Clamp(r.Nearest(pa, 0.1).S, 0, r.Length), 2);
+        }
+        return b.Count(x => !a.Contains(x));
+    }
+
+    /// <summary>
+    /// Ustawienia konstrukcji z jej członków: liczba słupów (bramka 2, wysięgnik 1, chyba że ustawiono), strona jedynego słupu
+    /// (0 – po stronie większości sygnalizatorów), tory, nad którymi belka przechodzi dodatkowo.
+    /// </summary>
+    public static (int Slupy, int Strona, List<string> NadTorami) Ustawienia(string mast, List<UtDevice> m)
+    {
+        int slupy = m.Select(x => x.Slupy).FirstOrDefault(x => x is 1 or 2) ?? (mast == UtDevice.MastBramka ? 2 : 1);
+        int strona = m.Select(x => x.SlupStrona).FirstOrDefault(x => x is 1 or -1) ?? 0;
+        var tory = m.SelectMany(x => x.NadTorami ?? new()).Distinct().Where(t => m.All(x => x.Track != t)).ToList();
+        return (slupy, strona, tory);
+    }
+
+    /// <summary>Tory w pobliżu konstrukcji (do 25 m w poprzek), nad którymi może przechodzić belka – bez torów jej sygnalizatorów; najbliższe pierwsze.</summary>
+    public static List<(UtTrack T, double Dist)> ToryPrzyKonstrukcji(UtProject p, List<UtDevice> m)
+    {
+        if (m.Count == 0 || Pos(p, m[0]) is not var (pa, _, ka)) return new();
+        return p.Tracks.Where(t => m.All(x => x.Track != t.Id)).Select(t => (T: t, R: Trasa.Compute(t))).Where(x => x.R.Elements.Count > 0)
+            .Select(x => (x.T, Dist: x.R.Nearest(pa, 0.25).Dist / ka)).Where(x => x.Dist < 25).OrderBy(x => x.Dist).ToList();
+    }
+
+    /// <summary>Odłączenie od wspólnej konstrukcji: własny klucz – sam na bramce (albo na własnym wysięgniku), nawet tuż obok innych.</summary>
+    public static void Odlacz(UtDevice d) => d.Konstrukcja = Guid.NewGuid().ToString("N")[..8];
+
     /// <summary>Uwagi: poza torem, nazwa powtórzona, kozioł nie na końcu toru.</summary>
     public static List<string> Check(UtProject p, UtDevice d)
     {
@@ -173,6 +311,68 @@ public static class Urzadzenia
         if (d.Name.Length > 0 && NameTaken(p, d.Name, d.Track, d.Id)) res.Add($"nazwa „{d.Name}” powtórzona");
         if (d.Kind == UtDevice.Semafor && string.IsNullOrEmpty(d.Funkcja)) res.Add("funkcja semafora nie określona (wjazdowy, wyjazdowy…)");
         if (d.Kind == UtDevice.Koziol && Math.Min(d.S, r.Length - d.S) > 1) res.Add("kozioł nie stoi na końcu toru");
+        if (Sygnalizator(d) && !string.IsNullOrEmpty(d.Konstrukcja) && (d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik) && Pos(p, d) is var (pa, aza, ka))
+        {
+            var da = Element.Dir(aza);
+            var far = p.Devices.Where(x => x.Id != d.Id && x.Konstrukcja == d.Konstrukcja && Sygnalizator(x) && (x.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik))
+                .Where(x => Pos(p, x) is var (pb, _, _) && Math.Abs((pb - pa).X * da.X + (pb - pa).Y * da.Y) / ka > 8).Select(x => x.Name).ToList();
+            if (far.Count > 0) res.Add($"na wspólnej konstrukcji z {string.Join(", ", far)}, ale ponad 8 m od nich wzdłuż toru – przesuń albo odłącz");
+        }
+        if (d.Powtarzajacy)
+        {
+            if (string.IsNullOrEmpty(d.Powtarza)) res.Add("nie wskazano semafora powtarzanego (pole „Powtarza”, przycisk „Zaproponuj”)");
+            else if (p.Devices.FirstOrDefault(x => x.Id == d.Powtarza) is UtDevice m)
+            {
+                if (m.Kind != UtDevice.Semafor || m.Powtarzajacy || m.Funkcja == UtDevice.FPk) res.Add($"powtarza {UtDevice.KindInfo(m.Kind).Name.ToLower()} {m.Name} – to nie jest semafor z sygnałem do powtórzenia");
+            }
+            else if (!p.Lines.Any(x => x.Id == d.Powtarza)) res.Add("semafor powtarzany (albo szlak) usunięty – wskaż na nowo");
+        }
         return res;
+    }
+
+    /// <summary>Opis tego, co powtarza urządzenie (do paneli i list): „semafor A (MJ)”, „szlak 1A”; null – nic albo usunięte.</summary>
+    public static string PowtarzaOpis(UtProject p, string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        if (p.Devices.FirstOrDefault(x => x.Id == id) is UtDevice m)
+            return $"semafor {m.Name}" + (Posterunki.Of(p, m.Track) is UtPost post && post.Kod.Length > 0 ? $" ({post.Kod})" : "");
+        return p.Lines.FirstOrDefault(x => x.Id == id) is UtLine l ? $"szlak {l.Numer}" : null;
+    }
+
+    /// <summary>
+    /// Propozycja semafora powtarzanego (tylko podpowiedź – zatwierdza projektant): pierwszy semafor przed urządzeniem w kierunku jego
+    /// działania, zwrócony w tę samą stronę (bez powtarzaczy i PK), do <paramref name="maxLen"/> m. Po torze zasadniczym (przez rozjazdy
+    /// na wprost), dalej przez styki końców torów. Null – brak w zasięgu.
+    /// </summary>
+    public static UtDevice Propozycja(UtProject p, UtDevice d, double maxLen = 3000, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        if (!r.ContainsKey(d.Track)) return null;
+        string track = d.Track; double s = d.S; int dir = d.Dir >= 0 ? 1 : -1; double done = 0;
+        var seen = new HashSet<string>();
+        for (int k = 0; k < 200 && done < maxLen; k++)
+        {
+            var len = r[track].Length;
+            var cand = p.Devices.Where(x => x.Id != d.Id && x.Track == track && x.Kind == UtDevice.Semafor && !x.Powtarzajacy && x.Funkcja != UtDevice.FPk
+                    && x.Dir == dir && (dir > 0 ? x.S > s + 1e-6 : x.S < s - 1e-6))
+                .OrderBy(x => Math.Abs(x.S - s)).FirstOrDefault();
+            if (cand != null) return done + Math.Abs(cand.S - s) <= maxLen ? cand : null;
+            double se = dir > 0 ? len : 0;
+            done += Math.Abs(se - s);
+            if (!seen.Add(track + (dir > 0 ? "+" : "-"))) return null;
+            bool atStart = dir < 0;
+            var rt = r[track]; var az = rt.At(se).Az + (dir < 0 ? Math.PI : 0);
+            // dalej: tor dochodzący końcem do tego końca albo tor, w który ten koniec wchodzi (np. koniec odgałęzienia na torze zasadniczym)
+            var dalej = styki.Where(x => x.Other == track && x.OtherEnd && Math.Abs(x.OtherS - se) < 0.06).Select(x => (T: x.Track, S: x.AtStart ? 0.0 : r[x.Track].Length, D: x.AtStart ? 1 : -1))
+                .Concat(styki.Where(x => x.Track == track && x.AtStart == atStart).Select(x =>
+                {
+                    var oaz = r[x.Other].At(x.OtherS).Az;
+                    return (T: x.Other, S: x.OtherS, D: Math.Cos(oaz - az) >= 0 ? 1 : -1);
+                }))
+                .Where(x => x.T != track && r.ContainsKey(x.T)).ToList();
+            if (dalej.Count == 0) return null;
+            (track, s, dir) = dalej[0];
+        }
+        return null;
     }
 }

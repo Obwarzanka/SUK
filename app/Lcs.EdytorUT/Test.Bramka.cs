@@ -79,5 +79,86 @@ public static partial class Test
         var c = Go(o, lineAz, 0); w.View.SetView(Go(c, lineAz + 90, 2.5), 0.12);
         if (shotRails != null) { await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka_widzew.png")); }
         w.SetSchemat(false);
+
+        // łączenie bramek: L9 na bramce 20 m od L7 (osobne bramki) – „Połącz z…” w panelu L7 → jedna bramka, L9 przesunięty w km 400
+        var l9 = Sig("L9", t5, 380, UtDevice.MastBramka);
+        d.Change("L9", p => p.Devices.Add(l9));
+        Ok(w.View.GantryGroups().Count(g => g.Any(x => x.Name is "L7" or "L9")) == 2, "L7 i L9 20 m od siebie – dwie osobne bramki");
+        Ok(Urzadzenia.DoPolaczenia(d.P, l7).Any(x => x.Id == l9.Id) && !Urzadzenia.DoPolaczenia(d.P, l7).Any(x => x.Id == m4.Id), "do połączenia z L7: L9 (20 m), bez M4 (200 m)");
+        w.SetTool(UtTool.Wskaz); w.View.SelectDevice(l7.Id);
+        var join = Find<System.Windows.Controls.ComboBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Sygnalizator w pobliżu") == true);
+        int ji = join == null ? -1 : join.Items.Cast<object>().ToList().FindIndex(x => (x as string)?.Contains("L9") == true);
+        if (ji > 0) join.SelectedIndex = ji;
+        var D = (string id) => d.P.Devices.First(x => x.Id == id);
+        var gj = w.View.GantryGroups().FirstOrDefault(g => g.Any(x => x.Id == l7.Id));
+        Ok(ji > 0 && gj != null && gj.Count == 2 && gj.Any(x => x.Id == l9.Id) && Math.Abs(D(l9.Id).S - 400) < 0.2 && D(l7.Id).Konstrukcja == D(l9.Id).Konstrukcja,
+            $"panel L7 „Połącz z…” L9 – jedna bramka, L9 w km {D(l9.Id).S:0.0}");
+        Ok(Urzadzenia.Check(d.P, D(l9.Id)).Count == 0, "L9 na wspólnej bramce bez uwag");
+        d.Change("L9 dalej", p => p.Devices.First(x => x.Id == l9.Id).S = 370);
+        Ok(Urzadzenia.Check(d.P, D(l9.Id)).Any(x => x.Contains("ponad 8 m")), "L9 odsunięty o 30 m – uwaga „ponad 8 m”");
+        w.DoUndo();
+        // odłączenie L5 od L3 (stoją w tym samym miejscu – bez klucza bramka byłaby wspólna)
+        d.Change("Odłącz L5", p => Urzadzenia.Odlacz(p.Devices.First(x => x.Id == l5.Id)));
+        Ok(w.View.GantryGroups().Any(g => g.Count == 1 && g[0].Id == l3.Id) && w.View.GantryGroups().Any(g => g.Count == 1 && g[0].Id == l5.Id), "„Odłącz” L5 – L3 i L5 na osobnych bramkach");
+        w.DoUndo();
+        Ok(w.View.GantryGroups().Any(g => g.Count == 2 && g.Any(x => x.Id == l3.Id) && g.Any(x => x.Id == l5.Id)), "Ctrl+Z – L3 i L5 znowu na jednej bramce");
+
+        // wysięgnik wspólny: W1 (tor 3) i W2 (tor 5) na wysięgnikach – osobne maszty; połączone – jeden słup i belka nad oboma torami
+        var w1 = Sig("W1", t3, 500, UtDevice.MastWysiegnik); var w2 = Sig("W2", t5, 512, UtDevice.MastWysiegnik);
+        w1.Side = w2.Side = 1; w1.StripeP = w2.StripeP = false;
+        d.Change("W1 W2", p => p.Devices.AddRange(new[] { w1, w2 }));
+        Ok(!Urzadzenia.Konstrukcje(d.P).Any(x => x.M.Any(q => q.Id == w1.Id || q.Id == w2.Id)), "W1 i W2 na wysięgnikach – każdy na własnym maszcie");
+        w.JoinStructure(w1.Id, w2.Id);
+        var kw = Urzadzenia.KonstrukcjaOf(d.P, w1.Id);
+        Ok(kw is { Mast: UtDevice.MastWysiegnik } && kw.Value.M.Count == 2 && Math.Abs(D(w2.Id).S - 500) < 0.2 && w.View.GantryGroups().All(g => g.All(x => x.Id != w1.Id)),
+            $"W1 + W2 – wspólny wysięgnik (nie bramka), W2 w km {D(w2.Id).S:0.0}");
+        var menu = w.BuildDeviceMenu(w1.Id).Items.OfType<System.Windows.Controls.MenuItem>().FirstOrDefault(x => (x.Header as string)?.StartsWith("Odłącz od wspólnej") == true);
+        Ok(menu != null && menu.IsEnabled, "menu PPM: „Odłącz od wspólnej konstrukcji”");
+        // zmiana mocowania W2 na bramkę – zmienia całą konstrukcję; na maszt – odłącza
+        w.View.SelectDevice(w2.Id);
+        var rbB = Find<System.Windows.Controls.RadioButton>(w.TrackPanel, x => x.Content as string == "na bramce");
+        rbB?.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Ok(D(w1.Id).MastOrDefault == UtDevice.MastBramka && D(w2.Id).MastOrDefault == UtDevice.MastBramka, "mocowanie „na bramce” w W2 – cała konstrukcja (W1 i W2) na bramce");
+        w.DoUndo();
+        if (shotRails != null)
+        {
+            w.View.Select(null); w.SetSchemat(true);
+            var pw = Urzadzenia.Pos(d.P, D(w1.Id)).Value.P; w.View.SetView(Go(pw, lineAz + 90, 2.5), 0.12); await Settle(w);
+            Save(w, shotRails.Replace("_szyny.png", "_wysiegnik_wspolny.png"));
+            w.SetSchemat(false);
+        }
+
+        // bramka z jednym semaforem nad dwoma torami: S5 na torze 3, belka także nad torem 5 (panel), dwa słupy → jeden po lewej
+        var s5 = Sig("S5", t3, 560, UtDevice.MastBramka); s5.StripeP = false;
+        d.Change("S5", p => p.Devices.Add(s5));
+        w.View.SelectDevice(s5.Id);
+        var cbT5 = Find<System.Windows.Controls.CheckBox>(w.TrackPanel, x => (x.Content as string)?.StartsWith("tor 5") == true);
+        if (cbT5 != null) { cbT5.IsChecked = true; cbT5.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); }
+        Ok(cbT5 != null && D(s5.Id).NadTorami?.SequenceEqual(new[] { t5.Id }) == true, "panel S5: „Belka także nad torem” – tor 5 (5 m)");
+        var st = Urzadzenia.Ustawienia(UtDevice.MastBramka, new() { D(s5.Id) });
+        Ok(st.Slupy == 2 && st.NadTorami.Count == 1, "S5: bramka nad torami 3 i 5, dwa słupy");
+        if (shotRails != null)
+        {
+            w.View.Select(null); w.SetSchemat(true);
+            var ps = Urzadzenia.Pos(d.P, D(s5.Id)).Value.P; w.View.SetView(Go(ps, lineAz + 90, 2.5), 0.12); await Settle(w);
+            Save(w, shotRails.Replace("_szyny.png", "_bramka_dwa_tory.png"));
+            w.SetSchemat(false); w.View.SelectDevice(s5.Id);
+        }
+        var rb1 = Find<System.Windows.Controls.RadioButton>(w.TrackPanel, x => x.Content as string == "jeden po lewej");
+        rb1?.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Ok(D(s5.Id).Slupy == 1 && D(s5.Id).SlupStrona == -1 && D(s5.Id).MastOrDefault == UtDevice.MastBramka, "S5: „jeden po lewej” – bramka na jednym słupie");
+        // dołączenie semafora z toru 5 przejmuje ustawienia, tor 5 nie jest już „bez sygnalizatora”
+        var s6 = Sig("S6", t5, 565, UtDevice.MastProsty); s6.StripeP = false;
+        d.Change("S6", p => p.Devices.Add(s6));
+        w.JoinStructure(s5.Id, s6.Id);
+        var st2 = Urzadzenia.Ustawienia(UtDevice.MastBramka, Urzadzenia.KonstrukcjaOf(d.P, s5.Id)?.M ?? new());
+        Ok(D(s6.Id).Slupy == 1 && D(s6.Id).SlupStrona == -1 && st2.NadTorami.Count == 0 && Math.Abs(D(s6.Id).S - 560) < 0.2, $"S6 dołączony: jeden słup po lewej, tor 5 ma już semafor (słupy {D(s6.Id).Slupy}, strona {D(s6.Id).SlupStrona}, nad torami {st2.NadTorami.Count}, km {D(s6.Id).S:0.0}, klucz {D(s5.Id).Konstrukcja}/{D(s6.Id).Konstrukcja})");
+        if (shotRails != null)
+        {
+            w.View.Select(null); w.SetSchemat(true);
+            var ps = Urzadzenia.Pos(d.P, D(s5.Id)).Value.P; w.View.SetView(Go(ps, lineAz + 90, 2.5), 0.12); await Settle(w);
+            Save(w, shotRails.Replace("_szyny.png", "_bramka_jeden_slup.png"));
+            w.SetSchemat(false);
+        }
     }
 }

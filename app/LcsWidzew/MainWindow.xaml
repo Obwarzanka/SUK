@@ -93,6 +93,7 @@
                 <Button Content="10×" Tag="10" Click="Speed_Click"/>
                 <Rectangle Width="12"/>
                 <Button Content="Dopasuj obraz" Click="FitStation_Click" ToolTip="Kółko myszy – powiększenie, przeciąganie LPM – przesuwanie"/>
+                <Button x:Name="BtnOpisy" Content="Opisy" Click="Opisy_Click" ToolTip="Opisy odcinków wyświetlane na żądanie dyżurnego ruchu (Ie-104 § 5 ust. 2); numery torów i nazwy posterunków są widoczne stale"/>
                 <Rectangle Width="12"/>
                 <Button Content="Plan ruchu" Click="Plan_Click"/>
                 <Button Content="Tablica przebiegów" Click="Routes_Click"/>

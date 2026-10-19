@@ -20,6 +20,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lcs.Model\Lcs.Model.csproj" />
+    <!-- Z6: podgląd „jak na pulpicie” – rdzeń symulatora (układ, komputer zależności) i ten sam kod pulpitu (PanelView) co w symulatorze -->
+    <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\LcsWidzew\UI\PanelView.cs" Link="Pulpit\PanelView.cs" />
+    <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

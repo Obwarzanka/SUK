@@ -29,10 +29,12 @@ public class ZalPrzebieg
     public List<string> OchronaDodaj = new(), OchronaUsun = new();
     /// <summary>Dodatkowe warunki: „MT:3+” (zwrotnica w położeniu), „MT:T1 wolny”, „MT:W1 założona” / „zdjęta”, „MT:B stój”.</summary>
     public List<string> Warunki = new();
+    /// <summary>Prędkość przebiegu ustalona przez projektanta [km/h] (tylko pociągowy); 0 – z układu (tory, zwrotnice, routeRules).</summary>
+    public int V;
 
     public string Klucz => Zaleznosci.Klucz(Type, Start, End);
     public bool Pasuje(string type, string start, string end, string swKey) => Type == type && Start == start && End == end && (string.IsNullOrEmpty(Sw) || Sw == swKey);
-    public bool Pusty => !BezOchronnej && DrogaOchronna.Count == 0 && Sprzeczne.Count == 0 && Dopuszczone.Count == 0 && OchronaDodaj.Count == 0 && OchronaUsun.Count == 0 && Warunki.Count == 0;
+    public bool Pusty => !BezOchronnej && DrogaOchronna.Count == 0 && Sprzeczne.Count == 0 && Dopuszczone.Count == 0 && OchronaDodaj.Count == 0 && OchronaUsun.Count == 0 && Warunki.Count == 0 && V == 0;
 }
 
 /// <summary>
@@ -43,6 +45,9 @@ public class Zaleznosci
 {
     [System.Text.Json.Serialization.JsonIgnore] public string Plik;
     public List<ZalPrzebieg> Przebiegi = new();
+
+    /// <summary>Prędkości przebiegu do wpisania ręcznie [km/h] – wartości wskaźników prędkości (Ie-1).</summary>
+    public static readonly int[] Predkosci = { 40, 50, 60, 70, 80, 100, 120, 130 };
 
     public static string Klucz(string type, string start, string end) => $"{type} {start}→{end}";
     public static string Norm(string k) => string.Join(" ", (k ?? "").Replace("->", "→").Split(' ', StringSplitOptions.RemoveEmptyEntries)).Replace(" →", "→").Replace("→ ", "→");
@@ -74,6 +79,7 @@ public class Zaleznosci
             p.Dopuszczone = Lista(o["dopuszczone"]).Select(Norm).ToList();
             if (o["ochronaBoczna"] is JsonObject ob) { p.OchronaDodaj = Lista(ob["dodaj"]); p.OchronaUsun = Lista(ob["usun"]); }
             p.Warunki = Lista(o["warunki"]);
+            if (o["v"] is JsonValue vv && vv.TryGetValue<int>(out var vk)) p.V = vk;
             if (p.Start != null && p.End != null) res.Add(p);
         }
         return res;
@@ -93,6 +99,7 @@ public class Zaleznosci
             if (p.Dopuszczone.Count > 0) o["dopuszczone"] = A(p.Dopuszczone);
             if (p.OchronaDodaj.Count + p.OchronaUsun.Count > 0) o["ochronaBoczna"] = new JsonObject { ["dodaj"] = A(p.OchronaDodaj), ["usun"] = A(p.OchronaUsun) };
             if (p.Warunki.Count > 0) o["warunki"] = A(p.Warunki);
+            if (p.V > 0) o["v"] = p.V;
             arr.Add(o);
         }
         return new JsonObject { ["przebiegi"] = arr }.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
@@ -134,6 +141,9 @@ public class Zaleznosci
             foreach (var s in p.Sprzeczne.Concat(p.Dopuszczone)) if (!klucze.Contains(s)) uw.Add($"{k}: brak przebiegu {s}");
             foreach (var s in p.Sprzeczne.Intersect(p.Dopuszczone)) uw.Add($"{k}: {s} jednocześnie sprzeczny i dopuszczony");
             if (p.Sprzeczne.Contains(k) || p.Dopuszczone.Contains(k)) uw.Add($"{k}: przebieg wskazuje sam siebie");
+            if (p.V != 0 && !Predkosci.Contains(p.V)) uw.Add($"{k}: prędkość {p.V} km/h – dozwolone {string.Join(", ", Predkosci)}");
+            if (p.V != 0 && p.Type != "P") uw.Add($"{k}: prędkość ustala się tylko dla przebiegu pociągowego");
+            if (p.V > 0 && p.Type == "P" && L.Signals.TryGetValue(p.Start, out var sd) && sd.Dobor(p.V).Uwaga is string su) uw.Add($"{k}: {su}");
             foreach (var e in p.OchronaDodaj.Concat(p.OchronaUsun))
                 if (!Zwr(e) && !L.Derailers.ContainsKey(e) && !L.Signals.ContainsKey(e) && !L.Switches.ContainsKey(e)) uw.Add($"{k}: ochrona boczna – nieznany element {e}");
             foreach (var w in p.Warunki)

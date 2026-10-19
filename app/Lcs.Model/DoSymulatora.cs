@@ -58,7 +58,42 @@ public static class DoSymulatora
             swNode[z.Id] = id; nodeKind[id] = ("switch", z.Number);
             Put(z.Branch, z.BranchAtEnd ? r[z.Branch].Length : 0, id);
         }
-        if (ut.Crossings.Count > 0) uw.Add($"rozjazdy krzyżowe i skrzyżowania ({ut.Crossings.Count}) – jeszcze nie przenoszone do symulatora");
+
+        // rozjazdy krzyżowe i skrzyżowania (decyzje właściciela 2026-10-19, UtKrzyzowe.cs): St – węzeł krzyża na obu torach; Rkpd i Rkp –
+        // zwrotnice „Nab” / „Ncd” na końcach zwrócone ostrzami (węzeł na obu torach), wnętrze toru B pominięte; Rkp – zakaz jazdy przez brakujący przejazd
+        var krSw = new List<(UtCrossing C, string K, string Node, string Track, double S)>();
+        var krRkp = new List<(UtCrossing C, string Ab, string Cd)>();
+        var skip = new List<(string Track, double A, double B)>();
+        foreach (var c in ut.Crossings.Where(c => pts.ContainsKey(c.TrackA) && pts.ContainsKey(c.TrackB)))
+        {
+            var kind = Krzyzowe.Rodzaj(c);
+            var nr = c.Number.Length > 0 ? c.Number : "X";
+            if (c.Number.Length == 0) uw.Add($"{(kind == RozjazdTyp.St ? "skrzyżowanie" : "rozjazd krzyżowy")} bez numeru (tor {Nr(c.TrackA)} km {c.SA:0}) – w symulatorze „{nr}”; wpisz numer w UT");
+            if (kind == RozjazdTyp.St)
+            {
+                var x = NodeOn(c.TrackA, c.SA, $"{Kod(c.TrackA)}:kr{nr}");
+                Put(c.TrackB, c.SB, x); nodeKind[x] = ("crossing", nr);
+            }
+            if (kind == RozjazdTyp.St) continue;
+            var kn = new Dictionary<string, string>();
+            foreach (var k in Krzyzowe.Konce)
+            {
+                var w = Krzyzowe.Wezly(ut, c, k);
+                double Cl(string tr, double s)
+                {
+                    double len = r[tr].Length;
+                    if (s < -Tol || s > len + Tol) uw.Add($"rozjazd krzyżowy {nr}{k}: koniec poza torem {Nr(tr)} (km {s:0.#}, długość {len:0.#}) – przesunięty na koniec toru");
+                    return Math.Clamp(s, 0, len);
+                }
+                var id = NodeOn(w[0].Track, Cl(w[0].Track, w[0].S), $"{Kod(w[0].Track)}:sw{nr}{k}");
+                foreach (var (tr, s) in w.Skip(1)) Put(tr, Cl(tr, s), id);
+                nodeKind[id] = ("switch", nr + k);
+                krSw.Add((c, k, id, w[0].Track, w[0].S));
+                kn[k] = id;
+            }
+            double a = Krzyzowe.A(c); skip.Add((c.TrackB, c.SB - a, c.SB + a));
+            if (kind == RozjazdTyp.Rkp) krRkp.Add((c, kn[Krzyzowe.Ab], kn[Krzyzowe.Cd]));
+        }
 
         // styki końców torów (połączenia bez rozjazdu)
         foreach (var st in styki.Where(s => pts.ContainsKey(s.Track) && pts.ContainsKey(s.Other)))
@@ -122,6 +157,20 @@ public static class DoSymulatora
             return szlak ? name : $"{Kod(track)}:{name}";
         }
 
+        // ---------- perony: km na torze (krawędź przy Track; przy Track2 – rzut końców peronu) ----------
+        IEnumerable<(double A, double B)> PeronyToru(string track)
+        {
+            foreach (var pl in ut.Platforms)
+            {
+                if (pl.Track == track) yield return (Math.Min(pl.S0, pl.S1), Math.Max(pl.S0, pl.S1));
+                else if (pl.Track2 == track && r.ContainsKey(pl.Track) && r.ContainsKey(track))
+                {
+                    double a = r[track].Nearest(r[pl.Track].At(Math.Clamp(pl.S0, 0, r[pl.Track].Length)).P).S, b = r[track].Nearest(r[pl.Track].At(Math.Clamp(pl.S1, 0, r[pl.Track].Length)).P).S;
+                    yield return (Math.Min(a, b), Math.Max(a, b));
+                }
+            }
+        }
+
         // ---------- tory symulatora ----------
         var edges = new JsonArray();
         var edgeInfo = new List<(string Id, string Track, double S0, double S1, string A, string B)>();
@@ -135,6 +184,12 @@ public static class DoSymulatora
             {
                 double s0 = l[i - 1].S, s1 = l[i].S; if (s1 - s0 < 0.01) continue;
                 double mid = (s0 + s1) / 2;
+                // wnętrze rozjazdu krzyżowego podwójnego na torze B – w symulatorze łącznik ab–cd to kawałek toru A
+                if (skip.Any(k => k.Track == t.Id && mid > k.A && mid < k.B))
+                {
+                    if (i > 1 && l[i - 1].S > skip.First(k => k.Track == t.Id && mid > k.A && mid < k.B).A + Tol) uw.Add($"tor {Nr(t.Id)} km {l[i - 1].S:0}: węzeł wewnątrz rozjazdu krzyżowego – pominięty");
+                    continue;
+                }
                 var sec = SecName(t.Id, mid, out bool szlak, out var line);
                 var id = $"e{ne++}";
                 var pl = new JsonArray();
@@ -148,6 +203,14 @@ public static class DoSymulatora
                 };
                 if (t.Elec) e["elec"] = true;
                 if (t.Vmax > 0) e["vmax"] = t.Vmax;
+                // tor przy peronie UT (postój pociągu, okno numeru) – kawałek zachodzi na peron na tym torze albo na drugiej krawędzi peronu wyspowego
+                if (PeronyToru(t.Id).Any(x => Math.Min(s1, x.B) - Math.Max(s0, x.A) > 1)) e["peron"] = true;
+                // pochylenie [‰] od A do B (rosnący km) – średnie z niwelety UT na kawałku; bez niwelety – brak pola
+                if (t.Profile is { Count: >= 2 } prof)
+                {
+                    double z0 = Profil.Z(prof, s0), z1 = Profil.Z(prof, s1);
+                    if (!double.IsNaN(z0) && !double.IsNaN(z1)) e["poch"] = Math.Round((z1 - z0) / (s1 - s0) * 1000, 1);
+                }
                 if (szlak)
                 {
                     e["szlak"] = true;
@@ -159,6 +222,18 @@ public static class DoSymulatora
                 edges.Add(e);
                 edgeInfo.Add((id, t.Id, s0, s1, l[i - 1].N, l[i].N));
             }
+        }
+
+        // Rkp: pary torów bez przejazdu (w obie strony) – ramię zwrotnicy ab i ramię zwrotnicy cd po stronach brakującego łuku
+        var noPass = new JsonArray();
+        foreach (var (c, nab, ncd) in krRkp)
+        {
+            if (Krzyzowe.BrakPrzejazdu(c) is not var (tAb, tCd)) continue;
+            string Arm(string node, string tr, string other) =>
+                edgeInfo.FirstOrDefault(e => e.Track == tr && (e.A == node || e.B == node) && e.A != other && e.B != other).Id;
+            var x = Arm(nab, tAb, ncd); var y = Arm(ncd, tCd, nab);
+            if (x != null && y != null) noPass.Add(new JsonArray(x, y));
+            else uw.Add($"rozjazd krzyżowy {c.Number}: nie znaleziono ramion brakującego przejazdu – w symulatorze jak Rkpd (wszystkie jazdy)");
         }
 
         // ---------- węzły ----------
@@ -186,6 +261,18 @@ public static class DoSymulatora
             if (typ != null) { o["radius"] = typ.R; o["ratio"] = $"1:{typ.N:0.##}".Replace('.', ','); if (typ.Vbok > 0) o["vbok"] = typ.Vbok; }
             if (z.Zas == "-") o["zas"] = "-";
             if (z.Manual) o["manual"] = true;
+            switches[key] = o;
+        }
+
+        // zwrotnice rozjazdów krzyżowych: koniec ab / cd (Ie-104 § 8 pkt 9), w odcinku rozjazdu
+        foreach (var (c, k, node, tr, s) in krSw)
+        {
+            var label = Krzyzowe.Numer(c, k);
+            var key = $"{Kod(tr)}:{label}";
+            if (c.Number.Length == 0 || switches.ContainsKey(key)) { uw.Add($"rozjazd krzyżowy bez numeru albo z powtórzonym numerem ({key}) – zwrotnica pominięta"); continue; }
+            var typ = Katalog.Find(c.Type);
+            var o = new JsonObject { ["num"] = key, ["node"] = node, ["label"] = label, ["sec"] = SecName(c.TrackA, c.SA, out _, out _), ["post"] = Kod(tr), ["kind"] = c.Type };
+            if (typ != null) { o["radius"] = typ.R; o["ratio"] = $"1:{typ.N:0.##}".Replace('.', ','); if (typ.Vbok > 0) o["vbok"] = typ.Vbok; }
             switches[key] = o;
         }
 
@@ -227,6 +314,7 @@ public static class DoSymulatora
 
         // ---------- sygnalizatory, wykolejnice, kozły ----------
         var signals = new JsonObject(); var derailers = new JsonObject(); var bumpers = new JsonObject();
+        var sigKey = new Dictionary<string, string>();      // id urządzenia UT → nazwa sygnalizatora w symulatorze (do „repeats”)
         foreach (var d in ut.Devices.Where(d => devNode.ContainsKey(d.Id)))
         {
             var node = devNode[d.Id]; var post = Kod(d.Track);
@@ -262,11 +350,26 @@ public static class DoSymulatora
             }
             if (type == "wjazdowy" && !lineOfEntry.ContainsKey(d.Id)) uw.Add($"semafor wjazdowy {d.Name} nie jest końcem żadnego szlaku w UT");
             var lights = UtDevice.ParseLights(d.LightsOrDefault);
-            if (d.Kind == UtDevice.Semafor) o["lamps"] = lights.Count;
+            if (d.Kind == UtDevice.Semafor)
+            {
+                o["lamps"] = lights.Count;
+                // pasy świetlne i W21 – dobór sygnału do prędkości przebiegu (Ie-1); „S” – W21 świetlny, cyfra – tablica
+                o["stripes"] = (d.StripeP ? "P" : "") + (d.StripeZ ? "Z" : "");
+                if (d.W21Swietlny) o["w21"] = "S"; else if (!string.IsNullOrEmpty(d.W21)) o["w21"] = d.W21;
+            }
             if (type == "wyjazdowy" && !lights.Any(x => x.C == 'B')) o["shunt"] = false;
             if (d.Side < 0) o["side"] = "L";
             if (d.MastOrDefault is UtDevice.MastWysiegnik or UtDevice.MastBramka or UtDevice.MastKarzel) o["mount"] = d.MastOrDefault;
-            signals[key] = o;
+            signals[key] = o; sigKey[d.Id] = key;
+        }
+        // tarcze ostrzegawcze i powtarzacze: semafor powtarzany (albo szlak – informacja z sąsiedniej stacji)
+        foreach (var d in ut.Devices.Where(d => d.Powtarzajacy && sigKey.ContainsKey(d.Id)))
+        {
+            var o = (JsonObject)signals[sigKey[d.Id]];
+            if (string.IsNullOrEmpty(d.Powtarza)) { uw.Add($"{ZobSymbole.Nazwa(ut, d.Id)}: nie wskazano semafora powtarzanego – na pulpicie bez wskazania (ustaw „Powtarza” w UT)"); continue; }
+            if (sigKey.TryGetValue(d.Powtarza, out var mk)) o["repeats"] = mk;
+            else if (ut.Lines.FirstOrDefault(l => l.Id == d.Powtarza) is UtLine pl && blocks.ContainsKey(pl.Numer)) o["repeats"] = pl.Numer;
+            else uw.Add($"{ZobSymbole.Nazwa(ut, d.Id)}: semafor powtarzany (albo szlak) nie trafia do symulatora – pominięty");
         }
 
         // ---------- plan: perony, przejazdy ----------
@@ -289,17 +392,25 @@ public static class DoSymulatora
         JsonObject display = null;
         var posts = new JsonObject();
         foreach (var p in ut.Posts) posts[p.Kod] = p.Nazwa;
-        if (zob != null && zob.Obrazy.Count > 0)
+        // obraz poglądowy – tylko w edytorze; na pulpicie zakładka poglądowa jak dotąd (decyzja właściciela 2026-10-19, plan § 10 pkt 4)
+        var detal = zob?.Obrazy.Where(o => o.Rodzaj != ZobObraz.Pogladowy).ToList() ?? new();
+        if (zob != null && zob.Obrazy.Count > detal.Count) uw.Add($"obraz poglądowy ({string.Join(", ", zob.Obrazy.Where(o => o.Rodzaj == ZobObraz.Pogladowy).Select(o => o.Nazwa))}) – tylko w edytorze; na pulpicie zakładka „Obraz poglądowy” pokazuje pomniejszone obrazy szczegółowe");
+        if (detal.Count > 0)
         {
-            var dn = new JsonObject(); var de = new JsonObject();
+            // geometria główna: każdy tor i węzeł z pierwszego obrazu, na którym jest; geometria każdej strony (pageGeo) – wszystko z tej strony,
+            // więc obiekt narysowany na dwóch obrazach pulpit pokazuje na obu (decyzja właściciela 2026-10-19, plan § 10 pkt 5)
+            var main = PustaGeometria();
+            var pageGeo = new JsonObject();
+            string secMode = null;
             int x0 = 0;
-            foreach (var ob in zob.Obrazy)
+            foreach (var ob in detal)
             {
                 var codes = ob.Posterunki.Select(id => ut.Posts.FirstOrDefault(p => p.Id == id)?.Kod).Where(k => k != null).ToList();
                 pages.Add(new JsonObject { ["id"] = ob.Id, ["name"] = ob.Nazwa, ["x0"] = x0, ["x1"] = x0 + ob.Szer, ["posts"] = new JsonArray(codes.Select(c => (JsonNode)c).ToArray()) });
+                var pg = PustaGeometria();
+                var dn = pg["nodes"].AsObject(); var de = pg["edges"].AsObject();
                 foreach (var ei in edgeInfo)
                 {
-                    if (de.ContainsKey(ei.Id)) continue;
                     double mid = (ei.S0 + ei.S1) / 2;
                     var zt = ZobSymbole.Kawalki(ob, ei.Track, mid).FirstOrDefault();
                     if (zt == null) continue;
@@ -308,17 +419,65 @@ public static class DoSymulatora
                     de[ei.Id] = new JsonArray(line.Select(q => (JsonNode)new JsonArray(q.X + x0, q.Y)).ToArray());
                     if (!dn.ContainsKey(ei.A)) dn[ei.A] = new JsonArray(line[0].X + x0, line[0].Y);
                     if (!dn.ContainsKey(ei.B)) dn[ei.B] = new JsonArray(line[^1].X + x0, line[^1].Y);
+                    if (zt.BezKontroli) pg["dashedEdges"].AsArray().Add(ei.Id);
                 }
+                foreach (var n in ob.Napisy.Where(n => n.P != null && n.Tekst.Length > 0))
+                    pg["labels"].AsArray().Add(new JsonObject { ["text"] = n.Tekst, ["x"] = n.P[0] + x0, ["y"] = n.P[1], ["anchor"] = n.Rodzaj == ZobNapis.Nastawnia ? "nastawnia" : "middle" });
+                foreach (var pr in ob.Perony.Where(p => p.Prost is { Length: 4 }))
+                {
+                    var pl = ut.Platforms.FirstOrDefault(x => x.Id == pr.Ut); if (pl == null) continue;
+                    var name = pl.Name.StartsWith("Peron", StringComparison.OrdinalIgnoreCase) ? pl.Name : $"Peron {pl.Name}".Trim();
+                    pg["platforms"].AsArray().Add(new JsonObject { ["name"] = name, ["x"] = pr.Prost[0] + x0, ["y"] = pr.Prost[1], ["w"] = pr.Prost[2], ["h"] = pr.Prost[3] });
+                }
+                foreach (var s in ob.Przejazdy.Where(s => s.P != null))
+                {
+                    var lc = ut.LevelCrossings.FirstOrDefault(x => x.Id == s.Ut); if (lc == null) continue;
+                    int up = s.Zasieg?[0] ?? 28, down = s.Zasieg?[1] ?? 28;
+                    pg["crossings"].AsArray().Add(new JsonObject { ["name"] = lc.Name.Length > 0 ? lc.Name : UtLevelCrossing.CatName(lc.Cat), ["kind"] = "Y", ["x"] = s.P[0] + x0, ["y0"] = s.P[1] - up, ["y1"] = s.P[1] + down });
+                }
+                foreach (var s in ob.NumeryTorow.Where(s => s.P != null))
+                    if (ut.Tracks.FirstOrDefault(t => t.Id == s.Ut) is UtTrack t && t.Number.Length > 0)
+                        pg["trackLabels"].AsArray().Add(new JsonObject { ["text"] = t.Number, ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
+                foreach (var s in ob.Odcinki.Where(s => s.P != null))
+                    if (ut.Sections.FirstOrDefault(x => x.Id == s.Ut) is UtSection sc && pts.ContainsKey(sc.Track))
+                        pg["secLabels"].AsArray().Add(new JsonObject { ["sec"] = SecName(sc.Track, sc.S, out _, out _), ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
+                secMode ??= ob.OpisyOdcinkow;
+                pg["secLabelsMode"] = ob.OpisyOdcinkow;
+                foreach (var s in ob.Szlaki.Where(s => s.P != null))
+                {
+                    // indeks końca w „ends” symulatora: kolejne końce szlaku z semaforem wjazdowym (koniec na granicy obszaru to „far”)
+                    var ln = ut.Lines.FirstOrDefault(x => x.Id == s.Ut); if (ln == null || !blocks.ContainsKey(ln.Numer)) continue;
+                    int k = s.Koniec ?? 0, idx = 0;
+                    for (int i = 0; i < k && i < ln.Konce.Count; i++) if (ln.Konce[i].Semafor != null) idx++;
+                    if (k >= ln.Konce.Count || ln.Konce[k].Semafor == null) continue;
+                    pg["blockMarks"].AsArray().Add(new JsonObject { ["block"] = ln.Numer, ["end"] = idx, ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
+                }
+                // do geometrii głównej: tory i węzły jeszcze niezajęte, elementy Z4 strony
+                foreach (var (id, v) in de) if (!main["edges"].AsObject().ContainsKey(id)) main["edges"][id] = v.DeepClone();
+                foreach (var (id, v) in dn) if (!main["nodes"].AsObject().ContainsKey(id)) main["nodes"][id] = v.DeepClone();
+                foreach (var key in new[] { "labels", "platforms", "crossings", "trackLabels", "secLabels", "blockMarks" })
+                    foreach (var v in pg[key].AsArray()) main[key].AsArray().Add(v.DeepClone());
+                foreach (var v in pg["dashedEdges"].AsArray()) if (!main["dashedEdges"].AsArray().Any(x => (string)x == (string)v)) main["dashedEdges"].AsArray().Add(v.DeepClone());
+                pageGeo[ob.Id] = pg;
                 x0 += ob.Szer;
             }
-            int missing = edgeInfo.Count(e => !de.ContainsKey(e.Id));
+            int missing = edgeInfo.Count(e => !main["edges"].AsObject().ContainsKey(e.Id));
             if (missing > 0) uw.Add($"{missing} kawałków torów UT nie ma na żadnym obrazie – na pulpicie ich nie widać");
-            display = new JsonObject { ["nodes"] = dn, ["edges"] = de, ["labels"] = new JsonArray(), ["platforms"] = new JsonArray(), ["crossings"] = new JsonArray() };
+            int shared = edgeInfo.Count(e => pageGeo.Count(pp => pp.Value["edges"].AsObject().ContainsKey(e.Id)) > 1);
+            if (shared > 0) uw.Add($"{shared} kawałków torów jest na kilku obrazach – na pulpicie na każdym z nich");
+            main["secLabelsMode"] = secMode ?? ZobObraz.OpisNaZadanie;
+            display = main;
+            if (detal.Count > 1) display["pageGeo"] = pageGeo;
         }
         else uw.Add("brak zobrazowania – pulpit pokaże plan z UT");
 
         var sections = new JsonObject();
         foreach (var (k, v) in secKind) if (v == UtSection.ObwodTorowy) sections[k] = new JsonObject { ["detection"] = "ot" };
+        // tor stacyjny (okno numeru pociągu, numer toru na pulpicie – jak odcinki „:JT” dawnych układów): odcinek poza szlakiem, na torach
+        // z numerem, bez zwrotnic i krzyży
+        foreach (var g in edges.OfType<JsonObject>().GroupBy(e => (string)e["sec"]))
+            if (g.All(e => e["szlak"] == null && ((string)e["track"]).Length > 0 && !new[] { (string)e["a"], (string)e["b"] }.Any(n => nodeKind.TryGetValue(n, out var nk) && nk.Kind is "switch" or "crossing")))
+                (sections[g.Key] ??= new JsonObject())["tor"] = true;
         var code = ut.Posts.FirstOrDefault()?.Kod ?? "UT";
         var root = new JsonObject
         {
@@ -329,9 +488,17 @@ public static class DoSymulatora
             ["sections"] = sections, ["platforms"] = platforms, ["labels"] = new JsonArray(), ["crossings"] = crossings, ["dashed"] = new JsonArray(),
             ["routeRules"] = new JsonArray(),
         };
+        if (noPass.Count > 0) root["noPass"] = noPass;
         if (display != null) root["display"] = display;
         return new Wynik(root, uw);
     }
+
+    /// <summary>Pusta geometria pulpitu (główna albo jednej strony).</summary>
+    static JsonObject PustaGeometria() => new()
+    {
+        ["nodes"] = new JsonObject(), ["edges"] = new JsonObject(), ["labels"] = new JsonArray(), ["platforms"] = new JsonArray(), ["crossings"] = new JsonArray(),
+        ["trackLabels"] = new JsonArray(), ["secLabels"] = new JsonArray(), ["blockMarks"] = new JsonArray(), ["dashedEdges"] = new JsonArray(),
+    };
 
     /// <summary>
     /// Km toru UT → ułamek długości łamanej toru obrazu: liniowo między punktami zaczepienia – końcami kawałka i symbolami obiektów UT
@@ -340,10 +507,18 @@ public static class DoSymulatora
     static Func<double, double> Mapa(UtProject ut, ZobObraz ob, ZobTor zt)
     {
         var anchors = new List<(double Km, double F)> { (zt.Ut.S0, 0), (zt.Ut.S1, 1) };
-        foreach (ZobRodzaj rd in Enum.GetValues<ZobRodzaj>())
+        foreach (ZobRodzaj rd in Enum.GetValues<ZobRodzaj>().Where(ZobSymbole.Kotwica))
             foreach (var s in ZobSymbole.Lista(ob, rd))
-                if (ZobSymbole.Miejsce(ut, s.Ut) is var (tr, km) && tr == zt.Ut.Tor && ZobSymbole.NaTorze(zt, s.P))
+                if (s.P != null && ZobSymbole.Miejsce(ut, s) is var (tr, km) && tr == zt.Ut.Tor && ZobSymbole.NaTorze(zt, s.P))
                     anchors.Add((km, ZobTory.Rzut(zt.Pkt, s.P[0], s.P[1]).Frac));
+        // środek skrzyżowania (St) – w punkcie, w którym tory obrazu się krzyżują
+        foreach (var c in ut.Crossings.Where(c => Krzyzowe.Rodzaj(c) == RozjazdTyp.St && (c.TrackA == zt.Ut.Tor || c.TrackB == zt.Ut.Tor)))
+        {
+            bool onA = c.TrackA == zt.Ut.Tor; double km = onA ? c.SA : c.SB, kmO = onA ? c.SB : c.SA;
+            if (km < Math.Min(zt.Ut.S0, zt.Ut.S1) || km > Math.Max(zt.Ut.S0, zt.Ut.S1)) continue;
+            foreach (var o2 in ZobSymbole.Kawalki(ob, onA ? c.TrackB : c.TrackA, kmO))
+                if (ZobTory.Przeciecie(zt.Pkt, o2.Pkt) is var (ix, iy)) { anchors.Add((km, ZobTory.Rzut(zt.Pkt, ix, iy).Frac)); break; }
+        }
         anchors = anchors.OrderBy(a => a.Km).ToList();
         return km =>
         {

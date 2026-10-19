@@ -1,0 +1,12 @@
+{
+  // Rozkład testowy „LCS Testowo” (scenariusz „Ruch podstawowy”): pociągi przez obie stacje i szlak wewnętrzny 1GW / 2GW.
+  // Pola – Sim/RozkladPlik.cs. Czasy [s] od początku scenariusza.
+  "pociagi": [
+    { "t": 20,  "numer": "10101", "kat": "PR",  "ze": "1Z", "na": "1E", "postoj": ["TG", "TW"] },
+    { "t": 60,  "numer": "10202", "kat": "PR",  "ze": "2E", "na": "2Z", "postoj": ["TW", "TG"] },
+    { "t": 5,   "numer": "90501", "kat": "ŁKA", "odcinek": "TG:3", "kierunek": 1, "na": "1E", "postoj": ["TW"], "odjazd": 150 },
+    { "t": 240, "numer": "40301", "kat": "TOW", "ze": "2Z", "na": "2E" },
+    { "t": 420, "numer": "51001", "kat": "IC",  "ze": "1E", "na": "1Z", "postoj": ["TG"] },
+    { "t": 1,   "numer": "SM42",  "lok": true,  "odcinek": "TG:6", "kierunek": -1 }
+  ]
+}

@@ -15,6 +15,8 @@ public class PanelView : FrameworkElement
 {
     /// <summary>Obraz poglądowy całego obszaru LCS (Ie-104 § 7 ust. 9): tory, sygnały, blokady i numery pociągów bez opisów; klik – obraz szczegółowy.</summary>
     public bool Overview;
+    /// <summary>Opisy odcinków na żądanie dyżurnego (Ie-104 § 5 ust. 2) – gdy zobrazowanie ma tryb „nazadanie”.</summary>
+    public bool ShowOpisy;
     public event Action<string> OverviewClicked;
     public double Scale => scale;
     IPulpitSource sim;
@@ -22,7 +24,8 @@ public class PanelView : FrameworkElement
     public IPulpitSource Sim { get => sim; set { sim = value; I = null; } }
     /// <summary>Geometria rysowana zamiast źródła meldunków (edytor: układ torowy albo zobrazowanie).</summary>
     public Station Geometry;
-    Station Lay => Geometry ?? sim?.L;
+    /// <summary>Geometria rysowana: edytora, a na pulpicie – widok bieżącej strony (obiekty na kilku obrazach), inaczej geometria główna.</summary>
+    Station Lay => Geometry ?? (!Overview && Page != null && sim?.L is Station l && l.PageViews.TryGetValue(Page.Id, out var pv) ? pv : sim?.L);
     /// <summary>Ostatni odebrany telegram stanu.</summary>
     Indication I;
     Indication Ind => I ??= sim?.Receive();
@@ -318,10 +321,19 @@ public class PanelView : FrameworkElement
     /// <summary>Obszar symbolu blokady przy danym końcu (strzałka w osi toru za semaforem wjazdowym i oznaczenie szlaku nad nią).</summary>
     Rect BlockRect(BlockDef b, int endIdx)
     {
-        var bn = Lay.Nodes[b.Ends[endIdx].Boundary]; var u = BlockAxis(b, endIdx);
+        var bn = BlockBase(b, endIdx); var u = BlockAxis(b, endIdx);
         var p0 = new Point(bn.X + u.X * 14, bn.Y + u.Y * 14); var p1 = new Point(bn.X + u.X * 46, bn.Y + u.Y * 46);
         var r = new Rect(p0, p1); r.Inflate(4, 6); r.Union(new Point(r.X, bn.Y - 22));
         return r;
+    }
+
+    /// <summary>Punkt odniesienia strzałki blokady: granica (węzeł semafora wjazdowego) albo – gdy strzałkę postawiono w edytorze
+    /// zobrazowania – punkt 30 j. przed jej środkiem (środek strzałki leży 30 j. od granicy, d0..d1 = 14..46).</summary>
+    Point BlockBase(BlockDef b, int endIdx)
+    {
+        var en = b.Ends[endIdx]; var u = BlockAxis(b, endIdx);
+        if (en.MarkX is double mx && en.MarkY is double my) return new Point(mx - u.X * 30, my - u.Y * 30);
+        var n = Lay.Nodes[en.Boundary]; return new Point(n.X, n.Y);
     }
 
     /// <summary>Napisy łączników obrazów widoczne na bieżącym obrazie: prostokąt przy końcu toru i identyfikator obrazu docelowego.</summary>
@@ -448,6 +460,7 @@ public class PanelView : FrameworkElement
             var capB = gapB == 0 && L.Nodes[e.B].Edges.Count >= 2 ? PenLineCap.Round : PenLineCap.Flat;
             var pen = new Pen(c, closed ? 7 : 4.6) { StartLineCap = capA, EndLineCap = capB, LineJoin = PenLineJoin.Round };
             if (e.Dismantled) pen = new Pen(Dim2, 4.6) { DashStyle = new DashStyle(new double[] { 2.2, 1.4 }, 0), LineJoin = PenLineJoin.Round };
+            else if (e.NoDetect) pen.DashStyle = new DashStyle(new double[] { 2.2, 1.6 }, 0);       // Ie-104 § 8 ust. 1 – bez kontroli niezajętości
             // odstęp blokowy wolny przy nieustawionym kierunku – szary migający (Ie-104 § 8 pkt 17 ust. 2 lit. d)
             if (e.Szlak && !S.NoLink && S.Blocks.TryGetValue(e.Sec.Split('-')[0], out var bsz) && bsz.Dir == 0 && !S.SecOcc(e.Sec) && !BlinkOn) pen = new Pen(Dim, 4.6);
             DrawPoly(dc, pen, pts);
@@ -459,7 +472,7 @@ public class PanelView : FrameworkElement
         var winTrains = S.Windows;
         foreach (var (sec, sd) in L.Sections)
         {
-            bool track = sec.Contains(":JT"), szl = sd.Kind == "szlak";
+            bool track = sd.StationTrack, szl = sd.Kind == "szlak";
             if (!track && !szl) continue;
             var e = sd.Edges.Select(x => L.Edges[x]).Where(x => !x.Link).OrderByDescending(x => x.Len).FirstOrDefault();
             if (e == null) continue;
@@ -477,12 +490,21 @@ public class PanelView : FrameworkElement
                 dc.DrawRectangle(occ ? Red : Bg, null, rr);
                 dc.DrawText(ft, new Point(rr.X + 3, rr.Y));
             }
-            else if (track)
+            else if (track && !L.TrackLabels.Any(t => t.Text == e.Track))
             {
                 dc.DrawRectangle(bgBrush, null, new Rect(mx - 10, my - 6, 20, 12));
                 Text(dc, e.Track, mx, my, 9.5, SwLabel, true, dpi, Mono);
             }
         }
+        // numery torów i opisy odcinków postawione w edytorze zobrazowania
+        foreach (var t in L.TrackLabels.Where(t => OnPage(t.X)))
+        {
+            dc.DrawRectangle(bgBrush, null, new Rect(t.X - 10, t.Y - 6, 20, 12));
+            Text(dc, t.Text, t.X, t.Y, 9.5, SwLabel, true, dpi, Mono);
+        }
+        if (L.SecLabelsMode == "zawsze" || L.SecLabelsMode == "nazadanie" && ShowOpisy)
+            foreach (var (sec, sx, sy) in L.SecLabels.Where(t => OnPage(t.X)))
+                Text(dc, sec.Contains(':') ? sec[(sec.IndexOf(':') + 1)..] : sec, sx, sy, 9, SwLabel, true, dpi, Mono);
 
         // zwrotnice
         foreach (var sw in L.Switches.Values)
@@ -594,7 +616,7 @@ public class PanelView : FrameworkElement
     void DrawBlock(DrawingContext dc, BlockDef b, int ei, double dpi)
     {
         var S = Ind; var bs = S.Blocks[b.Id]; var en = b.Ends[ei];
-        var bn = Lay.Nodes[en.Boundary]; var u = BlockAxis(b, ei);
+        var bn = BlockBase(b, ei); var u = BlockAxis(b, ei);
         int outward = en.Outward;
         Brush sa = Grey, sb = Grey; int arrowDir;
         bool closedHere = bs.StopEnd[ei], closedThere = b.Internal ? bs.StopEnd[1 - ei] : bs.NbrStop;

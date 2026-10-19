@@ -24,11 +24,13 @@ public static partial class Test
         string P(ZobSymbol s) => s == null ? "-" : $"({s.P[0]},{s.P[1]})";
         string A = Dev("A"), B = Dev("B"), F = Dev("F"), S60 = Dev("S60");
         var kozly = ut.Devices.Where(x => x.Kind == UtDevice.Koziol).OrderBy(x => x.S).Select(x => x.Id).ToList();
+        // „Sprawdź” bez elementów etapu Z4 (numery torów, strzałki szlaków – sprawdza je test Z4)
+        List<ZobUwaga> Spr() => w.Sprawdz().Where(x => !x.Text.Contains("numer toru") && !x.Text.Contains("szlak ")).ToList();
 
         // --- „Sprawdź” przed symbolami
-        var u0 = w.Sprawdz();
+        var u0 = Spr();
         Ok(u0.Count(x => x.Text.StartsWith("nie ma na obrazie")) == 10 && !u0.Any(x => x.Error), $"Sprawdź: nieumieszczone 4 zwrotnice, 4 sygnalizatory, 2 kozły ({u0.Count})");
-        Ok(w.CheckPanel.Children.Count == 11, "panel Sprawdź: nagłówek i 10 uwag");
+        Ok(w.CheckPanel.Children.Count == 15, "panel Sprawdź: nagłówek i 14 uwag (10 z Z3, 2 numery torów, 2 szlaki)");
 
         // --- sygnalizatory
         w.ToolKey(Key.S);
@@ -76,17 +78,17 @@ public static partial class Test
         Ok(w.LastMessage.Contains("nie ma takich obiektów"), "W – w mijance nie ma wykolejnic");
 
         // --- „Sprawdź” – komplet
-        var u1 = w.Sprawdz();
-        Ok(u1.Count == 0 && w.LastMessage == "Sprawdź: bez uwag", $"Sprawdź: brak nieumieszczonych, bez uwag ({string.Join("; ", u1.Select(x => x.Text))})");
-        Ok(w.UtInfo.Text.StartsWith("Na obrazie 14 z 16"), $"panel UT: {w.UtInfo.Text.Split('.')[0]} (bez szlaków – Z4)");
+        var u1 = Spr();
+        Ok(u1.Count == 0, $"Sprawdź: brak nieumieszczonych, bez uwag ({string.Join("; ", u1.Select(x => x.Text))})");
+        Ok(w.UtInfo.Text.StartsWith("Na obrazie 14 z 18"), $"panel UT: {w.UtInfo.Text.Split('.')[0]} (bez numerów torów i szlaków – Z4)");
 
         // --- błąd kolejności
         w.ToolKey(Key.S); Leaf(w, "B – ").IsSelected = true;
         w.View.SimClick(S(232, 520));
-        var u2 = w.Sprawdz();
+        var u2 = Spr();
         Ok(u2.Any(x => x.Error && x.Text.StartsWith("kolejność na torze 1")), $"B przestawiony przed A – błąd kolejności ({u2.FirstOrDefault()?.Text})");
         w.DoUndo();
-        Ok(w.Sprawdz().Count == 0, "Ctrl+Z – kolejność dobra");
+        Ok(Spr().Count == 0, "Ctrl+Z – kolejność dobra");
 
         // --- Wskaż: zaznaczenie symbolu, opis, zdjęcie
         w.ToolKey(Key.V);
@@ -100,7 +102,7 @@ public static partial class Test
         Ok(Sym(ZobRodzaj.Sygnalizator, A).Opis == null, "Opis w miejscu domyślnym");
         w.View.Fit();
         w.ToolKey(Key.Delete);
-        Ok(Sym(ZobRodzaj.Sygnalizator, A) == null && w.Sprawdz().Count == 1, "Del – A zdjęty z obrazu, Sprawdź: nie ma na obrazie A");
+        Ok(Sym(ZobRodzaj.Sygnalizator, A) == null && Spr().Count == 1, "Del – A zdjęty z obrazu, Sprawdź: nie ma na obrazie A");
         w.DoUndo();
         Ok(Sym(ZobRodzaj.Sygnalizator, A) != null, "Ctrl+Z – A wrócił");
 
@@ -118,7 +120,7 @@ public static partial class Test
         Ok(P(Sym(ZobRodzaj.Sygnalizator, F)) == "(1360,624)" && P(Sym(ZobRodzaj.Kozioł, kozly[0])) == "(160,624)" && P(Sym(ZobRodzaj.Zwrotnica, Rz("2"))) == "(616,624)",
             "tor 2 strzałką w dół – F, zwrotnice i kozły jadą razem z nim");
         w.DoUndo();
-        Ok(P(Sym(ZobRodzaj.Sygnalizator, F)) == "(1360,616)" && w.Sprawdz().Count == 0, "Ctrl+Z – jak było, Sprawdź bez uwag");
+        Ok(P(Sym(ZobRodzaj.Sygnalizator, F)) == "(1360,616)" && Spr().Count == 0, "Ctrl+Z – jak było, Sprawdź bez uwag");
         w.ToolKey(Key.Delete);
         Ok(w.Sprawdz().Count(x => x.Error && x.Text.Contains("nie leży na torze")) == 5, "tor 2 zdjęty – 5 symboli bez toru (błędy, czerwone)");
         w.DoUndo();

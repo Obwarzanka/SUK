@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="Lcs.Core/Lcs.Core.csproj" />
   <Project Path="Lcs.Core.TestHost/Lcs.Core.TestHost.csproj" />
+  <Project Path="Lcs.EdytorTaboru/Lcs.EdytorTaboru.csproj" />
   <Project Path="Lcs.EdytorUT/Lcs.EdytorUT.csproj" />
   <Project Path="Lcs.EdytorZobrazowania/Lcs.EdytorZobrazowania.csproj" />
   <Project Path="Lcs.Logi/Lcs.Logi.csproj" />
@@ -8,5 +9,7 @@
   <Project Path="Lcs.Komputerownia/Lcs.Komputerownia.csproj" />
   <Project Path="Lcs.Model/Lcs.Model.csproj" />
   <Project Path="Lcs.Przechylka/Lcs.Przechylka.csproj" />
+  <Project Path="Lcs.Tabor/Lcs.Tabor.csproj" />
+  <Project Path="Lcs.Tabor.Testy/Lcs.Tabor.Testy.csproj" />
   <Project Path="LcsWidzew/LcsWidzew.csproj" />
 </Solution>

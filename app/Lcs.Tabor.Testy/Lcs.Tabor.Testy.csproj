@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Testy taboru i fizyki jazdy (PLAN_EDYTOR_TABORU.md, etap B1). Uruchomienie: dotnet test (Microsoft.Testing.Platform, app/global.json). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Lcs.Tabor.Testy</RootNamespace>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
+    <!-- B2: jazda w symulatorze (rdzeń bez WPF) -->
+    <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
+    <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

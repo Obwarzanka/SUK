@@ -30,6 +30,10 @@ public class Edge
     /// <summary>Pochylenie podłużne [‰] od A do B (dodatnie – wzniesienie), z profilu wysokościowego; NaN – brak danych.</summary>
     public double Grad = double.NaN;
     public bool Platform, Szlak;
+    /// <summary>Tor przy peronie z UT (JSON "peron": true, eksport „Do symulatora”) – jak odcinek „:JT” w dawnych układach.</summary>
+    public bool PeronUt;
+    /// <summary>Zobrazowanie: odcinek bez kontroli niezajętości – linia przerywana (Ie-104 § 8 ust. 1; oznacza człowiek w edytorze zobrazowania).</summary>
+    public bool NoDetect;
     /// <summary>Kierunek jazdy A→B dla toru pionowego (1 – na wschód, -1 – na zachód); dla pozostałych wynika z położenia końców.</summary>
     public int Dir;
     /// <summary>Prędkość dopuszczalna na torze [km/h] (0 – domyślna: stacja 60, szlak – prędkość pociągu).</summary>
@@ -101,12 +105,37 @@ public class SignalDef
     public bool ForShunts => Type is "wjazdowy" or "tm" || (Type == "wyjazdowy" && !NoShunt);
     /// <summary>Obowiązuje manewry (sygnał „Stój” zatrzymuje także skład manewrowy) – może kończyć przebieg manewrowy.</summary>
     public bool StopsShunts => ForShunts || Type == "wyjazdowy";
+    /// <summary>Pasy świetlne semafora: „P” – pomarańczowy (60 km/h), „Z” – zielony (100 km/h); null – plik bez tej informacji (wszystkie prędkości jak dotąd).</summary>
+    public string Stripes;
+    /// <summary>Wskaźnik W21: „S” – świetlny (liczba z prędkości przebiegu), cyfra – tablica odblaskowa (dziesiątki km/h), null – brak.</summary>
+    public string W21;
+
+    /// <summary>
+    /// Dobór sygnału do prędkości przebiegu v [km/h] (Ie-1 § 4: pasy świetlne, W21 – podwyższenie prędkości z sygnału 40 / 60 / 100):
+    /// klasa sygnału (0 – największa dozwolona), liczba na W21 (0 – nie świeci / brak), prędkość sygnalizowana i uwaga, gdy semafor
+    /// nie może zasygnalizować v (wtedy niższy sygnał – decyzja właściciela 2026-10-19). Plik bez pasów – klasa jak dotąd (w górę do 40 / 60 / 100).
+    /// </summary>
+    public (int Klasa, int W21, double V, string Uwaga) Dobor(double v)
+    {
+        if (Stripes == null) { int kl = v <= 0 ? 0 : v <= 40 ? 40 : v <= 60 ? 60 : v <= 100 ? 100 : 0; return (kl, 0, kl == 0 ? v : Math.Min(v, kl), null); }
+        if (v <= 0) return (0, 0, 0, null);
+        int k = v >= 100 && Stripes.Contains('Z') ? 100 : v >= 60 && Stripes.Contains('P') ? 60 : 40;
+        if (v <= k) return (k, 0, v, null);
+        if (W21 == "S") { int n = (int)(v / 10); return (k, n, n * 10, n * 10 < v ? $"W21 pokaże {n} – prędkość {n * 10} zamiast {v:0} km/h" : null); }
+        if (int.TryParse(W21, out var t) && t * 10 > k)
+            return (k, t, t * 10, t * 10 > v ? $"tablica W21 „{t}” zezwala na {t * 10} km/h, więcej niż prędkość przebiegu {v:0}" : t * 10 < v ? $"tablica W21 „{t}” – sygnalizowane {t * 10} zamiast {v:0} km/h" : null);
+        if (int.TryParse(W21, out var t2)) return (k, 0, k, $"tablica W21 „{t2}” na semaforze {Label} nie podwyższa prędkości ponad {k} – sygnał {k} km/h zamiast {v:0}");
+        var brak = v >= 100 && !Stripes.Contains('Z') ? "pasa zielonego ani W21" : v >= 60 && !Stripes.Contains('P') && k < 60 ? "pasa pomarańczowego ani W21" : "W21";
+        return (k, 0, k, $"semafor {Label} nie ma {brak} – sygnał {k} km/h zamiast {v:0}");
+    }
 }
 
 public class DerailerDef { public string Name, Node, Sec, Label, Post; }
 /// <summary>Koniec szlaku przy posterunku; Label – oznaczenie szlaku na obrazie tego posterunku (szlak wewnętrzny: np. 1A przy Gałkówku, 1G przy Andrzejowie).</summary>
 public class BlockEnd { public string Boundary, EntrySig, Post, Label; public int Outward; /// <summary>Zwrot „na zewnątrz” na rysunku (±1 w poziomie) – tylko do rysowania.</summary>
-    public int VOut; }
+    public int VOut;
+    /// <summary>Zobrazowanie: środek strzałki blokady narysowany w edytorze zobrazowania (null – za semaforem wjazdowym jak dotąd).</summary>
+    public double? MarkX, MarkY; }
 
 public class BlockDef
 {
@@ -149,6 +178,9 @@ public class SectionDef
 {
     public string Id; public List<string> Edges = new(); public string Kind = "tor";
     public string Detection = "lo";
+    /// <summary>Tor stacyjny z UT (JSON sections → "tor": true): okno numeru pociągu i numer toru jak dla odcinka „:JT” dawnych układów.</summary>
+    public bool TorUt;
+    public bool StationTrack => Id.Contains(":JT") || TorUt;
     public bool AxleCounter => Detection != "ot";
     public string DetectionName => AxleCounter ? "licznik osi" : "obwód torowy";
 }
@@ -199,6 +231,8 @@ public class Station
     public Dictionary<string, TrackEndDef> TrackEnds = new();
     /// <summary>Kozły oporowe – tylko symbol na końcu toru (bez funkcji końca przebiegu).</summary>
     public HashSet<string> Bumpers = new();
+    /// <summary>Pary torów, przez które nie ma jazdy (w obie strony): rozjazd krzyżowy pojedynczy – brakujący przejazd (pole „noPass”).</summary>
+    public List<(string A, string B)> NoPass = new();
     public Dictionary<string, string> Posts = new();
     public List<PageDef> Pages = new();
     public List<PlatformDef> Platforms = new();
@@ -211,6 +245,11 @@ public class Station
     public List<CrossingDef> Crossings = new();
     public Dictionary<string, GantryDef> Gantries = new();
     public List<DashedDef> Dashed = new();
+    /// <summary>Zobrazowanie: numery torów w miejscach z edytora zobrazowania (tekst, środek); tor bez wpisu – numer na środku odcinka jak dotąd.</summary>
+    public List<LabelDef> TrackLabels = new();
+    /// <summary>Zobrazowanie: opisy odcinków (odcinek, środek napisu) i kiedy je pokazywać: „nazadanie” (Ie-104 § 5 ust. 2), „zawsze”, „nie”.</summary>
+    public List<(string Sec, double X, double Y)> SecLabels = new();
+    public string SecLabelsMode = "nazadanie";
     public List<RouteRule> RouteRules = new();
     /// <summary>Zależności specjalne przebiegów z pliku &lt;układ&gt;.zaleznosci.json (projektuje człowiek).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Zaleznosci Zal = new();
@@ -223,6 +262,8 @@ public class Station
     public Station Display;
     /// <summary>Zobrazowanie: symbole (sygnalizatory, wykolejnice, kozły – identyfikatory) ukryte na pulpicie, choć ich węzeł leży na torze obrazu.</summary>
     public HashSet<string> HiddenSyms = new();
+    /// <summary>Zobrazowanie: widok każdej strony z własną geometrią (obiekty narysowane na kilku obrazach); brak – geometria główna.</summary>
+    public Dictionary<string, Station> PageViews = new();
     /// <summary>
     /// Zobrazowanie: posterunki z PIP – wyświetlaczami numerów pociągów (Ie-104 § 8 pkt 26). Pole „pip” w sekcji „display”:
     /// true / brak – wszystkie, false – żaden, lista kodów posterunków – tylko te. Null – wszystkie.
@@ -236,6 +277,28 @@ public class Station
     public Station View => Display ?? this;
 
     public string Other(string eid, string nid) { var e = Edges[eid]; return e.A == nid ? e.B : e.A; }
+
+    /// <summary>Kierunek toru od węzła (jednostkowy, z punktów toru).</summary>
+    public (double X, double Y) Tangent(string eid, string nid)
+    {
+        var e = Edges[eid]; var p = e.A == nid ? e.Pts : Enumerable.Reverse(e.Pts).ToList();
+        for (int i = 1; i < p.Count; i++)
+        {
+            double dx = p[i].X - p[0].X, dy = p[i].Y - p[0].Y, l = Math.Sqrt(dx * dx + dy * dy);
+            if (l > 1e-6) return (dx / l, dy / l);
+        }
+        return (1, 0);
+    }
+
+    /// <summary>
+    /// Skrzyżowanie torów (węzeł bez zwrotnicy z więcej niż dwoma torami – krzyż St / Rkp, Ie-104 § 8 pkt 2): z toru <paramref name="from"/>
+    /// dalej tylko tor na jego przedłużeniu (najbardziej przeciwny kierunek od węzła).
+    /// </summary>
+    public string Straight(string nid, string from, IEnumerable<string> cands)
+    {
+        var (fx, fy) = Tangent(from, nid);
+        return cands.OrderBy(e => { var (x, y) = Tangent(e, nid); return x * fx + y * fy; }).FirstOrDefault();
+    }
     /// <summary>Węzły ze sprzeczną orientacją torów (trójkąt torowy, pętla) – do kontroli układu.</summary>
     public List<string> OrientConflicts = new();
     /// <summary>Geometria pulpitu: kierunek w poziomie z rysunku (zobrazowanie). Układ torowy – kierunek wg orientacji A→B.</summary>
@@ -280,37 +343,78 @@ public class Station
         st.OrientConflicts = orient.Conflicts;
         if (root?["display"] is System.Text.Json.Nodes.JsonObject disp)
         {
-            // geometria zobrazowania: węzły i tory z sekcji „display”, pozostałe – poza obrazami
-            var dn = disp["nodes"] as System.Text.Json.Nodes.JsonObject; var de = disp["edges"] as System.Text.Json.Nodes.JsonObject;
             root.Remove("display");
-            // napisy, perony i przejazdy pulpitu – własna kopia zobrazowania (brak – te same co na planie)
-            foreach (var k in new[] { "labels", "platforms", "crossings" }) if (disp[k] is System.Text.Json.Nodes.JsonArray da) root[k] = da.DeepClone();
-            foreach (var (id, n) in (System.Text.Json.Nodes.JsonObject)root["nodes"])
-            {
-                var p = dn?[id] as System.Text.Json.Nodes.JsonArray;
-                n["x"] = p != null ? p[0].GetValue<double>() : Hidden; n["y"] = p != null ? p[1].GetValue<double>() : Hidden;
-            }
-            foreach (var e in ((System.Text.Json.Nodes.JsonArray)root["edges"]).OfType<System.Text.Json.Nodes.JsonObject>())
-            {
-                var p = de?[(string)e["id"]] as System.Text.Json.Nodes.JsonArray;
-                e["pts"] = p != null && p.Count >= 2 ? p.DeepClone() : new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonArray(Hidden, Hidden), new System.Text.Json.Nodes.JsonArray(Hidden + 1, Hidden));
-            }
-            var d = ParseCore(root.ToJsonString(), true);
-            if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
-            if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
-            else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
-            // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
-            foreach (var (k, sw) in st.Switches)
-            {
-                if (!d.Switches.TryGetValue(k, out var ds)) { d.Switches[k] = ds = new SwitchDef { Num = sw.Num, Node = sw.Node, Sec = sw.Sec, Label = sw.Label, Post = sw.Post, Manual = sw.Manual, VBok = sw.VBok, VProsto = sw.VProsto, TipDir = sw.TipDir }; d.Nodes[sw.Node].Switch = k; }
-                ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus; ds.Diverging = sw.Diverging; ds.BasicMinus = sw.BasicMinus;
-            }
+            // geometria każdej strony (edytor zobrazowania, plan § 10 pkt 5): obiekt narysowany na dwóch obrazach jest na pulpicie na obu
+            var pageGeo = disp["pageGeo"] as System.Text.Json.Nodes.JsonObject;
+            disp.Remove("pageGeo");
+            var baseRoot = (System.Text.Json.Nodes.JsonObject)root.DeepClone();
+            var d = BuildDisplay((System.Text.Json.Nodes.JsonObject)baseRoot.DeepClone(), disp, st);
+            if (pageGeo != null)
+                foreach (var (pid, pg) in pageGeo)
+                    if (pg is System.Text.Json.Nodes.JsonObject pgo)
+                    {
+                        if (pgo["pip"] == null && disp["pip"] != null) pgo["pip"] = disp["pip"].DeepClone();
+                        if (pgo["hiddenSyms"] == null && disp["hiddenSyms"] != null) pgo["hiddenSyms"] = disp["hiddenSyms"].DeepClone();
+                        d.PageViews[pid] = BuildDisplay((System.Text.Json.Nodes.JsonObject)baseRoot.DeepClone(), pgo, st);
+                    }
             st.Display = d;
         }
         st.Visual(st.Display ?? st);
-        if (st.Display != null) st.Display.Visual(st.Display, st);
+        if (st.Display != null)
+        {
+            st.Display.Visual(st.Display, st);
+            foreach (var pv in st.Display.PageViews.Values) pv.Visual(pv, st);
+        }
         return st;
     }
+
+    /// <summary>
+    /// Widok zobrazowania z sekcji „display” (albo z geometrii jednej strony – „pageGeo”): położenia węzłów i przebieg torów, napisy,
+    /// perony, przejazdy, elementy z edytora zobrazowania; topologia i zwrotnice z układu <paramref name="st"/>.
+    /// </summary>
+    static Station BuildDisplay(System.Text.Json.Nodes.JsonObject root, System.Text.Json.Nodes.JsonObject disp, Station st)
+    {
+        // geometria zobrazowania: węzły i tory z sekcji „display”, pozostałe – poza obrazami
+        var dn = disp["nodes"] as System.Text.Json.Nodes.JsonObject; var de = disp["edges"] as System.Text.Json.Nodes.JsonObject;
+        // napisy, perony i przejazdy pulpitu – własna kopia zobrazowania (brak – te same co na planie)
+        foreach (var k in new[] { "labels", "platforms", "crossings" }) if (disp[k] is System.Text.Json.Nodes.JsonArray da) root[k] = da.DeepClone();
+        foreach (var (id, n) in (System.Text.Json.Nodes.JsonObject)root["nodes"])
+        {
+            var p = dn?[id] as System.Text.Json.Nodes.JsonArray;
+            n["x"] = p != null ? p[0].GetValue<double>() : Hidden; n["y"] = p != null ? p[1].GetValue<double>() : Hidden;
+        }
+        foreach (var e in ((System.Text.Json.Nodes.JsonArray)root["edges"]).OfType<System.Text.Json.Nodes.JsonObject>())
+        {
+            var p = de?[(string)e["id"]] as System.Text.Json.Nodes.JsonArray;
+            e["pts"] = p != null && p.Count >= 2 ? p.DeepClone() : new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonArray(Hidden, Hidden), new System.Text.Json.Nodes.JsonArray(Hidden + 1, Hidden));
+        }
+        var d = ParseCore(root.ToJsonString(), true);
+        if (disp["hiddenSyms"] is System.Text.Json.Nodes.JsonArray hs) foreach (var h in hs) if (h?.GetValue<string>() is string hid) d.HiddenSyms.Add(hid);
+        // elementy z edytora zobrazowania (etap Z4): numery torów, opisy odcinków, strzałki blokady, odcinki bez kontroli niezajętości
+        if (disp["trackLabels"] is System.Text.Json.Nodes.JsonArray tl)
+            foreach (var x in tl.OfType<System.Text.Json.Nodes.JsonObject>())
+                d.TrackLabels.Add(new LabelDef { Text = (string)x["text"], X = x["x"].GetValue<double>(), Y = x["y"].GetValue<double>(), Anchor = "middle" });
+        if (disp["secLabels"] is System.Text.Json.Nodes.JsonArray sl)
+            foreach (var x in sl.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["sec"] is string sec) d.SecLabels.Add((sec, x["x"].GetValue<double>(), x["y"].GetValue<double>()));
+        if (disp["secLabelsMode"]?.GetValue<string>() is string slm) d.SecLabelsMode = slm;
+        if (disp["dashedEdges"] is System.Text.Json.Nodes.JsonArray dashE)
+            foreach (var x in dashE) if (x?.GetValue<string>() is string eid && d.Edges.TryGetValue(eid, out var ed)) ed.NoDetect = true;
+        if (disp["blockMarks"] is System.Text.Json.Nodes.JsonArray bm)
+            foreach (var x in bm.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["block"] is string bid && d.Blocks.TryGetValue(bid, out var db) && x["end"]?.GetValue<int>() is int ei && ei >= 0 && ei < db.Ends.Count)
+                { db.Ends[ei].MarkX = x["x"].GetValue<double>(); db.Ends[ei].MarkY = x["y"].GetValue<double>(); }
+        if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
+        else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
+        // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)
+        foreach (var (k, sw) in st.Switches)
+        {
+            if (!d.Switches.TryGetValue(k, out var ds)) { d.Switches[k] = ds = new SwitchDef { Num = sw.Num, Node = sw.Node, Sec = sw.Sec, Label = sw.Label, Post = sw.Post, Manual = sw.Manual, VBok = sw.VBok, VProsto = sw.VProsto, TipDir = sw.TipDir }; d.Nodes[sw.Node].Switch = k; }
+            ds.Tip = sw.Tip; ds.Plus = sw.Plus; ds.Minus = sw.Minus; ds.Diverging = sw.Diverging; ds.BasicMinus = sw.BasicMinus;
+        }
+        return d;
+    }
+
 
     static Station ParseCore(string json, bool geo)
     {
@@ -342,7 +446,7 @@ public class Station
                 Embank = e.TryGetProperty("nasyp", out var ens) && ens.ValueKind == JsonValueKind.Number ? ens.GetDouble() : 0,
                 Grad = e.TryGetProperty("poch", out var egr) && egr.ValueKind == JsonValueKind.Number ? egr.GetDouble() : double.NaN,
                 Dir = e.TryGetProperty("dir", out var edir) && edir.ValueKind == JsonValueKind.Number ? Math.Sign(edir.GetInt32()) : 0,
-                Cat = S(e, "cat", "b"),
+                Cat = S(e, "cat", "b"), PeronUt = e.TryGetProperty("peron", out var epr) && epr.ValueKind == JsonValueKind.True,
                 Elec = e.TryGetProperty("elec", out var el) && (el.ValueKind == JsonValueKind.True || (el.ValueKind == JsonValueKind.String && el.GetString() == "true"))
             };
             foreach (var p in e.GetProperty("pts").EnumerateArray()) ed.Pts.Add((p[0].GetDouble(), p[1].GetDouble()));
@@ -356,7 +460,11 @@ public class Station
         foreach (var sd in st.Sections.Values) sd.Detection = defDet;
         if (r.TryGetProperty("sections", out var sm) && sm.ValueKind == JsonValueKind.Object)
             foreach (var p in sm.EnumerateObject())
-                if (st.Sections.TryGetValue(p.Name, out var sd) && p.Value.TryGetProperty("detection", out var dv) && dv.ValueKind == JsonValueKind.String) sd.Detection = dv.GetString();
+                if (st.Sections.TryGetValue(p.Name, out var sd))
+                {
+                    if (p.Value.TryGetProperty("detection", out var dv) && dv.ValueKind == JsonValueKind.String) sd.Detection = dv.GetString();
+                    if (p.Value.TryGetProperty("tor", out var tv) && tv.ValueKind == JsonValueKind.True) sd.TorUt = true;
+                }
         foreach (var p in r.GetProperty("switches").EnumerateObject())
         {
             var v = p.Value;
@@ -376,7 +484,7 @@ public class Station
             {
                 Name = p.Name, Node = S(v, "node"), Dir = v.GetProperty("dir").GetInt32(), Type = S(v, "type"), Szlak = S(v, "szlak"), Track = S(v, "track"),
                 Label = S(v, "label", Lbl(p.Name)), Repeats = S(v, "repeats"), Post = S(v, "post", PostOf(p.Name)),
-                PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"), Side = S(v, "side", "P"),
+                PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"), Side = S(v, "side", "P"), Stripes = S(v, "stripes"), W21 = S(v, "w21"),
                 Lamps = v.TryGetProperty("lamps", out var lm) && lm.ValueKind == JsonValueKind.Number ? lm.GetInt32() : v.TryGetProperty("lamps", out var lm2) && lm2.ValueKind == JsonValueKind.String && int.TryParse(lm2.GetString(), out var lmi) ? lmi : 0,
                 NoShunt = v.TryGetProperty("shunt", out var sh) && (sh.ValueKind == JsonValueKind.False || (sh.ValueKind == JsonValueKind.String && sh.GetString() == "false"))
             };
@@ -403,6 +511,8 @@ public class Station
         }
         foreach (var p in r.GetProperty("boundaries").EnumerateObject()) st.Boundaries[p.Name] = p.Value.GetProperty("szlak").GetString();
         foreach (var p in r.GetProperty("farEnds").EnumerateObject()) st.FarEnds[p.Name] = (p.Value.GetProperty("szlak").GetString(), p.Value.GetProperty("nbr").GetString());
+        if (r.TryGetProperty("noPass", out var np) && np.ValueKind == JsonValueKind.Array)
+            foreach (var p in np.EnumerateArray()) if (p.GetArrayLength() == 2) st.NoPass.Add((p[0].GetString(), p[1].GetString()));
         if (r.TryGetProperty("bumpers", out var bmp) && bmp.ValueKind == JsonValueKind.Object)
             foreach (var p in bmp.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.Bumpers.Add(p.Name);
         foreach (var p in r.GetProperty("trackEnds").EnumerateObject())
@@ -493,7 +603,7 @@ public class Station
             s.Approach = back.Count == 1 ? back[0] : null;
             s.Ahead = Nodes[s.Node].Edges.FirstOrDefault(e => EdgeDir(e, s.Node) == s.Dir);
         }
-        foreach (var e in Edges.Values) e.Platform = e.Track != "" && e.Sec.Contains(":JT");
+        foreach (var e in Edges.Values) e.Platform = e.Track != "" && (e.Sec.Contains(":JT") || e.PeronUt);
     }
 
     /// <summary>

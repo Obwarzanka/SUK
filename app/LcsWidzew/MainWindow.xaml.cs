@@ -175,6 +175,17 @@ public partial class MainWindow : Window
         {
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (sim != null) while (sim.T < until) { sim.Tick(0.1); server?.Push(); } else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
+            if (c == "#opisy") { SetOpisy(true); continue; }
+            // „#stan” – do pliku .txt sygnały zezwalające (kody Ie-1) i pociągi z prędkością [km/h]
+            if (c == "#stan" && sim != null)
+            {
+                var sg = sim.Sigs.Where(kv => kv.Value.Sig is not (null or "" or "S1")).Select(kv => $"{Station.Lbl(kv.Key)} {kv.Value.Sig}" + (kv.Value.W21 > 0 ? $"+W21 {kv.Value.W21}" : ""));
+                var tr = sim.Trains.List.Where(t => !t.Gone).Select(t => $"{t.Num} {t.V * 3.6:0} km/h ({string.Join(" ", t.Segs.Where(s => s.E != null).Select(s => Station.Lbl(station.Edges[s.E].Sec)).Distinct())})"
+                    // jazda wg fizyki (PLAN_EDYTOR_TABORU.md B2): skład, masa, pochylenie pod składem, prędkość docelowa maszynisty, siła i hamowanie
+                    + (t.Fiz != null ? $" [{t.Fiz.Nazwa}, {t.Fiz.Masa:0} t, {t.IPod:+0.#;-0.#;0} ‰, cel {t.VCel * 3.6:0} km/h, F {t.Jaz.F:0} kN, ham {t.Jaz.H * 100:0} %]" : ""));
+                File.AppendAllText(ShotPath + ".txt", $"@{sim.T:0} sygnały: {string.Join(", ", sg)}; pociągi: {string.Join(", ", tr)}\n");
+                continue;
+            }
             if (c.StartsWith("#fault=") && sim != null) { var f = c[7..].Split(':', 2); sim.Instruktor.ApplyFault(f[0], f.Length > 1 ? f[1] : "", false); continue; }
             if (c.StartsWith("#page=")) { ShowPage(int.Parse(c[6..])); continue; }
             if (c.StartsWith("#serwis=")) { var er = StartSerwis(int.Parse(c[8..]), sim); File.AppendAllText(ShotPath + ".txt", $"serwis: {er ?? "OK"}{(char)10}"); continue; }
@@ -217,7 +228,11 @@ public partial class MainWindow : Window
                 }
                 if (routesShot != null)
                 {
-                    var rw = new RoutesWindow(ses.RouteTable, sim) { Owner = this }; rw.Show(); rw.Pokaz(routesShot); rw.UpdateLayout();
+                    var rw = new RoutesWindow(ses.RouteTable, sim) { Owner = this }; rw.Show();
+                    // „#tablica=filtr;v=60” – dodatkowo wpis prędkości przebiegu (v=0 – usunięcie) i zapis zależności
+                    var rs = routesShot.Split(';');
+                    if (rs.Length > 1 && rs[1].StartsWith("v=")) rw.UstawV(rs[0], int.Parse(rs[1][2..])); else rw.Pokaz(routesShot);
+                    rw.UpdateLayout();
                     Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                     var rr = new System.Windows.Media.Imaging.RenderTargetBitmap((int)rw.ActualWidth, (int)rw.ActualHeight, 96, 96, PixelFormats.Pbgra32); rr.Render((Visual)rw.Content);
                     var er = new System.Windows.Media.Imaging.PngBitmapEncoder(); er.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rr));
@@ -699,6 +714,15 @@ public partial class MainWindow : Window
         if (v == 0) { paused = !paused; } else { speed = v; paused = false; }
     }
     void FitStation_Click(object s, RoutedEventArgs e) => Panel.FitPage();
+    void Opisy_Click(object s, RoutedEventArgs e) => SetOpisy(!Panel.ShowOpisy);
+    // opisy odcinków na żądanie (Ie-104 § 5 ust. 2) – przycisk podświetlony, gdy są włączone
+    void SetOpisy(bool on)
+    {
+        Panel.ShowOpisy = on;
+        BtnOpisy.Background = on ? new SolidColorBrush(Color.FromRgb(0x5a, 0x5a, 0x5a)) : new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x26));
+        BtnOpisy.BorderBrush = on ? Brushes.Gray : new SolidColorBrush(Color.FromRgb(0x4a, 0x4a, 0x4a));
+        Panel.InvalidateVisual();
+    }
     void FitAll_Click(object s, RoutedEventArgs e) => Panel.FitPage();
     void Plan_Click(object s, RoutedEventArgs e) => new PlanWindow(ses) { Owner = this }.Show();
     void Routes_Click(object s, RoutedEventArgs e) => new RoutesWindow(ses.RouteTable, ses.IsHost ? sim : null) { Owner = this }.Show();

@@ -19,4 +19,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Tabor i fizyka jazdy (PLAN_EDYTOR_TABORU.md, B2) – warstwa świata, bez WPF. -->
+    <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -96,6 +96,9 @@ public partial class MainWindow : Window
         tb.Items.Add(Btn("Cały obraz", (s, e) => View.Fit(), "Cały obraz w oknie (Home)"));
         tb.Items.Add(Btn("1:1", (s, e) => View.Actual(), "Powiększenie 1 – jednostka obrazu = piksel monitora"));
         tb.Items.Add(new Separator());
+        tb.Items.Add(Btn("PNG…", (s, e) => ExportPng(), "Obraz jak na pulpicie do pliku PNG (1 j. = 1 piksel, bez siatki i znaczników edytora)"));
+        tb.Items.Add(Btn("Drukuj…", (s, e) => PrintObraz(), "Wydruk obrazu na jednej kartce, poziomo"));
+        tb.Items.Add(new Separator());
         ReloadUtBtn.Click += (s, e) => ReloadUt(); ReloadUtBtn.ToolTip = "Wczytaj projekt UT od nowa – po zmianach w edytorze UT (obraz zostaje)"; tb.Items.Add(ReloadUtBtn);
         var tools = new ToolBar { Background = ToolbarBg };
         tools.Items.Add(ToolBtn(ZobTool.Wskaz, "Wskaż", "Wskaż (V): klik na torze – zaznaczenie i panel; przeciągnięcie wierzchołka zaznaczonego toru; strzałki – przesunięcie o krok siatki; Del – zdjęcie z obrazu"));
@@ -105,12 +108,21 @@ public partial class MainWindow : Window
         tools.Items.Add(ToolBtn(ZobTool.Sygnalizator, "Sygnalizator", "Sygnalizator (S): semafor / tarcza z panelu UT albo następny nieumieszczony – klik na linii jego toru; kierunek z UT"));
         tools.Items.Add(ToolBtn(ZobTool.Wykolejnica, "Wykolejnica", "Wykolejnica (W): klik na linii jej toru"));
         tools.Items.Add(ToolBtn(ZobTool.Koziol, "Kozioł", "Kozioł (K): klik przy końcu jego toru obrazu"));
+        var z4 = new ToolBar { Background = ToolbarBg, Band = 1 };      // drugi wiersz – pierwszy jest pełny
+        z4.Items.Add(ToolBtn(ZobTool.Przerwa, "Przerwa", "Przerwa izolacyjna (P): licznik osi / złącze UT – klik na linii jego toru; przerwa w linii jak na pulpicie"));
+        z4.Items.Add(ToolBtn(ZobTool.OpisOdcinka, "Opis odcinka", "Opis odcinka (O): odcinek UT – klik w miejscu opisu, przy torze odcinka (Ie-104 § 8 ust. 1 – nad torem)"));
+        z4.Items.Add(ToolBtn(ZobTool.NumerToru, "Numer toru", "Numer toru (N): klik na linii toru – numer w przerwie linii"));
+        z4.Items.Add(ToolBtn(ZobTool.Peron, "Peron", "Peron: peron UT z panelu albo następny – przeciągnij prostokąt"));
+        z4.Items.Add(ToolBtn(ZobTool.Przejazd, "Przejazd", "Przejazd: przejazd UT – klik na linii jego toru; zasięg linii przejazdu w panelu"));
+        z4.Items.Add(ToolBtn(ZobTool.Szlak, "Szlak", "Strzałka blokady (B): szlak UT – klik na torze za semaforem wjazdowym, od strony szlaku"));
+        z4.Items.Add(ToolBtn(ZobTool.Napis, "Napis", "Napis (X): klik w miejscu napisu – nazwa posterunku sąsiedniego, nastawnia albo dowolny tekst"));
         tools.Items.Add(new Separator());
         tools.Items.Add(Btn("✔ Sprawdź", (s, e) => Sprawdz(), "Sprawdź obraz (F7): nieumieszczone obiekty UT, przypięcia, symbole poza torem, kolejność wzdłuż km"));
+        tools.Items.Add(Btn("Podgląd pulpitu", (s, e) => Podglad(), "Obraz jak na pulpicie symulatora – ten sam kod pulpitu i komputer zależności; stan zasadniczy i przykładowy przebieg (nic nie zapisuje)"));
         tools.Items.Add(Btn("Do symulatora…", (s, e) => DoSymulatora(), "Zapisz UT i obrazy jako układ symulatora (LcsWidzew/Data/projekty) – do wyboru przy starcie symulatora; Data/station.json zostaje bez zmian"));
         tools.Items.Add(new Separator());
         tools.Items.Add(ToolBtn(ZobTool.Lacznik, "Łącznik", "Łącznik (R): klik na torze obrazu w miejscu pierwszej zwrotnicy, potem na drugim torze – ukos 45° – pion – ukos 45°"));
-        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools } };
+        return new ToolBarTray { Background = ToolbarBg, ToolBars = { tb, tools, z4 } };
     }
 
     UIElement BuildUtPanel()
@@ -118,6 +130,8 @@ public partial class MainWindow : Window
         var sp = new StackPanel { Margin = new Thickness(10) };
         sp.Children.Add(UtHeader);
         sp.Children.Add(UtInfo);
+        InneBox.Click += (s, e) => { utInne = InneBox.IsChecked == true; RefreshUt(); };
+        sp.Children.Add(InneBox);
         var dock = new DockPanel();
         dock.Children.Add(Dock(sp, System.Windows.Controls.Dock.Top));
         var prev = new StackPanel { Margin = new Thickness(10, 4, 10, 10) };
@@ -160,12 +174,14 @@ public partial class MainWindow : Window
         if (o == null) return;
         BuildTrackPanel();
         BuildSymPanel();
+        BuildZ4Panel();
         if (Uwagi != null) { ImgPanel.Children.Add(Header("Sprawdź")); if (CheckPanel.Parent is Panel cp) cp.Children.Remove(CheckPanel); ImgPanel.Children.Add(CheckPanel); ImgPanel.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) }); }
         ImgPanel.Children.Add(Header("Obraz"));
         ImgPanel.Children.Add(Label("Nazwa")); ImgPanel.Children.Add(NameBox);
         ImgPanel.Children.Add(Label("Rodzaj")); KindBox.ToolTip = "Ie-104 § 5 – obraz szczegółowy posterunku, § 6 – obraz poglądowy obszaru"; ImgPanel.Children.Add(KindBox);
         ImgPanel.Children.Add(Label("Posterunki na obrazie"));
         ImgPanel.Children.Add(PostsPanel);
+        OpisyCombo(o);
         ImgPanel.Children.Add(Label("Wymiary [j.] – szerokość × wysokość"));
         var sizes = new StackPanel { Orientation = Orientation.Horizontal };
         sizes.Children.Add(WidthBox); sizes.Children.Add(new TextBlock { Text = "×", Margin = new Thickness(0, 4, 6, 0) }); sizes.Children.Add(HeightBox);
@@ -174,6 +190,9 @@ public partial class MainWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
         row.Children.Add(Btn("◀", (s, e) => MoveImage(-1), "Przesuń zakładkę w lewo"));
         row.Children.Add(Btn("▶", (s, e) => MoveImage(1), "Przesuń zakładkę w prawo"));
+        var kop = Btn("Kopiuj obraz", (s, e) => CopyImage(), "Nowy obraz – kopia tego obrazu z całą treścią, zakładka obok (Ctrl+Z cofa); przypięcia do UT te same");
+        kop.Margin = new Thickness(8, 0, 0, 0);
+        row.Children.Add(kop);
         var del = Btn("Usuń obraz", (s, e) => DeleteImage(), "Usuń ten obraz ze zobrazowania (Ctrl+Z przywraca); obiekty UT zostają");
         del.Margin = new Thickness(8, 0, 0, 0); del.IsEnabled = Doc.P.Obrazy.Count > 1;
         row.Children.Add(del);
@@ -259,7 +278,9 @@ public partial class MainWindow : Window
     {
         BuildImgPanelContent();
         var o = Obraz; if (o == null) return;
-        if (!NameBox.IsKeyboardFocused) NameBox.Text = o.Nazwa;
+        // pole nazwy należy do jednego obrazu – po zmianie obrazu zawsze jego nazwa (inaczej zapis przeniósłby nazwę poprzedniego obrazu)
+        if (!NameBox.IsKeyboardFocused || nameFor != o.Id) NameBox.Text = o.Nazwa;
+        nameFor = o.Id;
         KindBox.SelectedIndex = Array.FindIndex(ZobObraz.Rodzaje, r => r.Key == o.Rodzaj);
         WidthBox.Text = o.Szer.ToString(CultureInfo.InvariantCulture); HeightBox.Text = o.Wys.ToString(CultureInfo.InvariantCulture);
         PostsPanel.Children.Clear();
@@ -284,22 +305,23 @@ public partial class MainWindow : Window
         UtTree.Items.Clear();
         var o = Obraz;
         if (Doc == null || o == null) { UtHeader.Text = "Obiekty UT"; UtInfo.Text = ""; return; }
-        var all = ZobUt.Obiekty(Doc.Ut, o);
+        var all = ZobUt.Obiekty(Doc.Ut, o, utInne);
+        var own = all.Where(x => !x.Obcy).ToList();
         var posts = o.Posterunki.Select(id => Doc.Ut.Posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Select(p => p.Kod).ToList();
         UtHeader.Text = "Obiekty UT – " + (posts.Count > 0 ? string.Join(", ", posts) : "cały obszar");
-        UtInfo.Text = $"Na obrazie {all.Count(x => x.NaObrazie)} z {all.Count}. Zielone – na obrazie, brązowe – tor w części, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
+        UtInfo.Text = $"Na obrazie {own.Count(x => x.NaObrazie)} z {own.Count}. Zielone – na obrazie, brązowe – tor w części, czerwone – brak (do narysowania). Dane z UT tylko do odczytu.";
         foreach (var g in ZobUt.Grupy)
         {
             var items = all.Where(x => x.Grupa == g).ToList();
             if (items.Count == 0) continue;
-            var gi = new TreeViewItem { Header = $"{g} ({items.Count(x => x.NaObrazie)}/{items.Count})", IsExpanded = true, FontWeight = FontWeights.SemiBold };
+            var gi = new TreeViewItem { Header = $"{g} ({items.Count(x => x.NaObrazie && !x.Obcy)}/{items.Count(x => !x.Obcy)})", IsExpanded = true, FontWeight = FontWeights.SemiBold };
             foreach (var x in items)
             {
                 var it = new TreeViewItem
                 {
                     // obiekt wybrany ostatnio – pogrubiony (bez zaznaczania w drzewie: TreeView zgłosiłby to później jak klik)
-                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}", Tag = x, FontWeight = x.Id == utSelected ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
+                    Header = $"{x.Opis} – {(x.NaObrazie ? "na obrazie" : x.Czesc ?? "brak")}{(x.Obcy ? " (inny posterunek)" : "")}", Tag = x, FontWeight = x.Id == utSelected ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = x.Obcy ? (x.NaObrazie ? ObcyOnFg : Brushes.Gray) : x.NaObrazie ? OkFg : x.Czesc != null ? PartFg : MissFg,
                 };
                 gi.Items.Add(it);
             }
@@ -322,9 +344,12 @@ public partial class MainWindow : Window
         Doc.Change(what, p => { var o = p.Obrazy.FirstOrDefault(x => x.Id == id); if (o != null) act(o); });
     }
 
+    /// <summary>Obraz, którego nazwę pokazuje pole nazwy.</summary>
+    string nameFor;
+
     void CommitName()
     {
-        if (refreshing || Obraz == null) return;
+        if (refreshing || Obraz == null || nameFor != Current) return;
         var n = NameBox.Text.Trim();
         if (n != Obraz.Nazwa) Ch("Nazwa obrazu", o => o.Nazwa = n);
     }
@@ -366,6 +391,27 @@ public partial class MainWindow : Window
         ShowImage(o.Id);
         Message($"Nowy obraz „{o.Nazwa}” – " + (rodzaj == ZobObraz.Pogladowy ? "cały obszar" : "wybierz posterunki w panelu obrazu"));
         return o;
+    }
+
+    /// <summary>
+    /// Kopia bieżącego obrazu (zakładka zaraz za nim): punkt wyjścia do drugiego obrazu albo obrazu poglądowego – dalej poprawia człowiek.
+    /// Ten sam obiekt UT na dwóch obrazach jest dozwolony (decyzje właściciela, plan zobrazowania § 9 pkt 6, § 10 pkt 5).
+    /// </summary>
+    public ZobObraz CopyImage()
+    {
+        if (Doc == null || Obraz == null) return null;
+        CommitName();
+        var src = Obraz;
+        var baza = (src.Nazwa.Length > 0 ? src.Nazwa : "Obraz") + " (kopia";
+        var nazwa = baza + ")";
+        for (int n = 2; Doc.P.Obrazy.Any(o => o.Nazwa == nazwa); n++) nazwa = $"{baza} {n})";
+        var k = src.Kopia(nazwa);
+        var srcId = src.Id;
+        Doc.Change("Kopia obrazu", p => p.Obrazy.Insert(p.Obrazy.FindIndex(o => o.Id == srcId) + 1, k));
+        ShowImage(k.Id);
+        Message($"Kopia obrazu „{src.Nazwa}” → „{nazwa}” ({k.Tory.Count} torów obrazu)" +
+            (k.Rodzaj == ZobObraz.Szczegolowy && k.Posterunki.Count > 0 ? " – te same obiekty UT są na obu obrazach; zmień posterunki albo zdejmij zbędne elementy" : ""));
+        return k;
     }
 
     public void DeleteImage()

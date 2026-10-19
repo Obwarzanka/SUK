@@ -54,6 +54,10 @@ public static partial class Test
                 log.AppendLine("== etap Z2: tory obrazu, łączniki"); await RunZ2(w, shot);
                 log.AppendLine("== etap Z3: zwrotnice, sygnalizatory, kozły"); await RunZ3(w, shot);
                 log.AppendLine("== etap 9: do symulatora"); await RunSymulator(w);
+                log.AppendLine("== etap Z4: przerwy, opisy odcinków, numery torów, perony, przejazdy, szlaki, napisy"); await RunZ4(w, shot);
+                log.AppendLine("== etap Z5: dwa posterunki na dwóch obrazach, obraz poglądowy, PNG"); await RunZ5(w, shot);
+                log.AppendLine("== etap Z6: podgląd jak na pulpicie (kod pulpitu i komputer zależności symulatora)"); await RunZ6(w, shot);
+                log.AppendLine("== etap 9: rozjazdy krzyżowe i skrzyżowania"); await RunKrzyzowe(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

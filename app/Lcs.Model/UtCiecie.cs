@@ -36,12 +36,27 @@ public static class Ciecie
     /// <summary>Kawałek pod kilometrażem <paramref name="s"/>.</summary>
     public static TorKawalek KawalekAt(TrasaResult r, double s) => Kawalki(r).FirstOrDefault(k => s >= k.S0 - 1e-6 && s <= k.S1 + 1e-6);
 
-    /// <summary>Rozcięcie toru w punkcie (tylko na prostej – w łuku wielobok styczny nie może się zacząć ani skończyć).</summary>
+    /// <summary>
+    /// Rozcięcie toru w punkcie. W łuku (bez krzywych przejściowych) łuk dzieli się najpierw na dwa o tym samym R
+    /// (<see cref="Budowa.SplitArc"/>) – oba tory kończą się w miejscu cięcia, kształt bez zmian. Bliżej niż 0,5 m od końca łuku –
+    /// cięcie na końcu łuku.
+    /// </summary>
     public static CiecieWynik Split(UtProject p, string trackId, double s)
     {
         var t = p.Tracks.FirstOrDefault(x => x.Id == trackId); if (t == null) return new("brak toru", null, false, null);
         var r = Trasa.Compute(t);
-        if (KawalekAt(r, s) is { Luk: true }) return new("tor rozcina się tylko na prostej – kliknij na prostej obok łuku", null, false, null);
+        if (t.Align == null && KawalekAt(r, s) is { Luk: true } kl)
+        {
+            if (s < kl.S0 + 0.5) s = kl.S0;
+            else if (s > kl.S1 - 0.5) s = kl.S1;
+            else
+            {
+                if (t.Vertices[kl.Vertex].L > 0 || t.Vertices[kl.Vertex].L2 > 0) return new("łuk z krzywymi przejściowymi – rozetnij tor na prostej albo na końcu łuku", null, false, null);
+                var (nv, err) = Budowa.SplitArc(t.Vertices, kl.Vertex, Trasa.KFor(t), s);
+                if (err != null) return new(err, null, false, null);
+                t.Vertices = nv;
+            }
+        }
         return Cut(p, trackId, s, s);
     }
 

@@ -61,8 +61,10 @@ public partial class Rozklad
     public void Load(string key)
     {
         nr = 1;
-        Queue = key == "manewry" ? Locos() : key.StartsWith("ic_") ? RealTimetable(int.Parse(key[3..]), 3) : BaseTimetable();
-        if (key == "podstawowy" || key.StartsWith("ic_")) Queue.AddRange(Locos().Take(1));
+        // rozkład układu z pliku <układ>.rozklad.json – zamiast wbudowanego ruchu podstawowego (Sim/RozkladPlik.cs)
+        var plik = key == "podstawowy" ? RozkladPlik.Wczytaj(S.L.SourcePath) : null;
+        Queue = plik ?? (key == "manewry" ? Locos() : key.StartsWith("ic_") ? RealTimetable(int.Parse(key[3..]), 3) : BaseTimetable());
+        if (plik == null && (key == "podstawowy" || key.StartsWith("ic_"))) Queue.AddRange(Locos().Take(1));
         Queue = Queue.Where(q => q.StartSec != null ? S.L.Sections.ContainsKey(q.StartSec) : S.L.Blocks.ContainsKey(q.From) && !S.L.Blocks[q.From].Internal).ToList();
     }
 

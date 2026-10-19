@@ -24,6 +24,7 @@ public partial class Simulator
     public bool SwControlled(string n) => Kz.SwControlled(n);
     public double SzLeft(string id) => Kz.SzLeft(id);
     public double SignalSpeed(RouteDef r) => Kz.SignalSpeed(r);
+    public (int Klasa, int W21, double V, string Uwaga) Sygnalizowana(RouteDef r) => Kz.Sygnalizowana(r);
     public double RouteSpeed(RouteDef r) => Kz.RouteSpeed(r);
     public List<string> WhyNot(RouteDef rd) => Kz.WhyNot(rd);
     /// <summary>Przeliczenie tablicy przebiegów po zmianie zależności specjalnych – tylko bez nastawionych przebiegów (null – przeliczona).</summary>

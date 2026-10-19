@@ -5,7 +5,7 @@ using Lcs.Model;
 
 namespace Lcs.EdytorUT;
 
-/// <summary>Zaznaczenie kilku elementów (panel, usuwanie naraz) i menu PPM toru (usunięcie kawałka, rozcięcie).</summary>
+/// <summary>Zaznaczenie kilku elementów (panel, usuwanie naraz, łączenie torów) i menu PPM toru (usunięcie kawałka, rozcięcie).</summary>
 public partial class MainWindow
 {
     /// <summary>Usunięcie wszystkich zaznaczonych jednym Ctrl+Z: z torem znikają jego rozjazdy i ich odgałęzienia do skosu / tory łączące.</summary>
@@ -46,8 +46,12 @@ public partial class MainWindow
         P.Children.Add(Header($"Zaznaczone: {View.Multi.Count}"));
         foreach (var g in View.Multi.GroupBy(x => x.Kind))
             P.Children.Add(new TextBlock { Text = $"{UtView.KindName(g.Key, g.Count())}: {string.Join(", ", g.Select(x => Name(x.Kind, x.Id)))}", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
-        P.Children.Add(new TextBlock { Text = "Ctrl + klik – dodaj / zdejmij element, Shift + przeciągnięcie od pustego miejsca – prostokąt, Esc – koniec zaznaczenia.", TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 6) });
+        P.Children.Add(new TextBlock { Text = "Shift + klik (albo Ctrl + klik) – dodaj / zdejmij element, Shift + przeciągnięcie – prostokąt, Esc – koniec zaznaczenia.", TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 6) });
         var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        var tory = View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList();
+        if (tory.Count >= 2)
+            act.Children.Add(SmallBtn($"Połącz tory ({tory.Count})", () => JoinTracks(tory),
+                "Zaznaczone tory w jeden (Ctrl+J): najbliższe końce stykiem albo stycznie łukiem R z paska (łuki odwrotne przy przesunięciu); wszystko, co na nich leży, przechodzi na tor wynikowy"));
         act.Children.Add(SmallBtn("Usuń zaznaczone", () => DeleteMulti(), "Usuń wszystkie zaznaczone elementy (Del); jedno Ctrl+Z przywraca"));
         act.Children.Add(SmallBtn("Odznacz", () => View.ClearMulti(), "Koniec zaznaczenia (Esc)"));
         P.Children.Add(act);
@@ -75,13 +79,20 @@ public partial class MainWindow
         return string.IsNullOrEmpty(n) ? "(bez nazwy)" : n;
     }
 
-    /// <summary>Menu PPM na torze: usuń kawałek pod kursorem (prosta albo łuk), rozetnij tutaj, usuń tor.</summary>
+    /// <summary>Menu PPM na torze: połącz zaznaczone, usuń kawałek pod kursorem (prosta albo łuk), rozetnij tutaj, usuń tor.</summary>
     public ContextMenu BuildTrackMenu(string id, double s)
     {
         var cm = new ContextMenu();
         var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return cm;
-        MenuItem Item(string h, Action a, bool en = true, string tip = null) { var mi = new MenuItem { Header = h, IsEnabled = en, ToolTip = tip }; mi.Click += (o, e) => a(); cm.Items.Add(mi); return mi; }
+        // akcje na jednym torze kończą zaznaczenie kilku
+        MenuItem Item(string h, Action a, bool en = true, string tip = null) { var mi = new MenuItem { Header = h, IsEnabled = en, ToolTip = tip }; mi.Click += (o, e) => { View.ClearMulti(); a(); }; cm.Items.Add(mi); return mi; }
         cm.Items.Add(new MenuItem { Header = t.Number.Length > 0 ? $"Tor {t.Number}" : "Tor (bez numeru)", IsEnabled = false, FontWeight = FontWeights.SemiBold });
+        var tory = View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList();
+        if (tory.Count >= 2 && tory.Contains(id))
+        {
+            var mj = new MenuItem { Header = $"Połącz zaznaczone tory ({tory.Count}) – Ctrl+J", ToolTip = "Najbliższe końce stykiem albo stycznie łukiem R z paska" };
+            mj.Click += (o, e) => JoinTracks(tory); cm.Items.Add(mj); cm.Items.Add(new Separator());
+        }
         var r = View.Geometry(t);
         if (Ciecie.KawalekAt(r, s) is TorKawalek k)
         {
@@ -112,7 +123,7 @@ public partial class MainWindow
             }
             cm.Items.Add(sub);
         }
-        Item("Rozetnij tor tutaj", () => CutTrack(id, s, s, "Rozcięcie toru"), Ciecie.KawalekAt(r, s) is { Luk: false }, "Dwa tory stykające się w tym miejscu (tylko na prostej)");
+        Item($"Rozetnij tor tutaj (km {F(s)})", () => SplitTrack(id, s), true, "Dwa tory stykające się w tym miejscu; w łuku – łuk dzieli się na dwa o tym samym R, kształt bez zmian");
         cm.Items.Add(new Separator());
         Item("Usuń cały tor", () => { View.Select(id); DeleteSelection(); });
         return cm;
@@ -166,5 +177,39 @@ public partial class MainWindow
         View.Select(id);
         Message(char.ToUpper(res.Info[0]) + res.Info[1..] + " (Ctrl+Z przywraca)");
         return res;
+    }
+
+    /// <summary>Rozcięcie toru w km s – także w łuku (<see cref="Ciecie.Split"/>); najpierw na kopii, potem jedna zmiana z cofaniem.</summary>
+    public CiecieWynik SplitTrack(string id, double s)
+    {
+        var test = Ciecie.Split(UtDocument.Deserialize(UtDocument.Serialize(Doc.P)), id, s);
+        if (test.Error != null) { Message("Nie da się rozciąć: " + test.Error); return test; }
+        CiecieWynik res = null;
+        Doc.Change("Rozcięcie toru", p => res = Ciecie.Split(p, id, s));
+        View.Select(id);
+        Message(char.ToUpper(res.Info[0]) + res.Info[1..] + " (Ctrl+Z przywraca)");
+        return res;
+    }
+
+    /// <summary>Zaznaczone tory w jeden (<see cref="Laczenie.Join"/>) – R i L z paska; najpierw na kopii, potem jedna zmiana z cofaniem.</summary>
+    public LaczenieWynik JoinTracks(IReadOnlyList<string> ids)
+    {
+        double r = View.NewR > 0 ? View.NewR : 300, l = View.NewL;
+        var test = Laczenie.Join(UtDocument.Deserialize(UtDocument.Serialize(Doc.P)), ids, r, l);
+        if (test.Error != null) { Message("Nie da się połączyć: " + test.Error); return test; }
+        LaczenieWynik res = null;
+        Doc.Change($"Połączenie torów ({ids.Count})", p => res = Laczenie.Join(p, ids, r, l));
+        View.ClearMulti(); View.Select(res.Track);
+        var tr = Doc.P.Tracks.First(x => x.Id == res.Track);
+        Message($"Połączone w jeden tor ({UtView.Len3(View.Geometry(tr).Length)}): {res.Info} (Ctrl+Z przywraca)");
+        return res;
+    }
+
+    /// <summary>Ctrl+J: połączenie zaznaczonych torów.</summary>
+    public bool JoinSelected()
+    {
+        var tory = View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList();
+        if (tory.Count < 2) { Message("Łączenie: zaznacz co najmniej dwa tory (Shift + klik)"); return false; }
+        return JoinTracks(tory).Error == null;
     }
 }

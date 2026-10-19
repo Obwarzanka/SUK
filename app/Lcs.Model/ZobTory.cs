@@ -11,11 +11,16 @@ public static class ZobTory
         o.Tory.Where(t => t.Ut?.Tor == utTrack && t.Id != exceptId)
             .Select(t => (Math.Min(t.Ut.S0, t.Ut.S1), Math.Max(t.Ut.S0, t.Ut.S1))).OrderBy(x => x.Item1).ToList();
 
-    /// <summary>Przedziały toru UT [0, len] jeszcze nie narysowane na obrazie (krótsze niż 0,5 m pomijane).</summary>
-    public static List<(double A, double B)> Luki(ZobObraz o, string utTrack, double len, string exceptId = null)
+    /// <summary>
+    /// Przedziały toru UT [0, len] jeszcze nie narysowane na obrazie (krótsze niż 0,5 m pomijane); z <paramref name="ut"/> – bez km,
+    /// których się nie rysuje (wnętrze rozjazdu krzyżowego podwójnego na torze B – <see cref="Krzyzowe.Pominiete"/>).
+    /// </summary>
+    public static List<(double A, double B)> Luki(ZobObraz o, string utTrack, double len, string exceptId = null, UtProject ut = null)
     {
         var res = new List<(double, double)>(); double s = 0;
-        foreach (var (a, b) in Pokrycie(o, utTrack, exceptId))
+        var cov = Pokrycie(o, utTrack, exceptId);
+        if (ut != null) cov = cov.Concat(Krzyzowe.Pominiete(ut).Where(x => x.Track == utTrack).Select(x => (x.A, x.B))).OrderBy(x => x.Item1).ToList();
+        foreach (var (a, b) in cov)
         {
             if (a - s > 0.5) res.Add((s, a));
             s = Math.Max(s, b);
@@ -96,6 +101,21 @@ public static class ZobTory
             acc += seg;
         }
         return best;
+    }
+
+    /// <summary>Pierwszy punkt przecięcia dwóch łamanych (null – nie przecinają się); skrzyżowanie torów na obrazie.</summary>
+    public static (double X, double Y)? Przeciecie(List<int[]> a, List<int[]> b)
+    {
+        for (int i = 1; i < a.Count; i++)
+            for (int j = 1; j < b.Count; j++)
+            {
+                double x1 = a[i - 1][0], y1 = a[i - 1][1], x2 = a[i][0], y2 = a[i][1], x3 = b[j - 1][0], y3 = b[j - 1][1], x4 = b[j][0], y4 = b[j][1];
+                double d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+                if (Math.Abs(d) < 1e-9) continue;
+                double t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d, u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+                if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) return (x1 + t * (x2 - x1), y1 + t * (y2 - y1));
+            }
+        return null;
     }
 
     static double Len(int[] a, int[] b) => Math.Sqrt((double)(b[0] - a[0]) * (b[0] - a[0]) + (double)(b[1] - a[1]) * (b[1] - a[1]));

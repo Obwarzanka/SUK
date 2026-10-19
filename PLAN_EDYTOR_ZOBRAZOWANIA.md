@@ -1,6 +1,6 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
-Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18** (szczegóły w `HISTORIA_EDYTOR_UT.md`). Następny: Z4 – przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, szlaki, napisy.
+Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4–Z6 – 2026-10-19 – plan wykonany** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4–Z6 – § 10). Etap 9 – rozjazdy krzyżowe, pochylenia, przycisk „Opisy” na pulpicie – zrobione 2026-10-19 (decyzje – § 11). Kopiowanie obrazu („Kopiuj obraz”) – 2026-10-19.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.
 
@@ -126,7 +126,7 @@ Po każdym etapie: build, test edytora „jak użytkownik” (`EdytorZobrazowani
 wpis w historii i skrót w `ROZWOJ.md`, jak przy edytorze UT.
 
 **Uwaga:** symulator czyta `station.json`. Od 2026-10-18 „Do symulatora…” przekształca UT + obraz → `station.json` w `Data/projekty`
-(`Lcs.Model/DoSymulatora.cs`, początek etapu 9) – obraz z edytora jest na pulpicie symulatora (bez elementów Z4).
+(`Lcs.Model/DoSymulatora.cs`, początek etapu 9) – obraz z edytora jest na pulpicie symulatora, od 2026-10-19 także z elementami Z4.
 
 ## 6. Co trzeba dodać w UT przed rysowaniem (etap Z0)
 
@@ -170,3 +170,20 @@ Plan zaakceptowany z propozycjami z § 8:
 6. Ten sam obiekt UT może być na dwóch obrazach; sterowanie – według obszaru sterowania posterunku, do którego należy.
 7. Zobrazowanie Widzew / Fabryczna ze `station.json` rysowane od nowa (można je pokazać jako podkład do odrysowania).
 8. Kolejność: Z0 (funkcja semafora, posterunki, szlaki w UT), potem Z1–Z6.
+
+## 10. Decyzje właściciela do etapu Z4 (2026-10-19)
+
+1. **Numery torów i strzałki blokady** stawia człowiek w edytorze zobrazowania; pulpit bierze ich miejsce z obrazu. Gdzie nie są postawione – pulpit liczy jak dotąd (numer na środku najdłuższego kawałka toru odcinka, strzałka za semaforem wjazdowym).
+2. **Opisy odcinków** – „do dostosowania w edytorze”: miejsce opisu każdego odcinka ustawia się w edytorze (domyślnie nad torem, Ie-104 § 8 ust. 1 pkt 3), a w obrazie jest ustawienie, czy opisy idą na pulpit (na żądanie wg Ie-104 § 5 ust. 2, zawsze, nie). *Odczytanie do potwierdzenia przez właściciela.*
+3. **Tor bez kontroli niezajętości** (linia przerywana, Ie-104 § 8 ust. 1) oznacza człowiek – pole w panelu toru obrazu; nie wynika samo z odcinków UT.
+4. **Obraz poglądowy na pulpicie – jak dotąd** (2026-10-19): zakładka „Obraz poglądowy” w symulatorze pokazuje pomniejszone obrazy szczegółowe; obraz poglądowy z edytora rysuje się i sprawdza w edytorze, „Do symulatora…” go nie przenosi.
+5. **Ten sam obiekt UT na dwóch obrazach szczegółowych – na pulpicie na obu** (2026-10-19): pulpit rysuje obiekt na każdym obrazie, na którym go narysowano; sterowanie wg obszaru sterowania posterunku (§ 9 pkt 6).
+6. **Podgląd „jak na pulpicie” (Z6) w samym edytorze kodem pulpitu** (2026-10-19): edytor korzysta z kodu symulatora (`Lcs.Core`, `PanelView`), obraz ze stanem zasadniczym i przykładowym przebiegiem.
+
+## 11. Decyzje właściciela – rozjazdy krzyżowe i skrzyżowania (2026-10-19)
+
+1. **Rkpd** – jak w układzie Widzewa (17ab / 17cd): dwie zwrotnice na końcach rozjazdu zwrócone do siebie ostrzami (Ie-104 § 8 pkt 9), „ab” na końcu od mniejszego km toru A, „cd” na drugim; łącznik między ostrzami, cały rozjazd w jednym odcinku. *Który koniec to „ab” – przyjęte przez agenta, do potwierdzenia.*
+2. **Rkp** – po wzorze pulpitu LCS od właściciela (18ab / 18cd: oba tory poziomo, drugi tor nawiasami „[” „]” do zwrotnic) **zmiana tego samego dnia:** na obrazie i w symulatorze jak Rkpd – dwie zwrotnice ab / cd zwrócone ostrzami; komputer zależności nie dopuszcza jazdy przez brakujący przejazd (pole `noPass` w pliku symulatora). Pierwsza wersja (krzyż i dwie zwrotnice z torem przejazdu) wycofana.
+3. **Skrzyżowanie St** – w symulatorze przez krzyż tylko na wprost (Ie-104 § 8 pkt 2); w jednym odcinku (jak w UT); opis „K” + numer tylko przy osobnej kontroli niezajętości (nie rysowany).
+4. **Zakres:** edytor zobrazowania (końce ab / cd narzędziem Zwrotnica) i „Do symulatora…” naraz.
+

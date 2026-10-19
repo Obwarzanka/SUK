@@ -46,7 +46,7 @@ public class Pip
     }
 
     /// <summary>Okno numeru pociągu: tor stacyjny albo odstęp szlakowy.</summary>
-    public bool Okno(string sec) => sec.Contains(":JT") || (L.Sections.TryGetValue(sec, out var d) && d.Kind == "szlak");
+    public bool Okno(string sec) => sec.Contains(":JT") || (L.Sections.TryGetValue(sec, out var d) && (d.Kind == "szlak" || d.TorUt));
 
     /// <summary>Numer od posterunku sąsiedniego (zapowiedź) albo z rozkładu – pociąg wjedzie / stoi na odcinku sec.</summary>
     public void Nadaj(string nr, string sec)

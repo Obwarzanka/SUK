@@ -18,6 +18,14 @@ public class Train
     public Dictionary<string, double> DepBy = new();     // odjazd wg rozkładu na posterunku
     public UnitDuty Duty;                                // jednostka z zaplecza: po wjeździe na tor peronowy staje się pociągiem
     public bool LoggedStuck;
+    /// <summary>Skład z pliku taboru – jazda wg fizyki (Sim/TrainsFizyka.cs); null – ruch uproszczony (stałe przyspieszenie i hamowanie).</summary>
+    public Lcs.Tabor.Pociag Fiz;
+    public Lcs.Tabor.StanJazdy Jaz;
+    /// <summary>Czas jeszcze nie przeliczony fizyką (kroki stałe 0,1 s, reszta przechodzi na następną klatkę).</summary>
+    public double Zapas;
+    /// <summary>Ostatnie wartości do podglądu: pochylenie pod składem [‰], prędkość docelowa maszynisty [m/s].</summary>
+    public double IPod, VCel;
+    public bool LoggedNieRusza;
     public double WaitingSince(double now) => StoppedSince > 0 ? now - StoppedSince : 0;
 }
 
@@ -44,6 +52,8 @@ public class TimetableEntry
     public bool Loco;         // lokomotywa manewrowa
     public string Name, Veh;  // nazwa pociągu, pojazd (rozkład rzeczywisty)
     public double? Len;
+    /// <summary>Id składu z pliku taboru (<c>tabor.json</c>); null – ruch uproszczony jak dotąd.</summary>
+    public string Sklad;
     public HashSet<string> StopAt;
     public Dictionary<string, double> DepBy;
     public UnitDuty Duty;
@@ -99,6 +109,7 @@ public partial class Trains
         };
         if (q.Len is double ln) t.Len = ln;
         if (q.DepBy != null) t.DepBy = new(q.DepBy);
+        Fizyka(t, q.Sklad);
         List.Add(t);
         return t;
     }
@@ -107,7 +118,7 @@ public partial class Trains
     public void SpawnFromSzlak(TimetableEntry q)
     {
         var b = S.L.Blocks[q.From]; int inward = -b.Ends[0].Outward;
-        var t = NewTrain(q); t.V = t.VMax * 0.8;
+        var t = NewTrain(q); t.V = t.VMax * 0.8; if (t.Jaz != null) t.Jaz.V = t.V;
         t.Segs.Add(new Seg { E = null, From = null, To = b.Far, Len = t.Len + 5, Dir = inward });
         t.Head = t.Len + 5;
         S.Log("Ruch", $"Pociąg {t.Num} ({t.Cat}) wyprawiony z posterunku {b.Nbr} na szlak {q.From}", "Pociąg", t.Num);
@@ -296,6 +307,12 @@ public partial class Trains
             return;
         }
         var la = Lookahead(t);
+        if (t.Fiz != null)
+        {
+            // jazda wg fizyki: ruch odbywa się w krokach 0,1 s w MoveFiz; tu tylko obsługa postoju jak w ruchu uproszczonym
+            la = MoveFiz(t, dt, la);
+            if (t.Gone || !(t.V < 0.05 && la.D < 1)) return;
+        }
         double vmax = t.VMax;
         if (t.SzLimit) vmax = Math.Min(vmax, VSz / 3.6);
         if (t.Shunt) vmax = Math.Min(vmax, VShunt / 3.6);
@@ -303,7 +320,7 @@ public partial class Trains
         vt = Math.Min(vt, vmax);
         vt = Math.Min(vt, SpeedLimit(t));
         if (la.D < 0.5) vt = 0;
-        t.V = Math.Min(t.V + Acc * dt, vt);
+        if (t.Fiz == null) t.V = Math.Min(t.V + Acc * dt, vt);
         if (t.V < 0.05 && la.D < 1)
         {
             if (t.V > 0 || t.StoppedSince <= 0) t.StoppedSince = S.T;
@@ -330,6 +347,12 @@ public partial class Trains
         t.WaitingAt = null;
         double mv = t.V * dt;
         if (double.IsFinite(la.D)) mv = Math.Min(mv, Math.Max(0, la.D));
+        Advance(t, mv);
+    }
+
+    /// <summary>Przesunięcie czoła o mv [m]: nowe kawałki toru przed czołem, zdjęcie przejechanych za końcem, wyjazd na szlak poza obszar.</summary>
+    void Advance(Train t, double mv)
+    {
         t.Head += mv;
         for (int g = 0; g < 10 && t.Head > Total(t); g++)
             if (!Extend(t)) { t.Head = Total(t); t.V = 0; break; }
@@ -360,8 +383,15 @@ public partial class Trains
         var e = S.L.Edges[eid];
         double v = e.VMax > 0 ? e.VMax : StationEdge(eid) ? VStation : 1e4;
         if (e.SwLimit > 0) v = Math.Min(v, e.SwLimit);
-        // przebieg pociągowy ustalony z prędkością (edytor – reguła przebiegu)
-        foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) v = Math.Min(v, r.VSet);
+        // przebieg pociągowy z prędkością ustaloną przez projektanta (zależności specjalne albo reguła przebiegu) – w granicach stacji
+        // zastępuje ograniczenia toru i zwrotnic, także gdy jest wyższa (decyzja właściciela 2026-10-19); maszynista nie przekracza
+        // prędkości z sygnału (semafor bez pasa / W21 – sygnał niższy)
+        if (!e.Szlak)
+        {
+            double vr = 1e4;
+            foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) vr = Math.Min(vr, Math.Min(r.VSet, S.Sygnalizowana(r).V));
+            if (vr < 1e4) v = vr;
+        }
         return v / 3.6;
     }
 
@@ -407,7 +437,7 @@ public partial class Trains
                 if (Math.Min(b, t.Head) - Math.Max(a, tail) > 0) { var sc = S.L.Edges[s.E].Sec; occ.Add(sc); if (t.Head >= a) headSec = sc; }
             }
             // wyświetlacz numeru pociągu (Ie-104 § 8 pkt 26): tory stacyjne i odstępy szlakowe
-            if (headSec != null && (headSec.Contains(":JT") || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
+            if (headSec != null && (S.L.Sections[headSec].StationTrack || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
         }
         S.Urzadzenia.Osie(occ);
     }

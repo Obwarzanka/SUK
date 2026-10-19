@@ -105,7 +105,7 @@ public partial class MainWindow : Window
         tb.Items.Add(gridBox);
         tb.Items.Add(KrzywBtn);
         tb.Items.Add(new Separator());
-        tb.Items.Add(Btn("✔ Sprawdź", (s, e) => RunCheck(true), "Kontrola układu (Ig-10, etap 7): otwarte końce, rozjazdy bez numeru, urządzenia poza torem, nakładające się tory, odcinki, kilometraż, profil (F7)"));
+        tb.Items.Add(Btn("✔ Sprawdź", (s, e) => { CommitPending(); RunCheck(true); }, "Kontrola układu (Ig-10, etap 7): otwarte końce, rozjazdy bez numeru, urządzenia poza torem, nakładające się tory, odcinki, kilometraż, profil (F7)"));
         tb.Items.Add(Btn("Profil…", (s, e) => OpenProfile(), "Profil podłużny zaznaczonego toru: niweleta, pochylenia, teren z NMT GUGiK, nasyp / przekop"));
         tb.Items.Add(Btn("Eksport…", (s, e) => OpenExport(), "Wydruk w skali do PNG / PDF (1:500 … 1:5000, schemat Ig-10 1:2000 / 1:500)"));
         // drugi rząd: narzędzia rysowania
@@ -328,14 +328,29 @@ public partial class MainWindow : Window
         Doc.Change("Nazwa obszaru", p => p.Name = n);
     }
 
-    public void DoUndo() { var n = Doc.UndoName; if (Doc.Undo()) Message("Cofnięto: " + n); }
-    public void DoRedo() { var n = Doc.RedoName; if (Doc.Redo()) Message("Ponowiono: " + n); }
+    public void DoUndo() { CommitPending(); var n = Doc.UndoName; if (Doc.Undo()) Message("Cofnięto: " + n); }
+    public void DoRedo() { CommitPending(); var n = Doc.RedoName; if (Doc.Redo()) Message("Ponowiono: " + n); }
+
+    /// <summary>
+    /// Wartość wpisana w pole panelu, ale jeszcze niezatwierdzona (bez Enter i bez wyjścia z pola), przyjmowana przed zapisem, cofnięciem,
+    /// ponowieniem, kontrolą, nowym / otwartym projektem i zamknięciem. Kliknięcie przycisku na pasku narzędzi i Ctrl+S nie zdejmują fokusu
+    /// z pola, więc LostFocus (zatwierdzenie) nie przychodziło i wpis przepadał. Fokus przechodzi na rysunek – pole dostaje LostFocus.
+    /// </summary>
+    public void CommitPending()
+    {
+        var tb = FocusManager.GetFocusedElement(this) as TextBox ?? Keyboard.FocusedElement as TextBox;
+        if (tb == null || !IsAncestorOf(tb)) return;
+        FocusManager.SetFocusedElement(this, View);     // fokus logiczny – LostFocus także, gdy okno nie jest aktywne
+        View.Focus();
+        if (tb.IsFocused) tb.RaiseEvent(new RoutedEventArgs(LostFocusEvent));
+    }
 
     /// <summary>Widok zapisywany w pliku (bez cofania i bez oznaczania zmian).</summary>
     void StoreView() { var v = Doc.P.View; v.X = View.Center.X; v.Y = View.Center.Y; v.Mpp = View.Mpp; }
 
     bool ConfirmDiscard()
     {
+        CommitPending();
         if (!Doc.Dirty || NoPrompt) return true;
         var r = MessageBox.Show(this, $"Zapisać zmiany w „{Doc.P.Name}”?", "Edytor układu torowego", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (r == MessageBoxResult.Cancel) return false;
@@ -368,6 +383,7 @@ public partial class MainWindow : Window
 
     public bool SaveDoc(bool askName, string path = null)
     {
+        CommitPending();
         path ??= Doc.Path;
         if (path == null || askName)
         {
@@ -447,6 +463,7 @@ public partial class MainWindow : Window
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
         else if (ctrl && e.Key == Key.N) { NewDoc(); e.Handled = true; }
+        else if (!inText && ctrl && e.Key == Key.J) { JoinSelected(); e.Handled = true; }
         else if (!inText && ctrl && (e.Key == Key.Y || (e.Key == Key.Z && shift))) { DoRedo(); e.Handled = true; }
         else if (!inText && ctrl && e.Key == Key.Z) { DoUndo(); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.Escape)

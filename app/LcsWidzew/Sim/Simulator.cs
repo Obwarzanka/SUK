@@ -90,6 +90,9 @@ public partial class Simulator
         }
         foreach (var e in n.Edges)
             if (e != fromEdge && !L.Edges[e].Dismantled && L.EdgeDir(e, nid) == dir) res.Add(new Fwd(e, null, null));
+        // skrzyżowanie torów: przez krzyż tylko na wprost
+        if (res.Count > 1 && fromEdge != null && n.Edges.Count > 3 && L.Straight(nid, fromEdge, res.Select(f => f.Edge)) is string st)
+            res.RemoveAll(f => f.Edge != st);
         return res;
     }
 

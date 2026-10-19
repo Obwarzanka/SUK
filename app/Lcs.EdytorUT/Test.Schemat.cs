@@ -261,6 +261,12 @@ public static partial class Test
         w21B = Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Cyfra wskaźnika W21") == true); w21B.Text = "6"; Enter(w21B);
         var dBx = d.P.Devices.First(x => x.Id == dB.Id);
         Ok(dBx.StripeP && dBx.StripeZ && dBx.W24 && dBx.W21 == "6" && dBx.LightsOrDefault == "B*PCP*Z*", "semafor B jak BSK ss5: 5 komór, pasy pomarańczowy i zielony, W24, W21 „6”");
+        // W21 świetlny – włączenie i wyłączenie (cyfra zostaje)
+        foreach (var on in new[] { true, false })
+        {
+            var cbS = Find<CheckBox>(w.TrackPanel, c => c.Content as string == "świetlny"); cbS.IsChecked = on; cbS.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Ok(d.P.Devices.First(x => x.Id == dB.Id).W21Swietlny == on && d.P.Devices.First(x => x.Id == dB.Id).W21 == "6", $"W21 świetlny: {(on ? "włączony" : "wyłączony")}, cyfra „6” zostaje");
+        }
         var rbB = Find<RadioButton>(w.TrackPanel, r => r.Content as string == "na bramce"); rbB.IsChecked = true; rbB.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         Ok(d.P.Devices.First(x => x.Id == dB.Id).MastOrDefault == UtDevice.MastBramka, "mocowanie: na bramce");
         if (shotRails != null) { var pb2 = Urzadzenia.Pos(d.P, d.P.Devices.First(x => x.Id == dB.Id)).Value.P; Look(Go(pb2, lineAz, -14), 0.12); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka.png")); }
