@@ -51,6 +51,19 @@ public class ZobObraz
     public List<ZobSymbol> Szlaki { get; set; } = new();
     public List<ZobNapis> Napisy { get; set; } = new();
 
+    /// <summary>
+    /// Kopia obrazu z całą treścią (narysowaną przez człowieka) – nowe <c>Id</c> obrazu, torów obrazu i napisów; przypięcia do UT bez zmian.
+    /// </summary>
+    public ZobObraz Kopia(string nazwa)
+    {
+        var k = System.Text.Json.JsonSerializer.Deserialize<ZobObraz>(System.Text.Json.JsonSerializer.Serialize(this, UtDocument.Json), UtDocument.Json);
+        k.Id = Guid.NewGuid().ToString("N")[..8];
+        k.Nazwa = nazwa;
+        foreach (var t in k.Tory) t.Id = Guid.NewGuid().ToString("N")[..8];
+        foreach (var n in k.Napisy) n.Id = Guid.NewGuid().ToString("N")[..8];
+        return k;
+    }
+
     public const string Szczegolowy = "szczegolowy", Pogladowy = "pogladowy";
     public static readonly (string Key, string Name)[] Rodzaje = { (Szczegolowy, "szczegółowy (posterunek)"), (Pogladowy, "poglądowy (obszar)") };
     public static string RodzajName(string r) => Rodzaje.FirstOrDefault(x => x.Key == r).Name ?? r;

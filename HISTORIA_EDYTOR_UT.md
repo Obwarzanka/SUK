@@ -390,3 +390,12 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 - `DoSymulatora`: semafor dostaje `"stripes"` („P”, „Z”, „PZ”, „”) i `"w21"` („S” – świetlny, cyfra – tablica). Symulator dobiera z nich sygnał do prędkości przebiegu (`ROZWOJ.md` § 6, prędkość przebiegu).
 - Test (`Test.Schemat.cs`): „świetlny” włączony i wyłączony, cyfra „6” zostaje – `EdytorUT.exe --test` 0 błędów; `EdytorZobrazowania.exe --test` 0 błędów.
 - Nie sprawdzono: obsługa prawdziwą myszą; eksport właściciela (`Data/projekty/*.json` nie były eksportowane ponownie).
+
+## Kopiowanie obrazu w edytorze zobrazowania
+
+**ZROBIONE 2026-10-19** (z listy „Dalej” w `ROZWOJ.md`; w teście Z5 obraz 2 rysowano dotąd od nowa klikami):
+- **Model:** `ZobObraz.Kopia(nazwa)` (`Lcs.Model/ZobProject.cs`) – głęboka kopia przez JSON; nowe `Id` obrazu, torów obrazu (`ZobTor.Id`) i napisów (`ZobNapis.Id`), przypięcia do UT (`Ut`, km od–do, `Koniec`) bez zmian. Kopiuje się to, co narysował człowiek – nic nie jest układane z UT.
+- **Okno:** przycisk „Kopiuj obraz” w panelu obrazu obok ◀ ▶ (`MainWindow.CopyImage`): zakładka zaraz za bieżącą, nazwa „… (kopia)” (przy powtórzeniu „… (kopia 2)”), rodzaj, posterunki, wymiary i ustawienie opisów odcinków jak w źródle; jedna zmiana do cofnięcia („Kopia obrazu”). Komunikat przypomina, że te same obiekty UT są na obu obrazach (dozwolone – plan zobrazowania § 9 pkt 6, § 10 pkt 5).
+- **Test** (`Test.Z5.cs`, przyciskiem jak użytkownik): kopia obrazu 1 mijanki – miejsce zakładki, nazwa, ta sama treść (tory, symbole wszystkich rodzajów, perony, napisy), nowe id, „Sprawdź” bez uwag, przesunięcie toru na kopii nie rusza obrazu 1, „Do symulatora” – trzecia strona z tymi samymi torami, kopia kopii, Ctrl+Z. `EdytorZobrazowania.exe --test` 255 sprawdzeń, 0 błędów. Zrzut `zrzuty/EdytorZobrazowania_kopia_obrazu.png`.
+- Regresja: selftest `station_test.json` 25 z 26 / 4 z 4, KZ na żywo 0 naruszeń; `EdytorUT.exe --test` 540 sprawdzeń, 0 błędów.
+- Nie sprawdzono: obsługa prawdziwą myszą. Nie ma kopiowania wybranych elementów (schowek) ani kopii do innego pliku zobrazowania – na razie cały obraz.

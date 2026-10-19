@@ -190,6 +190,9 @@ public partial class MainWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
         row.Children.Add(Btn("◀", (s, e) => MoveImage(-1), "Przesuń zakładkę w lewo"));
         row.Children.Add(Btn("▶", (s, e) => MoveImage(1), "Przesuń zakładkę w prawo"));
+        var kop = Btn("Kopiuj obraz", (s, e) => CopyImage(), "Nowy obraz – kopia tego obrazu z całą treścią, zakładka obok (Ctrl+Z cofa); przypięcia do UT te same");
+        kop.Margin = new Thickness(8, 0, 0, 0);
+        row.Children.Add(kop);
         var del = Btn("Usuń obraz", (s, e) => DeleteImage(), "Usuń ten obraz ze zobrazowania (Ctrl+Z przywraca); obiekty UT zostają");
         del.Margin = new Thickness(8, 0, 0, 0); del.IsEnabled = Doc.P.Obrazy.Count > 1;
         row.Children.Add(del);
@@ -388,6 +391,27 @@ public partial class MainWindow : Window
         ShowImage(o.Id);
         Message($"Nowy obraz „{o.Nazwa}” – " + (rodzaj == ZobObraz.Pogladowy ? "cały obszar" : "wybierz posterunki w panelu obrazu"));
         return o;
+    }
+
+    /// <summary>
+    /// Kopia bieżącego obrazu (zakładka zaraz za nim): punkt wyjścia do drugiego obrazu albo obrazu poglądowego – dalej poprawia człowiek.
+    /// Ten sam obiekt UT na dwóch obrazach jest dozwolony (decyzje właściciela, plan zobrazowania § 9 pkt 6, § 10 pkt 5).
+    /// </summary>
+    public ZobObraz CopyImage()
+    {
+        if (Doc == null || Obraz == null) return null;
+        CommitName();
+        var src = Obraz;
+        var baza = (src.Nazwa.Length > 0 ? src.Nazwa : "Obraz") + " (kopia";
+        var nazwa = baza + ")";
+        for (int n = 2; Doc.P.Obrazy.Any(o => o.Nazwa == nazwa); n++) nazwa = $"{baza} {n})";
+        var k = src.Kopia(nazwa);
+        var srcId = src.Id;
+        Doc.Change("Kopia obrazu", p => p.Obrazy.Insert(p.Obrazy.FindIndex(o => o.Id == srcId) + 1, k));
+        ShowImage(k.Id);
+        Message($"Kopia obrazu „{src.Nazwa}” → „{nazwa}” ({k.Tory.Count} torów obrazu)" +
+            (k.Rodzaj == ZobObraz.Szczegolowy && k.Posterunki.Count > 0 ? " – te same obiekty UT są na obu obrazach; zmień posterunki albo zdejmij zbędne elementy" : ""));
+        return k;
     }
 
     public void DeleteImage()

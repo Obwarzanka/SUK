@@ -152,6 +152,34 @@ public static partial class Test
 
         Ok(w.SaveDoc(false), "zapis: trzy obrazy");
         Ok(o1.Nazwa == "Mijanka Testowa" && o2.Nazwa == "Mijanka – tor 2", $"nazwy obrazów bez zmian po przełączaniu zakładek przy fokusie w polu nazwy ({o1.Nazwa}; {o2.Nazwa})");
+        // --- kopia obrazu (przycisk w panelu obrazu): zakładka obok, ta sama treść, nowe id, Ctrl+Z
+        w.ShowImage(o1.Id); await Settle(w);
+        string Sig(ZobObraz o) => string.Join("|", o.Tory.Select(t => $"{t.Ut.Tor}:{t.Ut.S0}-{t.Ut.S1}:{Pts(t)}:{t.BezKontroli}"))
+            + "#" + string.Join("|", Enum.GetValues<ZobRodzaj>().SelectMany(r => ZobSymbole.Lista(o, r).Select(s => $"{r}:{s.Ut}:{s.P[0]},{s.P[1]}:{s.Koniec}")))
+            + "#" + string.Join("|", o.Perony.Select(p => $"{p.Ut}:{string.Join(",", p.Prost)}")) + "#" + string.Join("|", o.Napisy.Select(n => $"{n.Tekst}:{n.P[0]},{n.P[1]}"));
+        Click(Btn(w.ImgPanel, "Kopiuj obraz"));
+        var oc = w.Obraz;
+        Ok(w.Doc.P.Obrazy.Count == 4 && w.Doc.P.Obrazy[1] == oc && oc.Nazwa == "Mijanka Testowa (kopia)" && oc.Rodzaj == o1.Rodzaj && oc.Posterunki.SequenceEqual(o1.Posterunki),
+            $"Kopiuj obraz: zakładka zaraz za obrazem 1, nazwa „{oc.Nazwa}”, rodzaj i posterunki jak w obrazie 1");
+        Ok(Sig(oc) == Sig(o1) && oc.Tory.Count > 0, $"kopia: te same tory, symbole, perony i napisy ({oc.Tory.Count} torów)");
+        Ok(oc.Id != o1.Id && !oc.Tory.Select(t => t.Id).Intersect(o1.Tory.Select(t => t.Id)).Any() && !oc.Napisy.Select(n => n.Id).Intersect(o1.Napisy.Select(n => n.Id)).Any(), "kopia: nowe id obrazu, torów i napisów");
+        Ok(w.Sprawdz().Count == 0, $"kopia: Sprawdź bez uwag ({w.LastMessage})");
+        if (shot != null) { w.View.Fit(); await Settle(w); Save(w, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + "_kopia_obrazu.png")); }
+        w.SetTool(ZobTool.Wskaz); w.View.SimClick(S(1000, 520)); w.ToolKey(Key.Up);
+        Ok(Sig(oc) != Sig(o1) && Sig(o1) == Sig(w.Doc.P.Obrazy[0]), "przesunięcie toru na kopii nie zmienia obrazu 1");
+        w.DoUndo();
+        var dc = JsonNode.Parse(DoSymulatora.Buduj(ut, w.Doc.P).Json.ToJsonString());
+        Ok(dc["pages"].AsArray().Count == 3 && dc["display"]["pageGeo"][oc.Id]["edges"].AsObject().Count == dc["display"]["pageGeo"][o1.Id]["edges"].AsObject().Count,
+            "Do symulatora: kopia to trzecia strona z tymi samymi torami co obraz 1");
+        Click(Btn(w.ImgPanel, "Kopiuj obraz"));
+        Ok(w.Obraz.Nazwa == "Mijanka Testowa (kopia) (kopia)" && w.Doc.P.Obrazy.Count == 5, $"kopia kopii – {w.Obraz.Nazwa}");
+        w.DoUndo();
+        w.DoUndo();
+        Ok(w.Doc.P.Obrazy.Count == 3 && w.Doc.P.Obrazy.All(o => o.Id != oc.Id) && Sig(w.Doc.P.Obrazy[0]) == Sig(o1), "Ctrl+Z – kopia usunięta, obraz 1 bez zmian");
+        w.ShowImage(w.Doc.P.Obrazy[0].Id);
+        o1 = w.Doc.P.Obrazy[0]; o2 = w.Doc.P.Obrazy.First(o => o.Nazwa == "Mijanka – tor 2"); op = w.Doc.P.Obrazy.First(o => o.Rodzaj == ZobObraz.Pogladowy);
+        Ok(w.SaveDoc(false), "zapis po cofnięciu kopii");
+
         if (shot != null)
         {
             string Shot(string suf) => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + suf);
