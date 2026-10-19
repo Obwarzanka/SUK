@@ -274,6 +274,11 @@ Test: `EdytorZobrazowania.exe --test wynik.txt [zrzut.png]` (ostatnia linia `bł
 
 **Mijanka testowa:** `projekty_ut/mijanka_testowa/mijanka_testowa.ut.json` (UT) i `mijanka_testowa.zob.json` (obraz) – przykład do otwarcia w obu edytorach: linia jednotorowa z SBL, tor 1 (gz) i tor 2 (gd, 1154 m) z łącznikami 1/2 i 3/4 (Rz 60E1-190-1:9, rozstaw 4,75 m), wjazdowe A / B, wyjazdowe C1, C2 (na wschód) i D1, D2 (na zachód), odstępowe 103 / 104 i 127 / 128, kozły na końcach toru 2, liczniki osi i odcinki, perony, przejazd, szlaki 1Z i 1W; posterunek MT. „Sprawdź” w obu edytorach – bez uwag. Na obrazie są tory, zwrotnice, sygnalizatory i kozły; przerwy, opisy odcinków, perony, przejazd i szlaki dojdą w etapie Z4. Nazwy semaforów i odcinków są przykładowe. **W symulatorze:** `uruchom.bat` → w oknie wyboru układu „mijanka_testowa” (plik `app/LcsWidzew/Data/projekty/mijanka_testowa.json`, zapisany przez „Do symulatora…”); od razu: `uruchom.bat --station app\LcsWidzew\Data\projekty\mijanka_testowa.json`.
 
+**LCS testowe – dwie stacje jednego LCS** (`projekty_ut/lcs_testowe/lcs_testowe.ut.json` + `lcs_testowe.zob.json`, w symulatorze `app/LcsWidzew/Data/projekty/lcs_testowe.json`): linia dwutorowa, posterunki **TG „Testowo Główne”** i **TW „Testowo Wschodnie”**, między nimi szlak wewnętrzny dwutorowy **1GW / 2GW** (SBL 3-stawna dwukierunkowa, odstępowe 139–142 i 149–152, oznaczenia końców 1TW / 2TW przy TG i 1TG / 2TG przy TW), szlaki 1Z / 2Z (do „Zachodnia”) i 1E / 2E (do „Wschodnia”) z granicą obszaru.
+- TG: tory 1, 2 (gz), 3, 4 (gd, perony), bocznica 6 (rozjazd 8, wykolejnica Wk1, tarcze Tm1 / Tm2, kozioł); łączniki 1/2, 6/7, 9/10, 14/15; łącznik 3/5 z toru 1 na tor 4 przez **rozjazd krzyżowy podwójny 4 (Rkpd, zwrotnice 4ab / 4cd)** na torze 2; łącznik 11/13 z toru 3 na tor 2 przez **rozjazd krzyżowy pojedynczy 12 (Rkp, 12ab / 12cd, przejazd z toru 3 na tor 1)** na torze 1; wjazdowe A, B, F, G, wyjazdowe C1–C4, D1–D4.
+- TW: tory 1–4, łączniki 1/2, 3/4, 5/6, 7/8, 9/10, 11/12, przejazd kat. C, perony.
+- „Sprawdź” – bez uwag w UT i na obu obrazach. Rozkład testowy `lcs_testowe.rozklad.json` (pociągi przez obie stacje, ŁKA 90501 na torze 3 TG, lokomotywa SM42 na bocznicy 6). Nazwy są przykładowe. Uruchomienie: `uruchom.bat --station app\LcsWidzew\Data\projekty\lcs_testowe.json`. Dwóch dyżurnych: jeden prowadzi serwer, drugi łączy się i przejmuje obszar drugiej stacji (rozdział „Gra wieloosobowa”) – na tym układzie przez sieć jeszcze nie sprawdzone.
+
 ## Wersje układu
 
 
@@ -298,6 +303,16 @@ Tylko IC (ptrc.gay/pkpic):
 ```bash
 python tools/pkpic_import.py 2026-10-15 app/LcsWidzew/Data/rozklad_ic.json
 ```
+
+### Rozkład układu z pliku (`<układ>.rozklad.json`)
+
+Plik obok pliku układu (np. `Data/projekty/lcs_testowe.rozklad.json`) – pisze człowiek. Gdy jest, scenariusz **„Ruch podstawowy”** bierze pociągi z niego zamiast z wbudowanego rozkładu obszaru Widzewa. Lista `"pociagi"`, w każdym:
+- `t` – czas od początku scenariusza [s], `numer`, `kat` (ŁKA, PR, IC, TOW…);
+- `ze` – szlak, z którego pociąg przyjeżdża od posterunku sąsiedniego spoza obszaru, albo `odcinek` (np. `"TG:3"`) i `kierunek` (±1) – pociąg stoi na torze stacyjnym;
+- `na` – szlak, na który ma odjechać; `postoj` – kody posterunków z postojem (`[]` – na każdym peronie, brak pola – bez postoju); `odjazd` – czas odjazdu [s];
+- `lok: true` – lokomotywa manewrowa na `odcinek`.
+
+Postój jest na torze przy peronie: odcinek „…:JT” albo – w układach z „Do symulatora…” – tor, przy którym w UT stoi peron.
 
 ---
 
@@ -387,6 +402,8 @@ Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
 | `LcsWidzew.exe --screenshot zrzut.png 2 "#page=1" "E S1 Pociąg"` | zrzut pulpitu po poleceniach (`#page=N`, `#overview`, `#opisy` – opisy odcinków na żądanie włączone, `@t`; `#tablica=filtr` – dodatkowo zrzut tablicy przebiegów z panelem zależności specjalnych do `zrzut.png.tablica.png`) |
 
 Opcja `--station plik.json` wczytuje inny układ, np. kopię z `Data/kopie/`.
+
+Na układzie LCS testowe: `LcsWidzew.exe --station ..\..\..\Data\projekty\lcs_testowe.json --selftest wynik.txt` – oczekiwane `nastawione 15 z 15`, KZ na żywo 0 naruszeń. W `--screenshot` strony liczy się od 0 (`#page=0` – Testowo Główne, `#page=1` – Testowo Wschodnie).
 
 ### Rdzeń i host bez WPF (S01.02)
 

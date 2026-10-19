@@ -30,6 +30,8 @@ public class Edge
     /// <summary>Pochylenie podłużne [‰] od A do B (dodatnie – wzniesienie), z profilu wysokościowego; NaN – brak danych.</summary>
     public double Grad = double.NaN;
     public bool Platform, Szlak;
+    /// <summary>Tor przy peronie z UT (JSON "peron": true, eksport „Do symulatora”) – jak odcinek „:JT” w dawnych układach.</summary>
+    public bool PeronUt;
     /// <summary>Zobrazowanie: odcinek bez kontroli niezajętości – linia przerywana (Ie-104 § 8 ust. 1; oznacza człowiek w edytorze zobrazowania).</summary>
     public bool NoDetect;
     /// <summary>Kierunek jazdy A→B dla toru pionowego (1 – na wschód, -1 – na zachód); dla pozostałych wynika z położenia końców.</summary>
@@ -153,6 +155,9 @@ public class SectionDef
 {
     public string Id; public List<string> Edges = new(); public string Kind = "tor";
     public string Detection = "lo";
+    /// <summary>Tor stacyjny z UT (JSON sections → "tor": true): okno numeru pociągu i numer toru jak dla odcinka „:JT” dawnych układów.</summary>
+    public bool TorUt;
+    public bool StationTrack => Id.Contains(":JT") || TorUt;
     public bool AxleCounter => Detection != "ot";
     public string DetectionName => AxleCounter ? "licznik osi" : "obwód torowy";
 }
@@ -418,7 +423,7 @@ public class Station
                 Embank = e.TryGetProperty("nasyp", out var ens) && ens.ValueKind == JsonValueKind.Number ? ens.GetDouble() : 0,
                 Grad = e.TryGetProperty("poch", out var egr) && egr.ValueKind == JsonValueKind.Number ? egr.GetDouble() : double.NaN,
                 Dir = e.TryGetProperty("dir", out var edir) && edir.ValueKind == JsonValueKind.Number ? Math.Sign(edir.GetInt32()) : 0,
-                Cat = S(e, "cat", "b"),
+                Cat = S(e, "cat", "b"), PeronUt = e.TryGetProperty("peron", out var epr) && epr.ValueKind == JsonValueKind.True,
                 Elec = e.TryGetProperty("elec", out var el) && (el.ValueKind == JsonValueKind.True || (el.ValueKind == JsonValueKind.String && el.GetString() == "true"))
             };
             foreach (var p in e.GetProperty("pts").EnumerateArray()) ed.Pts.Add((p[0].GetDouble(), p[1].GetDouble()));
@@ -432,7 +437,11 @@ public class Station
         foreach (var sd in st.Sections.Values) sd.Detection = defDet;
         if (r.TryGetProperty("sections", out var sm) && sm.ValueKind == JsonValueKind.Object)
             foreach (var p in sm.EnumerateObject())
-                if (st.Sections.TryGetValue(p.Name, out var sd) && p.Value.TryGetProperty("detection", out var dv) && dv.ValueKind == JsonValueKind.String) sd.Detection = dv.GetString();
+                if (st.Sections.TryGetValue(p.Name, out var sd))
+                {
+                    if (p.Value.TryGetProperty("detection", out var dv) && dv.ValueKind == JsonValueKind.String) sd.Detection = dv.GetString();
+                    if (p.Value.TryGetProperty("tor", out var tv) && tv.ValueKind == JsonValueKind.True) sd.TorUt = true;
+                }
         foreach (var p in r.GetProperty("switches").EnumerateObject())
         {
             var v = p.Value;
@@ -571,7 +580,7 @@ public class Station
             s.Approach = back.Count == 1 ? back[0] : null;
             s.Ahead = Nodes[s.Node].Edges.FirstOrDefault(e => EdgeDir(e, s.Node) == s.Dir);
         }
-        foreach (var e in Edges.Values) e.Platform = e.Track != "" && e.Sec.Contains(":JT");
+        foreach (var e in Edges.Values) e.Platform = e.Track != "" && (e.Sec.Contains(":JT") || e.PeronUt);
     }
 
     /// <summary>

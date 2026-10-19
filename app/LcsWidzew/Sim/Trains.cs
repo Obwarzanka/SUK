@@ -407,7 +407,7 @@ public partial class Trains
                 if (Math.Min(b, t.Head) - Math.Max(a, tail) > 0) { var sc = S.L.Edges[s.E].Sec; occ.Add(sc); if (t.Head >= a) headSec = sc; }
             }
             // wyświetlacz numeru pociągu (Ie-104 § 8 pkt 26): tory stacyjne i odstępy szlakowe
-            if (headSec != null && (headSec.Contains(":JT") || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
+            if (headSec != null && (S.L.Sections[headSec].StationTrack || S.L.Sections[headSec].Kind == "szlak")) t.Window = headSec;
         }
         S.Urzadzenia.Osie(occ);
     }

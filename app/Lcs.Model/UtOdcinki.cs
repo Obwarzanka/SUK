@@ -231,7 +231,8 @@ public static class Odcinki
         {
             if (!o.CompOf.ContainsKey(s.Id)) res.Add(($"odcinek {s.Name}: miejsce nazwy poza torem", s.Track, s.S, s.Id));
             if (s.Name.Length == 0) res.Add(("odcinek bez nazwy", s.Track, s.S, s.Id));
-            else if (p.Sections.Any(x => x.Id != s.Id && x.Name == s.Name) && p.Sections.First(x => x.Name == s.Name).Id == s.Id)
+            // nazwa jednoznaczna w obrębie posterunku (jak nazwy semaforów i numery rozjazdów); w symulatorze odcinek stacyjny ma kod posterunku
+            else if (p.Sections.Where(x => x.Name == s.Name && SamePost(p, x, s)) is var same && same.Count() > 1 && same.First().Id == s.Id)
                 res.Add(($"nazwa odcinka {s.Name} powtórzona", s.Track, s.S, s.Id));
         }
         // granica w obrębie rozjazdu (między PR a KR na torze zasadniczym albo na odgałęzieniu przed KR)
@@ -252,6 +253,8 @@ public static class Odcinki
     /// Podpowiedź nazwy odcinka (projektant wpisuje swoją): w odcinku z rozjazdami – „z” + numery rozjazdów, na torze z numerem –
     /// numer toru; nazwa zajęta – z kolejną literą.
     /// </summary>
+    static bool SamePost(UtProject p, UtSection a, UtSection b) => Posterunki.Grupa(p, a.Track) == Posterunki.Grupa(p, b.Track);
+
     public static string Suggest(UtProject p, OdcinkiResult o, int comp)
     {
         var rz = comp >= 0 ? Turnouts(p, o, comp).Select(t => t.Number).Where(n => n.Length > 0).ToList() : new();

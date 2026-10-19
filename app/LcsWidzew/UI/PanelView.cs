@@ -472,7 +472,7 @@ public class PanelView : FrameworkElement
         var winTrains = S.Windows;
         foreach (var (sec, sd) in L.Sections)
         {
-            bool track = sec.Contains(":JT"), szl = sd.Kind == "szlak";
+            bool track = sd.StationTrack, szl = sd.Kind == "szlak";
             if (!track && !szl) continue;
             var e = sd.Edges.Select(x => L.Edges[x]).Where(x => !x.Link).OrderByDescending(x => x.Len).FirstOrDefault();
             if (e == null) continue;

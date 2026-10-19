@@ -157,6 +157,20 @@ public static class DoSymulatora
             return szlak ? name : $"{Kod(track)}:{name}";
         }
 
+        // ---------- perony: km na torze (krawędź przy Track; przy Track2 – rzut końców peronu) ----------
+        IEnumerable<(double A, double B)> PeronyToru(string track)
+        {
+            foreach (var pl in ut.Platforms)
+            {
+                if (pl.Track == track) yield return (Math.Min(pl.S0, pl.S1), Math.Max(pl.S0, pl.S1));
+                else if (pl.Track2 == track && r.ContainsKey(pl.Track) && r.ContainsKey(track))
+                {
+                    double a = r[track].Nearest(r[pl.Track].At(Math.Clamp(pl.S0, 0, r[pl.Track].Length)).P).S, b = r[track].Nearest(r[pl.Track].At(Math.Clamp(pl.S1, 0, r[pl.Track].Length)).P).S;
+                    yield return (Math.Min(a, b), Math.Max(a, b));
+                }
+            }
+        }
+
         // ---------- tory symulatora ----------
         var edges = new JsonArray();
         var edgeInfo = new List<(string Id, string Track, double S0, double S1, string A, string B)>();
@@ -189,6 +203,8 @@ public static class DoSymulatora
                 };
                 if (t.Elec) e["elec"] = true;
                 if (t.Vmax > 0) e["vmax"] = t.Vmax;
+                // tor przy peronie UT (postój pociągu, okno numeru) – kawałek zachodzi na peron na tym torze albo na drugiej krawędzi peronu wyspowego
+                if (PeronyToru(t.Id).Any(x => Math.Min(s1, x.B) - Math.Max(s0, x.A) > 1)) e["peron"] = true;
                 // pochylenie [‰] od A do B (rosnący km) – średnie z niwelety UT na kawałku; bez niwelety – brak pola
                 if (t.Profile is { Count: >= 2 } prof)
                 {
@@ -441,6 +457,11 @@ public static class DoSymulatora
 
         var sections = new JsonObject();
         foreach (var (k, v) in secKind) if (v == UtSection.ObwodTorowy) sections[k] = new JsonObject { ["detection"] = "ot" };
+        // tor stacyjny (okno numeru pociągu, numer toru na pulpicie – jak odcinki „:JT” dawnych układów): odcinek poza szlakiem, na torach
+        // z numerem, bez zwrotnic i krzyży
+        foreach (var g in edges.OfType<JsonObject>().GroupBy(e => (string)e["sec"]))
+            if (g.All(e => e["szlak"] == null && ((string)e["track"]).Length > 0 && !new[] { (string)e["a"], (string)e["b"] }.Any(n => nodeKind.TryGetValue(n, out var nk) && nk.Kind is "switch" or "crossing")))
+                (sections[g.Key] ??= new JsonObject())["tor"] = true;
         var code = ut.Posts.FirstOrDefault()?.Kod ?? "UT";
         var root = new JsonObject
         {

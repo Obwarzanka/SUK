@@ -56,6 +56,10 @@ public partial class KomputerZaleznosci
             if (s.Type is not ("wjazdowy" or "wyjazdowy" or "tm")) continue;
             RouteTable[s.Name] = ApplyRules(RawRoutes(s.Name)).Where(r => !r.Off).ToList();
         }
+        // ten sam opis przebiegu na kilku posterunkach obszaru (np. „P A→C1” na obu stacjach LCS) – z kodem posterunku,
+        // żeby dziennik, tablica przebiegów i podgląd KZ je rozróżniały; opisy niepowtarzalne bez zmian
+        foreach (var g in RouteTable.Values.SelectMany(x => x).GroupBy(r => r.Id).Where(g => g.Select(r => L.Signals[r.Start].Post).Distinct().Count() > 1))
+            foreach (var r in g) r.Id += $" ({L.Signals[r.Start].Post})";
     }
 
     /// <summary>
