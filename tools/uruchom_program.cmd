@@ -10,6 +10,7 @@ if exist "%~dp0..\.tools\dotnet\dotnet.exe" (
 set "DOTNET_CLI_TELEMETRY_OPTOUT=1"
 set "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=0"
 set "DOTNET_NOLOGO=1"
+if not defined SUK_TARGET set "SUK_TARGET=net10.0-windows"
 pushd "%~dp0..\app"
 if errorlevel 1 exit /b 1
 
@@ -21,7 +22,7 @@ set "SUK_RESULT=%errorlevel%"
 if not "%SUK_RESULT%"=="0" goto build_failed
 
 rem Ten sam dotnet buduje i uruchamia DLL, takze z lokalnym runtime bez instalacji systemowej.
-start "" /wait "%SUK_DOTNET%" "%CD%\%SUK_PROJECT%\bin\Release\net10.0-windows\%SUK_EXE%.dll" %*
+start "" /wait "%SUK_DOTNET%" "%CD%\%SUK_PROJECT%\bin\Release\%SUK_TARGET%\%SUK_EXE%.dll" %*
 set "SUK_RESULT=%errorlevel%"
 if not "%SUK_RESULT%"=="0" goto run_failed
 popd

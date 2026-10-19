@@ -430,3 +430,13 @@ Pełny test UT: **520 OK, błędów: 0** w obu runtime; zobrazowanie: **137 OK, 
 - Test (`Test.Zaznaczenie.cs`, jak użytkownik): „Rozetnij tor tutaj” w środku łuku R 500 – 430,90 + 430,90 m, kształt bez zmian (odchyłka 0,07 mm), lo2 i lo3 na nowym torze; Shift + klik obu części – „Połącz tory (2)” w panelu i w PPM; Ctrl+J – tor 7 jak przed rozcięciem (861,80 m), liczniki na dawnym km; Ctrl+Z ×2; tor P i tor Q narysowane klikami (Q od dalszego końca, 60 m dalej, przesunięty o 4,5 m) – klik P, Shift + klik Q, Ctrl+J: jeden tor 460,22 m, styczny, Q odwrócony, łuki odwrotne R 201,1 m; 400 torów – 2000 trafień ok. 0,2 s, prostokąt przez wszystkie ok. 15 ms. Selftest symulatora bez zmian (25 z 26, 4 z 4). Zrzut: `zrzuty/EdytorUT_laczenie_torow.png`.
 - Pełny `--test`: część zaznaczania i łączenia bez błędów; w przebiegach zdarzały się błędy etapu 2 / mapki kafelków przy pobieraniu z Geoportalu (zmienne między przebiegami, poza tą zmianą).
 - Nie sprawdzono: obsługa prawdziwą myszą i klawiaturą (Shift / Ctrl+J testowane przez `TestMods` i wywołanie metod okna).
+
+## 2026-10-19 — regresja edytorów przy S02.01 (Host świata)
+
+Etap multiplayer S02.01 dodał `app/Lcs.WorldHost`: osobny proces obecnego rdzenia, jeden właściciel stanu i monotoniczny zegar, krok 0,1 s, ograniczona kolejka wejść i logi. Nie zmieniono funkcji/formatów/geometrii UT ani zobrazowania. Pulpit nadal ma poprzedni cykl; jego lokalny adapter należy do S02.02.
+
+Pełną regresję wykonano na świeżej kopii aktualnego kodu, już z taborową fizyką, nowymi bramkami i edytorami. UT: 570 OK / 0 błędów (geometria, podkłady, NMT, eksporty); zobrazowanie: 255 OK / 0 błędów; edytor taboru: 42 OK / 0 błędów, także rzeczywisty launcher; Przechyłka: 10/10; Komputerownia: 16/16 na działającej symulacji z przebiegiem. Informacyjny Overpass zwrócił HTTP 502; pozostałe właściwe asercje przeszły, nie zaliczono pobierania OSM samym udanym buildem.
+
+Selftesty WPF i neutralnego runnera: 25/26, zależności 4/4 i specjalne 7/7. 36 końcowych porównań raportów i dzienników zgodnych ze świeżą bazą; 12 bazowych WPF↔runner również zgodnych. Chroniony station.json i 186 istniejących źródeł C# nienaruszone. Uzupełniono wyłącznie konfigurację .NET 10 dla później dodanych trzech projektów taboru; naprawia to niespójny target testów i ścieżkę launchera edytora.
+
+Dowody, ograniczenia i zrzuty: `SUK_plan_multiplayer/raporty/S02.01.md`, `artifacts/2026-10-19-S02.01/regresja/RAPORT.md`, `regresja/ui/mijanka.png` i `regresja/ui/edytor.png`. Nie wykonywano commit/push, instalacji usług ani wdrożenia.

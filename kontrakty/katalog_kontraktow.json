@@ -63,7 +63,7 @@
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "ddb8c07a3722612b66dda8b4b4181da353c203337937e4769fa01a1e79b4a14f"
+          "sha256_lf": "6dfbb7012df54d92b4cb5fb2f37f62a5a7f89dd012bb91bc870600b834fcaf55"
         }
       ]
     },
@@ -115,7 +115,7 @@
       "pliki": [
         {
           "plik": "kontrakty/stos/wersje_stosu.json",
-          "sha256_lf": "577a8c89027f3fffbb4f03c89ec98f4dd37be8ff9031d4e99720fec4ef8d47f6"
+          "sha256_lf": "64b2597905a7a77bf9a3e507cd5f329e82206a68973a6f23cc1cdc97c68f326d"
         },
         {
           "plik": "app/global.json",

@@ -1,6 +1,6 @@
 # SUK – Symulator urządzeń komputerowych
 
-Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowania (LCS): pulpitu nastawczego i komputera zależności. Symulator jest ogólny – stacje, posterunki i obrazy pochodzą z wczytanego układu, a nie z kodu. Pierwszym obszarem jest **LCS Łódź Widzew**: Łódź Widzew (ŁW), Łódź Fabryczna (ŁF) i Łódź Niciarniana (ŁN). Program działa na Windows, w C#/WPF na .NET 8.
+Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowania (LCS): pulpitu nastawczego i komputera zależności. Symulator jest ogólny – stacje, posterunki i obrazy pochodzą z wczytanego układu, a nie z kodu. Pierwszym obszarem jest **LCS Łódź Widzew**: Łódź Widzew (ŁW), Łódź Fabryczna (ŁF) i Łódź Niciarniana (ŁN). Program działa na Windows, w C#/WPF na .NET 10.
 
 - Obsługa wg **Ie-20**: polecenia, przebiegi, blokady liniowe, postępowanie przy usterkach.
 - Zobrazowanie wg **Ie-104**, wzorowane na pulpitach LCS (EbiScreen / SimRail).
@@ -16,7 +16,7 @@ Symulator Urządzeń Komputerowych urządzeń srk w Lokalnych Centrach Sterowani
 
 ## Uruchomienie
 
-Do uruchamiania zbudowanych programów wymagany jest **.NET Desktop Runtime 8**. Do kompilacji wymagany jest **.NET SDK 10.0.402** lub zgodne nowsze SDK 10 wskazane przez `app/global.json` (moduł logów ma również cel `net10.0`). SDK 8 nie wystarcza do zbudowania obecnego rozwiązania.
+Do uruchamiania programów okienkowych wymagany jest **.NET Desktop Runtime 10.0.13 lub nowsza poprawka 10.0.x**; host świata potrzebuje zwykłego runtime .NET 10.0.13. Kompilacja wymaga dokładnie **SDK 10.0.402** przypiętego przez `app/global.json`. Launchery mogą używać lokalnego SDK wraz z runtime bez instalacji systemowej.
 
 - Dwuklik `uruchom.bat`. Skrypty `uruchom*.bat` najpierw budują aktualną wersję Release, a potem uruchamiają program i przekazują wszystkie argumenty. Przy błędzie terminal pozostaje otwarty, aby można było odczytać komunikat. SDK jest wybierane z katalogu `app`, więc obowiązuje `app/global.json` także przy uruchomieniu z innego katalogu.
 - Launcher korzysta z lokalnego `.tools/dotnet/dotnet.exe`, jeżeli istnieje; w przeciwnym razie z systemowego `dotnet`. Lokalna kopia SDK to rozpakowane oficjalne archiwum Windows x64 z [witryny Microsoft](https://dotnet.microsoft.com/download/dotnet/10.0), bez zmiany instalacji systemowej. `.tools/` jest pomijany przez Git. Przy lokalnym SDK pakiety są przechowywane w `.tools/nuget/packages`, chyba że ustawiono własne `NUGET_PACKAGES`.
@@ -40,6 +40,22 @@ Po zalogowaniu (dyżurny ruchu) wybierz scenariusz. Zakładki u góry przełącz
 - **2 – ŁW**.
 
 ---
+
+## Host świata bez okna (S02.01)
+
+`uruchom_host_swiata.bat --station D:\pelna\sciezka\uklad.json` buduje Release i uruchamia istniejący rdzeń bez WPF. Plik układu jest wymagany; host go nie zapisuje. Zakończenie: **Ctrl+C**. Bez `--ticks` proces działa do zatrzymania. Launcher wykonuje polecenie z katalogu `app`, dlatego używaj pełnych ścieżek wejścia i wyników.
+
+Próba z katalogu głównego repo, po zbudowaniu hosta i utworzeniu katalogu wyników:
+
+```powershell
+.tools\dotnet\dotnet.exe app\Lcs.WorldHost\bin\Release\net10.0\Lcs.WorldHost.dll --station app\LcsWidzew\Testy\station_test.json --ticks 100 --report artifacts\swiat.json --logi artifacts\logi-swiata --logi-raport artifacts\logi-swiata.txt
+```
+
+Opcjonalnie: `--scenario podstawowy` (także `usterki`, `zima`, `manewry`, `ic_05` itd.), `--world-id local`, `--events artifacts\dziennik.txt`. `--ticks 100` oznacza 100 kroków po 0,1 s. Dla `ic_*` plik `rozklad.json` musi znajdować się obok testowej kopii układu. Wyniki eksportowane są po zatrzymaniu; katalogi wyników należy utworzyć wcześniej, a ścieżki wejścia i eksportów muszą być różne. Kod 0 oznacza poprawne zakończenie świata i eksportów; kod 2 – błąd, opisany w raporcie i zredagowanych logach.
+
+Gotowość oznacza zakończoną inicjalizację i pierwszy udany krok. Raport zawiera epokę świata, liczbę kroków, metryki kolejki/cyklu, hashe znanych wejść, osobny stan diagnostyki i kompletność zatrzymania. Niedostępny zapis diagnostyki daje degradację logów i nie zmienia autonomicznej pracy rdzenia. Domyślne logi procesu: `%ProgramData%\SUK\Logs`; `--logi` ustawia lokalny katalog próby. Limity profilu serwera: 4096 rekordów / 8 MiB, 16 plików po 64 MiB / 7 dni, opróżnienie do 5 s. Diagnostyka nie stanowi trwałego audytu ani replay.
+
+`Lcs.WorldHost` jest procesem lokalnym. Podłączenie pulpitu to **S02.02**, konto usługi/ACL/IPC/health – **S02.03**, a rozdzielenie KZ i Ada – kolejne zadania. Obecny pulpit nadal uruchamia swój dotychczasowy cykl. Szczegóły odbioru i granice: [raport S02.01](SUK_plan_multiplayer/raporty/S02.01.md). Testy hosta: `dotnet test --project app/Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj -c Release`.
 
 ## Obsługa pulpitu
 
@@ -105,7 +121,7 @@ Pole wyboru pod każdą listą podpowiada obiekty układu. Można też wpisać o
 
 ## Kalkulator przechyłki
 
-Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net8.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje przechyłkę.
+Osobny program: `uruchom_przechylka.bat` albo `app/Lcs.Przechylka/bin/Release/net10.0-windows/Przechylka.exe`. Wpisujesz prędkość V, promień R i przechyłkę h. Puste h oznacza, że program sam zaproponuje przechyłkę.
 
 Prześwit toru jest w polu i wynosi domyślnie 1435 mm. Przechyłka działa na rozstawie osi główek szyn s = prześwit + szerokość główki (1435 + 65 = 1500 mm), z którego bierze się znany współczynnik 11,8. Bez h program proponuje przechyłkę równoważącą (co 5 mm, najwyżej h_max) i podaje najmniejszą dopuszczalną.
 
@@ -113,7 +129,7 @@ Program podaje przechyłkę równoważącą h_r = s·V²/(9,81·3,6²·R) (≈ 1
 
 ## Edytor układu torowego (UT)
 
-Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net8.0-windows/EdytorUT.exe [plik.ut.json]`. Plan budowy i decyzje są w `PLAN_EDYTOR_UT.md`.
+Osobny program: `uruchom_edytor_ut.bat` albo `app/Lcs.EdytorUT/bin/Release/net10.0-windows/EdytorUT.exe [plik.ut.json]`. Plan budowy i decyzje są w `PLAN_EDYTOR_UT.md`.
 
 Dotychczasowe edytory (układ i zobrazowanie wbudowane w symulator) zostały usunięte 2026-10-16. Są w historii git (commit `d2c7431`). Symulator nadal wczytuje istniejące pliki `station.json`.
 
@@ -254,7 +270,7 @@ Peron, Przejazd i km nie mają klawisza – wybiera się je przyciskiem na pasku
 
 ## Edytor zobrazowania
 
-Osobny program: `uruchom_edytor_zobrazowania.bat` albo `app/Lcs.EdytorZobrazowania/bin/Release/net8.0-windows/EdytorZobrazowania.exe [plik.zob.json | plik.ut.json]`. Rysuje obrazy pulpitu (wg Ie-104) do projektu UT. Plan i decyzje: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
+Osobny program: `uruchom_edytor_zobrazowania.bat` albo `app/Lcs.EdytorZobrazowania/bin/Release/net10.0-windows/EdytorZobrazowania.exe [plik.zob.json | plik.ut.json]`. Rysuje obrazy pulpitu (wg Ie-104) do projektu UT. Plan i decyzje: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
 
 Stan (etapy Z1–Z6 – szkielet, tory, zwrotnice, sygnalizatory, wykolejnice, kozły, przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, strzałki blokady, napisy, kilka obrazów, obraz poglądowy, „Sprawdź”, PNG i wydruk, podgląd pulpitu):
 - **UT tylko do odczytu.** Tory, rozjazdy, urządzenia, odcinki i ich nazwy pochodzą z UT. Braki (np. numer zwrotnicy, funkcja semafora, posterunek) poprawia się w edytorze UT, a potem tu „Wczytaj UT ponownie”.
@@ -290,7 +306,7 @@ Test: `EdytorZobrazowania.exe --test wynik.txt [zrzut.png]` (ostatnia linia `bł
 
 ## Edytor taboru
 
-Osobny program: `uruchom_edytor_taboru.bat` albo `app/Lcs.EdytorTaboru/bin/Release/net8.0-windows/EdytorTaboru.exe [plik.json]`. Bez pliku otwiera wspólny katalog `app/Lcs.Tabor/Data/tabor.json`, który czyta też symulator (zmiana zapisana w edytorze działa w symulatorze bez przebudowy). Plan i decyzje: `PLAN_EDYTOR_TABORU.md`, historia: `HISTORIA_EDYTOR_TABORU.md`.
+Osobny program: `uruchom_edytor_taboru.bat` albo `app/Lcs.EdytorTaboru/bin/Release/net10.0-windows/EdytorTaboru.exe [plik.json]`. Bez pliku otwiera wspólny katalog `app/Lcs.Tabor/Data/tabor.json`, który czyta też symulator (zmiana zapisana w edytorze działa w symulatorze bez przebudowy). Plan i decyzje: `PLAN_EDYTOR_TABORU.md`, historia: `HISTORIA_EDYTOR_TABORU.md`.
 
 - **Pojazdy:** seria, rodzaj (EZT, BZT, lokomotywa, wagon…), długość, masy, Vmax, opory a + b·v + c·v², masy hamujące G / P / R, hamulec ED, źródło danych i znacznik „do potwierdzenia”. Charakterystyki „sieć” / „spalinowa” jako punkty F(v) w polu tekstowym albo na wykresie: przeciągnięcie punktu, dwuklik dodaje punkt, prawy przycisk usuwa. „Z mocy” podpowiada krzywą F = min(F0, P/v).
 - **Składy:** pojazdy od czoła (seria, liczba, załadowanie), nastawienie hamulca. Sumy (długość, masa, λ, Vmax) i podgląd jazdy liczone kodem fizyki symulatora: rozpędzanie, hamowanie nagłe, ruszanie na wzniesieniu, wykres sił i oporów (prędkość równowagi), wykres v(s) / v(t).
@@ -378,14 +394,14 @@ symulator/
 ├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), pdfr (strony PDF do PNG)
 ├── zrzuty/                    ← zrzuty ekranu
 ├── app/Lcs.slnx               ← rozwiązanie: symulator, rdzeń, model UT, edytor UT, edytor zobrazowania
-├── app/Lcs.Core/              ← wspólny rdzeń symulacji net8.0, bez WPF i providera logów
+├── app/Lcs.Core/              ← wspólny rdzeń symulacji net10.0, bez WPF i providera logów
 ├── app/Lcs.Core.TestHost/      ← konsolowy host tej samej regresji, testy granic i porównanie dzienników
 ├── app/Lcs.Model/             ← model układu torowego (tory, rozjazdy, urządzenia, odcinki, posterunki, szlaki, kontrola, PUWG 1992) i zobrazowania (Zob*) – bez okien
 ├── app/Lcs.EdytorUT/          ← edytor układu torowego (EdytorUT.exe), katalog rozjazdów i baza symboli w Dane/
 ├── app/Lcs.EdytorZobrazowania/ ← edytor zobrazowania (EdytorZobrazowania.exe), dane testowe w Testy/
 ├── app/Lcs.Przechylka/        ← kalkulator przechyłki (Przechylka.exe)
 ├── app/Lcs.Logi/              ← logi techniczne SUK (MEL + Serilog, JSONL, limity, redakcja) i testy w app/Lcs.Logi.Testy/
-└── app/LcsWidzew/             ← symulator C# / WPF (.NET 8)
+└── app/LcsWidzew/             ← symulator C# / WPF (.NET 10)
     ├── Data/station.json      ← układ obszaru LCS
     ├── Data/kopie/            ← automatyczne kopie zapasowe układu
     ├── Data/rozklad*.json     ← rozkład jazdy
@@ -397,7 +413,7 @@ symulator/
 
 ## Komputerownia (podgląd kart sterowników)
 
-Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Release/net8.0-windows/Komputerownia.exe`. Pokazuje karty sterowników obiektowych działającego symulatora – dla każdej karty (odcinek: licznik osi / obwód torowy, zwrotnica, wykolejnica):
+Osobny program: `uruchom_komputerownia.bat` albo `app/Lcs.Komputerownia/bin/Release/net10.0-windows/Komputerownia.exe`. Pokazuje karty sterowników obiektowych działającego symulatora – dla każdej karty (odcinek: licznik osi / obwód torowy, zwrotnica, wykolejnica):
 
 - **rozkaz od KZ** – ostatni rozkaz komputera zależności i kiedy przyszedł (np. „przestaw do „-””, „zerowanie licznika osi”);
 - **status do KZ** – to, co karta melduje (np. „kontrola „+””, „przekładanie → „-”, 3,2 s”, „BRAK KONTROLI”);
@@ -414,7 +430,7 @@ Połączenie przez sieć: symulator (gra jednoosobowa albo serwer) zawsze nasłu
 
 ## Testy (bez okna)
 
-Uruchamiane z `app/LcsWidzew/bin/Release/net8.0-windows/`:
+Uruchamiane z `app/LcsWidzew/bin/Release/net10.0-windows/`:
 
 | Polecenie | Co robi |
 |---|---|
@@ -429,18 +445,18 @@ Na układzie LCS testowe: `LcsWidzew.exe --station ..\..\..\Data\projekty\lcs_te
 
 Pulpit korzysta z `Lcs.Core.dll`. Biblioteka kompiluje pojedyncze źródła `LcsWidzew/Model` i `LcsWidzew/Sim` przez linki projektu; sam pulpit ich nie kompiluje. Model nowego UT (`Lcs.Model`) pozostaje osobną biblioteką. `Point2`, `Bounds2` i `RgbColor` nie wymagają WPF. `SimulatorOptions` pozwala hostowi przekazać katalog rozkładu i `ILogger`; domyślny katalog rozkładu pochodzi z pliku wskazanego w `Station.Load`. Zegar symulacji nadal wynika z jawnych wywołań `Tick(dt)`. Provider i zapis logów należą do aplikacji uruchamiającej rdzeń.
 
-`Lcs.Core.TestHost.exe` z `app/Lcs.Core.TestHost/bin/Release/net8.0/` wymaga zwykłego runtime .NET 8. Uruchamia ten sam `SelfTest` co WPF, w tym wszystkie scenariusze i wzorce. Tabela `Data/sygnaly_ie1.json` jest kopiowana do obu programów z tego samego źródła; musi pozostać obok pliku wykonywalnego. Przykłady z katalogu głównego repo po zbudowaniu hosta:
+`Lcs.Core.TestHost.exe` z `app/Lcs.Core.TestHost/bin/Release/net10.0/` wymaga zwykłego runtime .NET 10. Uruchamia ten sam `SelfTest` co WPF, w tym wszystkie scenariusze i wzorce. Tabela `Data/sygnaly_ie1.json` jest kopiowana do obu programów z tego samego źródła; musi pozostać obok pliku wykonywalnego. Przykłady z katalogu głównego repo po zbudowaniu hosta:
 
 ```powershell
-app\Lcs.Core.TestHost\bin\Release\net8.0\Lcs.Core.TestHost.exe --station app\LcsWidzew\Testy\station_test.json --selftest artifacts\selftest-core.txt
-app\Lcs.Core.TestHost\bin\Release\net8.0\Lcs.Core.TestHost.exe --station app\LcsWidzew\Testy\station_test.json --test artifacts\adaptery-core.txt
-app\Lcs.Core.TestHost\bin\Release\net8.0\Lcs.Core.TestHost.exe --boundary artifacts\granica-core.txt
-app\Lcs.Core.TestHost\bin\Release\net8.0\Lcs.Core.TestHost.exe --compare artifacts\selftest-wpf.txt artifacts\selftest-core.txt artifacts\porownanie.txt --require-events
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --station app\LcsWidzew\Testy\station_test.json --selftest artifacts\selftest-core.txt
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --station app\LcsWidzew\Testy\station_test.json --test artifacts\adaptery-core.txt
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --boundary artifacts\granica-core.txt
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --compare artifacts\selftest-wpf.txt artifacts\selftest-core.txt artifacts\porownanie.txt --require-events
 ```
 
 Katalog wyników utwórz przed próbą. Dla scenariuszy `ic_*` kopiuj też `Data/rozklad.json` obok testowej kopii układu; sam plik w `Testy/` nie ma obok siebie rozkładu GTFS. Zarówno selftest, jak i pojedynczy scenariusz zapisują pełny dziennik `wynik.txt.zdarzenia`. Porównanie normalizuje wyłącznie końce linii, zachowując czas symulacji, kolejność i treści zdarzeń. Kod 0 oznacza zgodność porównania albo zakończenie próby; wynik domenowy należy sprawdzić w raporcie (oczekiwane 25/26 i 4/4, bez wymuszania 26/26). W trybie `--test` kod 1 oznacza nieudaną kontrolę, w `--compare` różnicę, a kod 2 błąd wykonania. `--boundary` sprawdza przechodnie referencje biblioteki oraz brak WindowsDesktop w konfiguracji hosta. Host obsługuje też `--logi`, `--logi-raport` i `--logi-proba` z tego samego adaptera co pulpit.
 
-Pełna regresja S01.02 i przekazanie do S01.03: [raport](SUK_plan_multiplayer/raporty/S01.02.md). Zmiana zachowuje .NET 8 aplikacji; migrację runtime realizuje osobny etap S01.03.
+Pełna regresja S01.02 i przekazanie do S01.03: [raport](SUK_plan_multiplayer/raporty/S01.02.md). Odebrany S01.03 przeniósł aplikacje na .NET 10; S02.01 uzupełnia tę konfigurację dla później dodanego taboru.
 
 ### Logi techniczne (od S01.01)
 
@@ -452,18 +468,18 @@ Symulator zapisuje logi techniczne w formacie JSONL (jedna linia = jeden rekord 
 | `--logi-raport plik.txt` | przy zamknięciu zapisuje stan logów: przyjęte, zapisane, pominięte wg powodu, gotowość zapisu |
 | `--logi-proba` | próba kontrolna: błąd z testowymi sekretami i CR/LF, pola niedozwolone, pomiar kosztu emisji (wynik w `--logi-raport`) |
 
-Testy biblioteki logów (Linux/VM z .NET SDK 10.0.402): `dotnet test --project app/Lcs.Logi.Testy/Lcs.Logi.Testy.csproj -c Release` (net8.0 i net10.0). Sprawdzenie plików logów kontraktem: `python3 kontrakty/testy/sprawdz_kontrakty.py --jsonl katalog_logów`.
+Testy biblioteki logów (Linux/VM z .NET SDK 10.0.402): `dotnet test --project app/Lcs.Logi.Testy/Lcs.Logi.Testy.csproj -c Release` (net10.0). Sprawdzenie plików logów kontraktem: `python3 kontrakty/testy/sprawdz_kontrakty.py --jsonl katalog_logów`.
 
-Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net8.0-windows/`):
+Edytor UT (z `app/Lcs.EdytorUT/bin/Release/net10.0-windows/`):
 
 | Polecenie | Co robi |
 |---|---|
 | `EdytorUT.exe --test wynik.txt [zrzut.png]` | test automatyczny przez kontrolki okna i mysz płótna (PUWG 1992, panel, cofanie, widok, zapis; podkłady, kalibracja, miarka – potrzebny internet; geometria i budowa torów); ostatnia linia `błędów: 0`; okno poza ekranem; dodatkowo zrzuty `_mapka.png`, `_szyny.png`, `_symbole.png`, `_schemat_blisko.png` |
 | `EdytorUT.exe --shot zrzut.png [plik.ut.json] ["punkt" [m/px]]` | sam zrzut okna |
 
-Tabor i fizyka jazdy (`app/Lcs.Tabor`, etapy B1–B2): pociąg w `<układ>.rozklad.json` z polem `"sklad": "EN57"` (id składu z pliku taboru) jedzie wg fizyki – siła pociągowa, opory, pochylenia (`poch` z UT) i łuki pod składem, sieć trakcyjna, hamowanie z masy hamującej; na wzniesieniu może zwolnić albo nie ruszyć (wpis w zdarzeniach). Pociąg bez `"sklad"` jedzie jak dotąd. W trybie zrzutu `#stan` przy takim pociągu: skład, masa, pochylenie, prędkość docelowa, siła i hamowanie. Testy: `dotnet test --project app/Lcs.Tabor.Testy/Lcs.Tabor.Testy.csproj -c Release` – 17 testów (wynik jazdy na mijance w `jazda_mijanka.txt`); raport `kalibracja_tabor.txt` w `app/Lcs.Tabor.Testy/bin/Release/net8.0/` (czasy rozpędzania, drogi hamowania, prędkości równowagi na pochyleniach). Katalog pojazdów: `app/Lcs.Tabor/Data/tabor.json` (dane przykładowe do potwierdzenia).
+Tabor i fizyka jazdy (`app/Lcs.Tabor`, etapy B1–B2): pociąg w `<układ>.rozklad.json` z polem `"sklad": "EN57"` (id składu z pliku taboru) jedzie wg fizyki – siła pociągowa, opory, pochylenia (`poch` z UT) i łuki pod składem, sieć trakcyjna, hamowanie z masy hamującej; na wzniesieniu może zwolnić albo nie ruszyć (wpis w zdarzeniach). Pociąg bez `"sklad"` jedzie jak dotąd. W trybie zrzutu `#stan` przy takim pociągu: skład, masa, pochylenie, prędkość docelowa, siła i hamowanie. Testy: `dotnet test --project app/Lcs.Tabor.Testy/Lcs.Tabor.Testy.csproj -c Release` – 20 testów (wynik jazdy na mijance w `jazda_mijanka.txt`); raport `kalibracja_tabor.txt` w `app/Lcs.Tabor.Testy/bin/Release/net10.0/` (czasy rozpędzania, drogi hamowania, prędkości równowagi na pochyleniach). Katalog pojazdów: `app/Lcs.Tabor/Data/tabor.json` (dane przykładowe do potwierdzenia).
 
-Kalkulator przechyłki (z `app/Lcs.Przechylka/bin/Release/net8.0-windows/`): `Przechylka.exe --test wynik.txt [zrzut.png]`.
+Kalkulator przechyłki (z `app/Lcs.Przechylka/bin/Release/net10.0-windows/`): `Przechylka.exe --test wynik.txt [zrzut.png]`.
 
 Komputerownia – test z działającym symulatorem: najpierw `LcsWidzew.exe --station Testy/station_test.json --screenshot s.png 40 "#serwis=47131" "#fault=swNoCtrl:LW:57" "#page=2" "E S1 Pociąg" "@35" "#hold=30"` (w tle), potem `Komputerownia.exe --test wynik.txt [zrzut.png] 127.0.0.1:47131` – ostatnia linia `błędów: 0`.
 

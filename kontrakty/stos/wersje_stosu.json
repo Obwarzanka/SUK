@@ -28,7 +28,7 @@
       "allowPrerelease": false,
       "wydanie": "2026-10-13",
       "poprawka_bezpieczenstwa": true,
-      "znaczenie": "Dokładnie SDK 10.0.402; wszystkie 10 projektów app/Lcs.slnx net10.0 lub net10.0-windows. Zmiana SDK wymaga ponownego odbioru locków i regresji.",
+      "znaczenie": "Dokładnie SDK 10.0.402; wszystkie 15 projektów app/Lcs.slnx net10.0 lub net10.0-windows. Zmiana SDK wymaga ponownego odbioru locków i regresji.",
       "test_runner": "Microsoft.Testing.Platform (global.json: test.runner) – wymagane przez xunit.v3 4.x przy dotnet test na SDK 10"
     },
     "runtime_docelowy": {

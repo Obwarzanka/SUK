@@ -1,5 +1,7 @@
 # Plan rozwoju – dla agentów AI i programistów
 
+**S02.01 — Host świata, 2026-10-19:** `app/Lcs.WorldHost` uruchamia obecny rdzeń w osobnym procesie bez WPF: jeden właściciel stanu, monotonny zegar, stały krok 0,1 s, ograniczona sprawiedliwa kolejka, gotowość po pierwszym kroku, kontrolowane zatrzymanie i logi F24. Uzupełniono .NET 10 dla później dodanych projektów taboru (zastany net8 blokował testy i launcher edytora). Pełna regresja i dowody: `SUK_plan_multiplayer/raporty/S02.01.md`. Następny osobny krok: S02.02, podłączenie tego hosta do pulpitu; usługi/ACL/IPC i KZ/Ada pozostają kolejnymi zadaniami.
+
 **Odtworzenie S01.03, 2026-10-19:** aktualny HEAD `de06f19` ma 10 projektów, nowe zobrazowanie i zależności specjalne. Migrację odtworzono na tym kodzie: .NET 10 / C# 14, SDK dokładnie 10.0.402, runtime minimum 10.0.13 (poprawki 10.0.x), 10 locków i pięć launcherów. Zachowano nowsze funkcje; poprawiono również uruchamianie aktualnego symulatora z edytora zobrazowania. Świeża baza .NET 8 z tego samego HEAD: 36/36 zgodnych porównań; selftest 25/26, zależności 4/4 i specjalne 7/7; UT 520/0, zobrazowanie 137/0, Przechyłka 10/10, Komputerownia 16/16. Logi i ograniczenia: `SUK_plan_multiplayer/raporty/S01.03.md`; B05 nie jest stabilnie spełniony. Stare artefakty S01.03 są historyczne. Nowe dowody: `artifacts/2026-10-19-S01.03-odtworzenie/`. Następcy S02.01/S03.01 pozostają osobnymi zleceniami.
 
 Dokument opisuje stan projektu, ustalenia z właścicielem i kolejne etapy. Jest **źródłem prawdy o kierunku prac** i ma pierwszeństwo przed przestarzałym `archiwum/PLAN.md` (v0.4–0.5).
@@ -119,6 +121,8 @@ Model danych `station.json`:
 ## 5. Etapy
 
 ### Plan multiplayer – S01 (podkroki)
+
+**Stan S02:** ukończono wyłącznie S02.01 (host procesu). Raport `raporty/S02.01.md` opisuje granice przejściowego adaptera istniejącego Simulator, testy zegara/kolejki/błędów i regresję całości. S02.02 i S02.03 wymagają kolejnych zleceń.
 
 S01.01, S01.02 i odtworzony S01.03 mają raporty w `SUK_plan_multiplayer/raporty/`. Bieżąca migracja obejmuje wszystkie 10 projektów na HEAD de06f19, nowy edytor zobrazowania i zachowane zależności specjalne. Starsze artefakty S01.03 nie stanowią odbioru nowszego kodu. Aktualny wynik i minimalny kontekst: `raporty/S01.03.md`; następcy S02.01 i S03.01 wymagają osobnego zlecenia. Granice KZ/Ada i hosta pozostają według planu.
 
