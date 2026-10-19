@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "pojazdy": [
+    {
+      "seria": "EN57",
+      "nazwa": "EN57 – EZT trzywagonowy (ra + s + rb)",
+      "rodzaj": "ezt",
+      "dlugosc": 64.97,
+      "masa": 126.6,
+      "ladunek": 30,
+      "masaNapedna": 56,
+      "osie": 12,
+      "masyWirujace": 0.08,
+      "vMax": 110,
+      "trakcja": [
+        { "zasilanie": "siec", "moc": 580, "punkty": [[0, 85], [24, 85], [30, 69.6], [40, 52.2], [50, 41.8], [60, 34.8], [70, 29.8], [80, 26.1], [90, 23.2], [100, 20.9], [110, 19.0]] }
+      ],
+      "opory": { "a": 1.6, "b": 0.008, "c": 0.0003 },
+      "masaHamujaca": { "P": 115 },
+      "zrodlo": "wartości przybliżone (4 × 145 kW, wagon silnikowy 56 t) – przykład agenta",
+      "uwagi": "ładunek 30 t ≈ 400 pasażerów",
+      "doPotwierdzenia": true
+    },
+    {
+      "seria": "36WEh",
+      "nazwa": "36WEh – BZT trzyczłonowy (sieć / spalinowy)",
+      "rodzaj": "bzt",
+      "dlugosc": 65.0,
+      "masa": 150,
+      "ladunek": 25,
+      "masaNapedna": 75,
+      "osie": 8,
+      "masyWirujace": 0.08,
+      "vMax": 160,
+      "trakcja": [
+        { "zasilanie": "siec", "moc": 1600, "vMax": 160, "punkty": [[0, 140], [40, 140], [50, 115.2], [60, 96], [80, 72], [100, 57.6], [120, 48], [140, 41.1], [160, 36]] },
+        { "zasilanie": "spalinowy", "moc": 600, "vMax": 120, "punkty": [[0, 110], [20, 108], [30, 72], [40, 54], [60, 36], [80, 27], [100, 21.6], [120, 18]] }
+      ],
+      "opory": { "a": 1.5, "b": 0.006, "c": 0.00026 },
+      "masaHamujaca": { "P": 140 },
+      "hamulecED": 120,
+      "zrodlo": "wartości przybliżone – przykład agenta; moc i siły do sprawdzenia z kartą pojazdu",
+      "uwagi": "pod siecią elektryczny, poza siecią spalinowy; przełączenie trwa (Pociag.CzasPrzelaczeniaBzt)",
+      "doPotwierdzenia": true
+    },
+    {
+      "seria": "EU07",
+      "nazwa": "EU07 – lokomotywa elektryczna",
+      "rodzaj": "lokEl",
+      "dlugosc": 15.915,
+      "masa": 80,
+      "ladunek": 0,
+      "masaNapedna": 80,
+      "osie": 4,
+      "masyWirujace": 0.2,
+      "vMax": 125,
+      "trakcja": [
+        { "zasilanie": "siec", "moc": 2000, "punkty": [[0, 220], [30, 220], [40, 180], [50, 144], [60, 120], [80, 90], [100, 72], [125, 57.6]] }
+      ],
+      "opory": { "a": 1.9, "b": 0.01, "c": 0.00035 },
+      "masaHamujaca": { "G": 60, "P": 64, "R": 80 },
+      "zrodlo": "wartości przybliżone (moc godzinna ok. 2000 kW) – przykład agenta",
+      "doPotwierdzenia": true
+    },
+    {
+      "seria": "111A",
+      "nazwa": "111A – wagon pasażerski 2 kl.",
+      "rodzaj": "wagonPas",
+      "dlugosc": 24.5,
+      "masa": 40,
+      "ladunek": 6,
+      "osie": 4,
+      "masyWirujace": 0.04,
+      "vMax": 120,
+      "opory": { "a": 1.2, "b": 0, "c": 0.00022 },
+      "masaHamujaca": { "G": 40, "P": 48, "R": 64 },
+      "zrodlo": "wartości przybliżone – przykład agenta",
+      "uwagi": "ładunek 6 t ≈ 80 pasażerów",
+      "doPotwierdzenia": true
+    },
+    {
+      "seria": "ET22",
+      "nazwa": "ET22 – lokomotywa elektryczna towarowa",
+      "rodzaj": "lokEl",
+      "dlugosc": 19.24,
+      "masa": 120,
+      "ladunek": 0,
+      "masaNapedna": 120,
+      "osie": 6,
+      "masyWirujace": 0.2,
+      "vMax": 125,
+      "trakcja": [
+        { "zasilanie": "siec", "moc": 3000, "punkty": [[0, 360], [30, 360], [40, 270], [50, 216], [60, 180], [80, 135], [100, 108], [125, 86.4]] }
+      ],
+      "opory": { "a": 1.9, "b": 0.01, "c": 0.00035 },
+      "masaHamujaca": { "G": 90, "P": 100 },
+      "zrodlo": "wartości przybliżone (ok. 3000 kW) – przykład agenta",
+      "doPotwierdzenia": true
+    },
+    {
+      "seria": "Eaos",
+      "nazwa": "Eaos – wagon węglarka",
+      "rodzaj": "wagonTow",
+      "dlugosc": 14.04,
+      "masa": 22,
+      "ladunek": 58,
+      "osie": 4,
+      "masyWirujace": 0.04,
+      "vMax": 100,
+      "opory": { "a": 1.4, "b": 0, "c": 0.00028 },
+      "masaHamujaca": { "G": 22, "P": 26 },
+      "masaHamujacaLadowny": { "G": 58, "P": 64 },
+      "zrodlo": "wartości przybliżone – przykład agenta",
+      "uwagi": "przestawiacz próżny / ładowny; opory wagonu próżnego w rzeczywistości wyższe – na razie jeden wzór",
+      "doPotwierdzenia": true
+    }
+  ],
+  "sklady": [
+    { "id": "EN57", "nazwa": "EN57 (osobowy)", "nastawienie": "P", "pojazdy": [ { "seria": "EN57", "liczba": 1, "zaladowanie": 0.3 } ] },
+    { "id": "36WEh", "nazwa": "36WEh (osobowy, BZT)", "nastawienie": "P", "pojazdy": [ { "seria": "36WEh", "liczba": 1, "zaladowanie": 0.3 } ] },
+    { "id": "EU07+6x111A", "nazwa": "EU07 + 6 × 111A (pospieszny)", "nastawienie": "R", "pojazdy": [ { "seria": "EU07", "liczba": 1 }, { "seria": "111A", "liczba": 6, "zaladowanie": 0.5 } ] },
+    { "id": "ET22+40xEaos", "nazwa": "ET22 + 40 × Eaos ładowne (towarowy)", "nastawienie": "G", "pojazdy": [ { "seria": "ET22", "liczba": 1 }, { "seria": "Eaos", "liczba": 40, "zaladowanie": 1 } ] }
+  ],
+  "domyslne": {}
+}
