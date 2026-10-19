@@ -245,7 +245,7 @@ Peron, Przejazd i km nie mają klawisza – wybiera się je przyciskiem na pasku
 
 Osobny program: `uruchom_edytor_zobrazowania.bat` albo `app/Lcs.EdytorZobrazowania/bin/Release/net8.0-windows/EdytorZobrazowania.exe [plik.zob.json | plik.ut.json]`. Rysuje obrazy pulpitu (wg Ie-104) do projektu UT. Plan i decyzje: `PLAN_EDYTOR_ZOBRAZOWANIA.md`.
 
-Stan (etapy Z1–Z5 – szkielet, tory, zwrotnice, sygnalizatory, wykolejnice, kozły, przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, strzałki blokady, napisy, kilka obrazów, obraz poglądowy, „Sprawdź”, PNG i wydruk):
+Stan (etapy Z1–Z6 – szkielet, tory, zwrotnice, sygnalizatory, wykolejnice, kozły, przerwy izolacyjne, opisy odcinków, numery torów, perony, przejazdy, strzałki blokady, napisy, kilka obrazów, obraz poglądowy, „Sprawdź”, PNG i wydruk, podgląd pulpitu):
 - **UT tylko do odczytu.** Tory, rozjazdy, urządzenia, odcinki i ich nazwy pochodzą z UT. Braki (np. numer zwrotnicy, funkcja semafora, posterunek) poprawia się w edytorze UT, a potem tu „Wczytaj UT ponownie”.
 - **Nowy…** wybiera projekt UT (`*.ut.json`) i tworzy obraz szczegółowy ze wszystkimi posterunkami UT. **Otwórz…** otwiera zobrazowanie (`*.zob.json`); wskazanie pliku `*.ut.json` też zaczyna nowe zobrazowanie. **Zapisz** zapisuje plik obok UT (`widzew.ut.json` → `widzew.zob.json`), poprzednia wersja zostaje jako `.bak`. Jeśli UT zapisano po ostatnim zapisie zobrazowania, program ostrzega przy otwarciu i na pasku stanu.
 - **Zakładki obrazów** (pod paskiem): klik pokazuje obraz, „+ obraz szczegółowy” (posterunki wybierasz w panelu obrazu), „+ obraz poglądowy” (cały obszar, rysowany osobno – Ie-104 § 6).
@@ -261,6 +261,7 @@ Stan (etapy Z1–Z5 – szkielet, tory, zwrotnice, sygnalizatory, wykolejnice, k
 - **Obraz poglądowy** („+ obraz poglądowy”): rysowany osobno, mniejszy odstęp torów (co najmniej 10 j.); „Sprawdź” wymaga tylko symboli z Ie-104 § 6 ust. 4 (tory, rozjazdy, semafory, szlaki, przejazdy, numery torów) i ostrzega o tarczach, wykolejnicach, opisach odcinków i peronach. Na pulpicie zakładka „Obraz poglądowy” pokazuje – jak dotąd – pomniejszone obrazy szczegółowe; „Do symulatora…” obrazu poglądowego nie przenosi.
 - **„Sprawdź” – także:** odstęp torów (co najmniej 2 wysokości opisu – 20 j., Ie-104 § 4 ust. 15), tarcza manewrowa obok wykolejnicy, strzałka blokady tuż przy semaforze wjazdowym, zwrotnica, od której narysowany tor odgałęźny nie odchodzi, ten sam km toru dwa razy.
 - **Przypnij do innego obiektu UT** (panel symbolu, panel toru obrazu): gdy w UT zmienił się obiekt (np. rozcięty tor), symbol albo tor obrazu zostaje w miejscu i przypina się do wybranego obiektu.
+- **Podgląd pulpitu** (pasek obok „Do symulatora…”): okno z obrazem rysowanym tym samym kodem co pulpit symulatora i z prawdziwym komputerem zależności, bez zapisywania czegokolwiek. Wybierasz obraz i przebieg z tablicy przebiegów, „Nastaw” – przebieg jak polecenie dyżurnego (czas płynie: zwrotnice się przekładają, droga się utwierdza, semafor daje sygnał), „Stan zasadniczy” – wszystko od nowa, „Opisy odcinków” – opisy na żądanie.
 - **PNG…** zapisuje obraz jak na pulpicie (1 j. = 1 piksel, bez siatki i znaczników edytora), **Drukuj…** – na jednej kartce poziomo.
 - Odcinek łamanej, który nie biegnie co 45°, ma czerwoną kreskę (tylko w edytorze).
 - Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S, Ctrl+Z / Ctrl+Y.

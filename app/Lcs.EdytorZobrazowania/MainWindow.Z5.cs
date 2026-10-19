@@ -69,6 +69,22 @@ public partial class MainWindow
         P.Children.Add(row);
     }
 
+    // ------------------------------------------------------------------ podgląd pulpitu (Z6)
+    /// <summary>Okno podglądu „jak na pulpicie” dla bieżącego zobrazowania, na stronie bieżącego obrazu (obraz poglądowy – pierwsza strona).</summary>
+    public PodgladWindow Podglad()
+    {
+        if (Doc == null) { Message("Podgląd pulpitu: najpierw otwórz zobrazowanie"); return null; }
+        CommitName();
+        try
+        {
+            var pw = new PodgladWindow(Doc.Ut, Doc.P, Obraz?.Rodzaj == ZobObraz.Szczegolowy ? Obraz.Id : null) { Owner = this };
+            if (!NoPrompt) pw.Show();
+            Message($"Podgląd pulpitu: {pw.Station.View.Pages.Count} obrazów, {pw.Routes.Count} przebiegów" + (pw.Uwagi.Count > 0 ? $", uwagi przekształcenia: {pw.Uwagi.Count}" : ""));
+            return pw;
+        }
+        catch (Exception ex) { Message("Podgląd pulpitu: " + ex.Message); if (!NoPrompt) MessageBox.Show(this, ex.Message, "Podgląd pulpitu"); return null; }
+    }
+
     // ------------------------------------------------------------------ PNG i wydruk
     /// <summary>Obraz jak na pulpicie (stan zasadniczy, bez znaczników edytora) w skali <paramref name="k"/> pikseli na 1 j.</summary>
     public BitmapSource RenderObraz(ZobObraz o, double k = 1)

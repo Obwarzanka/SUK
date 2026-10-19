@@ -118,6 +118,7 @@ public partial class MainWindow : Window
         z4.Items.Add(ToolBtn(ZobTool.Napis, "Napis", "Napis (X): klik w miejscu napisu – nazwa posterunku sąsiedniego, nastawnia albo dowolny tekst"));
         tools.Items.Add(new Separator());
         tools.Items.Add(Btn("✔ Sprawdź", (s, e) => Sprawdz(), "Sprawdź obraz (F7): nieumieszczone obiekty UT, przypięcia, symbole poza torem, kolejność wzdłuż km"));
+        tools.Items.Add(Btn("Podgląd pulpitu", (s, e) => Podglad(), "Obraz jak na pulpicie symulatora – ten sam kod pulpitu i komputer zależności; stan zasadniczy i przykładowy przebieg (nic nie zapisuje)"));
         tools.Items.Add(Btn("Do symulatora…", (s, e) => DoSymulatora(), "Zapisz UT i obrazy jako układ symulatora (LcsWidzew/Data/projekty) – do wyboru przy starcie symulatora; Data/station.json zostaje bez zmian"));
         tools.Items.Add(new Separator());
         tools.Items.Add(ToolBtn(ZobTool.Lacznik, "Łącznik", "Łącznik (R): klik na torze obrazu w miejscu pierwszej zwrotnicy, potem na drugim torze – ukos 45° – pion – ukos 45°"));
