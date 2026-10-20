@@ -23,7 +23,7 @@ internal static class Program
         {
             if (args.Count == 0 || args.Contains("--help"))
             {
-                Console.WriteLine("Host testowy rdzenia LCS (.NET 8, bez WPF).\n" +
+                Console.WriteLine("Host testowy rdzenia LCS (.NET 10, bez WPF).\n" +
                     "--station kopia.json --selftest wynik.txt [scenariusz [wzorce|tylko:numer]]\n" +
                     "--boundary wynik.txt\n" +
                     "--station kopia.json --test wynik.txt\n" +

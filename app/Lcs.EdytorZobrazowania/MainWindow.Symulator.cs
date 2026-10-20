@@ -65,7 +65,7 @@ public partial class MainWindow
                 "W symulatorze (uruchom.bat) wybierz go w oknie wyboru układu." + (exe != null ? "\n\nUruchomić symulator z tym układem teraz?" : "");
             if (exe == null) MessageBox.Show(this, txt, "Do symulatora", MessageBoxButton.OK, MessageBoxImage.Information);
             else if (MessageBox.Show(this, txt, "Do symulatora", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                try { Process.Start(new ProcessStartInfo(exe) { ArgumentList = { "--station", path }, WorkingDirectory = Path.GetDirectoryName(exe), UseShellExecute = false }); }
+                try { Process.Start(SimStartInfo(exe, path)); }
                 catch (Exception ex) { MessageBox.Show(this, "Nie można uruchomić symulatora: " + ex.Message, "Do symulatora"); }
         }
         return w.Uwagi;
@@ -75,7 +75,24 @@ public partial class MainWindow
     static string SimExe()
     {
         var proj = SimProjectsDir(); if (proj == null) return null;
-        var exe = Path.GetFullPath(Path.Combine(proj, "..", "..", "bin", "Release", "net8.0-windows", "LcsWidzew.exe"));
+        var exe = Path.GetFullPath(Path.Combine(proj, "..", "..", "bin", "Release", "net10.0-windows", "LcsWidzew.exe"));
         return File.Exists(exe) ? exe : null;
+    }
+
+    /// <summary>Uruchamia aktualny build także z lokalnym runtime używanym przez launchery.</summary>
+    static ProcessStartInfo SimStartInfo(string exe, string stationPath)
+    {
+        var info = new ProcessStartInfo(exe) { WorkingDirectory = Path.GetDirectoryName(exe), UseShellExecute = false };
+        for (var dir = new DirectoryInfo(Path.GetDirectoryName(exe)); dir != null; dir = dir.Parent)
+        {
+            var dotnet = Path.Combine(dir.FullName, ".tools", "dotnet", "dotnet.exe");
+            if (!File.Exists(dotnet)) continue;
+            info.FileName = dotnet;
+            info.ArgumentList.Add(Path.ChangeExtension(exe, ".dll"));
+            break;
+        }
+        info.ArgumentList.Add("--station");
+        info.ArgumentList.Add(stationPath);
+        return info;
     }
 }

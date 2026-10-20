@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>0.1.0</Version>
+    <NoWarn>$(NoWarn);SYSLIB1015</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
+    <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

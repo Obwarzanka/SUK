@@ -608,6 +608,144 @@
       "status": "wdrozony",
       "zrodlo": "25 §6, B08; S01.01",
       "uwaga": ""
+    },
+    {
+      "eventId": 3001,
+      "eventCode": "WORLD.STARTING",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3002,
+      "eventCode": "WORLD.READY",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3003,
+      "eventCode": "WORLD.STOPPING",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3004,
+      "eventCode": "WORLD.STOPPED",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3005,
+      "eventCode": "WORLD.FAILED",
+      "severity": "Error",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "outcome",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3006,
+      "eventCode": "WORLD.METRICS",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3007,
+      "eventCode": "WORLD.INPUT_REJECTED",
+      "severity": "Warning",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 3008,
+      "eventCode": "WORLD.DATA_LOADED",
+      "severity": "Information",
+      "moduleId": "WorldHost.Loop",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "contentHash"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.01; 25 §3-8",
+      "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
     }
   ]
 }

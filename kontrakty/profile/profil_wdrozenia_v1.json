@@ -3,24 +3,29 @@
   "wersja": 1,
   "status": "wstepny",
   "utworzono": "2026-10-18 (S00.03)",
-  "zrodlo": "20_STOS_TECHNICZNY.md (Dane, Windows i wdrożenie); raporty S00.01/S00.02",
+  "zrodlo": "20_STOS_TECHNICZNY.md; raporty S00.01/S00.02/S01.01/S01.03 (odtworzenie 2026-10-19)",
   "stan_obecny": {
     "tfm": {
-      "LcsWidzew": "net8.0-windows",
-      "Lcs.EdytorUT": "net8.0-windows",
-      "Lcs.Komputerownia": "net8.0-windows",
-      "Lcs.Przechylka": "net8.0-windows",
-      "Lcs.Model": "net8.0"
+      "Lcs.Core": "net10.0",
+      "Lcs.Core.TestHost": "net10.0",
+      "Lcs.EdytorUT": "net10.0-windows",
+      "Lcs.EdytorZobrazowania": "net10.0-windows",
+      "Lcs.Logi": "net10.0",
+      "Lcs.Logi.Testy": "net10.0",
+      "Lcs.Komputerownia": "net10.0-windows",
+      "Lcs.Model": "net10.0",
+      "Lcs.Przechylka": "net10.0-windows",
+      "LcsWidzew": "net10.0-windows"
     },
-    "publikacja": "framework-dependent win-x64 (build_win.sh: --self-contained false), runtime 8.0 z systemu",
-    "runtime_u_wlasciciela": "Microsoft.NETCore.App/WindowsDesktop.App 8.0.32 i 9.0.21; brak .NET 10; brak SDK",
-    "ryzyko": ".NET 8 kończy wsparcie 10.11.2026 (release-metadata 8.0: eol-date 2026-11-10)",
-    "build": "Linux VM, SDK 10.0.402 (app/global.json), wynik kopiowany do app/<projekt>/bin/Release/net8.0-windows/"
+    "publikacja": "Lokalny build Release framework-dependent; bez publikacji i usługi. Pięć launcherów buduje i uruchamia DLL przez ten sam wybrany dotnet.",
+    "runtime_u_wlasciciela": "Lokalne .tools/dotnet: SDK 10.0.402 i NETCore/ASP.NET/Desktop 10.0.13, bez instalacji systemowej. Systemowa instalacja pozostaje oddzielna.",
+    "ryzyko": "Bezpośredni EXE wymaga Desktop Runtime >=10.0.13 z linii 10.0.x lub poprawnego DOTNET_ROOT_X64. Launchery obsługują lokalny runtime automatycznie.",
+    "build": "Windows 11 x64, SDK dokładnie 10.0.402; app/<projekt>/bin/Release/net10.0-windows lub net10.0. Dawny build_win.sh nie istnieje w bieżącym checkoutcie."
   },
   "docelowo_klient": {
     "rekomendacja": "self-contained win-x64 (20) – EXE z własnym runtime .NET 10 i biblioteką Ada SukKz.dll, bez instalowania runtime/SDK u gracza ani u właściciela",
-    "testy_po_migracji_net10": "Od S01.03 wersje testowe WPF budowane w VM jako self-contained win-x64 (np. dotnet publish/build -r win-x64 --self-contained true) i uruchamiane na Windows właściciela bez instalacji .NET 10. build_win.sh i ścieżki bat (bin\\Release\\net10.0-windows\\…) wymagają wtedy dostosowania.",
-    "decyzja": "S01.03 (migracja runtime) – S00.03 niczego nie przełącza",
+    "testy_po_migracji_net10": "S01.03 odtwarza lokalny framework-dependent z lokalnym SDK/runtime zaakceptowanym w S01.01. Dystrybucja self-contained i czysta maszyna wymagają osobnego odbioru wydania/S12.",
+    "decyzja": "Lokalne uruchamianie przez uruchom*.bat; self-contained pozostaje rekomendacją przyszłej dystrybucji.",
     "konsekwencje": [
       "większy rozmiar wydania",
       "każda poprawka bezpieczeństwa runtime wymaga ponownego wydania (S12)",
@@ -49,8 +54,7 @@
     "zasada": "dane i logi poza katalogiem binariów i projektów; station.json właściciela tylko odczyt"
   },
   "otwarte_decyzje": [
-    "SDK na Windows właściciela vs utrwalenie build_win.sh jako oficjalnej drogi budowania (S00.01, decyzja 3)",
-    "self-contained klienta i sposób dostarczania testowych EXE po net10 (S01.03)",
-    "PC referencyjny 4 vCPU/8 GiB (D09, S13)"
+    "Sposób dystrybucji klienta self-contained oraz próba czystej maszyny bez runtime (S12).",
+    "PC referencyjny 4 vCPU/8 GiB (D09, S13)."
   ]
 }
