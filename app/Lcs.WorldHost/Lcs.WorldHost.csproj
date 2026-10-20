@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
     <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
     <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

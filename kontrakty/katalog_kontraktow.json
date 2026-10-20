@@ -53,7 +53,8 @@
         "S01.01",
         "S01.02",
         "S02.01",
-        "S02A1.02"
+        "S02A1.02",
+        "S02.03"
       ],
       "rozdzialy": [
         "25 §3",
@@ -63,7 +64,7 @@
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "038a74fc4e8db34aea124c83db404c915454576cc27bb8447f84f2392a9aa0e7"
+          "sha256_lf": "b0783b4ed60df1fce825a807f57c7e101f759cf7f5845b1e463ef447c2cd8649"
         }
       ]
     },
@@ -669,6 +670,33 @@
       ],
       "opis": "Projekcje i dyspozycje do człowieka/algorytmu; brak dziedziczenia ról.",
       "pliki": []
+    },
+    {
+      "id": "world.usluga",
+      "nazwa": "Profil uslugi i lokalna odpowiedz health",
+      "wersja": 1,
+      "status": "zamrozony",
+      "tworzy": "S02.03",
+      "zamraza": "S02.03",
+      "konsumenci": [
+        "S02.03"
+      ],
+      "rozdzialy": [
+        "03",
+        "11",
+        "25"
+      ],
+      "opis": "Operacyjna granica procesu Windows, bez komend domenowych i bez wdrozenia. Dodatkowe sprawdzenia ACL/SID/PID i monotonicznej swiezosci wykonuje runtime.",
+      "pliki": [
+        {
+          "plik": "kontrakty/profile/host_uslugi_v1.schema.json",
+          "sha256_lf": "8d3812ef0529b3fe879e0cf57bb43324afd77f643523895e2c60e77ac0bee691"
+        },
+        {
+          "plik": "kontrakty/profile/health_swiata_v1.schema.json",
+          "sha256_lf": "c210502291b9c70d8cb50a61c77428abf8aa4f570e95e052af2c6a1a4008c3cb"
+        }
+      ]
     }
   ],
   "narzedzia": [

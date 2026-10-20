@@ -32,6 +32,17 @@
           "Microsoft.Extensions.Options": "10.0.13"
         }
       },
+      "Microsoft.Extensions.Hosting.WindowsServices": {
+        "type": "Direct",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "sk3VNcYEmgwYGPF4ze/112jpaeDKSsKGhmEZ8IlhOR8F6JT+1DYaZUb14jobVXiKhuXWIKcYXV7mkSPeA4dc3g==",
+        "dependencies": {
+          "Microsoft.Extensions.Hosting": "10.0.13",
+          "Microsoft.Extensions.Logging.EventLog": "10.0.13",
+          "System.ServiceProcess.ServiceController": "10.0.13"
+        }
+      },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",
         "resolved": "10.0.13",
@@ -268,6 +279,14 @@
         "type": "Transitive",
         "resolved": "10.0.13",
         "contentHash": "DkNjtQyPR5Ud/zHnWHdsOuKbFRL9nIC92Q76z0NmHVDoQm40toLtsGFTIWq7toBoVa6fo/DInL3PLxY3Asixyw=="
+      },
+      "System.ServiceProcess.ServiceController": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "0Zh/U/1+hy1MCxx1BTikJi4L5o1Ys6VhB8PKlTNOB4/n2d6ua2+TuoD6T7xN9RV0uiOGod575pQrUSTXg+aYGQ==",
+        "dependencies": {
+          "System.Diagnostics.EventLog": "10.0.13"
+        }
       },
       "lcs.core": {
         "type": "Project",

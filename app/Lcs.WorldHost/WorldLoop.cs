@@ -31,6 +31,7 @@ public sealed class WorldLoop
     bool stopRequested;
     bool initialized, pumping, applying;
     long requestedTicks;
+    long? lastStepTimestamp;
     string? failure;
     WorldObservation? observation;
 
@@ -167,6 +168,7 @@ public sealed class WorldLoop
                 using (Context(tick + 1)) runtime!.Tick(Step.TotalSeconds);
                 tick++; maxTickUs = Math.Max(maxTickUs, (long)clock.GetElapsedTime(before).TotalMicroseconds);
                 if (tick % 2 == 0 || tick == 1) { observation = runtime!.Observe(); publications++; }
+                lastStepTimestamp = clock.GetTimestamp();
                 bool first;
                 lock (gate)
                 {
@@ -273,6 +275,6 @@ public sealed class WorldLoop
         ["worldRunId"] = runId, ["serverTick"] = currentTick ?? tick, ["simulationTimeMs"] = (currentTick ?? tick) * 100 });
     WorldStatus MakeStatus() => new(state, state == WorldState.Running && !stopRequested, options.WorldId, runId,
         tick, tick * 100, publications, queued, queuedBytes, accepted, rejected, expired, completed, cancelled,
-        maxTickUs, maxLatenessUs, budgetStops, observation, failure);
+        maxTickUs, maxLatenessUs, budgetStops, observation, failure) { LastStepTimestamp = lastStepTimestamp };
     void PublishStatus() { lock (gate) Volatile.Write(ref status, MakeStatus()); }
 }

@@ -6,6 +6,7 @@ using Lcs.Logi;
 using LcsWidzew.Sim;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging;
 
 namespace Lcs.WorldHost;
@@ -20,8 +21,10 @@ internal static class Program
             Console.WriteLine("Host świata SUK (.NET 10, bez WPF).\n" +
                 "--station układ.json [--scenario podstawowy] [--world-id local] [--ticks liczba]\n" +
                 "[--report wynik.json] [--events dziennik.txt] [--logi katalog] [--logi-raport stan.txt]\n" +
+                "--service-profile Config/profile.json [--ticks liczba] — profil usługi lub lokalna próba tego profilu\n" +
+                "--health Config/profile.json — uwierzytelniony odczyt lokalnego kanału zdrowia\n" +
                 "Zakończenie: Ctrl+C. Bez --ticks świat pracuje do zatrzymania.\n" +
-                "To lokalny proces świata; tryb usługi i połączenie pulpitu mają osobne etapy.");
+                "Instalacja usługi jest osobną operacją operatora; ten program jej nie wykonuje.");
             return 0;
         }
         SilnikLogow? logs = null; WorldLoop? loop = null; SimulatorRuntime? runtime = null;
@@ -30,9 +33,32 @@ internal static class Program
         bool outputsValidated = false;
         long processStart = Stopwatch.GetTimestamp();
         Microsoft.Extensions.Logging.ILogger? logger = null;
+        ServiceProfile? profile = null; ServiceHealth? health = null;
+        IHostLifetime? serviceLifetime = null;
         try
         {
+            if (args is ["--health", var healthProfilePath])
+            {
+                if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Kanał usługi wymaga Windows.");
+                var queryProfile = ServiceProfile.Load(healthProfilePath); queryProfile.ValidateHealthReader(healthProfilePath);
+                var result = await HealthPipe.Query(queryProfile);
+                Console.WriteLine(JsonSerializer.Serialize(result, new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } }));
+                return result.Ready ? 0 : 3;
+            }
             var values = Parse(args);
+            if (values.Remove("--service-profile", out var profilePath))
+            {
+                if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Profil usługi wymaga Windows.");
+                if (values.Keys.Any(k => k != "--ticks")) throw new ArgumentException("Profil usługi dopuszcza tylko opcję --ticks.");
+                profile = ServiceProfile.Load(profilePath); profile.ValidateEnvironment(profilePath);
+                if (WindowsServiceHelpers.IsWindowsService() && profile.AccountSid != ServiceProfile.VirtualAccountSid)
+                    throw new UnauthorizedAccessException("SCM wymaga osobnego wirtualnego konta SUK.WorldHost.");
+                values["--station"] = profile.StationPath; values["--world-id"] = profile.WorldId; values["--scenario"] = profile.Scenario;
+                values["--logi"] = profile.LogsPath; values["--report"] = Path.Combine(profile.StatePath, "host.json");
+                values["--logi-raport"] = Path.Combine(profile.StatePath, "logi.txt");
+            }
+            if (OperatingSystem.IsWindows() && WindowsServiceHelpers.IsWindowsService() && profile == null)
+                throw new ArgumentException("Uruchomienie przez SCM wymaga jawnego profilu usługi.");
             if (!values.Remove("--station", out var station)) throw new ArgumentException("Wymagany jawny plik --station.");
             string scenario = values.GetValueOrDefault("--scenario", "podstawowy");
             string worldId = values.GetValueOrDefault("--world-id", "local");
@@ -44,6 +70,7 @@ internal static class Program
             ProtectOutputs(station, report, events, logsReport);
             outputsValidated = true;
             WorldLog.Register();
+            ServiceLog.Register();
             if (!KatalogZdarzen.Zarejestruj(new(CoreLogging.EventId, CoreLogging.EventCode, KontraktLogu.Strumien.Domenowy, CoreLogging.PolaZdarzeniaRejestratora.ToArray())))
                 throw new InvalidOperationException("Niezgodny katalog rejestratora.");
             logs = SilnikLogow.Uruchom(new OpcjeLogow { Aplikacja = "Lcs.WorldHost", Profil = ProfilLogow.Serwer, Katalog = values.GetValueOrDefault("--logi") });
@@ -51,18 +78,42 @@ internal static class Program
             var recorder = logs.Modul(CoreLogging.Modul, CoreLogging.Wersja);
             ZdarzeniaProcesu.Uruchomiono(logger, "world");
             loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null), options, logger: logger);
+            var serviceLogger = logs.Modul(ServiceLog.Module, WorldLog.Version);
+            if (profile != null)
+            {
+                health = new ServiceHealth(loop, profile, () =>
+                { var state = logs.Stan(); return state.Zapis == StanZapisu.Gotowy && state.PowodNiegotowosci == null && state.Miejsce != StanMiejsca.Ograniczenie; },
+                    beforeFailureStop: () => { if (OperatingSystem.IsWindows() && serviceLifetime is WindowsServiceLifetime scm) scm.ExitCode = 2; });
+                using var scope = ServiceLog.Context(serviceLogger, loop.Status); ServiceLog.ProfileReady(serviceLogger);
+            }
 
             // Jawny ConsoleLifetime obsługuje Ctrl+C także bez domyślnych providerów i konfiguracji hosta.
-            using var host = new HostBuilder().UseContentRoot(AppContext.BaseDirectory)
+            var builder = new HostBuilder().UseContentRoot(AppContext.BaseDirectory)
                 .UseConsoleLifetime(o => o.SuppressStatusMessages = true)
-                .ConfigureLogging(logging => { logging.DodajSukLogi(logs); logging.AddFilter("Microsoft", LogLevel.None); })
+                .ConfigureLogging(logging => { logging.ClearProviders(); logging.DodajSukLogi(logs); logging.AddFilter("Microsoft", LogLevel.None); })
                 .ConfigureServices(services =>
                 {
-                    services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(10));
+                    services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(profile?.ShutdownTimeoutSeconds ?? 10));
+                    if (OperatingSystem.IsWindows() && profile != null)
+                    {
+                        services.AddSingleton(profile);
+                        services.AddSingleton(health!);
+                        services.AddHostedService(sp =>
+                        {
+                            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+                            return new HealthPipe(profile, health!, loop, serviceLogger, sp.GetRequiredService<IHostApplicationLifetime>());
+                        });
+                        services.AddHostedService(sp => new ServiceMonitor(health!, loop, serviceLogger, sp.GetRequiredService<IHostApplicationLifetime>()));
+                    }
                     services.AddSingleton(loop); services.AddHostedService<WorldService>();
-                }).Build();
+                });
+            if (OperatingSystem.IsWindows() && profile != null)
+                builder.UseWindowsService(o => o.ServiceName = profile.ServiceName)
+                    .ConfigureLogging(logging => { logging.ClearProviders(); logging.DodajSukLogi(logs); logging.AddFilter("Microsoft", LogLevel.None); });
+            using var host = builder.Build();
+            serviceLifetime = host.Services.GetRequiredService<IHostLifetime>();
             await host.RunAsync();
-            code = loop.Status.State == WorldState.Stopped ? 0 : 2;
+            code = loop.Status.State == WorldState.Stopped && health?.FailureCode == null ? 0 : 2;
         }
         catch (Exception ex)
         {
@@ -94,15 +145,17 @@ internal static class Program
             // Raport jest ostatni: kod obejmuje już błędy wszystkich wcześniejszych eksportów.
             if (report != null && loop != null) WriteArtifact(() =>
             {
-                File.WriteAllText(report, JsonSerializer.Serialize(new { exitCode = code, world = loop.Status, exportFailed,
+                File.WriteAllText(report, JsonSerializer.Serialize(new { exitCode = code, world = loop.Status, exportFailed, serviceFailure = health?.FailureCode,
                     inputHashes = loop.Completion.IsCompleted ? runtime?.InputHashes : null,
                     shutdownComplete = loop.Completion.IsCompleted,
-                    diagnostics = new { healthy = finalLogs != null && finalLogs.BledyZapisu == 0 && finalLogs.PowodNiegotowosci == null && finalLogs.ZamkniecieKompletne,
+                    diagnostics = new { healthy = finalLogs != null && finalLogs.BledyZapisu == 0 && finalLogs.PowodNiegotowosci == null && finalLogs.ZamkniecieKompletne && finalLogs.Miejsce != StanMiejsca.Ograniczenie,
                         flushComplete = finalLogs?.ZamkniecieKompletne, dropped = finalLogs?.StratyRazem } },
                     new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } }));
             });
         }
         if (loop != null) Console.WriteLine($"Stan: {StateName(loop.Status.State)}, kroki: {loop.Status.ServerTick}, czas: {loop.Status.SimulationTimeMs} ms.");
+        // Niezerowy wynik awarii procesu pozwala SCM zastosować jawnie skonfigurowany backoff, po opróżnieniu logów.
+        if (code != 0 && OperatingSystem.IsWindows() && WindowsServiceHelpers.IsWindowsService()) Environment.Exit(code);
         return code;
     }
 
@@ -117,7 +170,7 @@ internal static class Program
     }
     static Dictionary<string, string> Parse(string[] args)
     {
-        var allowed = new HashSet<string> { "--station", "--scenario", "--world-id", "--ticks", "--report", "--events", "--logi", "--logi-raport" };
+        var allowed = new HashSet<string> { "--station", "--scenario", "--world-id", "--ticks", "--report", "--events", "--logi", "--logi-raport", "--service-profile" };
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         for (int i = 0; i < args.Length; i += 2)
             if (!allowed.Contains(args[i]) || i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal) || !result.TryAdd(args[i], args[i + 1]))

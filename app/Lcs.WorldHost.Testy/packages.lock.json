@@ -298,6 +298,14 @@
         "resolved": "6.0.1",
         "contentHash": "IQ4NXP/B3Ayzvw0rDQzVTYsCKyy0Jp9KI6aYcK7UnGVlR9+Awz++TIPCQtPYfLJfOpm8ajowMR09V7quD3sEHw=="
       },
+      "System.ServiceProcess.ServiceController": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "0Zh/U/1+hy1MCxx1BTikJi4L5o1Ys6VhB8PKlTNOB4/n2d6ua2+TuoD6T7xN9RV0uiOGod575pQrUSTXg+aYGQ==",
+        "dependencies": {
+          "System.Diagnostics.EventLog": "10.0.13"
+        }
+      },
       "xunit.analyzers": {
         "type": "Transitive",
         "resolved": "2.2.0",
@@ -392,7 +400,8 @@
         "dependencies": {
           "Lcs.Core": "[0.2.0, )",
           "Lcs.Logi": "[0.1.0, )",
-          "Microsoft.Extensions.Hosting": "[10.0.13, )"
+          "Microsoft.Extensions.Hosting": "[10.0.13, )",
+          "Microsoft.Extensions.Hosting.WindowsServices": "[10.0.13, )"
         }
       },
       "Microsoft.Extensions.Hosting": {
@@ -423,6 +432,17 @@
           "Microsoft.Extensions.Logging.EventLog": "10.0.13",
           "Microsoft.Extensions.Logging.EventSource": "10.0.13",
           "Microsoft.Extensions.Options": "10.0.13"
+        }
+      },
+      "Microsoft.Extensions.Hosting.WindowsServices": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "sk3VNcYEmgwYGPF4ze/112jpaeDKSsKGhmEZ8IlhOR8F6JT+1DYaZUb14jobVXiKhuXWIKcYXV7mkSPeA4dc3g==",
+        "dependencies": {
+          "Microsoft.Extensions.Hosting": "10.0.13",
+          "Microsoft.Extensions.Logging.EventLog": "10.0.13",
+          "System.ServiceProcess.ServiceController": "10.0.13"
         }
       },
       "Microsoft.Extensions.Logging": {

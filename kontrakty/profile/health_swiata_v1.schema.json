@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK — aktywna lokalna odpowiedź health świata, v1 (S02.03)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["SchemaVersion", "ProcessId", "WorldId", "WorldRunId", "State", "Live", "Ready", "Fresh", "ProgressAgeMs", "ServerTick", "SimulationTimeMs", "DiagnosticsHealthy", "ResourcesHealthy", "ReasonCode"],
+  "x-suk-maxBytes": 8192,
+  "x-suk-framing": "4 bajty długości little-endian + jeden obiekt UTF-8. Wyłącznie odpowiedź, brak wejścia domenowego. Timeout odczytu 1000 ms. Klient weryfikuje owner SID, PID i wiek powiększony o czas transportu; plik nie jest samodzielnym dowodem Ready.",
+  "properties": {
+    "SchemaVersion": {"const": 1},
+    "ProcessId": {"type": "integer", "minimum": 1},
+    "WorldId": {"type": "string", "maxLength": 64},
+    "WorldRunId": {"type": "string", "format": "uuid"},
+    "State": {"enum": ["New", "Starting", "Running", "Stopping", "Stopped", "Faulted"]},
+    "Live": {"type": "boolean"},
+    "Ready": {"type": "boolean"},
+    "Fresh": {"type": "boolean"},
+    "ProgressAgeMs": {"anyOf": [{"type": "null"}, {"type": "integer", "minimum": 0}]},
+    "ServerTick": {"type": "integer", "minimum": 0},
+    "SimulationTimeMs": {"type": "integer", "minimum": 0, "multipleOf": 100},
+    "DiagnosticsHealthy": {"type": "boolean"},
+    "ResourcesHealthy": {"type": "boolean"},
+    "ReasonCode": {"type": "string", "pattern": "^[A-Z0-9_]{1,64}$(?!\\n)"}
+  },
+  "allOf": [{"if": {"properties": {"Ready": {"const": true}}}, "then": {"properties": {"Live": {"const": true}, "Fresh": {"const": true}, "DiagnosticsHealthy": {"const": true}, "ResourcesHealthy": {"const": true}, "State": {"const": "Running"}, "ProgressAgeMs": {"type": "integer", "minimum": 0}, "ReasonCode": {"const": "READY"}}}}]
+}

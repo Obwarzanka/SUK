@@ -814,6 +814,106 @@
       "status": "wdrozony",
       "zrodlo": "S02.02; 25",
       "uwaga": "Lokalny adapter na tym samym właścicielu i WorldLoop, bez danych operatora i treści poleceń."
+    },
+    {
+      "eventId": 3010,
+      "eventCode": "WORLD.SERVICE_PROFILE_READY",
+      "severity": "Information",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 3011,
+      "eventCode": "WORLD.SERVICE_HEALTH_CHANGED",
+      "severity": "Information",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 3012,
+      "eventCode": "WORLD.SERVICE_LIMIT_EXCEEDED",
+      "severity": "Error",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 3013,
+      "eventCode": "WORLD.SERVICE_PIPE_STOPPED",
+      "severity": "Information",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 3014,
+      "eventCode": "WORLD.SERVICE_FAILED",
+      "severity": "Error",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 3015,
+      "eventCode": "WORLD.SERVICE_PIPE_METRICS",
+      "severity": "Information",
+      "moduleId": "WorldHost.Service",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.03; 11; 25 F24",
+      "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
     }
   ]
 }

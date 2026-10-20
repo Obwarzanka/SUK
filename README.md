@@ -55,7 +55,20 @@ Opcjonalnie: `--scenario podstawowy` (także `usterki`, `zima`, `manewry`, `ic_0
 
 Gotowość oznacza zakończoną inicjalizację i pierwszy udany krok. Raport zawiera epokę świata, liczbę kroków, metryki kolejki/cyklu, hashe znanych wejść, osobny stan diagnostyki i kompletność zatrzymania. Niedostępny zapis diagnostyki daje degradację logów i nie zmienia autonomicznej pracy rdzenia. Domyślne logi procesu: `%ProgramData%\SUK\Logs`; `--logi` ustawia lokalny katalog próby. Limity profilu serwera: 4096 rekordów / 8 MiB, 16 plików po 64 MiB / 7 dni, opróżnienie do 5 s. Diagnostyka nie stanowi trwałego audytu ani replay.
 
-`Lcs.WorldHost` jest procesem lokalnym. Pulpit od **S02.02** korzysta z tego samego `WorldLoop` przez adapter `SingleplayerHost` działający w procesie okna. Konto usługi/ACL/IPC/health to **S02.03**, a rozdzielenie KZ i Ada – kolejne zadania. Szczegóły: [raport S02.01](SUK_plan_multiplayer/raporty/S02.01.md), [raport S02.02](SUK_plan_multiplayer/raporty/S02.02.md). Testy hosta i adaptera: `dotnet test --project app/Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj -c Release`.
+`Lcs.WorldHost` jest procesem lokalnym. Pulpit od **S02.02** korzysta z tego samego `WorldLoop` przez adapter `SingleplayerHost` działający w procesie okna. **S02.03** dostarcza profil usługi Windows, ACL i lokalny kanał health; rozdzielenie KZ i Ada pozostaje kolejnymi zadaniami. Szczegóły: [S02.01](SUK_plan_multiplayer/raporty/S02.01.md), [S02.02](SUK_plan_multiplayer/raporty/S02.02.md), [S02.03](SUK_plan_multiplayer/raporty/S02.03.md). Testy hosta, adaptera i profilu usługi: `dotnet test --project app/Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj -c Release`.
+
+### Profil usługi i kontrola zdrowia (S02.03)
+
+[Generator planu usługi](deploy/windows/WorldHost/README.md) przygotowuje konkretny profil, plan praw i skrypt instalacji do przeglądu. Domyślnie niczego nie instaluje. Konto docelowe: `NT SERVICE\SUK.WorldHost`, bez hasła i uprawnień administratora. Dane są oddzielone od binariów: `Inputs` i `Config` tylko do odczytu, `Logs` i `State` do zapisu konta usługi. Uruchomienie przez SCM wymaga tego konta oraz zatwierdzonego profilu. Konto profilu i opcjonalny odbiorca health (`-HealthClientSid`) muszą być pojedynczym kontem (`S-1-5-21-…`, RID od 1000) albo SID konkretnej usługi (`S-1-5-80-…`); grupy, np. Users czy Domain Users, są odrzucane. Instalacja, uruchomienie usługi i reboot są osobnymi operacjami operatora.
+
+```powershell
+Lcs.WorldHost.exe --service-profile "C:\ProgramData\SUK\WorldHost\local\Config\profile.json"
+Lcs.WorldHost.exe --health "C:\ProgramData\SUK\WorldHost\local\Config\profile.json"
+```
+
+Pierwsze polecenie działa także jako konsolowa próba przygotowanego profilu; nadal sprawdza konto procesu, ACL, właścicieli i ścieżki. Kanał health jest lokalny i tylko do odczytu. Sprawdza tożsamość/PID serwera oraz świeżość zakończonych ticków; nie przyjmuje poleceń do świata. Kod health **0** oznacza Ready, **3** — proces odpowiedział, lecz nie jest gotowy, **2** — błąd, odmowę lub brak odpowiedzi w 1 s. Samo istnienie procesu albo pliku `State\host.json` nie potwierdza gotowości.
+
+Domyślny próg świeżości to 2 s, start 30 s, shutdown 10 s, miękki limit working set 1024 MiB. Przekroczenie limitu pamięci wycofuje Ready i żąda kontrolowanego stopu. Problemy diagnostyki lub wolne miejsce poniżej jej progu ograniczenia wycofują Ready, zachowując autonomiczny cykl świata. Profil nie wyłącza istniejących limitów i rotacji logów. Szczegóły backoff, ACL, runtime i ograniczeń testów są w instrukcji generatora oraz raporcie etapu.
 
 ### Gra jednoosobowa (S02.02)
 

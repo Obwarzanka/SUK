@@ -13,7 +13,11 @@ public sealed record WorldObservation(double SimulationSeconds, int Trains, int 
 public sealed record WorldStatus(WorldState State, bool Ready, string WorldId, string WorldRunId,
     long ServerTick, long SimulationTimeMs, long Publications, int Queued, long QueuedBytes,
     long Accepted, long Rejected, long Expired, long Completed, long Cancelled,
-    long MaxTickUs, long MaxLatenessUs, long BudgetStops, WorldObservation? Observation, string? FailureCode);
+    long MaxTickUs, long MaxLatenessUs, long BudgetStops, WorldObservation? Observation, string? FailureCode)
+{
+    /// <summary>Monotoniczny znacznik zakończonego kroku z tego samego TimeProvider; null przed pierwszym krokiem.</summary>
+    public long? LastStepTimestamp { get; init; }
+}
 
 public sealed record WorldLoopOptions
 {

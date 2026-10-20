@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK — lokalny profil usługi świata, v1 (S02.03)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["AccountSid", "DataRoot"],
+  "x-suk-maxBytes": 16384,
+  "x-suk-runtimeChecks": "SID to pojedyncze konto S-1-5-21 z RID od 1000 albo SID usługi S-1-5-80 (bez grup ogólnych), subauthority uint32, profil bez powtórzonych pól; ścieżki/ACL/tożsamość procesu są dodatkowo sprawdzane w Windows. Schemat nie dowodzi uprawnień ani istnienia usługi.",
+  "properties": {
+    "SchemaVersion": {"const": 1, "default": 1},
+    "ServiceName": {"const": "SUK.WorldHost", "default": "SUK.WorldHost"},
+    "AccountSid": {"type": "string", "pattern": "^S-1-5-(?:21-(?:[0-9]{1,10}-){3}|80-(?:[0-9]{1,10}-){4})[0-9]{1,10}$(?!\\n)"},
+    "HealthClientSid": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^S-1-5-(?:21-(?:[0-9]{1,10}-){3}|80-(?:[0-9]{1,10}-){4})[0-9]{1,10}$(?!\\n)"}]},
+    "DataRoot": {"type": "string", "minLength": 4},
+    "WorldId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,48}$(?!\\n)", "default": "local"},
+    "StationFile": {"const": "Inputs/station.json", "default": "Inputs/station.json"},
+    "Scenario": {"type": "string", "maxLength": 64, "default": "podstawowy"},
+    "PipeName": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$(?!\\n)", "default": "SUK.WorldHost.local.health"},
+    "StartupTimeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 120, "default": 30},
+    "ShutdownTimeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 30, "default": 10},
+    "FreshnessSeconds": {"type": "integer", "minimum": 1, "maximum": 10, "default": 2},
+    "MaxWorkingSetMiB": {"type": "integer", "minimum": 64, "maximum": 4096, "default": 1024}
+  }
+}
