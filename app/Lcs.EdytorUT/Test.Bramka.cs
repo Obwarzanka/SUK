@@ -160,5 +160,28 @@ public static partial class Test
             Save(w, shotRails.Replace("_szyny.png", "_bramka_jeden_slup.png"));
             w.SetSchemat(false);
         }
+
+        // pasy świetlne na bramce (uwaga właściciela 2026-10-20: „pas wydłuża konstrukcję głupio i się źle renderuje”, „pas świetlny nie wygląda jak on”):
+        // długość słupów nie zależy od pasów i W21; pas – wąski prostokąt obrócony z torem (BSK ss5); tory skośne (azymut 70°) jak na zdjęciu właściciela
+        var zP = D(l3.Id).Copy(); zP.StripeP = zP.StripeZ = true; zP.W21 = "6";
+        var bezP = D(l3.Id).Copy(); bezP.StripeP = bezP.StripeZ = false; bezP.W21 = null;
+        Ok(UtView.HangingLen(zP) == UtView.HangingLen(bezP), $"bramka: pasy i W21 nie wydłużają słupów ({UtView.HangingLen(zP)} = {UtView.HangingLen(bezP)} mm)");
+        var o2 = Go(o, 0, 2000); XY G2(XY from, double az, double len) => from + Element.Dir(az * Math.PI / 180) * (len * k);
+        var t1s = new UtTrack { Number = "11", Vertices = new() { new() { X = G2(o2, 250, 200).X, Y = G2(o2, 250, 200).Y }, new() { X = G2(o2, 70, 200).X, Y = G2(o2, 70, 200).Y } } };
+        var o3 = G2(o2, 160, 4.5);
+        var t2s = new UtTrack { Number = "13", Vertices = new() { new() { X = G2(o3, 250, 200).X, Y = G2(o3, 250, 200).Y }, new() { X = G2(o3, 70, 200).X, Y = G2(o3, 70, 200).Y } } };
+        UtDevice SigS(string n, UtTrack t, bool pas) => new() { Kind = UtDevice.Semafor, Name = n, Track = t.Id, S = 200, Dir = -1, Side = 1, Mast = UtDevice.MastBramka, Lights = "Z*P*CPB**", StripeP = pas, Funkcja = UtDevice.FWyjazdowy };
+        var sD = SigS("D", t1s, true); var sE = SigS("E", t2s, true);
+        d.Change("Bramka skośna", p => { p.Tracks.Add(t1s); p.Tracks.Add(t2s); p.Devices.AddRange(new[] { sD, sE }); });
+        Ok(w.View.GantryGroups().Any(g => g.Count == 2 && g.Any(x => x.Name == "D") && g.Any(x => x.Name == "E")), "bramka skośna: D i E na jednej bramce, oba z pasem pomarańczowym");
+        if (shotRails != null)
+        {
+            w.View.Select(null); w.SetSchemat(false);
+            w.View.SetView(G2(o2, 160, 2.25), 0.05); await Settle(w);
+            Save(w, shotRails.Replace("_szyny.png", "_bramka_pasy_skos.png"));
+            d.Change("Pasy zielone", p => { foreach (var x in p.Devices.Where(x => x.Id == sD.Id || x.Id == sE.Id)) x.StripeZ = true; });
+            await Settle(w);
+            Save(w, shotRails.Replace("_szyny.png", "_bramka_pasy_skos_PZ.png"));
+        }
     }
 }
