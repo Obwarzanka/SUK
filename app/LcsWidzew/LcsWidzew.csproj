@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lcs.Core\Lcs.Core.csproj" />
+    <ProjectReference Include="..\Lcs.WorldHost\Lcs.WorldHost.csproj" />
     <!-- Logi techniczne SUK (S01.01, rozdział 25): MEL + Serilog, ograniczona kolejka, JSONL w %LocalAppData%\SUK\LcsWidzew\Logs -->
     <ProjectReference Include="..\Lcs.Logi\Lcs.Logi.csproj" />
   </ItemGroup>

@@ -53,6 +53,7 @@ public class LcsServer : IDisposable
     TcpListener listener;
     readonly List<Client> clients = new();
     int deskSeq;
+    volatile bool disposed;
     public int Port { get; private set; }
     /// <summary>Bajty wysłane do stanowisk (podgląd łącza).</summary>
     public long BytesOut;
@@ -62,6 +63,7 @@ public class LcsServer : IDisposable
 
     public void Start(int port, bool loopbackOnly = false)
     {
+        if (disposed) throw new ObjectDisposedException(nameof(LcsServer));
         Port = port;
         listener = new TcpListener(loopbackOnly ? IPAddress.Loopback : IPAddress.Any, port);
         listener.Start();
@@ -95,6 +97,7 @@ public class LcsServer : IDisposable
         {
             TcpClient tcp;
             try { tcp = listener.AcceptTcpClient(); } catch { return; }
+            if (disposed) { tcp.Close(); return; }
             tcp.NoDelay = true;
             var c = new Client { Tcp = tcp, W = new StreamWriter(tcp.GetStream(), new UTF8Encoding(false)) { NewLine = "\n" } };
             lock (clients) clients.Add(c);
@@ -111,12 +114,13 @@ public class LcsServer : IDisposable
             while ((line = r.ReadLine()) != null)
             {
                 JsonNode m; try { m = JsonNode.Parse(line); } catch { continue; }
-                ui.Invoke(() => { try { Handle(c, m); } catch (Exception ex) { App.LogError(ex, "serwer"); } });
+                ui.Invoke(() => { if (disposed || !c.Alive) return; try { Handle(c, m); } catch (Exception ex) { App.LogError(ex, "serwer"); } });
             }
         }
         catch { }
         c.Alive = false;
-        ui.BeginInvoke(() => { if (c.Desk != null) sim.RemoveDesk(c.Desk.Id); lock (clients) clients.Remove(c); });
+        if (disposed) { lock (clients) clients.Remove(c); }
+        else ui.BeginInvoke(() => { if (!disposed && c.Desk != null) sim.RemoveDesk(c.Desk.Id); lock (clients) clients.Remove(c); });
         try { c.Tcp.Close(); } catch { }
     }
 
@@ -203,6 +207,7 @@ public class LcsServer : IDisposable
 
     public void Dispose()
     {
+        disposed = true;
         try { listener?.Stop(); } catch { }
         lock (clients) foreach (var c in clients) { c.Alive = false; try { c.Tcp.Close(); } catch { } }
     }

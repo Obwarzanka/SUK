@@ -440,3 +440,13 @@ Pełną regresję wykonano na świeżej kopii aktualnego kodu, już z taborową 
 Selftesty WPF i neutralnego runnera: 25/26, zależności 4/4 i specjalne 7/7. 36 końcowych porównań raportów i dzienników zgodnych ze świeżą bazą; 12 bazowych WPF↔runner również zgodnych. Chroniony station.json i 186 istniejących źródeł C# nienaruszone. Uzupełniono wyłącznie konfigurację .NET 10 dla później dodanych trzech projektów taboru; naprawia to niespójny target testów i ścieżkę launchera edytora.
 
 Dowody, ograniczenia i zrzuty: `SUK_plan_multiplayer/raporty/S02.01.md`, `artifacts/2026-10-19-S02.01/regresja/RAPORT.md`, `regresja/ui/mijanka.png` i `regresja/ui/edytor.png`. Nie wykonywano commit/push, instalacji usług ani wdrożenia.
+
+## 2026-10-20 — regresja edytorów przy S02.02 (Adapter singleplayer)
+
+Pulpit otrzymał adapter `SingleplayerHost` do tego samego `WorldLoop`, który obsługuje proces hosta. Dispatcher nadal posiada lokalny rdzeń i narzędzia, a czas symulacji zmienia wyłącznie cykl hosta. Zachowano stały krok, lokalne logowanie, pauzę, tempo oraz dotychczasową kolejność zdarzeń. Restart zamyka stare okna przechowujące świat, a okno sieci od razu korzysta z nowej sesji. Nie zmieniono kodu ani formatów UT, zobrazowania, taboru i geometrii.
+
+Świeżą bazę S02.01 i wersję końcową zbudowano w Release; bazę sprawdzono osobno, potem powtórzono pełną regresję obecnej aplikacji. UT: **570 OK / 0 błędów**, zobrazowanie: **255 OK / 0 błędów**, Przechyłka: **10/10**, Komputerownia na rzeczywistym serwerze: **16/16**, tabor: **20/20**, edytor taboru: **42/0**. Zachowano pełne raporty, logi i zrzuty. Informacyjne pobieranie Overpass zwróciło HTTP 502; właściwe asercje map, NMT i geometrii przeszły.
+
+Selftest WPF i neutralnego runnera zachował **25/26** i zależności **4/4**, specjalne **7/7**. Wszystkie **36 porównań** raportów i pełnych dzienników ze świeżą bazą są zgodne. Testy hosta/adaptera: **89/89**, w tym rzeczywiste polecenia zalogowanego operatora w czterech scenariuszach oraz siedem regresji z niezależnego review. Próba rzeczywistego okna: **14/14**, zwykły timer, pauza, tempo, restart i odświeżenie sterowania w oknie sieci.
+
+Build uruchamianych wersji wszystkich 15 projektów: końcowo **0 błędów / 0 ostrzeżeń**. Chroniony `station.json` zachowany. Dowody: `SUK_plan_multiplayer/raporty/S02.02.md`, `artifacts/2026-10-19-S02.02/regresja/`, `proby-ui-final/local.png`. Nie wykonywano commit/push, instalacji ani wdrożenia. S02.03 pozostaje osobnym etapem.

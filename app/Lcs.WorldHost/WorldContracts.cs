@@ -17,6 +17,8 @@ public sealed record WorldStatus(WorldState State, bool Ready, string WorldId, s
 
 public sealed record WorldLoopOptions
 {
+    /// <summary>Lokalny właściciel zleca kroki (pulpit/pauza/testy). Limity kolejki nadal używają rzeczywistego zegara monotonicznego.</summary>
+    public bool ExternalSteps { get; init; }
     public string WorldId { get; init; } = "local";
     public int QueueCapacity { get; init; } = 1024;
     public long QueueByteCapacity { get; init; } = 1024 * 1024;

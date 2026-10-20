@@ -746,6 +746,74 @@
       "status": "wdrozony",
       "zrodlo": "S02.01; 25 §3-8",
       "uwaga": "Jeden świat; diagnostyka procesu i cyklu, bez gwarancji trwałego audytu/replay. contentHash to manifest hashy znanych wejść, nie treść ani ścieżki."
+    },
+    {
+      "eventId": 6101,
+      "eventCode": "SP.STARTED",
+      "severity": "Information",
+      "moduleId": "Singleplayer.Session",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.02; 25",
+      "uwaga": "Lokalny adapter na tym samym właścicielu i WorldLoop, bez danych operatora i treści poleceń."
+    },
+    {
+      "eventId": 6102,
+      "eventCode": "SP.STOPPED",
+      "severity": "Information",
+      "moduleId": "Singleplayer.Session",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.02; 25",
+      "uwaga": "Lokalny adapter na tym samym właścicielu i WorldLoop, bez danych operatora i treści poleceń."
+    },
+    {
+      "eventId": 6103,
+      "eventCode": "SP.OPERATION",
+      "severity": "Debug",
+      "moduleId": "Singleplayer.Session",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "operation",
+        "requestId",
+        "correlationId"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.02; 25",
+      "uwaga": "Lokalny adapter na tym samym właścicielu i WorldLoop, bez danych operatora i treści poleceń."
+    },
+    {
+      "eventId": 6104,
+      "eventCode": "SP.FAILED",
+      "severity": "Error",
+      "moduleId": "Singleplayer.Session",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02.02; 25",
+      "uwaga": "Lokalny adapter na tym samym właścicielu i WorldLoop, bez danych operatora i treści poleceń."
     }
   ]
 }

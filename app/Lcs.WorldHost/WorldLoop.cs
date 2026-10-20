@@ -29,6 +29,8 @@ public sealed class WorldLoop
     long maxTickUs, maxLatenessUs, budgetStops;
     WorldState state;
     bool stopRequested;
+    bool initialized, pumping, applying;
+    long requestedTicks;
     string? failure;
     WorldObservation? observation;
 
@@ -53,7 +55,7 @@ public sealed class WorldLoop
             var request = input?.RequestId ?? "";
             InputOutcome? denial = !Valid(input) ? InputOutcome.Invalid :
                 stopRequested || state is WorldState.Stopping or WorldState.Stopped or WorldState.Faulted ? InputOutcome.Stopping :
-                state != WorldState.Running ? InputOutcome.NotReady : null;
+                state != WorldState.Running && !(options.ExternalSteps && initialized && state == WorldState.Starting) ? InputOutcome.NotReady : null;
             // Konserwatywny budżet tekstów UTF-16 i obiektów wejścia/TCS/kolejek; count ogranicza też narzut CLR.
             int bytes = denial != null ? 0 : 768 + 2 * (input!.ProducerId.Length + input.RequestId.Length + input.Text.Length);
             string? reason = denial switch { InputOutcome.Invalid => "INVALID_INPUT", InputOutcome.Stopping => "WORLD_STOPPING", InputOutcome.NotReady => "WORLD_NOT_READY", _ => null };
@@ -104,24 +106,63 @@ public sealed class WorldLoop
             using var scope = Context(); WorldLog.Starting(log);
             if (IsStopping()) { Finish(); return; }
             runtime = factory(); runtime.Initialize();
-            start = clock.GetTimestamp(); PublishStatus();
+            start = clock.GetTimestamp(); lock (gate) initialized = true; PublishStatus();
         }
         catch (Exception ex) { Fail(ex, "WORLD_INITIALIZE"); }
     }
 
-    public void Pump()
+    public void Pump() => PumpCore(true);
+
+    /// <summary>Obsługa wejść lokalnego pulpitu w pauzie, również przy T=0; nie wykonuje zaległych kroków.</summary>
+    public void PumpInputs()
+    {
+        CheckOwner();
+        if (!options.ExternalSteps) throw new InvalidOperationException("Oddzielna obsługa wejść wymaga lokalnego harmonogramu.");
+        PumpCore(false);
+    }
+
+    public void RequestSteps(int count)
+    {
+        EnsureIdle();
+        if (!options.ExternalSteps || count is < 0 or > 120) throw new ArgumentOutOfRangeException(nameof(count));
+        if (state is WorldState.Stopping or WorldState.Stopped or WorldState.Faulted || IsStopping()) throw new ObjectDisposedException(nameof(WorldLoop));
+        requestedTicks = checked(requestedTicks + count);
+    }
+
+    internal void EnsureIdle()
+    {
+        CheckOwner();
+        if (pumping || applying) throw new InvalidOperationException("Operacja lokalna nie może wejść ponownie w trwającą mutację świata.");
+    }
+
+    /// <summary>Zaufane operacje lokalnej sesji (logowanie, książka, konfiguracja); wykonywane na tym samym właścicielu, bez przechowywania callbacku.</summary>
+    public T ApplyLocal<T>(Func<T> action)
+    {
+        CheckOwner();
+        if (!options.ExternalSteps || !initialized || IsStopping()) throw new ObjectDisposedException(nameof(WorldLoop));
+        if (pumping || applying) throw new InvalidOperationException("Operacja lokalna nie może wejść ponownie w trwającą mutację świata.");
+        applying = true;
+        try { using var scope = Context(); return action(); }
+        finally { applying = false; }
+    }
+
+    bool StepDue() => options.ExternalSteps ? tick < requestedTicks : clock.GetElapsedTime(start) >= Step * (tick + 1);
+
+    void PumpCore(bool allowSteps)
     {
         CheckOwner();
         if (state is WorldState.Stopped or WorldState.Faulted) return;
         if (state == WorldState.New) throw new InvalidOperationException("Najpierw uruchom świat.");
+        if (pumping || applying) throw new InvalidOperationException("Cykl świata nie może wejść ponownie w trwającą mutację.");
+        pumping = true;
         try
         {
-            if (IsStopping()) { Finish(); return; }
+            if (IsStopping()) { FinishCore(); return; }
             int steps = 0;
-            while (!IsStopping() && clock.GetElapsedTime(start) >= Step * (tick + 1) && steps++ < options.CatchUpSteps)
+            while (allowSteps && !IsStopping() && StepDue() && steps++ < options.CatchUpSteps)
             {
                 var before = clock.GetTimestamp();
-                maxLatenessUs = Math.Max(maxLatenessUs, (long)(clock.GetElapsedTime(start, before) - Step * (tick + 1)).TotalMicroseconds);
+                if (!options.ExternalSteps) maxLatenessUs = Math.Max(maxLatenessUs, (long)(clock.GetElapsedTime(start, before) - Step * (tick + 1)).TotalMicroseconds);
                 // Jedyna droga zmiany czasu symulacji. Nie ma pomijania kroków ani zwiększania dt przy opóźnieniu.
                 using (Context(tick + 1)) runtime!.Tick(Step.TotalSeconds);
                 tick++; maxTickUs = Math.Max(maxTickUs, (long)clock.GetElapsedTime(before).TotalMicroseconds);
@@ -138,12 +179,13 @@ public sealed class WorldLoop
                 if (tick % 50 == 0) LogMetrics();
                 if (options.TickLimit is long limit && tick >= limit) RequestStop();
             }
-            if (IsStopping()) { Finish(); return; }
+            if (IsStopping()) { FinishCore(); return; }
             var sliceStart = clock.GetTimestamp();
             int handled = 0;
             while (handled < options.CommandsPerPass && !IsStopping())
             {
-                if (clock.GetElapsedTime(sliceStart) >= options.CommandBudget || clock.GetElapsedTime(start) >= Step * (tick + 1))
+                // Synchroniczny adapter lokalny musi rozstrzygnąć własne pierwsze wejście nawet po wywłaszczeniu wątku.
+                if ((handled > 0 || !options.ExternalSteps || allowSteps) && clock.GetElapsedTime(sliceStart) >= options.CommandBudget || allowSteps && StepDue())
                 { budgetStops++; break; }
                 var item = Take(); if (item == null) break;
                 handled++;
@@ -161,6 +203,7 @@ public sealed class WorldLoop
             PublishStatus();
         }
         catch (Exception ex) { Fail(ex, "WORLD_CYCLE"); }
+        finally { pumping = false; }
     }
 
     PendingInput? Take()
@@ -176,7 +219,12 @@ public sealed class WorldLoop
 
     public void Finish()
     {
-        CheckOwner();
+        EnsureIdle();
+        FinishCore();
+    }
+
+    void FinishCore()
+    {
         if (state is WorldState.Stopped or WorldState.Faulted) return;
         RequestStop();
         lock (gate) state = WorldState.Stopping;
@@ -197,7 +245,7 @@ public sealed class WorldLoop
 
     void Fail(Exception ex, string code)
     {
-        failure = code; using (Context()) WorldLog.Failed(log, ex, code); Finish();
+        failure = code; using (Context()) WorldLog.Failed(log, ex, code); FinishCore();
     }
 
     void LogMetrics()

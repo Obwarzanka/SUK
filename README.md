@@ -55,7 +55,13 @@ Opcjonalnie: `--scenario podstawowy` (także `usterki`, `zima`, `manewry`, `ic_0
 
 Gotowość oznacza zakończoną inicjalizację i pierwszy udany krok. Raport zawiera epokę świata, liczbę kroków, metryki kolejki/cyklu, hashe znanych wejść, osobny stan diagnostyki i kompletność zatrzymania. Niedostępny zapis diagnostyki daje degradację logów i nie zmienia autonomicznej pracy rdzenia. Domyślne logi procesu: `%ProgramData%\SUK\Logs`; `--logi` ustawia lokalny katalog próby. Limity profilu serwera: 4096 rekordów / 8 MiB, 16 plików po 64 MiB / 7 dni, opróżnienie do 5 s. Diagnostyka nie stanowi trwałego audytu ani replay.
 
-`Lcs.WorldHost` jest procesem lokalnym. Podłączenie pulpitu to **S02.02**, konto usługi/ACL/IPC/health – **S02.03**, a rozdzielenie KZ i Ada – kolejne zadania. Obecny pulpit nadal uruchamia swój dotychczasowy cykl. Szczegóły odbioru i granice: [raport S02.01](SUK_plan_multiplayer/raporty/S02.01.md). Testy hosta: `dotnet test --project app/Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj -c Release`.
+`Lcs.WorldHost` jest procesem lokalnym. Pulpit od **S02.02** korzysta z tego samego `WorldLoop` przez adapter `SingleplayerHost` działający w procesie okna. Konto usługi/ACL/IPC/health to **S02.03**, a rozdzielenie KZ i Ada – kolejne zadania. Szczegóły: [raport S02.01](SUK_plan_multiplayer/raporty/S02.01.md), [raport S02.02](SUK_plan_multiplayer/raporty/S02.02.md). Testy hosta i adaptera: `dotnet test --project app/Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj -c Release`.
+
+### Gra jednoosobowa (S02.02)
+
+Uruchom pulpit jak dotychczas przez `uruchom.bat`. Lokalna gra korzysta z plików układu i scenariusza; nie wymaga konta serwera ani Internetu. Dotychczasowe logowanie dyżurnego służy lokalnej sesji symulatora. Pauza i przyciski tempa działają na wspólnym cyklu o kroku 0,1 s. Polecenia w pauzie, również tuż po uruchomieniu przy czasie 0, otrzymują wynik bez przesuwania czasu.
+
+Restart scenariusza tworzy nową epokę świata i zamyka okna instruktora, przebiegów oraz inne okna związane z poprzednią sesją. Okno „Stanowiska i sieć” odświeża przyciski dla nowej sesji. Przyłączenie do serwera zamyka lokalny świat, a „Rozłącz” tworzy nową grę jednoosobową. Logi adaptera mają moduł `Singleplayer.Session`, kody `SP.*` i identyfikatory 6101–6104, bez treści poleceń i nazw operatorów. Diagnostyka nie zastępuje dziennika zdarzeń symulacji.
 
 ## Obsługa pulpitu
 

@@ -20,6 +20,7 @@ public class NetWindow : DarkWindow
     readonly StackPanel conn = new(), ctl = new(), phone = new();
     readonly DispatcherTimer tm = new() { Interval = TimeSpan.FromSeconds(1) };
     string lastCtlKey;
+    ILcsSession lastCtlSession;
 
     public NetWindow(MainWindow main) : base("Stanowiska i sieć", 560, 700)
     {
@@ -103,7 +104,8 @@ public class NetWindow : DarkWindow
     {
         var ses = main.Session; var I = ses?.Receive(); if (I == null) return;
         var key = string.Join(";", I.Control.Select(c => c.Key + "=" + c.Value)) + "|" + string.Join(";", I.Desks.Select(d => d.Id + d.User));
-        if (key == lastCtlKey) return; lastCtlKey = key;
+        if (key == lastCtlKey && ReferenceEquals(ses, lastCtlSession)) return;
+        lastCtlKey = key; lastCtlSession = ses;
         ctl.Children.Clear();
         string DeskText(string id) { var d = I.Desks.FirstOrDefault(x => x.Id == id); return d == null ? "nieobsadzony" : $"{d.Name}{(d.User != null ? " – " + d.User : "")}"; }
         foreach (var (post, pname) in ses.L.Posts)
@@ -119,6 +121,11 @@ public class NetWindow : DarkWindow
             ctl.Children.Add(row);
         }
         if (I.Desks.Count > 0) ctl.Children.Add(T("Stanowiska: " + string.Join(", ", I.Desks.Select(d => d.Name + (d.User != null ? $" ({d.User})" : "") + (d.Id == ses.DeskId ? " – to" : ""))), 10.5, Brushes.Gray));
+    }
+
+    internal void RefreshSession()
+    {
+        BuildConn(); RefreshCtl(); RefreshPhone();
     }
 
     ComboBox phoneTo; TextBlock phoneLog;

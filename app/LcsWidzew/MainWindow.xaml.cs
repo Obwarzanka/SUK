@@ -6,6 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Lcs.WorldHost;
+using Lcs.Logi;
 using LcsWidzew.Model;
 using LcsWidzew.Net;
 using LcsWidzew.Sim;
@@ -28,8 +30,8 @@ public partial class MainWindow : Window
     LcsServer serwis;
     public const int SerwisPort = 47121;
     readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(50) };
-    DateTime last = DateTime.Now;
-    double speed = 2, acc;
+    SingleplayerHost localWorld;
+    double speed = 2;
     bool paused = true;
     int pushTick;
     string scenario = "podstawowy";
@@ -65,7 +67,7 @@ public partial class MainWindow : Window
         };
         BuildTabs();
         Loaded += (s, e) => { Start(scenario, null); Dispatcher.BeginInvoke(() => { ShowPage(station.Pages.Count - 1); if (ShotPath == null) ShowLogin(); else Demo(); }, DispatcherPriority.Loaded); };
-        Closed += (s, e) => { server?.Dispose(); serwis?.Dispose(); (ses as RemoteSession)?.Dispose(); };
+        Closed += (s, e) => { timer.Stop(); server?.Dispose(); serwis?.Dispose(); (ses as RemoteSession)?.Dispose(); localWorld?.Dispose(); };
         SizeChanged += (s, e) => Panel.FitPage();
         timer.Tick += OnTimer;
         timer.Start();
@@ -173,7 +175,7 @@ public partial class MainWindow : Window
         paused = true;
         foreach (var c in ShotCmds)
         {
-            if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (sim != null) while (sim.T < until) { sim.Tick(0.1); server?.Push(); } else Pump(until); continue; }
+            if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (localWorld != null) localWorld.AdvanceTo(until, () => server?.Push()); else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
             if (c == "#opisy") { SetOpisy(true); continue; }
             // „#stan” – do pliku .txt sygnały zezwalające (kody Ie-1) i pociągi z prędkością [km/h]
@@ -191,6 +193,8 @@ public partial class MainWindow : Window
             if (c.StartsWith("#serwis=")) { var er = StartSerwis(int.Parse(c[8..]), sim); File.AppendAllText(ShotPath + ".txt", $"serwis: {er ?? "OK"}{(char)10}"); continue; }
             if (c.StartsWith("#serve=")) { var er = Serve(int.Parse(c[7..]), true); File.AppendAllText(ShotPath + ".txt", $"serwer: {er ?? "OK"}{(char)10}"); continue; }
             if (c.StartsWith("#hold=")) { ShotHold = double.Parse(c[6..], System.Globalization.CultureInfo.InvariantCulture); continue; }
+            if (c.StartsWith("#localtest=")) { TestLocalAdapter(c[11..]); continue; }
+            if (c == "#leave") { Leave(); continue; }
             if (c.StartsWith("#sleep=")) { var end = DateTime.Now.AddSeconds(double.Parse(c[7..], System.Globalization.CultureInfo.InvariantCulture)); while (DateTime.Now < end) { Dispatcher.Invoke(() => { }, DispatcherPriority.Background); Thread.Sleep(50); } continue; }
             if (c.StartsWith("#phone=")) { ses.Phone("*", c[7..]); continue; }
             if (c.StartsWith("#kz=")) { kzShots.Add(int.Parse(c[4..])); continue; }
@@ -203,8 +207,10 @@ public partial class MainWindow : Window
             var res = Run(c);
             File.AppendAllText(ShotPath + ".txt", $"{c}: {(res.Ok ? "OK" : "ODRZUCONE")} {res.Msg}\n");
         }
-        if (sim != null) { while (sim.T < ShotSeconds) sim.Tick(0.1); server?.Push(); }
+        if (localWorld != null) { localWorld.AdvanceTo(ShotSeconds); server?.Push(); }
         else Pump(-1);
+        File.WriteAllText(ShotPath + ".world.json", System.Text.Json.JsonSerializer.Serialize(new
+        { local = localWorld != null, status = localWorld?.Status, remote = ses is RemoteSession }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         UpdateTop(); Panel.InvalidateVisual();
         Dispatcher.BeginInvoke(() =>
         {
@@ -269,20 +275,27 @@ public partial class MainWindow : Window
     /// <summary>Nowy komputer zależności w tym programie (gra jednoosobowa albo serwer).</summary>
     void Start(string sc, User user)
     {
+        // Przygotowanie na tym samym właścicielu: błąd inicjalizacji nie usuwa poprzedniej gry.
+        var next = new SingleplayerHost(layout ?? station, sc, user, Panel.Page?.Id,
+            server != null ? "Stanowisko główne (serwer)" : "Stanowisko", App.CreateSimulatorOptions(),
+            logger: Diagnostyka.Modul(SingleplayerLog.Module, WorldLog.Version),
+            worldLogger: Diagnostyka.Modul(WorldLog.Module, WorldLog.Version));
         scenario = sc;
         if (ses is RemoteSession rs) { rs.Dispose(); }
-        // komputer zależności liczy z układu torowego, nie z zobrazowania (ses.L po Bind)
-        var s = new Simulator(layout ?? station, options: App.CreateSimulatorOptions());
-        if (Panel.Page != null && Panel.Page.Id != "OV") s.Page = Panel.Page.Id;
-        var tr = new Trains(s);
-        tr.Load(sc);
-        var desk = s.AddDesk("PC", server != null ? "Stanowisko główne (serwer)" : "Stanowisko", true);
-        desk.Page = s.Page; desk.User = user; s.User = user;
-        Bind(new LocalSession(s, desk));
+        CloseWorldWindows(); localWorld?.Dispose(); localWorld = next;
+        var s = next.Session.Sim;
+        Bind(next.Session);
         server?.Attach(s);
         if (serwis != null) serwis.Attach(s);
         else if (ShotPath == null) StartSerwis(SerwisPort, s);
         s.Log("Zdarzenie", "Start symulacji – scenariusz: " + Rozklad.Scenarios.First(x => x.Key == sc).Name + (user != null ? ", zalogowany: " + user.Name : ""), "System", "");
+    }
+
+    void CloseWorldWindows()
+    {
+        // Okna ze starą sesją lub mutable Simulator nie mogą wprowadzać zmian po resecie epoki.
+        foreach (Window window in OwnedWindows.Cast<Window>().Where(w => w is not NetWindow).ToArray()) window.Close();
+        confirmWin = null;
     }
 
     void Bind(ILcsSession x)
@@ -305,7 +318,7 @@ public partial class MainWindow : Window
         x.Reset += () => { if (ses != x) return; var keep = Panel.Page?.Id; Bind(x); BuildTabs(); var pi = station.Pages.FindIndex(p => p.Id == keep); ShowPage(pi >= 0 ? pi : station.Pages.Count - 1); };
         Panel.Sim = x; ClearSel();
         BtnNet.Background = x.IsHost ? (server != null ? new SolidColorBrush(Color.FromRgb(0x2f, 0x5a, 0x2a)) : new SolidColorBrush(Color.FromRgb(0x3a, 0x2a, 0x5a))) : new SolidColorBrush(Color.FromRgb(0x1f, 0x4a, 0x7a));
-        UpdateTop();
+        UpdateTop(); netWin?.RefreshSession();
     }
 
     /// <summary>Port serwisowy dla programu Komputerownia (tylko 127.0.0.1); zajęty (drugi symulator) – bez portu.</summary>
@@ -325,7 +338,7 @@ public partial class MainWindow : Window
         {
             server = new LcsServer(Dispatcher, sim, () => File.ReadAllText(App.StationPath));
             server.Start(port, loopbackOnly);
-            if (ses is LocalSession ls) ls.Desk.Name = "Stanowisko główne (serwer)";
+            if (ses.IsHost && sim.Desks.TryGetValue(ses.DeskId, out var desk)) desk.Name = "Stanowisko główne (serwer)";
             sim.Log("Zdarzenie", $"Uruchomiono serwer stanowisk – port {port}", "Sieć", "");
             Bind(ses);
             return null;
@@ -349,6 +362,9 @@ public partial class MainWindow : Window
         {
             var rs = RemoteSession.Connect(host, port, name, Dispatcher);
             server?.Dispose(); server = null;
+            serwis?.Dispose(); serwis = null;
+            CloseWorldWindows(); localWorld?.Dispose(); localWorld = null;
+            (ses as RemoteSession)?.Dispose();
             Bind(rs);
             BuildTabs(); ShowPage(station.Pages.Count - 1);
             return null;
@@ -403,25 +419,17 @@ public partial class MainWindow : Window
     // ------------------------------------------------------------------ pętla czasu
     void OnTimer(object s, EventArgs e)
     {
-        var now = DateTime.Now; var real = Math.Min(0.25, (now - last).TotalSeconds); last = now;
-        if (sim != null && ShotPath == null)
-        {
-            if (!paused && speed > 0)
-            {
-                acc += real * speed;
-                int steps = 0;
-                while (acc >= 0.1 && steps < 120) { sim.Tick(0.1); acc -= 0.1; steps++; }
-            }
-        }
+        var now = Environment.TickCount64 / 1000.0;
+        if (localWorld != null && ShotPath == null) localWorld.Frame(paused, speed);
         if (server != null && ++pushTick % 4 == 0) server.Push();        // meldunki do stanowisk sieciowych co 0,2 s
         Panel.InvalidateVisual();
         UpdateTop();
         // dźwięk co kilka sekund, dopóki istnieje niepotwierdzony alarm; głośniejszy po minucie (Ie-104 § 7 ust. 6)
         var un = ses.Alarms.Where(a => !a.Ack).ToList();
         var T = ses.Last?.T ?? 0;
-        if (un.Count > 0 && ChkMute.IsChecked != true && (now - DateTime.MinValue).TotalSeconds - lastBeep > 4)
+        if (un.Count > 0 && ChkMute.IsChecked != true && now - lastBeep > 4)
         {
-            lastBeep = (now - DateTime.MinValue).TotalSeconds;
+            lastBeep = now;
             if (un.Any(a => T - a.T > 60)) System.Media.SystemSounds.Hand.Play(); else System.Media.SystemSounds.Asterisk.Play();
         }
     }
@@ -752,7 +760,7 @@ public partial class MainWindow : Window
         netWin.Show();
     }
     void Ack_Click(object s, RoutedEventArgs e) { Run("KW"); SortAlarms(); }
-    void GridAlarms_DoubleClick(object s, MouseButtonEventArgs e) { if (GridAlarms.SelectedItem is EventRecord a) { a.Ack = true; ses.AckAlarm(a.Id); SortAlarms(); } }
+    void GridAlarms_DoubleClick(object s, MouseButtonEventArgs e) { if (GridAlarms.SelectedItem is EventRecord a) { ses.AckAlarm(a.Id); SortAlarms(); } }
 
     bool Matches(EventRecord e) => EvFilter.SelectedIndex <= 0 || e.Kategoria == (string)EvFilter.SelectedItem;
     void EvFilter_Changed(object s, SelectionChangedEventArgs e)
