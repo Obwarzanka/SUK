@@ -157,7 +157,7 @@ public partial class UtView
     /// Semafor wiszący na bramce: komory od górnej (przy belce) do dolnej, pod nimi (dalej od belki) W21 i pasy świetlne – jak na planach
     /// schematycznych (Semaforek, Łódź Widzew); nazwa za ostatnim elementem.
     /// </summary>
-    static void DrawHangingHeads(DrawingContext dc, UtDevice dv, Func<double, double, Point> P, Action<double, double, double, double, Pen> L, Pen pen, Pen thick, Brush ink,
+    static void DrawHangingHeads(DrawingContext dc, UtDevice dv, Func<double, double, Point> P, Action<double, double, double, double, Pen> L, Action<double, double, double, double> Box, Pen pen, Pen thick, Brush ink,
         List<(char C, int Pulse)> lamps, char lit, double x, double Y, double R, double k, double dpi, bool labels, Action<string, double, double, double> T)
     {
         double yy = Y; bool litDone = false;
@@ -185,7 +185,7 @@ public partial class UtView
         }
         if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
         {
-            dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1.6, yy + 1)));
+            Box(x, yy - 1, x + 1.6, yy + 1);
             if (labels && k >= 2)
             {
                 var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), 1.5 * k, ink, dpi);
@@ -197,12 +197,12 @@ public partial class UtView
             }
             x += 1.6;
         }
+        // pasy świetlne pod komorami wiszącego semafora (dalej od belki), od komór: pomarańczowy, zielony – jak BSK ss5 w odbiciu
         foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
         {
             if (!on) continue;
-            dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1, yy + 1)));
-            if (c == 'Z') L(x, yy, x + 1, yy, pen); else L(x + 0.1, yy + 0.9, x + 0.9, yy - 0.9, pen);
-            x += 1;
+            Pas(Box, L, pen, c, x, yy);
+            x += PasW;
         }
         T(dv.Name, x + 0.6, Y, 1);
     }
@@ -218,8 +218,24 @@ public partial class UtView
         _ => Array.Empty<double>(),
     };
 
-    /// <summary>Długość znaku semafora na bramce od belki [mm arkusza] (do słupów bramki).</summary>
-    static double HangingLen(UtDevice dv) => 1.2 + 2 * UtDevice.ParseLights(dv.LightsOrDefault).Count + (!string.IsNullOrEmpty(dv.W21) ? 1.6 : 0) + (dv.StripeP ? 1 : 0) + (dv.StripeZ ? 1 : 0);
+    /// <summary>
+    /// Długość głowicy semafora na bramce od belki [mm arkusza] – łącznik i komory; wyznacza długość słupów bramki. Pasy świetlne i W21
+    /// (pod komorami) jej nie zmieniają (uwaga właściciela 2026-10-20: „pas wydłuża konstrukcję”).
+    /// </summary>
+    public static double HangingLen(UtDevice dv) => 1.2 + 2 * UtDevice.ParseLights(dv.LightsOrDefault).Count;
+
+    /// <summary>Pas świetlny (BSK ISDR ss5): wąski prostokąt 0,7 × 2,2 mm w osi znaku, ciut wyższy od komory.</summary>
+    const double PasW = 0.7, PasH = 1.1;
+
+    /// <summary>
+    /// Pas świetlny w osi znaku od <paramref name="x"/>: pomarańczowy – kreska ukośna (jak komora pomarańczowa), zielony – kreska wzdłuż masztu
+    /// (jak komora zielona); prostokąt obrócony razem ze znakiem (wcześniej prostokąt równoległy do ekranu – na skośnym torze kwadrat albo kreska).
+    /// </summary>
+    static void Pas(Action<double, double, double, double> Box, Action<double, double, double, double, Pen> L, Pen pen, char c, double x, double yy)
+    {
+        Box(x, yy - PasH, x + PasW, yy + PasH);
+        if (c == 'Z') L(x, yy, x + PasW, yy, pen); else L(x + 0.12, yy + PasH - 0.15, x + PasW - 0.12, yy - PasH + 0.15, pen);
+    }
 
     /// <summary>Bramki: grupy sygnalizatorów na jednej bramce (połączone albo w tym samym miejscu – <see cref="Urzadzenia.Konstrukcje"/>).</summary>
     public List<List<UtDevice>> GantryGroups() => Doc == null ? new() : Urzadzenia.Konstrukcje(Doc.P).Where(k => k.Mast == UtDevice.MastBramka).Select(k => k.M).ToList();
@@ -285,6 +301,14 @@ public partial class UtView
         // grubości wg Ig-10: linie znaku 0,18 mm, wyróżnienie (komora świecąca, belka) 0,45 mm
         var pen = new Pen(ink, Math.Max(1, 0.18 * k)); var thick = new Pen(ink, Math.Max(1.6, 0.45 * k));
         void L(double x1, double y1, double x2, double y2, Pen pp = null) => dc.DrawLine(pp ?? pen, P(x1, y1), P(x2, y2));
+        // prostokąt w układzie znaku (obrócony razem z torem) – białe wypełnienie, obwód cienką linią
+        void Box(double x1, double y1, double x2, double y2)
+        {
+            var g = new StreamGeometry();
+            using (var c = g.Open()) { c.BeginFigure(P(x1, y1), true, true); c.PolyLineTo(new[] { P(x2, y1), P(x2, y2), P(x1, y2) }, true, false); }
+            g.Freeze();
+            dc.DrawGeometry(Brushes.White, pen, g);
+        }
         void C(double x, double y, double r, bool fill = false, bool cross = false)
         {
             dc.DrawEllipse(fill ? ink : Brushes.White, pen, P(x, y), r * k, r * k);
@@ -330,19 +354,18 @@ public partial class UtView
                     if (gantry) L(0.3, Y + 0.9, 0.9, Y - 0.9);                     // W24 – kreska ukośna na łączniku przy belce
                     else L(1.7, Y + 0.9, 2.3, Y - 0.9);                                 // W24 – kreska ukośna na maszcie
                 }
-                if (gantry) { DrawHangingHeads(dc, dv, P, L, pen, thick, ink, lamps, lit, x, Y, R, k, dpi, labels, T); break; }
+                if (gantry) { DrawHangingHeads(dc, dv, P, (a, b2, c2, d2, pp) => L(a, b2, c2, d2, pp), Box, pen, thick, ink, lamps, lit, x, Y, R, k, dpi, labels, T); break; }
                 // pasy świetlne pod komorami (BSK ss5): od masztu pomarańczowy, potem zielony; tylko semafor
                 foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
                 {
                     if (!on) continue;
-                    dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1, yy + 1)));
-                    if (c == 'Z') L(x, yy, x + 1, yy); else L(x + 0.1, yy + 0.9, x + 0.9, yy - 0.9);
-                    x += 1;
+                    Pas(Box, (a, b2, c2, d2, pp) => L(a, b2, c2, d2, pp), pen, c, x, yy);
+                    x += PasW;
                 }
                 if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
                 {
                     // W21 (BSK ss6): skrzynka na maszcie pod komorami, cyfra „pionowo” – górą w stronę komór, jak na stojącym semaforze
-                    dc.DrawRectangle(Brushes.White, pen, new Rect(P(x, yy - 1), P(x + 1.6, yy + 1)));
+                    Box(x, yy - 1, x + 1.6, yy + 1);
                     if (labels && k >= 2)
                     {
                         var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), 1.5 * k, ink, dpi);
@@ -412,7 +435,7 @@ public partial class UtView
             {
                 // Ig-10 s. 33: tarcza 2 × 3 mm na słupku 2 mm, krzyż w środku (0,35 mm)
                 L(0, 1, 0, 3);
-                dc.DrawRectangle(Brushes.White, pen, new Rect(P(-1, 3), P(1, 6)));
+                Box(-1, 3, 1, 6);                                   // tarcza obrócona z torem
                 var cr = new Pen(ink, Math.Max(1, 0.35 * k));
                 L(0, 3, 0, 6, cr); L(-1, 4.5, 1, 4.5, cr);
                 T(dv.Name, -0.6, 4.5, -1);
