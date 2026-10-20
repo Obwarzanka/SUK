@@ -10,7 +10,7 @@ Pozostałe dokumenty: `PLAN_EDYTOR_UT.md` (plan, decyzje i pytania – edytor UT
 
 Po zakończeniu etapu albo zmianie ustaleń zaktualizuj sekcje „Stan” i „Etapy”.
 
-Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako fasada; krok 9 – system nadrzędny i PIP po zajętościach; krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
+Ostatnia aktualizacja: 2026-10-20 (zdjęcia ISDR – `Zrodla/ISDR_zdjecia.md`; decyzja właściciela: panel „Polecenia / Historia” zamiast menu PPM, opisy zgodne ze zdjęciami – § 2a, etap 4a). Poprzednio 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako fasada; krok 9 – system nadrzędny i PIP po zajętościach; krok 7 – zasilanie jako urządzenie; PIP jako opcja zobrazowania `display.pip`; karta zwrotnicy i wykolejnicy – krok 5 podziału modułów; decyzje właściciela: pytania 11–15 UT, najpierw karty, potem edytor zobrazowania).
 
 ---
 
@@ -44,6 +44,15 @@ Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako 
 - **Zwrotnica:** nieczynne odgałęzienie odsunięte od iglicy (wyraźna przerwa) i szare na całej długości łącznika; w trakcie przekładania iglica i oba odgałęzienia odcięte. Zaznaczenie zwrotnicy (menu) – ramka wokół zobrazowania na torze, nie wokół numeru. „+” – położenie zasadnicze.
 - Symbole: PK – mały trójkąt (czerwony, gdy kończy się w nim przebieg); kozioł oporowy – symbol „[” (sam symbol, `bumpers`); WY/WJ – powtarzacz `sp`; przejazd – różowa linia z Y/T i kilometrem; tor rozebrany – przerywany.
 - Znaczniki edytora (złącza SZLAK WEWNĘTRZNY, numery problemów) – nigdy na pulpicie.
+- **Panel „Polecenia / Historia” wg ISDR** (decyzja właściciela 2026-10-20, wzór: `Zrodla/ISDR_zdjecia.md`, `Zrodla/ISDR_klatki/`): stała ramka w prawym górnym rogu obrazu stacji z zakładkami **Polecenia** i **Historia**; **zastępuje menu PPM**. Napisy, nagłówki i kolejność przycisków – **zgodne ze zdjęciami**:
+  - wybrany jeden obiekt – nagłówek z jego nazwą i jego polecenia (semafor „R”: `STOP OSTOP SZ SZI NSZ`; ikona nastawni „An”: `SSS OSSS ZSS OZSS OSZ`);
+  - wybrany początek i koniec przebiegu – nagłówek „R 1B” i polecenia przebiegu `POCIĄG MANEWR ZD ZDP OPS ZDPP`;
+  - po kliknięciu polecenia – nagłówek „POCIĄG R 1B” i przycisk **Wyślij**; dopiero „Wyślij” przekazuje polecenie;
+  - polecenia specjalne dwuetapowo (Ie-104 § 11 pkt 13): przycisk inicjalizacji (SZI), po 5 s dostępny przycisk wykonania (SZ albo NSZ); OPS – odwołanie zainicjowanego polecenia specjalnego;
+  - przyciski niedostępne w danym stanie – ciemne;
+  - Historia – tabela **Czas, Polecenie, Przyjęcie, Realizacja**.
+- **Wybór przebiegu (uzupełnienie wg ISDR, zawsze przez panel i „Wyślij” – decyzja właściciela 2026-10-20):** klik na początku – turkusowa ramka i turkusowe kółka z kwadratem na wszystkich możliwych końcach (jak wyżej); najazd myszą na koniec – kwadrat żółty (podgląd); klik na końcu – kółka znikają, koniec w turkusowej ramce, w panelu polecenia przebiegu; po wybraniu polecenia ramki początku i końca **zielone** do czasu „Wyślij”; po wysłaniu ramki znikają.
+- **ZDARZENIA / ALARMY wg ISDR:** zakres dat od – do nad każdą tabelą, lejek filtra przy kolumnach Obszar, Stacja, Typ obiektu, Obiekt, Kategoria, pasek „Zostaw na wierzchu”, „Liczba zdarzeń / alarmów”, „Strona n / m”, **Online** i przewijanie stron; przy alarmach „Wycisz”. Kolumny jak dziś w `MainWindow.xaml`.
 
 ## 3. Źródła wiedzy (czytaj przed zmianami w logice)
 
@@ -56,6 +65,7 @@ Ostatnia aktualizacja: 2026-10-17 (krok 10 – KZ w `Sim/Kz/`, `Simulator` jako 
 | **`Zrodla/EBILock_komputerownia.md`** | budowa EBILock 950 (komputer zależności + gorąca rezerwa, pętle i koncentratory, sterowniki obiektowe i karty: zwrotnica, sygnalizator, odcinek, przekaźnikowe, we/wy), stany i usterki kart, propozycja modułów symulatora i komunikatów; oznaczone PEWNE / WTÓRNE / DOMYSŁ, pytania P1–P8 do właściciela |
 | `Zrodla/Instrukcja_Ig-10_-_WCAG.pdf` | **Ig-10 [D-27]** – plany schematyczne: treść (§ 4), skale, **znaki umowne (zał. 8)** – wzór dla planu w edytorze i okna „Plan stacji” |
 | `zrzuty/wzory/`, `Zrodla/SimRail_*` | wzory wyglądu pulpitu |
+| **`Zrodla/ISDR_zdjecia.md`** + `Zrodla/ISDR_zdjecia/`, `Zrodla/ISDR_klatki/` | zdjęcia stanowiska szkoleniowego ISDR (Anastazów, Brenna, 2026-10-20): panel Polecenia / Historia, wybór przebiegu krok po kroku (klatki z filmu), ZDARZENIA / ALARMY z filtrami, PIP, SBL, EDR, SSD |
 | `README.md` | obsługa programu, edytor UT (ze skrótami klawiszy), kalkulator przechyłki, gra sieciowa, testy |
 
 ## 4. Architektura (stan obecny)
@@ -216,6 +226,16 @@ Walidacja sprzeczności. Testy każdego przebiegu.
 PIP jest opcją zobrazowania (`display.pip`, ZROBIONE 2026-10-17 – bez PIP pulpit nie pokazuje numerów); dalej – w edytorze zobrazowania jako ustawienie posterunku. Śledzenie numerów po zajętościach (`Sim/Pulpit/Pip.cs`) – ZROBIONE 2026-10-17 (krok 9). Do zrobienia: ręczne polecenia dyżurnego (nadanie, usunięcie, przesunięcie numeru), miganie numeru nieprzesuniętego automatycznie, numer czerwony wpisany na wolny tor (Ie-104 § 8 pkt 26 ust. 4).
 Nadanie i usunięcie numeru, przesunięcie między torami (tryb awaryjny), notatki przy pociągu, kolumna numerów na szlaku jak w EbiScreen.
 
+### Etap 4a – Panel poleceń, wybór przebiegu i dzienniki wg ISDR (decyzja właściciela 2026-10-20)
+Wzór: `Zrodla/ISDR_zdjecia.md`, wymagania: § 2a. Kolejność:
+1. Panel „Polecenia / Historia” w obrazie stacji zamiast menu PPM (`UI/PanelView.cs`, `MainWindow.xaml(.cs)`); zestawy przycisków dla obiektu, pary początek–koniec i nastawni, napisy jak na zdjęciach; „Wyślij” przekazuje polecenie do systemu nadrzędnego (`Sim/Pulpit/SystemNadrzedny.cs`); pole „Polecenie>” zostaje.
+2. Wybór przebiegu jak na filmie: żółty podgląd przy najeździe, zielone ramki polecenia przygotowanego, wybór rodzaju przebiegu w panelu (klik na końcu nie nastawia przebiegu od razu).
+2a. Polecenia specjalne: inicjalizacja (SZI) i wykonanie po 5 s (SZ, NSZ), odwołanie zainicjowanego – OPS; zwolnienie doraźne ZD / ZDP bez zwłoki i ZDPP ze zwłoką 90 s; polecenia stacji SSS / OSSS, ZSS / OZSS, OSZ (odświeżenie zobrazowania).
+3. Zakładka Historia: Czas, Polecenie, Przyjęcie (przyjęcie przez system), Realizacja (wykonanie przez KZ).
+4. ZDARZENIA / ALARMY: zakres dat, filtry kolumn, strony, Online, „Zostaw na wierzchu”.
+5. Kody: podstawą są kody Ie-104 § 12 (ISDR używa ich tak samo: STOP, OSTOP, SZ, NSZ, POCIĄG, MANEWR, ZDP); kody ISDR spoza § 12 jako polecenia dodatkowe wg odpowiedzi właściciela (§ 5a).
+Warunek: build, selftest 25 z 26 / 4 z 4, test edytora UT, zrzut pulpitu porównany ze zdjęciami.
+
 ### Etap 5 – Styl EbiScreen jako drugi wygląd pulpitu
 - Nagłówek: Zalogowany, MIEJSCOWY/ZDALNY, stacja, „Liczba osi”.
 - Przełączniki ZG/PIP/STR.
@@ -246,11 +266,15 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
 - Pozostałe przecieki (do kroków 8 i 10): ruch czyta `Sigs[].Aspect`, `Sws[].Pos`, `Secs[].LockType`, `Routes` i pisze `Rozpr`; `Otoczenie` czyta listę pociągów (`EmergingAtFar`) i porównuje strony szlaku po X (`FarSec`).
 
 ### Etap 8 – Dydaktyka i sieć
+- **EDR – elektroniczny dziennik ruchu** wg zdjęć ISDR (`Zrodla/ISDR_zdjecia.md` § 5): lista pociągów, dzienniki szlaków, gotowość do odjazdu, analiza pociągu, szlaki posterunku – osobny etap, na później (decyzja właściciela 2026-10-20).
 - Rozkazy pisemne, telefoniczne zapowiadanie (Ir-1), dziennik ruchu, nagrywanie i odtwarzanie ćwiczeń, ocena.
 - Stanowisko instruktora przez sieć.
 - Przesyłanie przez sieć samych zmian zamiast pełnego stanu (dziś pełny telegram 5×/s).
 
 ## 5a. Otwarte sprawy i pytania do właściciela
+- **Panel poleceń ISDR – odpowiedzi właściciela 2026-10-20** (tabela w `Zrodla/ISDR_zdjecia.md` § 2a): SZI – inicjalizacja polecenia specjalnego sygnału zastępczego, SZ – wykonanie po 5 s; SSS / OSSS – zastopowanie / odwołanie wszystkich sygnalizatorów stacji; ZSS / OZSS – zastopowanie / odwołanie wszystkich zwrotnic; OSZ (na nastawni) – odświeżenie stanu komputera zobrazowania; ciemne przyciski = niedostępne; wybór przebiegu zawsze przez panel i „Wyślij”, jak na filmie.
+- Uzupełnienie 2026-10-20: **OPS** – odwołanie polecenia specjalnego; **NSZ** – inicjalizacja jak dla SZ (SZI, po 5 s NSZ); **ZD** i **ZDP** – zwolnienie doraźne bez zwłoki, **ZDPP** – zwolnienie doraźne ze zwłoką 90 s (odpowiednik ZCZ); „ZDI” – pomyłka, nie ma takiego polecenia.
+- Aliasy `NSZ` → SZ i `SSS` → Stój w `SystemNadrzedny.Aliases` są sprzeczne z Ie-104 / ISDR – usunąć w etapie 4a.
 - ~~Tabela prędkości na bok i ograniczenie prędkości przez promień łuku~~ – decyzja właściciela 2026-10-19: „prędkości można przypisać do przebiegu ręcznie”. Tabela `vbok` zostaje jako wartość domyślna, promień łuku nie ogranicza prędkości automatycznie, prędkość przebiegu ustala projektant (`routeRules[].vmax` → `VSet`). ZROBIONE 2026-10-19: wpis w „Tablicy przebiegów” (pole `v` w `<układ>.zaleznosci.json`), opis w § 6.
 - ~~Prędkość ręczna a sygnał~~ – decyzje właściciela 2026-10-19: prędkości 40, 50, 60, 70, 80, 100, 120, 130 z uwzględnieniem **W21** i pasów; 120 / 130 – sygnał 100 (pas zielony) + W21; semafor bez pasa / W21 – ostrzeżenie i sygnał niższy; W21 świetlny i stała tablica. ZROBIONE (§ 6). Uwaga: istniejące pliki symulatora (np. `Data/projekty/mijanka_testowa.json`) nie mają pasów ani W21 – działają jak dotąd, nowe zasady obowiązują po ponownym „Do symulatora…”. Na mijance w UT żaden semafor nie ma pasów ani W21, więc po eksporcie np. przebieg 60 da sygnał 40 z ostrzeżeniem.
 - ~~Skrypt selftestu używa nazw starego układu~~ – ZROBIONE 2026-10-15: scenariusz budowany z tablicy przebiegów.
