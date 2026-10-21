@@ -27,6 +27,7 @@ internal static class Program
                     "--station kopia.json --selftest wynik.txt [scenariusz [wzorce|tylko:numer]]\n" +
                     "--boundary wynik.txt\n" +
                     "--station kopia.json --test wynik.txt\n" +
+                    "--station kopia.json --mapa-wlasnosci mapa.json (mapa własności postId/kzId, S02A.01)\n" +
                     "--compare baza.txt wynik.txt [raport.txt] [--require-events]\n" +
                     "Opcje logów: --logi katalog --logi-raport plik --logi-proba\n" +
                     "Porównanie zachowuje kolejność i czasy domenowe; normalizuje wyłącznie końce linii.");
@@ -48,6 +49,9 @@ internal static class Program
             if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(CoreLogging.EventId, CoreLogging.EventCode,
                 KontraktLogu.Strumien.Domenowy, CoreLogging.PolaZdarzeniaRejestratora.ToArray())))
                 throw new InvalidOperationException("Nie można zarejestrować kontraktu rejestratora rdzenia.");
+            foreach (var (id, kod, pola) in MapaWlasnosciLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
+                    throw new InvalidOperationException("Nie można zarejestrować kontraktu mapy własności.");
 
             string stationPath = Remove(args, "--station");
             if (args.Count == 0) throw new ArgumentException("Brak polecenia hosta testowego.");
@@ -65,6 +69,15 @@ internal static class Program
                 File.WriteAllText(args[1], result.Report);
                 Console.WriteLine(result.Report);
                 return result.Equal ? 0 : 1;
+            }
+            if (args[0] == "--mapa-wlasnosci" && args.Count == 2)
+            {
+                if (string.IsNullOrWhiteSpace(stationPath)) throw new ArgumentException("--mapa-wlasnosci wymaga jawnego --station z kopią układu.");
+                var map = OwnershipMap.Export(Path.GetFullPath(stationPath), Path.GetFullPath(args[1]),
+                    Diagnostyka.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja));
+                Console.WriteLine($"Mapa własności: {map.Posterunki.Count} KZ, {map.Obiekty.Count} obiektów, {map.Granice.Count} granic, " +
+                    $"{map.Problemy.Count} problemów; sha256 {map.Sha256}");
+                return 0;
             }
             if (args[0] == "--compare")
             {

@@ -13,7 +13,8 @@
     "Tekst komunikatu (@mt) jest po polsku, ale znaczenie wynika z eventId/eventCode, nie z tłumaczenia.",
     "DiagnosticCandidate (obliczenie kanału) i EffectCommitted (jeden logiczny skutek OutputGate) mają różne kody (25 §5).",
     "S01.01 (18.10.2026): przydzielono podzakres 3600–3699 REJ (kopia dziennika pulpitu – Rejestrator) i kody fundamentu logów; adapter przyjmuje kod bez definicji, jeśli jest zgodny z podzakresem, a pola ponad pola kontekstu schematu tylko z listy 'pola' definicji.",
-    "Pole 'pola' wymienia pola kontekstu schematu i pola dodatkowe zdarzenia; inne pola adapter odrzuca i liczy w counters.rejectedFields. Rekord spoza katalogu dostaje LOG.EVENT_UNCATALOGUED z originalEventId i zachowanym poziomem."
+    "Pole 'pola' wymienia pola kontekstu schematu i pola dodatkowe zdarzenia; inne pola adapter odrzuca i liczy w counters.rejectedFields. Rekord spoza katalogu dostaje LOG.EVENT_UNCATALOGUED z originalEventId i zachowanym poziomem.",
+    "S02A.01 (21.10.2026): w podzakresie 4100–4199 KZ przydzielono 4101–4103 mapie własności postId/kzId (moduł LcsWidzew.MapaWlasnosci, strona hosta); bez zmian schematu rekordu."
   ],
   "obszary": [
     {
@@ -914,6 +915,63 @@
       "status": "wdrozony",
       "zrodlo": "S02.03; 11; 25 F24",
       "uwaga": "Profil uslugi, monotoniczna swiezosc i lokalny kanal health; bez komend domenowych i sekretow."
+    },
+    {
+      "eventId": 4101,
+      "eventCode": "KZ.OWNERSHIP_MAP_BUILT",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.MapaWlasnosci",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "contentHash",
+        "counters",
+        "outcome",
+        "durationUs"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.01; 16; 25 F24",
+      "uwaga": "Zbudowano mapę własności postId/kzId: skrót SHA-256 kanonicznego JSON i liczniki (posts, objects, assigned, ambiguous, unknown, blockEnds, blocks, routes, boundaries, problems, problemsLogged, problemsSuppressed). outcome Accepted albo Degraded (są problemy). Pełna mapa jest artefaktem JSON, nie logiem."
+    },
+    {
+      "eventId": 4102,
+      "eventCode": "KZ.OWNERSHIP_UNRESOLVED",
+      "severity": "Warning",
+      "moduleId": "LcsWidzew.MapaWlasnosci",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "typObiektu",
+        "targetId",
+        "reasonCode"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.01; 16; 25 F24",
+      "uwaga": "Problem przypisania (kod problemu mapy jako reasonCode). Najwyżej 16 rekordów na publikację mapy, reszta w licznikach 4101. targetId tylko gdy jest poprawnym identyfikatorem SUK."
+    },
+    {
+      "eventId": 4103,
+      "eventCode": "KZ.OWNERSHIP_MAP_FAILED",
+      "severity": "Error",
+      "moduleId": "LcsWidzew.MapaWlasnosci",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.01; 16; 25 F24",
+      "uwaga": "Nie zbudowano mapy (dane niezgodne z modelem); wyjątek redaguje adapter. Konsument mapy musi wtedy odmówić (fail-closed)."
     }
   ]
 }

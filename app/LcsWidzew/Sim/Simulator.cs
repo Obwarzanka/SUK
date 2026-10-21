@@ -41,6 +41,7 @@ public partial class Simulator
         DataDirectory = Path.GetFullPath(options?.DataDirectory ?? (st.SourcePath == null ? "." : Path.GetDirectoryName(st.SourcePath)));
         Nadrzedny = new SystemNadrzedny(this);
         Rej = new Rejestrator(L, () => T, () => Clock(), () => User, options?.RejestratorLogger);
+        mapaLog = options?.MapaWlasnosciLogger;
         Instruktor = new Instruktor(this);
         Rozklad = new Rozklad(this);
         Otoczenie = new Otoczenie(this);

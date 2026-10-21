@@ -365,7 +365,7 @@ public partial class KomputerZaleznosci
     }
 
     /// <summary>Pierwszy semafor odstępowy albo wjazdowy w kierunku dir od węzła (po torach szlaku; null – koniec obszaru).</summary>
-    string NextSignalFrom(string node, int dir)
+    internal string NextSignalFrom(string node, int dir)
     {
         string from = null;
         for (int k = 0; k < 200; k++)
@@ -400,7 +400,7 @@ public partial class KomputerZaleznosci
     }
 
     /// <summary>Sygnał następnego semafora za przebiegiem (koniec przebiegu, pierwszy semafor na szlaku); null – brak uzależnienia.</summary>
-    string NextAfterRoute(Route r) => r.EndKind switch
+    internal string NextAfterRoute(RouteDef r) => r.EndKind switch
     {
         "sig" => r.End,
         "szlak" => NextSignalFrom(r.EndNode, L.Signals[r.Start].Dir),

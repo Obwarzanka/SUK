@@ -73,11 +73,15 @@ internal static class Program
             ServiceLog.Register();
             if (!KatalogZdarzen.Zarejestruj(new(CoreLogging.EventId, CoreLogging.EventCode, KontraktLogu.Strumien.Domenowy, CoreLogging.PolaZdarzeniaRejestratora.ToArray())))
                 throw new InvalidOperationException("Niezgodny katalog rejestratora.");
+            foreach (var (mapId, mapCode, mapFields) in MapaWlasnosciLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new(mapId, mapCode, KontraktLogu.Strumien.Diagnostyka, mapFields)))
+                    throw new InvalidOperationException("Niezgodny katalog mapy własności.");
             logs = SilnikLogow.Uruchom(new OpcjeLogow { Aplikacja = "Lcs.WorldHost", Profil = ProfilLogow.Serwer, Katalog = values.GetValueOrDefault("--logi") });
             logger = logs.Modul(WorldLog.Module, WorldLog.Version);
             var recorder = logs.Modul(CoreLogging.Modul, CoreLogging.Wersja);
+            var ownership = logs.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja);
             ZdarzeniaProcesu.Uruchomiono(logger, "world");
-            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null), options, logger: logger);
+            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership), options, logger: logger);
             var serviceLogger = logs.Modul(ServiceLog.Module, WorldLog.Version);
             if (profile != null)
             {

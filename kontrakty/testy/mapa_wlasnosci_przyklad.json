@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "kontrakt": "kz.mapa_wlasnosci",
+  "regulaKzId": "KZ-{postId}",
+  "zrodlo": {
+    "nazwa": "Przykład – dwa posterunki",
+    "kod": "PRZ",
+    "przebiegi": 2,
+    "zaleznosciSpecjalne": 0
+  },
+  "posterunki": [
+    {
+      "postId": "A",
+      "kzId": "KZ-A",
+      "nazwa": "Posterunek A",
+      "liczbaObiektow": 4
+    },
+    {
+      "postId": "B",
+      "kzId": "KZ-B",
+      "nazwa": "Posterunek B",
+      "liczbaObiektow": 3
+    }
+  ],
+  "obiekty": [
+    {
+      "rodzaj": "odcinek",
+      "id": "1-1",
+      "status": "NIEJEDNOZNACZNY",
+      "postId": null,
+      "kzId": null,
+      "zrodlo": "brak",
+      "kandydaci": [
+        "A",
+        "B"
+      ],
+      "odbiorcy": [
+        "KZ-A",
+        "KZ-B"
+      ]
+    },
+    {
+      "rodzaj": "odcinek",
+      "id": "A:T1",
+      "status": "PRZYPISANY",
+      "postId": "A",
+      "kzId": "KZ-A",
+      "zrodlo": "prefiks_klucza",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-A"
+      ]
+    },
+    {
+      "rodzaj": "odcinek",
+      "id": "B:T1",
+      "status": "PRZYPISANY",
+      "postId": "B",
+      "kzId": "KZ-B",
+      "zrodlo": "prefiks_klucza",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-B"
+      ]
+    },
+    {
+      "rodzaj": "sygnalizator",
+      "id": "A:W",
+      "status": "PRZYPISANY",
+      "postId": "A",
+      "kzId": "KZ-A",
+      "zrodlo": "pole_post",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-A"
+      ]
+    },
+    {
+      "rodzaj": "sygnalizator",
+      "id": "B:E",
+      "status": "PRZYPISANY",
+      "postId": "B",
+      "kzId": "KZ-B",
+      "zrodlo": "pole_post",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-A",
+        "KZ-B"
+      ]
+    },
+    {
+      "rodzaj": "zasilanie",
+      "id": "zasilanie",
+      "status": "NIEZNANY",
+      "postId": null,
+      "kzId": null,
+      "zrodlo": "brak",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-A",
+        "KZ-B"
+      ]
+    },
+    {
+      "rodzaj": "zwrotnica",
+      "id": "A:1",
+      "status": "PRZYPISANY",
+      "postId": "A",
+      "kzId": "KZ-A",
+      "zrodlo": "pole_post",
+      "kandydaci": [],
+      "odbiorcy": [
+        "KZ-A"
+      ]
+    }
+  ],
+  "konceBlokad": [
+    {
+      "blokadaId": "AB",
+      "indeks": 0,
+      "status": "PRZYPISANY",
+      "postId": "A",
+      "kzId": "KZ-A",
+      "semaforWjazdowy": "A:W",
+      "granica": "A:g"
+    },
+    {
+      "blokadaId": "AB",
+      "indeks": 1,
+      "status": "PRZYPISANY",
+      "postId": "B",
+      "kzId": "KZ-B",
+      "semaforWjazdowy": "B:E",
+      "granica": "B:g"
+    }
+  ],
+  "szlaki": [
+    {
+      "blokadaId": "AB",
+      "rodzaj": "WEWNETRZNY_MIEDZY_KZ",
+      "typBlokady": "sbl",
+      "kzKoncow": [
+        "KZ-A",
+        "KZ-B"
+      ],
+      "sasiad": null
+    }
+  ],
+  "granice": [
+    {
+      "rodzaj": "BLOKADA_KONIEC",
+      "zKz": "KZ-A",
+      "doKz": "KZ-B",
+      "obiektRodzaj": "blokada",
+      "obiektId": "AB",
+      "liczbaOdwolan": 1,
+      "konteksty": [
+        "szlak AB"
+      ]
+    },
+    {
+      "rodzaj": "BLOKADA_KONIEC",
+      "zKz": "KZ-B",
+      "doKz": "KZ-A",
+      "obiektRodzaj": "blokada",
+      "obiektId": "AB",
+      "liczbaOdwolan": 1,
+      "konteksty": [
+        "szlak AB"
+      ]
+    },
+    {
+      "rodzaj": "NASTEPNY_SYGNAL",
+      "zKz": "KZ-A",
+      "doKz": "KZ-B",
+      "obiektRodzaj": "sygnalizator",
+      "obiektId": "B:E",
+      "liczbaOdwolan": 1,
+      "konteksty": [
+        "P W→AB"
+      ]
+    }
+  ],
+  "problemy": [
+    {
+      "kod": "BLOCK_INTERNAL_CROSS_KZ",
+      "rodzaj": "blokada",
+      "id": "AB",
+      "kandydaci": [
+        "KZ-A",
+        "KZ-B"
+      ]
+    },
+    {
+      "kod": "POWER_DOMAIN_UNASSIGNED",
+      "rodzaj": "zasilanie",
+      "id": "zasilanie",
+      "kandydaci": []
+    },
+    {
+      "kod": "SECTION_POST_AMBIGUOUS",
+      "rodzaj": "odcinek",
+      "id": "1-1",
+      "kandydaci": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "podsumowanie": {
+    "posterunki": 2,
+    "obiekty": 7,
+    "przypisane": 5,
+    "niejednoznaczne": 1,
+    "nieznane": 1,
+    "konceBlokad": 2,
+    "szlaki": 1,
+    "granice": 3,
+    "problemy": 3
+  }
+}

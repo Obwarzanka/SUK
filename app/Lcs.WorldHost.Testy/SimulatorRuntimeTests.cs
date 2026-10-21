@@ -10,19 +10,20 @@ namespace Lcs.WorldHost.Testy;
 public sealed class SimulatorRuntimeTests
 {
     [Theory]
-    [InlineData("podstawowy")]
-    [InlineData("usterki")]
-    [InlineData("manewry")]
-    public void HostMatchesLegacySimulatorWithSameScenarioAndCommandSequence(string scenario)
+    [InlineData("podstawowy", false)]
+    [InlineData("usterki", false)]
+    [InlineData("manewry", false)]
+    [InlineData("podstawowy", true)]   // S02A.01: publikacja mapy własności przy starcie nie zmienia zachowania
+    public void HostMatchesLegacySimulatorWithSameScenarioAndCommandSequence(string scenario, bool mapaWlasnosci)
     {
         string fixture = Path.Combine(AppContext.BaseDirectory, "TestData", "station_test.json");
         byte[] before = SHA256.HashData(File.ReadAllBytes(fixture));
-        string root = Path.Combine(Environment.GetEnvironmentVariable("SUK_WORLD_TEST_ARTIFACTS") ?? Path.GetTempPath(), "porownanie-" + scenario);
+        string root = Path.Combine(Environment.GetEnvironmentVariable("SUK_WORLD_TEST_ARTIFACTS") ?? Path.GetTempPath(), "porownanie-" + scenario + (mapaWlasnosci ? "-mapa" : ""));
         Directory.CreateDirectory(root);
         string copy = Path.Combine(root, "station_test.json"); File.Copy(fixture, copy, true);
         var station = Station.Load(copy); var baseline = new Simulator(station); new Trains(baseline).Load(scenario);
         var desk = baseline.AddDesk("HOST", "Lokalne stanowisko hosta", true); desk.Page = baseline.Page;
-        var runtime = new SimulatorRuntime(copy, scenario, NullLogger.Instance, NullLogger.Instance);
+        var runtime = new SimulatorRuntime(copy, scenario, NullLogger.Instance, NullLogger.Instance, ownership: mapaWlasnosci ? NullLogger.Instance : null);
         var clock = new ManualClock(); var loop = new WorldLoop(() => runtime, clock: clock); loop.Start();
         string turnout = station.Switches.Keys.First();
         var requests = new Dictionary<int, (InputKind Kind, string Text)>

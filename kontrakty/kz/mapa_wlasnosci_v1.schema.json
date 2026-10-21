@@ -1,0 +1,589 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK — mapa własności KZ: postId/kzId, właściciele urządzeń i lokalnych końców blokad, granice między KZ, v1 (S02A.01)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kontrakt",
+    "regulaKzId",
+    "zrodlo",
+    "posterunki",
+    "obiekty",
+    "konceBlokad",
+    "szlaki",
+    "granice",
+    "problemy",
+    "podsumowanie"
+  ],
+  "x-suk-zasady": [
+    "Mapę wyprowadza się wyłącznie z danych zaprojektowanych przez człowieka: pole post (zwrotnica, sygnalizator, wykolejnica, koniec blokady), przedrostek klucza odcinka (LW:…), posterunki węzłów torów odcinka bez przedrostka; tablica przebiegów i zależności specjalne służą tylko do inwentaryzacji granic. Mapa nie projektuje zależności i nie wybiera właściciela za człowieka.",
+    "kzId = 'KZ-' + postId: jeden logiczny KZ na posterunek (F14). Inna reguła wymaga nowej wersji głównej.",
+    "Status inny niż PRZYPISANY oznacza brak właściciela. Konsument mapy (routing poleceń i wejść KZ, prawa) odmawia; nie przyjmuje domyślnego KZ ani deklaracji klienta.",
+    "Granica: KZ zKz korzysta (meldunek, stan, uzależnienie sygnału, ochrona) z obiektu, którego właścicielem jest doKz. Dziś odczyt idzie przez wspólne słowniki jednego KZ; docelowo przez zatwierdzony interfejs KZ–KZ, bez odczytu prywatnych struktur.",
+    "Szlak WEWNETRZNY_MIEDZY_KZ: dziś wspólny BlockState obu końców i Wbl jednym poleceniem (Internal) – wymaga decyzji właściciela D03 przed podziałem.",
+    "Kolejność tablic jest kanoniczna (porządek ordinal według pól kluczowych); SHA-256 liczony z bajtów UTF-8 dokumentu. Mapa jest artefaktem przeglądu, nie dziennikiem; nie zawiera sekretów ani danych osób."
+  ],
+  "definitions": {
+    "postId": {
+      "type": "string",
+      "pattern": "^[0-9A-Za-z_À-ÖØ-öø-ɏ]{1,32}$"
+    },
+    "kzId": {
+      "type": "string",
+      "pattern": "^KZ-[0-9A-Za-z_À-ÖØ-öø-ɏ]{1,32}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[^\u0000-\u001f]{1,1024}$"
+    },
+    "status": {
+      "enum": [
+        "PRZYPISANY",
+        "NIEJEDNOZNACZNY",
+        "NIEZNANY"
+      ]
+    },
+    "rodzajObiektu": {
+      "enum": [
+        "odcinek",
+        "zwrotnica",
+        "sygnalizator",
+        "wykolejnica",
+        "zasilanie"
+      ]
+    },
+    "listaKz": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/kzId"
+      },
+      "uniqueItems": true
+    },
+    "listaPost": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/postId"
+      },
+      "uniqueItems": true
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kontrakt": {
+      "const": "kz.mapa_wlasnosci"
+    },
+    "regulaKzId": {
+      "const": "KZ-{postId}"
+    },
+    "zrodlo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nazwa",
+        "kod",
+        "przebiegi",
+        "zaleznosciSpecjalne"
+      ],
+      "properties": {
+        "nazwa": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "kod": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
+        "przebiegi": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "zaleznosciSpecjalne": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "posterunki": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "postId",
+          "kzId",
+          "nazwa",
+          "liczbaObiektow"
+        ],
+        "properties": {
+          "postId": {
+            "$ref": "#/definitions/postId"
+          },
+          "kzId": {
+            "$ref": "#/definitions/kzId"
+          },
+          "nazwa": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "liczbaObiektow": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "obiekty": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rodzaj",
+          "id",
+          "status",
+          "postId",
+          "kzId",
+          "zrodlo",
+          "kandydaci",
+          "odbiorcy"
+        ],
+        "properties": {
+          "rodzaj": {
+            "$ref": "#/definitions/rodzajObiektu"
+          },
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "status": {
+            "$ref": "#/definitions/status"
+          },
+          "postId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/postId"
+              }
+            ]
+          },
+          "kzId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/kzId"
+              }
+            ]
+          },
+          "zrodlo": {
+            "enum": [
+              "pole_post",
+              "prefiks_klucza",
+              "wezly_torow",
+              "brak"
+            ]
+          },
+          "kandydaci": {
+            "$ref": "#/definitions/listaPost"
+          },
+          "odbiorcy": {
+            "$ref": "#/definitions/listaKz"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "PRZYPISANY"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "postId": {
+                  "$ref": "#/definitions/postId"
+                },
+                "kzId": {
+                  "$ref": "#/definitions/kzId"
+                },
+                "zrodlo": {
+                  "enum": [
+                    "pole_post",
+                    "prefiks_klucza",
+                    "wezly_torow"
+                  ]
+                },
+                "odbiorcy": {
+                  "minItems": 1
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "postId": {
+                  "type": "null"
+                },
+                "kzId": {
+                  "type": "null"
+                },
+                "zrodlo": {
+                  "const": "brak"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "NIEJEDNOZNACZNY"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "kandydaci": {
+                  "minItems": 2
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "konceBlokad": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "blokadaId",
+          "indeks",
+          "status",
+          "postId",
+          "kzId",
+          "semaforWjazdowy",
+          "granica"
+        ],
+        "properties": {
+          "blokadaId": {
+            "$ref": "#/definitions/id"
+          },
+          "indeks": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "enum": [
+              "PRZYPISANY",
+              "NIEZNANY"
+            ]
+          },
+          "postId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/postId"
+              }
+            ]
+          },
+          "kzId": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/kzId"
+              }
+            ]
+          },
+          "semaforWjazdowy": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/id"
+              }
+            ]
+          },
+          "granica": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/id"
+              }
+            ]
+          }
+        },
+        "if": {
+          "properties": {
+            "status": {
+              "const": "PRZYPISANY"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "postId": {
+              "$ref": "#/definitions/postId"
+            },
+            "kzId": {
+              "$ref": "#/definitions/kzId"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "postId": {
+              "type": "null"
+            },
+            "kzId": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    },
+    "szlaki": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "blokadaId",
+          "rodzaj",
+          "typBlokady",
+          "kzKoncow",
+          "sasiad"
+        ],
+        "properties": {
+          "blokadaId": {
+            "$ref": "#/definitions/id"
+          },
+          "rodzaj": {
+            "enum": [
+              "ZEWNETRZNY",
+              "WEWNETRZNY_JEDEN_KZ",
+              "WEWNETRZNY_MIEDZY_KZ",
+              "NIEOKRESLONY"
+            ]
+          },
+          "typBlokady": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 16
+          },
+          "kzKoncow": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/definitions/kzId"
+                }
+              ]
+            }
+          },
+          "sasiad": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "granice": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rodzaj",
+          "zKz",
+          "doKz",
+          "obiektRodzaj",
+          "obiektId",
+          "liczbaOdwolan",
+          "konteksty"
+        ],
+        "properties": {
+          "rodzaj": {
+            "enum": [
+              "PRZEBIEG_ODCINEK",
+              "PRZEBIEG_ZWROTNICA",
+              "PRZEBIEG_WYKOLEJNICA",
+              "OCHRONA_BOCZNA",
+              "DROGA_OCHRONNA",
+              "WARUNEK_SPECJALNY",
+              "ZALEZNOSC_PRZEBIEGOW",
+              "NASTEPNY_SYGNAL",
+              "ODSTEPOWY_NASTEPNY",
+              "BLOKADA_KONIEC",
+              "BLOKADA_ODSTEP",
+              "BLOKADA_SYGNAL"
+            ]
+          },
+          "zKz": {
+            "$ref": "#/definitions/kzId"
+          },
+          "doKz": {
+            "$ref": "#/definitions/kzId"
+          },
+          "obiektRodzaj": {
+            "enum": [
+              "odcinek",
+              "zwrotnica",
+              "sygnalizator",
+              "wykolejnica",
+              "blokada"
+            ]
+          },
+          "obiektId": {
+            "$ref": "#/definitions/id"
+          },
+          "liczbaOdwolan": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "konteksty": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "problemy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kod",
+          "rodzaj",
+          "id",
+          "kandydaci"
+        ],
+        "properties": {
+          "kod": {
+            "enum": [
+              "POST_ID_INVALID",
+              "OBJECT_POST_UNKNOWN",
+              "POST_FIELD_PREFIX_MISMATCH",
+              "SECTION_POST_AMBIGUOUS",
+              "SECTION_POST_UNKNOWN",
+              "SECTION_PREFIX_NODES_MISMATCH",
+              "BLOCK_END_POST_UNKNOWN",
+              "BLOCK_WITHOUT_ENDS",
+              "BLOCK_INTERNAL_CROSS_KZ",
+              "POWER_DOMAIN_UNASSIGNED",
+              "POST_WITHOUT_OBJECTS",
+              "DANGLING_REFERENCE"
+            ]
+          },
+          "rodzaj": {
+            "type": "string",
+            "pattern": "^[a-zA-Z]{1,32}$"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "kandydaci": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "podsumowanie": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posterunki",
+        "obiekty",
+        "przypisane",
+        "niejednoznaczne",
+        "nieznane",
+        "konceBlokad",
+        "szlaki",
+        "granice",
+        "problemy"
+      ],
+      "properties": {
+        "posterunki": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "obiekty": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "przypisane": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "niejednoznaczne": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nieznane": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "konceBlokad": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "szlaki": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "granice": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "problemy": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

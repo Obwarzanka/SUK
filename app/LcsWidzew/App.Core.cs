@@ -11,10 +11,13 @@ public partial class App
     {
         KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(CoreLogging.EventId, CoreLogging.EventCode,
             KontraktLogu.Strumien.Domenowy, CoreLogging.PolaZdarzeniaRejestratora.ToArray()));
+        foreach (var (id, kod, pola) in MapaWlasnosciLog.Definicje)
+            KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
         return new SimulatorOptions
         {
             DataDirectory = Path.GetDirectoryName(Path.GetFullPath(StationPath)),
             RejestratorLogger = Diagnostyka.Modul(CoreLogging.Modul, CoreLogging.Wersja),
+            MapaWlasnosciLogger = Diagnostyka.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja),
         };
     }
 }

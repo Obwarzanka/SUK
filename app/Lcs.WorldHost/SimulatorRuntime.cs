@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Lcs.WorldHost;
 
 /// <summary>Przejściowy adapter obecnego rdzenia. Jeden Simulator/Trains; podział KZ i Ada należą do S02A–S02D.</summary>
-public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true) : IWorldRuntime
+public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true, ILogger? ownership = null) : IWorldRuntime
 {
     Simulator? sim;
     Desk? desk;
@@ -22,11 +22,13 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     {
         if (!Rozklad.Scenarios.Any(s => s.Key == scenario)) throw new ArgumentException("Nieznany scenariusz.");
         var station = Station.Load(stationPath);
-        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder });
+        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder, MapaWlasnosciLogger = ownership });
         var trains = new Trains(sim);
         _ = Sygnaly.Tab;
         _ = trains.Tabor;
         trains.Load(scenario);
+        // S02A.01: mapa własności postId/kzId (tylko odczyt i log KZ.OWNERSHIP_*); jeszcze bez konsumenta w cyklu.
+        if (ownership != null) sim.OpublikujWlasnosc();
         // Stanowisko lokalne jest zaufanym adapterem, nie kontem ani wejściem publicznego serwera.
         desk = sim.AddDesk("HOST", "Lokalne stanowisko hosta", true); desk.Page = sim.Page;
         // Ograniczony manifest znanych wejść i ich braku. Ścieżki i treść nie trafiają do diagnostyki.

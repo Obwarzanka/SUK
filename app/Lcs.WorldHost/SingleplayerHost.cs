@@ -115,6 +115,8 @@ public sealed class SingleplayerHost : IDisposable
             var sim = new Simulator(station, options: options);
             if (page != null && page != "OV") sim.Page = page;
             var trains = new Trains(sim); _ = Sygnaly.Tab; _ = trains.Tabor; trains.Load(scenario);
+            // S02A.01: mapa własności postId/kzId (tylko odczyt, log KZ.OWNERSHIP_* gdy pulpit podał logger); bez konsumenta w cyklu.
+            if (options?.MapaWlasnosciLogger != null) sim.OpublikujWlasnosc();
             var desk = sim.AddDesk("PC", deskName, true); desk.Page = sim.Page; desk.User = user; sim.User = user;
             Session = new LocalSession(sim, desk);
         }

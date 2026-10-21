@@ -20,6 +20,43 @@ public partial class Simulator
     public Dictionary<string, List<RouteDef>> RouteTable => Kz.RouteTable;
     public PowerState Power => Kz.Power;
 
+    MapaWlasnosci wlasnosc;
+    readonly Microsoft.Extensions.Logging.ILogger mapaLog;
+    /// <summary>
+    /// Mapa własności postId/kzId (S02A.01, Sim/Kz/MapaWlasnosci.cs): właściciele urządzeń i lokalnych końców blokad oraz granice
+    /// między KZ, wyprowadzone z danych układu i tablicy przebiegów przy pierwszym odczycie (wtedy też log KZ.OWNERSHIP_*).
+    /// Tylko odczyt – nie wpływa na cykl. Błąd danych: log KZ.OWNERSHIP_MAP_FAILED i wyjątek.
+    /// </summary>
+    public MapaWlasnosci Wlasnosc
+    {
+        get
+        {
+            if (wlasnosc != null) return wlasnosc;
+            try
+            {
+                wlasnosc = MapaWlasnosci.Zbuduj(L, Kz.RouteTable, NastepnySygnalZaPrzebiegiem, NastepnySygnalZaOdstepowym);
+            }
+            catch (Exception ex) { MapaWlasnosciLog.Blad(mapaLog, ex); throw; }
+            MapaWlasnosciLog.Zapisz(mapaLog, wlasnosc);
+            return wlasnosc;
+        }
+    }
+
+    /// <summary>Semafor, od którego zależy sygnał przebiegu pociągowego (koniec przebiegu albo pierwszy semafor na szlaku); null – brak.</summary>
+    public string NastepnySygnalZaPrzebiegiem(RouteDef r) => Kz.NextAfterRoute(r);
+    /// <summary>Następny semafor odstępowy albo wjazdowy za semaforem odstępowym (bez pamięci podręcznej KZ); null – koniec obszaru.</summary>
+    public string NastepnySygnalZaOdstepowym(string sig) { var d = L.Signals[sig]; return Kz.NextSignalFrom(d.Node, d.Dir); }
+
+    /// <summary>
+    /// Start świata: buduje i loguje mapę własności. Null – mapy nie zbudowano (zalogowano KZ.OWNERSHIP_MAP_FAILED); przyszły
+    /// konsument mapy (routing poleceń i wejść KZ, S02A.02+) musi wtedy odmówić, a nie przyjąć domyślnego właściciela.
+    /// </summary>
+    public MapaWlasnosci OpublikujWlasnosc()
+    {
+        try { return Wlasnosc; }
+        catch (Exception) { return null; }
+    }
+
     public bool SecOcc(string id) => Kz.SecOcc(id);
     public bool SwControlled(string n) => Kz.SwControlled(n);
     public double SzLeft(string id) => Kz.SzLeft(id);
@@ -31,7 +68,7 @@ public partial class Simulator
     public string PrzeliczTablice()
     {
         if (Routes.Count > 0) return "Są nastawione przebiegi – zwolnij je i naciśnij „Przelicz tablicę” (albo uruchom symulację ponownie).";
-        Kz.RouteTable.Clear(); Kz.BuildRouteTable();
+        Kz.RouteTable.Clear(); Kz.BuildRouteTable(); wlasnosc = null;
         return null;
     }
     public List<string> SignalConditions(Route r) => Kz.SignalConditions(r);

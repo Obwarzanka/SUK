@@ -70,6 +70,17 @@ Pierwsze polecenie działa także jako konsolowa próba przygotowanego profilu; 
 
 Domyślny próg świeżości to 2 s, start 30 s, shutdown 10 s, miękki limit working set 1024 MiB. Przekroczenie limitu pamięci wycofuje Ready i żąda kontrolowanego stopu. Problemy diagnostyki lub wolne miejsce poniżej jej progu ograniczenia wycofują Ready, zachowując autonomiczny cykl świata. Profil nie wyłącza istniejących limitów i rotacji logów. Szczegóły backoff, ACL, runtime i ograniczeń testów są w instrukcji generatora oraz raporcie etapu.
 
+### Mapa własności KZ (S02A.01)
+
+Każdy posterunek ma stały identyfikator komputera zależności `KZ-<kod posterunku>` (np. `KZ-LW`). Mapa własności przypisuje każde urządzenie (odcinek, zwrotnicę, sygnalizator, wykolejnicę, zasilanie) i każdy koniec szlaku jego posterunkowi. Wylicza też **granice**, czyli miejsca, w których zależności jednego posterunku korzystają z urządzenia innego posterunku. Przykłady: następny semafor za przebiegiem albo szlak między dwiema stacjami LCS. Mapa powstaje wyłącznie z danych układu (pole `post`, przedrostek klucza, posterunki węzłów torów) i z tablicy przebiegów. Niczego nie projektuje. Gdy właściciel jest niejednoznaczny lub nieznany, mapa zgłasza problem i nie wskazuje domyślnego KZ. Symulacja działa jak dotąd; mapa jest na razie tylko odczytem dla kolejnych kroków (S02A.02+).
+
+```powershell
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --station kopia\station_test.json --mapa-wlasnosci wynik\mapa.json
+python3 kontrakty/testy/sprawdz_kontrakty.py --mapa wynik/mapa.json
+```
+
+Wynik jest kanonicznym plikiem JSON zgodnym z `kontrakty/kz/mapa_wlasnosci_v1.schema.json`, ze skrótem SHA-256 do porównań. Program nie nadpisze istniejącego pliku, układu ani jego zależności specjalnych. Host świata i pulpit budują mapę przy starcie świata i zapisują w logach technicznych `KZ.OWNERSHIP_MAP_BUILT` (4101) ze skrótem i licznikami, `KZ.OWNERSHIP_UNRESOLVED` (4102, najwyżej 16 na start) dla problemów przypisania oraz `KZ.OWNERSHIP_MAP_FAILED` (4103). Szczegóły i decyzje do podjęcia: [S02A.01](SUK_plan_multiplayer/raporty/S02A.01.md).
+
 ### Gra jednoosobowa (S02.02)
 
 Uruchom pulpit jak dotychczas przez `uruchom.bat`. Lokalna gra korzysta z plików układu i scenariusza; nie wymaga konta serwera ani Internetu. Dotychczasowe logowanie dyżurnego służy lokalnej sesji symulatora. Pauza i przyciski tempa działają na wspólnym cyklu o kroku 0,1 s. Polecenia w pauzie, również tuż po uruchomieniu przy czasie 0, otrzymują wynik bez przesuwania czasu.

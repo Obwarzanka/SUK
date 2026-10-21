@@ -54,7 +54,8 @@
         "S01.02",
         "S02.01",
         "S02A1.02",
-        "S02.03"
+        "S02.03",
+        "S02A.01"
       ],
       "rozdzialy": [
         "25 §3",
@@ -64,7 +65,7 @@
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "b0783b4ed60df1fce825a807f57c7e101f759cf7f5845b1e463ef447c2cd8649"
+          "sha256_lf": "25e4e6b4fadf6b84f3ca2f8eda2fc724eb89003e095e1578808cd0ef3f431cd4"
         }
       ]
     },
@@ -697,12 +698,41 @@
           "sha256_lf": "c210502291b9c70d8cb50a61c77428abf8aa4f570e95e052af2c6a1a4008c3cb"
         }
       ]
+    },
+    {
+      "id": "kz.mapa_wlasnosci",
+      "nazwa": "Mapa własności KZ (postId/kzId, właściciele urządzeń i końców blokad, granice)",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S02A.01",
+      "zamraza": "S02A.04",
+      "konsumenci": [
+        "S02A.02",
+        "S02A.04",
+        "S02A1.01",
+        "S04.02",
+        "S05.01"
+      ],
+      "rozdzialy": [
+        "16",
+        "19 §6",
+        "04",
+        "05",
+        "25"
+      ],
+      "opis": "Wyprowadzana z danych człowieka (pole post, przedrostek klucza, posterunki węzłów) i tablicy przebiegów; kzId = KZ-{postId}; status inny niż PRZYPISANY = brak właściciela i odmowa (bez domyślnego KZ); inwentarz granic KZ–KZ (przebiegi, ochrona, następny sygnał, szlaki). Kanoniczny JSON i SHA-256; generuje Lcs.Core.TestHost --mapa-wlasnosci.",
+      "pliki": [
+        {
+          "plik": "kontrakty/kz/mapa_wlasnosci_v1.schema.json",
+          "sha256_lf": "908bf56bf541bda9feeb6526d3139b7294fd3fe4dafa92a26cc7f45f46b0a7b8"
+        }
+      ]
     }
   ],
   "narzedzia": [
     {
       "plik": "kontrakty/testy/sprawdz_kontrakty.py",
-      "sha256_lf": "c8681e4c9a34d6cefd10a5c5cba6ded25cf05fcfbcc70027b7a1015ad78c3536"
+      "sha256_lf": "32bdf15aaff068be7368beba4353430ed5bbac55c71b3837eb33bfb2e0d5b1ba"
     },
     {
       "plik": "kontrakty/testy/rekordy_poprawne.jsonl",
@@ -711,6 +741,10 @@
     {
       "plik": "kontrakty/testy/przypadki_bledne.json",
       "sha256_lf": "ea20745295256e561b4bf2175e33c7cc3abfd38e1cc73529c59ffc6c79a3fc3f"
+    },
+    {
+      "plik": "kontrakty/testy/mapa_wlasnosci_przyklad.json",
+      "sha256_lf": "1318a94408ef4b73aabb34cbcc3ae7a29f10dbf3d7a243f746b5703ab47a7ecc"
     }
   ]
 }

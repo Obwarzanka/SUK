@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Sprawdzenie kontraktów SUK (S00.03).
 
-Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt] [--jsonl ścieżka ...]
+Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt] [--jsonl ścieżka ...] [--mapa plik.json ...]
 --jsonl (S01.01): dodatkowo sprawdza pliki JSONL zapisane przez programy (plik albo katalog – rekurencyjnie *.jsonl):
 każda linia = jeden obiekt JSON zgodny ze schematem v1 i katalogiem zdarzeń, ≤ 8 KiB, bez znacznika testowego sekretu
 „SEKRET_TESTOWY”, recordSeq bez powtórzeń w obrębie processRunId.
+--mapa (S02A.01): dodatkowo sprawdza mapy własności KZ zapisane przez program (Lcs.Core.TestHost --mapa-wlasnosci):
+schemat kz/mapa_wlasnosci_v1, reguła kzId, spójność odwołań, liczników i kanonicznej kolejności.
 Wymaga: Python >= 3.8, pakiet jsonschema >= 3.2 (walidator Draft-07). Skrypt tylko czyta pliki repo;
 nie łączy się z siecią i niczego nie zapisuje poza opcjonalnym plikiem --wynik.
 Kod wyjścia 0 = brak błędów, 1 = co najmniej jeden błąd, 2 = brak wymaganego pakietu.
@@ -238,6 +240,106 @@ if "--jsonl" in sys.argv:
             ok(f"jsonl: {nazwa}: {n} rekordów zgodnych ze schematem v1 i katalogiem")
         razem += n
     ok(f"jsonl: {len(pliki)} plików, {razem} rekordów")
+
+# ------------------------------------------------------------------ 6a. mapa własności KZ (S02A.01)
+schemat_mapy = wczytaj(K / "kz" / "mapa_wlasnosci_v1.schema.json")
+try:
+    Draft7Validator.check_schema(schemat_mapy)
+    ok("schemat kz/mapa_wlasnosci_v1 zgodny z metaschematem Draft-07")
+except jsonschema.exceptions.SchemaError as e:
+    blad(f"schemat kz/mapa_wlasnosci_v1 niezgodny z Draft-07: {e.message}")
+walidator_mapy = Draft7Validator(schemat_mapy)
+
+
+def oceń_mape(m):
+    """Błędy mapy: schemat + reguły krzyżowe, których JSON Schema nie wyraża (lista komunikatów, pusta = poprawna)."""
+    e = [x.message[:160] for x in list(walidator_mapy.iter_errors(m))[:5]]
+    if e:
+        return e
+    kz = {}
+    for p in m["posterunki"]:
+        if p["kzId"] != "KZ-" + p["postId"]:
+            e.append(f"posterunek {p['postId']}: kzId {p['kzId']} niezgodny z regułą KZ-{{postId}}")
+        if p["postId"] in kz:
+            e.append(f"posterunek {p['postId']} powtórzony")
+        kz[p["postId"]] = p["kzId"]
+    wszystkie = set(kz.values())
+    def zgodny(w, opis):
+        if w["kzId"] is not None and (w["postId"] not in kz or kz[w["postId"]] != w["kzId"]):
+            e.append(f"{opis}: kzId {w['kzId']} nie wynika z posterunku {w['postId']}")
+    for o in m["obiekty"]:
+        zgodny(o, f"obiekt {o['rodzaj']} {o['id']}")
+        if o["kzId"] is not None and o["kzId"] not in o["odbiorcy"]:
+            e.append(f"obiekt {o['rodzaj']} {o['id']}: właściciel nie jest odbiorcą")
+        if not set(o["odbiorcy"]) <= wszystkie or not set(o["kandydaci"]) <= set(kz):
+            e.append(f"obiekt {o['rodzaj']} {o['id']}: odbiorca/kandydat spoza posterunków")
+    for k in m["konceBlokad"]:
+        zgodny(k, f"koniec {k['blokadaId']}#{k['indeks']}")
+    wlasciciel = {(o["rodzaj"], o["id"]): o["kzId"] for o in m["obiekty"]}
+    for g in m["granice"]:
+        if g["zKz"] == g["doKz"] or g["zKz"] not in wszystkie or g["doKz"] not in wszystkie:
+            e.append(f"granica {g['rodzaj']} {g['obiektId']}: zKz/doKz niepoprawne")
+        if g["obiektRodzaj"] != "blokada" and wlasciciel.get((g["obiektRodzaj"], g["obiektId"])) != g["doKz"]:
+            e.append(f"granica {g['rodzaj']} {g['obiektId']}: doKz nie jest właścicielem obiektu")
+        if g["liczbaOdwolan"] < len(g["konteksty"]):
+            e.append(f"granica {g['rodzaj']} {g['obiektId']}: mniej odwołań niż kontekstów")
+    s = m["podsumowanie"]
+    oczek = {"posterunki": len(m["posterunki"]), "obiekty": len(m["obiekty"]), "konceBlokad": len(m["konceBlokad"]), "szlaki": len(m["szlaki"]),
+             "granice": len(m["granice"]), "problemy": len(m["problemy"]),
+             "przypisane": sum(o["status"] == "PRZYPISANY" for o in m["obiekty"]),
+             "niejednoznaczne": sum(o["status"] == "NIEJEDNOZNACZNY" for o in m["obiekty"]),
+             "nieznane": sum(o["status"] == "NIEZNANY" for o in m["obiekty"])}
+    for k, v in oczek.items():
+        if s[k] != v:
+            e.append(f"podsumowanie.{k} = {s[k]}, a jest {v}")
+    def u16(t):
+        return t.encode("utf-16-be")   # porządek ordinal .NET (jednostki UTF-16)
+    for nazwa, klucz in [("posterunki", lambda x: u16(x["postId"])), ("obiekty", lambda x: (u16(x["rodzaj"]), u16(x["id"]))),
+                         ("konceBlokad", lambda x: (u16(x["blokadaId"]), x["indeks"])), ("szlaki", lambda x: u16(x["blokadaId"])),
+                         ("granice", lambda x: tuple(u16(x[k]) for k in ("rodzaj", "zKz", "doKz", "obiektRodzaj", "obiektId"))),
+                         ("problemy", lambda x: (u16(x["kod"]), u16(x["rodzaj"]), u16(x["id"])))]:
+        if [klucz(x) for x in m[nazwa]] != sorted(klucz(x) for x in m[nazwa]):
+            e.append(f"{nazwa}: kolejność niekanoniczna")
+    return e
+
+
+przyklad = wczytaj(K / "testy" / "mapa_wlasnosci_przyklad.json")
+pw = oceń_mape(przyklad)
+if pw:
+    blad(f"mapa_wlasnosci_przyklad.json: odrzucony: {pw}")
+else:
+    ok("mapa_wlasnosci_przyklad.json: zgodny ze schematem i regułami krzyżowymi")
+import copy as _copy
+def _mutacja(opis, f):
+    m = _copy.deepcopy(przyklad)
+    f(m)
+    if oceń_mape(m):
+        ok(f"mapa – przypadek błędny odrzucony: {opis}")
+    else:
+        blad(f"mapa – przypadek błędny PRZYJĘTY: {opis}")
+_mutacja("PRZYPISANY bez kzId", lambda m: m["obiekty"][1].update(kzId=None))
+_mutacja("NIEJEDNOZNACZNY z kzId (domyślny właściciel)", lambda m: m["obiekty"][0].update(kzId="KZ-A", postId="A"))
+_mutacja("kzId niezgodny z regułą posterunku", lambda m: m["posterunki"][0].update(kzId="KZ-B"))
+_mutacja("obiekt z kzId innego posterunku", lambda m: m["obiekty"][1].update(kzId="KZ-B"))
+_mutacja("granica do samego siebie", lambda m: m["granice"][2].update(doKz="KZ-A"))
+_mutacja("granica do nie-właściciela obiektu", lambda m: m["granice"][2].update(obiektId="A:W"))
+_mutacja("nieznane pole", lambda m: m.update(dodatkowe=1))
+_mutacja("niezgodne podsumowanie", lambda m: m["podsumowanie"].update(problemy=0))
+_mutacja("kolejność niekanoniczna", lambda m: m["obiekty"].reverse())
+_mutacja("identyfikator posterunku ze spacją", lambda m: m["posterunki"][0].update(postId="A B", kzId="KZ-A B"))
+if "--mapa" in sys.argv:
+    i = sys.argv.index("--mapa") + 1
+    while i < len(sys.argv) and not sys.argv[i].startswith("--"):
+        sc = Path(sys.argv[i])
+        i += 1
+        try:
+            pw = oceń_mape(wczytaj(sc))
+        except Exception as ex:  # noqa: BLE001
+            pw = [f"nie można wczytać: {ex}"]
+        if pw:
+            blad(f"mapa: {sc.as_posix()}: odrzucona: {pw}")
+        else:
+            ok(f"mapa: {sc.as_posix()}: zgodna ze schematem kz/mapa_wlasnosci_v1 i regułami krzyżowymi")
 
 # ------------------------------------------------------------------ 6. budżety a schemat
 ids = [b["id"] for b in budzety["budzety"]]
