@@ -56,6 +56,7 @@ public static partial class Test
                 // EDYTOR_UT_TEST=slad – tylko część „ślad” (szybka próba w trakcie pracy; pełny test – bez zmiennej)
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "slad") { log.AppendLine("== ślad (tylko ta część)"); await RunSlad(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "przeciagnij") { log.AppendLine("== przeciągnięcie sygnalizatora w projekcie"); await RunPrzeciagnij(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), Environment.GetEnvironmentVariable("EDYTOR_UT_SYG") ?? "B1"); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "posterunki") { log.AppendLine("== posterunki i szlaki (tylko ta część)"); await RunPosterunki(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }

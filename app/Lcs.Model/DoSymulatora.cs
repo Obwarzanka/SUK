@@ -307,6 +307,7 @@ public static class DoSymulatora
                 ["id"] = ln.Numer, ["type"] = ln.Typ, ["nbr"] = nbr, ["internal"] = ends.Count == 2, ["ends"] = ends,
                 ["secsWE"] = new JsonArray(secs.OrderBy(x => x.X).Select(x => (JsonNode)x.Sec).ToArray()),
                 ["defDir"] = defDir, ["tor"] = ln.Tor, ["line"] = ln.Linia, ["label"] = ln.Numer, ["aspects"] = ln.Stawnosc,
+                ["name"] = ln.Nazwa, ["nameShort"] = ln.NazwaSkr,
             };
             if (far != null) { b["far"] = far; farEnds[far] = new JsonObject { ["szlak"] = ln.Numer, ["nbr"] = nbr }; }
             blocks[ln.Numer] = b;

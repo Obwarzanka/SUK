@@ -135,7 +135,7 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Peron, "▤ Peron", "Peron (Ig-10 s. 52): wciśnij na torze w miejscu początku krawędzi i przeciągnij wzdłuż toru do jej końca, po stronie peronu"));
         tb.Items.Add(ToolBtn(UtTool.Przejazd, "╪ Przejazd", "Przejazd kolejowo-drogowy: klik na torze – droga prostopadle; przeciągnięcie – wzdłuż osi drogi (kąt i długość)"));
         tb.Items.Add(ToolBtn(UtTool.Km, "km", "Kilometraż linii: wciśnij na torze w znanym miejscu i przeciągnij w stronę rosnącego km linii; numer linii i km z okna"));
-        tb.Items.Add(ToolBtn(UtTool.Szlak, "⇄ Szlak", "Szlak z blokadą liniową: klik na semaforze wjazdowym posterunku albo przy końcu toru na granicy obszaru, potem na drugim końcu (B)"));
+        tb.Items.Add(ToolBtn(UtTool.Szlak, "⇄ Szlak", "Szlak z blokadą liniową. Narzędzie Szlak: najedź na tor szlaku – podgląd do semaforów wjazdowych albo granicy obszaru, klik – utwórz; Ctrl + klik – końce ręcznie (B)"));
         tb.Items.Add(new Separator());
         tb.Items.Add(Btn("Symbole Ig-10…", (s, e) => OpenSymbols(), "Katalog znaków Ig-10 (zał. 8) z pliku Dane/symbole_ig10.json – podgląd, ponowne wczytanie po poprawkach"));
         tb.Items.Add(new Separator());
@@ -179,7 +179,7 @@ public partial class MainWindow : Window
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
             UtTool.Przejazd => "Przejazd: kliknij na torze w osi drogi (droga prostopadle) albo przeciągnij wzdłuż osi drogi – kąt i długość drogi na planie",
             UtTool.Km => "Kilometraż: wciśnij na torze w miejscu o znanym km linii i przeciągnij w stronę rosnącego km; w oknie numer linii i km (np. 17 25.452). Drugi punkt na tym samym torze – kilometr skrócony / wydłużony",
-            UtTool.Szlak => "Szlak: kliknij semafor wjazdowy posterunku albo koniec toru na granicy obszaru, potem drugi koniec szlaku – droga po torach wyznaczy się sama; PPM / Esc – od nowa",
+            UtTool.Szlak => "Szlak: najedź na tor szlaku – program sam znajdzie końce (semafory wjazdowe albo granicę obszaru) i pokaże drogę, klik – utwórz; klik na istniejącym szlaku – zaznacz; Ctrl + klik – końce ręcznie; PPM / Esc – od nowa",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
             UtTool.Obszar => "Zaznacz prostokąt do pobrania ortofotomapy (przeciągnij); PPM / Esc – rezygnacja",
             UtTool.Kalibracja => "Kalibracja: klik na grafice (punkt charakterystyczny), potem klik w miejscu, gdzie ten punkt jest naprawdę (np. na ortofotomapie); PPM – rezygnacja z punktu, Esc – koniec",

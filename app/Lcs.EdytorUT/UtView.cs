@@ -206,6 +206,7 @@ public partial class UtView : FrameworkElement
     public void Drag(Point p, bool buttonDown)
     {
         hover = ToWorld(p);
+        if (tool == UtTool.Szlak && !buttonDown && panFrom == null) SzlakHover(p);
         if (panFrom is Point f)
         {
             if (buttonDown) { PanBy(p - f); panFrom = p; }

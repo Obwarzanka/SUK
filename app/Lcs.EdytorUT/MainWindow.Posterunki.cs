@@ -50,13 +50,13 @@ public partial class MainWindow
         {
             var d = drogi.TryGetValue(l.Id, out var dd) ? dd : null;
             string typ = UtLine.Typy.FirstOrDefault(t => t.Key == l.Typ).Name ?? l.Typ;
-            var txt = $"szlak {(l.Numer.Length > 0 ? l.Numer : "?")} – " + (d?.Err != null ? "brak drogi" : $"{UtView.Len(d?.Dlugosc ?? 0)}, {typ.Split(' ')[0]}" + (l.Samoczynna ? $" {l.Stawnosc}-st." : ""));
+            var txt = $"szlak {(l.Numer.Length > 0 ? l.Numer : "?")}" + (l.NazwaSkr.Length > 0 ? $" {l.NazwaSkr}" : "") + " – " + (d?.Err != null ? "brak drogi" : $"{UtView.Len(d?.Dlugosc ?? 0)}, {typ.Split(' ')[0]}" + (l.Samoczynna ? $" {l.Stawnosc}-st." : ""));
             var id = l.Id;
-            var b = new Button { Content = txt, HorizontalContentAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 2), Padding = new Thickness(4, 1, 4, 1), Foreground = d?.Err != null ? Brushes.Firebrick : Brushes.Black, ToolTip = d?.Err ?? "Zaznacz szlak – panel z blokadą, końcami i drogą" };
+            var b = new Button { Content = txt, HorizontalContentAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 2), Padding = new Thickness(4, 1, 4, 1), Foreground = d?.Err != null ? Brushes.Firebrick : Brushes.Black, ToolTip = d?.Err ?? (l.Nazwa.Length > 0 ? l.Nazwa + " – " : "") + "zaznacz szlak – panel z blokadą, końcami i drogą" };
             b.Click += (s, e) => View.SelectObj(Kontrola.KSzlak, id);
             postList.Children.Add(b);
         }
-        postList.Children.Add(SmallBtn("+ szlak (B)", () => SetTool(UtTool.Szlak), "Narzędzie Szlak: klik na semaforze wjazdowym posterunku albo przy końcu toru na granicy obszaru, potem na drugim końcu szlaku"));
+        postList.Children.Add(SmallBtn("+ szlak (B)", () => SetTool(UtTool.Szlak), "Narzędzie Szlak: najedź na tor szlaku – podgląd do semaforów wjazdowych albo granicy obszaru, klik – utwórz; Ctrl + klik – końce ręcznie (B)"));
         postList.Children.Add(new TextBlock { Text = "Tory posterunków i szlaki są podświetlone na planie, gdy ten pasek jest rozwinięty (tylko w edytorze, nie na wydruku).", Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
     }
 
@@ -92,13 +92,15 @@ public partial class MainWindow
         if (string.IsNullOrEmpty(num)) return;
         if (Doc.P.Lines.Any(x => x.Numer == num)) { Message($"Oznaczenie szlaku {num} jest już zajęte"); return; }
         var l = new UtLine { Numer = num, Konce = new() { a, b } };
-        // rodzaj blokady: jak na pozostałych szlakach obszaru
+        // rodzaj blokady: jak na pozostałych szlakach obszaru; nazwy – z posterunków na końcach
         if (Doc.P.Lines.Count > 0) { l.Typ = Doc.P.Lines[^1].Typ; l.Stawnosc = Doc.P.Lines[^1].Stawnosc; }
+        (l.Nazwa, l.NazwaSkr) = Szlaki.ProponujNazwy(Doc.P, l);
         Doc.Change("Szlak", p => p.Lines.Add(l));
         View.SelectObj(Kontrola.KSzlak, l.Id);
         PostExpander.IsExpanded = true;
         var d = View.DrogiNow().GetValueOrDefault(l.Id);
-        Message(d?.Err != null ? $"Szlak {num}: {d.Err}" : $"Szlak {num}: {Szlaki.Opis(Doc.P, a)} – {Szlaki.Opis(Doc.P, b)}, {UtView.Len(d?.Dlugosc ?? 0)}" + (d?.Semafory.Count > 0 ? $", semafory na szlaku: {string.Join(", ", d.Semafory.Select(x => x.Name))}" : ""));
+        Message(d?.Err != null ? $"Szlak {num}: {d.Err}" : $"Szlak {num} {l.Nazwa}: {Szlaki.Opis(Doc.P, a)} – {Szlaki.Opis(Doc.P, b)}, {UtView.Len(d?.Dlugosc ?? 0)}" + (d?.Semafory.Count > 0 ? $", semafory na szlaku: {string.Join(", ", d.Semafory.Select(x => x.Name))}" : "")
+                + (a.Semafor == null || b.Semafor == null ? " – wpisz w panelu posterunek sąsiedni przy końcu na granicy obszaru (nazwa szlaku uzupełni się)" : ""));
     }
 
     // ------------------------------------------------------------------ posterunek toru
@@ -196,6 +198,12 @@ public partial class MainWindow
             if (n.Length == 0 || p.Lines.Any(y => y.Id != l.Id && y.Numer == n)) { Message(n.Length == 0 ? "Oznaczenie nie może być puste" : $"Oznaczenie {n} jest już zajęte"); RefreshTrackPanel(); return; }
             Ch("Oznaczenie szlaku", y => y.Numer = n);
         });
+        Field(P, "Nazwa pełna (np. Łódź Widzew – Łódź Andrzejów)", l.Nazwa, n => Ch("Nazwa szlaku", y => y.Nazwa = n));
+        Field(P, "Nazwa skrócona (np. ŁW – ŁA)", l.NazwaSkr, n => Ch("Nazwa skrócona szlaku", y => y.NazwaSkr = n), "Na planie przy oznaczeniu szlaku");
+        var (pn, ps) = Szlaki.ProponujNazwy(p, l);
+        if (pn != l.Nazwa || ps != l.NazwaSkr)
+            P.Children.Add(SmallBtn($"Zaproponuj: {pn} ({ps})", () => Ch("Nazwy szlaku", y => (y.Nazwa, y.NazwaSkr) = Szlaki.ProponujNazwy(Doc.P, y)),
+                "Nazwy z posterunków na końcach szlaku (nazwa i kod posterunku semafora wjazdowego albo posterunek sąsiedni przy końcu na granicy obszaru)"));
         var row = new Grid { Margin = new Thickness(0, 0, 0, 0) };
         row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) }); row.ColumnDefinitions.Add(new ColumnDefinition());
         var c1 = new StackPanel(); var c2 = new StackPanel(); Grid.SetColumn(c2, 2); row.Children.Add(c1); row.Children.Add(c2);
@@ -222,7 +230,15 @@ public partial class MainWindow
             int ii = i; var e = l.Konce[i];
             var gp = new StackPanel { Margin = new Thickness(4) };
             P.Children.Add(new GroupBox { Header = $"Koniec {i + 1}: {Szlaki.Opis(p, e)}", Content = gp, Margin = new Thickness(0, 2, 0, 6), Padding = new Thickness(2) });
-            if (e.Semafor == null) Field(gp, "Posterunek sąsiedni (spoza obszaru)", e.Sasiad, n => Ch("Posterunek sąsiedni", y => y.Konce[ii].Sasiad = n));
+            // posterunek sąsiedni: nazwy szlaku z propozycji idą za nim (gdy projektant ich nie zmienił)
+            if (e.Semafor == null) Field(gp, "Posterunek sąsiedni (spoza obszaru)", e.Sasiad, n => Ch("Posterunek sąsiedni", y =>
+            {
+                var (on, os) = Szlaki.ProponujNazwy(Doc.P, y);
+                y.Konce[ii].Sasiad = n;
+                var (nn, ns) = Szlaki.ProponujNazwy(Doc.P, y);
+                if (y.Nazwa.Length == 0 || y.Nazwa == on) y.Nazwa = nn;
+                if (y.NazwaSkr.Length == 0 || y.NazwaSkr == os) y.NazwaSkr = ns;
+            }));
             Field(gp, "Oznaczenie końca na pulpicie (np. 1G)", e.Oznaczenie, n => Ch("Oznaczenie końca szlaku", y => y.Konce[ii].Oznaczenie = n), "Napis przy strzałce blokady na pulpicie; puste – oznaczenie szlaku");
         }
         var d = View.DrogiNow().GetValueOrDefault(l.Id);

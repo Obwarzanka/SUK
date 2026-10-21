@@ -140,6 +140,8 @@ public class BlockEnd { public string Boundary, EntrySig, Post, Label; public in
 public class BlockDef
 {
     public string Id, Type, Nbr, Far, Tor, Line, Label, NbrW, NbrE;
+    /// <summary>Nazwa szlaku pełna (np. „Łódź Widzew – Łódź Andrzejów”) i skrócona (np. „ŁW – ŁA”) – z edytora UT.</summary>
+    public string Name, NameShort;
     public bool Internal;
     public int DefDir;
     public List<BlockEnd> Ends = new();

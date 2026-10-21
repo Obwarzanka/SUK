@@ -24,6 +24,10 @@ public class UtLine
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
     /// <summary>Oznaczenie szlaku (np. „1A”, „2ŁW”) – wpisuje projektant.</summary>
     public string Numer { get; set; } = "";
+    /// <summary>Nazwa pełna (np. „Łódź Widzew – Łódź Andrzejów”) – propozycja z posterunków na końcach (<see cref="Szlaki.ProponujNazwy"/>).</summary>
+    public string Nazwa { get; set; } = "";
+    /// <summary>Nazwa skrócona (np. „ŁW – ŁA”).</summary>
+    public string NazwaSkr { get; set; } = "";
     /// <summary>Numer linii kolejowej (np. „17”).</summary>
     public string Linia { get; set; } = "";
     /// <summary>Numer toru szlakowego (np. „1”, „2”).</summary>
@@ -126,17 +130,140 @@ public static class Szlaki
             res.Add(new(track, Math.Min(s, se), Math.Max(s, se)));
             if (!seen.Add(track + (dir > 0 ? "+" : "-"))) return Wynik(p, res, uw, "droga szlaku zawraca w pętli");
             bool atStart = se == 0;
-            var dalej = styki.Where(x => x.Track == track && x.AtStart == atStart && x.OtherEnd).Select(x => (x.Other, x.OtherS < 1e-6))
-                .Concat(styki.Where(x => x.Other == track && x.OtherEnd && Math.Abs(x.OtherS - se) < 0.06).Select(x => (x.Track, x.AtStart)))
-                .Distinct().ToList();
+            var dalej = Dalej(styki, track, atStart, se);
             var t = p.Tracks.First(x => x.Id == track);
             if (dalej.Count == 0) return Wynik(p, res, uw, $"droga szlaku urywa się na {(atStart ? "początku" : "końcu")} toru {(t.Number.Length > 0 ? t.Number : "?")} – nie dochodzi do końca 2 ({Opis(p, l.Konce[1])})");
-            if (dalej.Count > 1) return Wynik(p, res, uw, $"na {(atStart ? "początku" : "końcu")} toru {(t.Number.Length > 0 ? t.Number : "?")} schodzą się {dalej.Count} tory – droga szlaku niejednoznaczna");
-            var (nt, fromStart) = dalej[0];
+            var (nt, fromStart) = Prosto(r, track, atStart, dalej);
+            if (dalej.Count > 1) uw.Add($"na {(atStart ? "początku" : "końcu")} toru {(t.Number.Length > 0 ? t.Number : "?")} schodzą się {dalej.Count + 1} tory – droga szlaku poszła najbardziej na wprost (tor {Nr(p, nt)})");
             track = nt; s = fromStart ? 0 : r[nt].Length; dir = fromStart ? 1 : -1;
         }
         return Wynik(p, res, uw, "droga szlaku za długa");
     }
+
+    static string Nr(UtProject p, string track) => p.Tracks.FirstOrDefault(x => x.Id == track) is UtTrack t && t.Number.Length > 0 ? t.Number : "(bez numeru)";
+
+    /// <summary>Tory dalej za końcem toru (styki koniec – koniec): tor i czy wchodzi się od jego początku.</summary>
+    static List<(string Track, bool FromStart)> Dalej(List<Styk> styki, string track, bool atStart, double se) =>
+        styki.Where(x => x.Track == track && x.AtStart == atStart && x.OtherEnd).Select(x => (x.Other, x.OtherS < 1e-6))
+            .Concat(styki.Where(x => x.Other == track && x.OtherEnd && Math.Abs(x.OtherS - se) < 0.06).Select(x => (x.Track, x.AtStart)))
+            .Distinct().ToList();
+
+    /// <summary>Spośród torów za stykiem – najbardziej na wprost (najmniejsza zmiana kierunku jazdy).</summary>
+    static (string Track, bool FromStart) Prosto(Dictionary<string, TrasaResult> r, string track, bool atStart, List<(string Track, bool FromStart)> dalej)
+    {
+        var rt = r[track]; double azOut = atStart ? rt.At(0).Az + Math.PI : rt.At(rt.Length).Az;
+        return dalej.OrderBy(x =>
+        {
+            var rn = r[x.Track]; double az = x.FromStart ? rn.At(0).Az : rn.At(rn.Length).Az + Math.PI;
+            return Math.Abs(Math.IEEERemainder(az - azOut, 2 * Math.PI));
+        }).First();
+    }
+
+    /// <summary>Propozycja szlaku z miejsca na torze: końce, droga, uwagi, błąd (null – można utworzyć).</summary>
+    public record Propozycja(UtLineEnd A, UtLineEnd B, SzlakDroga Droga, List<string> Uwagi, string Err);
+
+    /// <summary>
+    /// Szlak z miejsca na torze (narzędzie Szlak, PLAN_EDYTOR_UT.md § 5j): od klikniętego miejsca w obie strony po torach – wzdłuż toru
+    /// (przez rozjazdy po torze zasadniczym), przez styki końców torów (przy kilku – najbardziej na wprost) – do pierwszego semafora
+    /// wjazdowego działającego w stronę marszu (ze szlaku do posterunku) albo do końca toru bez dalszego połączenia (granica obszaru).
+    /// Semafor bez funkcji na torze posterunku też kończy szlak (z uwagą); na torze bez posterunku to odstępowy. Granicą posterunku są
+    /// semafory wjazdowe, nie przypisanie toru (tor bywa jednym ciągiem przez stację i szlaki): gdy w marszu pierwszy jest semafor wjazdowy
+    /// odwrócony (działający od stacji na szlak), miejsce leży w obrębie posterunku – błąd. Szlak nie wchodzi na tory posterunku: na jego
+    /// granicy kończy się na ostatnim semaforze w stronę stacji (gdy nie jest wjazdowy – uwaga), nawet jeśli dalej stoi inny wjazdowy.
+    /// </summary>
+    public static Propozycja Proponuj(UtProject p, string track, double s, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        var uw = new List<string>();
+        if (p.Tracks.FirstOrDefault(x => x.Id == track) is not UtTrack t0 || !r.TryGetValue(track, out var r0) || r0.Elements.Count == 0) return new(null, null, null, uw, "brak toru");
+        var a = Idz(p, track, s, -1, r, styki, uw, out var ea); var b = Idz(p, track, s, 1, r, styki, uw, out var eb);
+        if (a == null || b == null)
+        {
+            // tor stacyjny bez wyjścia na szlak w żadną stronę – to po prostu miejsce w obrębie posterunku
+            if (t0.Post != null && (ea ?? eb ?? "").StartsWith("tor ")) return new(null, null, null, uw, $"tor {Nr(p, track)} leży w obrębie posterunku {Posterunki.Of(p, track)?.Kod} – najedź na tor szlaku (przed semaforem wjazdowym)");
+            return new(a, b, null, uw, ea ?? eb);
+        }
+        var d = Droga(p, new UtLine { Konce = new() { a, b } }, r, styki);
+        // rozjazdy na drodze: szlak bywa z bocznicą, ale zwykle to znak, że tory stacji nie mają posterunku albo semafor wjazdowy – funkcji
+        var rz = p.Turnouts.Where(z => d.Kawalki.Any(k => k.Track == z.Track && k.Contains(z.S, 0.5))).Select(z => z.Number).Distinct().ToList();
+        if (rz.Count > 0) uw.Add($"na drodze szlaku {(rz.Count > 1 ? "rozjazdy" : "rozjazd")} {string.Join(", ", rz.Take(6))}{(rz.Count > 6 ? "…" : "")} – czy to na pewno szlak? Przypisz tory stacji do posterunku albo ustaw semaforom funkcję „wjazdowy”");
+        return new(a, b, d, uw.Concat(d.Uwagi).Distinct().ToList(), d.Err);
+    }
+
+    static UtLineEnd Idz(UtProject p, string track, double s, int dir, Dictionary<string, TrasaResult> r, List<Styk> styki, List<string> uw, out string err)
+    {
+        err = null; var seen = new HashSet<string>();
+        string post0 = p.Tracks.FirstOrDefault(x => x.Id == track)?.Post;     // posterunek miejsca startu (tor szlaku – zwykle żaden)
+        UtDevice ostatni = null;                                               // ostatni semafor w stronę marszu (kandydat na koniec przy granicy posterunku)
+        for (int k = 0; k < 500; k++)
+        {
+            var t = p.Tracks.First(x => x.Id == track); double len = r[track].Length, se = dir > 0 ? len : 0;
+            // semafory działające w stronę marszu, przed nami na tym torze
+            var sem = p.Devices.Where(d => d.Kind == UtDevice.Semafor && d.Track == track && (dir > 0 ? d.S > s + 1e-6 : d.S < s - 1e-6))
+                .OrderBy(d => dir * d.S).ToList();
+            var wj = sem.FirstOrDefault(d => d.Funkcja == UtDevice.FWjazdowy || (d.Dir == dir && string.IsNullOrEmpty(d.Funkcja) && t.Post != null));
+            if (wj != null && wj.Dir != dir)
+            {
+                var po = Posterunki.Of(p, wj.Track);
+                err = $"to miejsce leży w obrębie posterunku{(po != null ? " " + po.Kod : "")} (za semaforem wjazdowym {wj.Name}) – najedź na tor szlaku przed semaforem wjazdowym";
+                return null;
+            }
+            if (wj != null)
+            {
+                if (wj.Funkcja != UtDevice.FWjazdowy) uw.Add($"semafor {wj.Name} na końcu szlaku nie ma funkcji – ustaw „wjazdowy”");
+                return new UtLineEnd { Semafor = wj.Id };
+            }
+            ostatni = sem.LastOrDefault(d => d.Dir == dir && d.Funkcja is not (UtDevice.FOdstepowy or UtDevice.FPowtarzacz)) ?? ostatni;
+            if (!seen.Add(track + (dir > 0 ? "+" : "-"))) { err = "droga zawraca w pętli – wskaż końce ręcznie (Ctrl + klik)"; return null; }
+            bool atStart = se == 0;
+            var dalej = Dalej(styki, track, atStart, se);
+            if (dalej.Count == 0)
+            {
+                // koniec toru: granica obszaru (zaznaczona albo tor poza posterunkami); tor posterunku bez zaznaczenia – brak wjazdowego
+                if (t.Post != null && !(atStart ? t.OpenStart : t.OpenEnd)) { err = $"tor {Nr(p, track)} posterunku {Posterunki.Of(p, track)?.Kod} kończy się bez semafora wjazdowego w tę stronę – postaw go albo wskaż końce ręcznie (Ctrl + klik)"; return null; }
+                return new UtLineEnd { Track = track, AtStart = atStart };
+            }
+            var (nt, fromStart) = Prosto(r, track, atStart, dalej);
+            if (dalej.Count > 1) uw.Add($"na {(atStart ? "początku" : "końcu")} toru {Nr(p, track)} schodzą się tory – szlak poszedł najbardziej na wprost (tor {Nr(p, nt)})");
+            // wejście na tor posterunku (innego niż miejsce startu): szlak kończy się na granicy – na ostatnim semaforze w stronę stacji
+            // przed nią (jakakolwiek funkcja poza odstępowym – z uwagą), inaczej na pierwszym na torze posterunku
+            var np = p.Tracks.First(x => x.Id == nt).Post;
+            if (np != null && np != post0)
+            {
+                var kod = p.Posts.FirstOrDefault(x => x.Id == np)?.Kod;
+                var kand = ostatni ?? p.Devices.Where(d => d.Kind == UtDevice.Semafor && d.Track == nt && d.Dir == (fromStart ? 1 : -1))
+                    .OrderBy(d => fromStart ? d.S : -d.S).FirstOrDefault();
+                if (kand == null) { err = $"na granicy posterunku {kod} (tor {Nr(p, nt)}) brak semafora w stronę stacji – postaw semafor wjazdowy albo wskaż końce ręcznie (Ctrl + klik)"; return null; }
+                if (kand.Funkcja != UtDevice.FWjazdowy)
+                    uw.Add($"semafor {kand.Name} na granicy posterunku {kod} ma funkcję „{(string.IsNullOrEmpty(kand.Funkcja) ? "brak" : kand.Funkcja)}” – na końcu szlaku powinien być wjazdowy");
+                return new UtLineEnd { Semafor = kand.Id };
+            }
+            track = nt; s = fromStart ? -1e-3 : r[nt].Length + 1e-3; dir = fromStart ? 1 : -1;
+        }
+        err = "droga za długa"; return null;
+    }
+
+    /// <summary>
+    /// Nazwy szlaku z końców: pełna „posterunek 1 – posterunek 2” (nazwa posterunku semafora wjazdowego albo posterunek sąsiedni przy
+    /// końcu na granicy obszaru) i skrócona z kodów (posterunek sąsiedni – pierwsze litery wyrazów, np. „Łódź Andrzejów” → „ŁA”).
+    /// </summary>
+    public static (string Pelna, string Skr) ProponujNazwy(UtProject p, UtLine l)
+    {
+        (string N, string K) Koniec(UtLineEnd e)
+        {
+            if (e.Semafor != null && p.Devices.FirstOrDefault(x => x.Id == e.Semafor) is UtDevice d && Posterunki.Of(p, d.Track) is UtPost po)
+                return (po.Nazwa.Length > 0 ? po.Nazwa : po.Kod, po.Kod.Length > 0 ? po.Kod : Skrot(po.Nazwa));
+            if (e.Sasiad.Length > 0) return (e.Sasiad, Skrot(e.Sasiad));
+            return ("?", "?");
+        }
+        var ks = l.Konce.Select(Koniec).ToList();
+        if (ks.Count < 2) return ("", "");
+        return ($"{ks[0].N} – {ks[1].N}", $"{ks[0].K} – {ks[1].K}");
+    }
+
+    /// <summary>Skrót nazwy posterunku: pierwsze litery wyrazów (wielkie), np. „Łódź Andrzejów” → „ŁA”, „Koluszki” → „K”.</summary>
+    public static string Skrot(string nazwa) =>
+        string.Concat(nazwa.Split(new[] { ' ', '-', '–' }, StringSplitOptions.RemoveEmptyEntries).Where(w => char.IsLetter(w[0])).Select(w => char.ToUpper(w[0])));
 
     static SzlakDroga Wynik(UtProject p, List<SzlakKawalek> k, List<string> uw, string err)
     {
