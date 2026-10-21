@@ -197,5 +197,38 @@ public static partial class Test
         var ub = Find<System.Windows.Controls.Button>(w.TrackPanel, b => (b.Content as string) == "Ustaw bramkę w przekroju D");
         Ok(ub != null, $"bramka przekrzywiona o {Skos():0.##} m – w panelu D „Ustaw bramkę w przekroju D”");
         if (ub != null) { Click(ub); Ok(Skos() < 0.05 && d.UndoName == "Bramka w jednym przekroju", $"po kliknięciu – jeden przekrój ({Skos() * 100:0.#} cm)"); }
+
+        // przesunięcie samej belki (właściciel 2026-10-21: „przesuwanie bramki bez przesuwania semaforów”): przeciągnięcie belki – semafory w swoim km
+        double sD0 = D(sD.Id).S, sE1 = D(sE.Id).S;
+        var (pD, azD, kD) = Urzadzenia.Pos(d.P, D(sD.Id)).Value; w.View.SetView(pD, 0.05); await Settle(w);
+        var beam = w.View.GantryBeams().FirstOrDefault(x => x.Id == sD.Id || x.Id == sE.Id);
+        Ok(beam.Id != null, "belka bramki D/E na planie");
+        if (beam.Id != null)
+        {
+            // chwyt na belce poza znakami semaforów (koniec od strony bez komór), przeciągnięcie o 6 m w stronę jazdy D
+            var along = w.View.ToScreen(pD + Element.Dir(azD) * (6 * kD)) - w.View.ToScreen(pD);
+            bool done = false;
+            foreach (double t in new[] { 0.04, 0.96, 0.5 })
+            {
+                var g = beam.A + (beam.B - beam.A) * t;
+                w.View.SimDrag(g, g + along);
+                if (Math.Abs(Urzadzenia.BelkaOff(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M) - 6) < 0.2) { done = true; break; }
+                if (Math.Abs(D(sD.Id).S - sD0) > 0.01) w.DoUndo();     // chwycony semafor zamiast belki – cofnij i spróbuj dalej
+            }
+            var mm = Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M;
+            Ok(done && Math.Abs(D(sD.Id).S - sD0) < 1e-9 && Math.Abs(D(sE.Id).S - sE1) < 1e-9 && d.UndoName == "Przesunięcie belki" && mm.All(x => Math.Abs((x.BelkaOff ?? 0) - Urzadzenia.BelkaOff(mm)) < 1e-9),
+                $"belka przeciągnięta o {Urzadzenia.BelkaOff(mm):0.0} m, semafory D i E w swoim km ({w.LastMessage})");
+            var nb = w.View.GantryBeams().First(x => x.Id == beam.Id);
+            double moved = ((nb.A - beam.A) * along) / along.Length / (along.Length / 6);
+            Ok(Math.Abs(moved - 6) < 0.3, $"belka na planie przesunięta o {moved:0.0} m wzdłuż toru");
+            if (shotRails != null) { await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka_przesunieta.png")); }
+            // przeciągnięcie semafora – belka jedzie z nim, przesunięcie zostaje
+            w.MoveDevice(sD.Id, sD0 + 5, "Przesunięcie urządzenia");
+            Ok(Math.Abs(Urzadzenia.BelkaOff(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M) - 6) < 0.2 && Urzadzenia.Przekrzywienie(d.P, D(sD.Id)) < 0.05, "semafor przesunięty – belka dalej 6 m obok, bramka w jednym przekroju");
+            w.View.SelectDevice(sD.Id);
+            var zb = Find<System.Windows.Controls.Button>(w.TrackPanel, b => (b.Content as string) == "Zeruj");
+            Ok(zb != null, "panel: pole przesunięcia belki i „Zeruj”");
+            if (zb != null) { Click(zb); Ok(Urzadzenia.BelkaOff(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M) == 0, "„Zeruj” – belka w miejscu semaforów"); }
+        }
     }
 }

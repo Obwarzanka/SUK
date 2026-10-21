@@ -78,7 +78,7 @@ public partial class UtView
         foreach (var d in Doc.P.Devices)
         {
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
-            var b = ToScreen(p); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
+            var b = ToScreen(BelkaPos(d, p)); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
             var pts = new List<Point> { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) };
             // sygnalizator: cały rząd komór (wiszący na bramce – od belki, na maszcie – za masztem), żeby chwycić go za dowolną komorę
             if (Urzadzenia.Sygnalizator(d))
@@ -134,7 +134,7 @@ public partial class UtView
             if (!Shown(LayerOf(d0.Kind))) continue;
             if (devDrag is var (did, _, ds) && did == d0.Id) { d = d0.Copy(); d.S = ds; }
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
-            var b = ToScreen(p);
+            var b = ToScreen(BelkaPos(d, p));
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
             if (d.Id == SelectedDevice && !PrintMode) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
             DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn, hang.Contains(d0.Id));
@@ -253,29 +253,55 @@ public partial class UtView
     /// wspólny – jeden słup; liczbę słupów, stronę jedynego słupa i tory, nad którymi belka przechodzi bez sygnalizatora, ustawia projektant
     /// (<see cref="Urzadzenia.Ustawienia"/>; jeden słup bez wyboru strony – po stronie większości sygnalizatorów).
     /// </summary>
-    void DrawGantries(DrawingContext dc)
+    /// <summary>
+    /// Miejsce znaku sygnalizatora na planie: na konstrukcji z przesuniętą belką (<see cref="UtDevice.BelkaOff"/>) znak wisi na belce,
+    /// o przesunięcie wzdłuż toru od miejsca semafora (km bez zmian – kreskowana linia w <see cref="DrawGantries"/>); podgląd przeciągania belki.
+    /// </summary>
+    XY BelkaPos(UtDevice d, XY p)
     {
-        if (Doc == null || !Shown(LayerOf(UtDevice.Semafor))) return;
-        double k = DevK; var pen = new Pen(DevInk, Math.Max(1, 0.18 * k));
+        if (!Urzadzenia.Sygnalizator(d) || string.IsNullOrEmpty(d.Konstrukcja)) return p;
+        double off = d.BelkaOff ?? 0;
+        if (gantryDrag is var (gid, _, goff) && Dev(gid)?.Konstrukcja == d.Konstrukcja) off = goff;
+        if (Math.Abs(off) < 0.005) return p;
+        // kierunek – pierwszego członka konstrukcji (jak belka)
+        var first = Doc.P.Devices.FirstOrDefault(x => x.Konstrukcja == d.Konstrukcja && Urzadzenia.Sygnalizator(x)) ?? d;
+        if (Urzadzenia.Pos(Doc.P, first) is not var (_, az0, k0)) return p;
+        return p + Element.Dir(az0) * (off * k0);
+    }
+
+    /// <summary>Układ konstrukcji na ekranie: belka (dwa końce), słupy (odcinek i stopa), łączniki belka – semafor przy przesuniętej belce.</summary>
+    record GantryLay(List<UtDevice> M, Point B0, Point B1, List<(Point A, Point B)> Posts, List<(Point A, Point B)> Hangers, XY W0, double Az0, double K0, double Off);
+
+    /// <summary>Przeciąganie belki: członkowie (id pierwszego), chwyt [m wzdłuż toru od miejsca sygnalizatorów], bieżące przesunięcie [m].</summary>
+    (string Id, double Grab, double Off)? gantryDrag;
+    /// <summary>Belka przesunięta przeciągnięciem: id pierwszego członka konstrukcji, nowe przesunięcie [m].</summary>
+    public event Action<string, double> GantryMoved;
+
+    List<GantryLay> GantryLayout()
+    {
+        var res = new List<GantryLay>();
+        if (Doc == null || !Shown(LayerOf(UtDevice.Semafor))) return res;
+        double k = DevK;
         foreach (var (mast, grp) in Urzadzenia.Konstrukcje(Doc.P))
         {
             // położenie członków: punkt na osi toru, kierunek komór (ekran), normalna, strona
-            var m = new List<(Point B, Vector D, UtDevice Dv)>(); (XY P, double Az, double K)? w0 = null;
+            var m = new List<(Point B, Vector D, UtDevice Dv)>(); (XY P, double Az, double K)? w0 = null; var true0 = new List<XY>();
             foreach (var dv in grp)
             {
                 var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = dv.Copy(); d.S = ds; }
-                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, kk)) { m.Add((ToScreen(p), ScreenDir(az), dv)); w0 ??= (p, az, kk); }
+                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, kk)) { m.Add((ToScreen(p), ScreenDir(az), dv)); w0 ??= (p, az, kk); true0.Add(p); }
             }
             if (m.Count == 0) continue;
             var dir = m[0].D; var o = m[0].B;
             // belka w poprzek torów w terenie: w Schemacie (rozciągnięcie w poprzek) prostopadła w terenie nie jest prostopadła na ekranie –
             // kierunek belki to obraz normalnej toru, a położenie członków w układzie (wzdłuż dir, wzdłuż belki)
             var (pw0, az0, k0) = w0.Value;
+            double off = gantryDrag is var (gid, _, goff) && gid == grp[0].Id ? goff : Urzadzenia.BelkaOff(grp);
             var nrm = ToScreen(pw0 + Element.Right(az0) * k0) - ToScreen(pw0); nrm.Normalize();
             var perp = new Vector(-dir.Y, dir.X); if (nrm * perp < 0) nrm = -nrm;
             double det = dir.X * nrm.Y - dir.Y * nrm.X;
             (double A, double C) Loc(Point b) { var w = b - o; return ((w.X * nrm.Y - w.Y * nrm.X) / det, (dir.X * w.Y - dir.Y * w.X) / det); }
-            double along = m.Average(q => Loc(q.B).A);
+            double along = m.Average(q => Loc(q.B).A) + Loc(ToScreen(pw0 + Element.Dir(az0) * (off * k0))).A;
             // zasięg w poprzek: tory i semafory członków (oś toru ± 1,5 mm, semafor po swojej stronie do 2,4 + 1 + 1,5 mm)
             double lo = double.MaxValue, hi = double.MinValue;
             foreach (var (b, _, dv) in m)
@@ -294,14 +320,79 @@ public partial class UtView
             }
             double len = m.Max(q => HangingLen(q.Dv)) * k + 1 * k;
             Point Q(double a, double c) => o + dir * a + nrm * c;
-            dc.DrawLine(pen, Q(along, lo), Q(along, hi));                                       // belka
-            var posts = slupy == 2 ? new[] { lo, hi } : new[] { (strona != 0 ? strona : m.Sum(q => q.Dv.Side)) >= 0 ? hi : lo };
-            foreach (var c in posts)
+            var posts = new List<(Point, Point)>();
+            foreach (var c in slupy == 2 ? new[] { lo, hi } : new[] { (strona != 0 ? strona : m.Sum(q => q.Dv.Side)) >= 0 ? hi : lo })
             {
-                dc.DrawLine(pen, Q(along, c), Q(along + len, c));                               // słup (w stronę komór)
-                dc.DrawLine(pen, Q(along + len, c - 0.8 * k), Q(along + len, c + 0.8 * k));    // stopa
+                posts.Add((Q(along, c), Q(along + len, c)));                                     // słup (w stronę komór)
+                posts.Add((Q(along + len, c - 0.8 * k), Q(along + len, c + 0.8 * k)));          // stopa
             }
+            // belka przesunięta – znaki wiszą na belce, kreskowana linia wzdłuż toru do miejsca semafora (km do zależności) z kreską w poprzek
+            var hang = new List<(Point, Point)>();
+            if (Math.Abs(off) > 0.01)
+                for (int i = 0; i < m.Count; i++)
+                {
+                    var tp = ToScreen(true0[i]); var bp = ToScreen(true0[i] + Element.Dir(az0) * (off * k0));
+                    hang.Add((tp, bp));
+                    var nn = new Vector(-m[i].D.Y, m[i].D.X) * (1.2 * k);
+                    hang.Add((tp - nn, tp + nn));
+                }
+            res.Add(new GantryLay(grp, Q(along, lo), Q(along, hi), posts, hang, pw0, az0, k0, off));
         }
+        return res;
+    }
+
+    void DrawGantries(DrawingContext dc)
+    {
+        double k = DevK; var pen = new Pen(DevInk, Math.Max(1, 0.18 * k));
+        var dash = new Pen(DevInk, Math.Max(1, 0.18 * k)) { DashStyle = new DashStyle(new double[] { 3, 2 }, 0) };
+        foreach (var g in GantryLayout())
+        {
+            dc.DrawLine(pen, g.B0, g.B1);                                                       // belka
+            foreach (var (a, b) in g.Posts) dc.DrawLine(pen, a, b);
+            foreach (var (a, b) in g.Hangers) dc.DrawLine(dash, a, b);
+        }
+    }
+
+    /// <summary>Belki konstrukcji na ekranie (id pierwszego członka, końce) – do testów.</summary>
+    public List<(string Id, Point A, Point B)> GantryBeams() => GantryLayout().Select(g => (g.M[0].Id, g.B0, g.B1)).ToList();
+
+    /// <summary>Belka konstrukcji pod kursorem (do 6 px od belki).</summary>
+    GantryLay HitGantry(Point s)
+    {
+        foreach (var g in GantryLayout())
+        {
+            var d = g.B1 - g.B0; double l2 = d.LengthSquared; if (l2 < 1) continue;
+            double t = Math.Clamp(((s - g.B0) * d) / l2, 0, 1);
+            if ((g.B0 + d * t - s).Length < 6) return g;
+        }
+        return null;
+    }
+
+    /// <summary>Kilometraż kursora wzdłuż toru pierwszego członka od miejsca sygnalizatorów [m].</summary>
+    static double AlongM(GantryLay g, XY w) { var d = Element.Dir(g.Az0); return ((w - g.W0).X * d.X + (w - g.W0).Y * d.Y) / g.K0; }
+
+    bool PressGantry(Point s)
+    {
+        if (HitGantry(s) is not GantryLay g) return false;
+        gantryDrag = (g.M[0].Id, AlongM(g, ToWorld(s)) - g.Off, g.Off);
+        if (SelectedDevice == null || g.M.All(x => x.Id != SelectedDevice)) SelectDevice(g.M[0].Id);
+        return true;
+    }
+
+    void DragGantry(Point s)
+    {
+        var (id, grab, _) = gantryDrag.Value;
+        var g = GantryLayout().FirstOrDefault(x => x.M[0].Id == id); if (g == null) return;
+        gantryDrag = (id, grab, Math.Round(AlongM(g, ToWorld(s)) - grab, 1));
+        DraftInfo?.Invoke($"Belka przesunięta o {gantryDrag.Value.Off:0.0} m względem semaforów (semafory zostają)");
+        InvalidateVisual();
+    }
+
+    void EndGantryDrag()
+    {
+        var (id, _, off) = gantryDrag.Value; gantryDrag = null;
+        if (dragging) GantryMoved?.Invoke(id, off);
+        InvalidateVisual();
     }
 
     /// <summary>

@@ -57,7 +57,7 @@ public partial class UtView : FrameworkElement
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; arcFrom = null; objFrom = null; objDrag = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; gantryDrag = null; arcFrom = null; objFrom = null; objDrag = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -193,7 +193,7 @@ public partial class UtView : FrameworkElement
         downAt = p; downBtn = b; dragging = false;
         if (clicks >= 2 && DoubleClick(p)) { downAt = null; return true; }
         if (tool == UtTool.Wskaz && PressMulti(p)) return true;
-        if (tool == UtTool.Wskaz && (PressTrackMove(p) || PressVertex(p) || PressDevice(p) || PressObj(p) || PressTurnout(p))) return true;
+        if (tool == UtTool.Wskaz && (PressTrackMove(p) || PressVertex(p) || PressDevice(p) || PressGantry(p) || PressObj(p) || PressTurnout(p))) return true;
         if (tool is UtTool.Peron or UtTool.Przejazd or UtTool.Km && ObjToolPress(p)) return true;
         if (tool == UtTool.Urzadzenie && DevPress(p)) return true;
         if (tool == UtTool.Rozjazd && RzPress(p)) return true;
@@ -220,6 +220,7 @@ public partial class UtView : FrameworkElement
         else if ((devFrom != null || objFrom != null) && buttonDown) { InvalidateVisual(); }
         else if (objDrag != null && buttonDown) { if (downAt is Point d3 && (p - d3).Length > ClickTol) dragging = true; if (dragging) DragObj(p); }
         else if (devDrag != null && buttonDown) { if (downAt is Point d2 && (p - d2).Length > ClickTol) dragging = true; if (dragging) DragDevice(p); }
+        else if (gantryDrag != null && buttonDown) { if (downAt is Point d4 && (p - d4).Length > ClickTol) dragging = true; if (dragging) DragGantry(p); }
         else if (tDrag != null && buttonDown) { if (downAt is Point d1 && (p - d1).Length > ClickTol) dragging = true; if (dragging) DragTrackMove(p); }
         else if (rzDrag != null && buttonDown) { if (downAt is Point d0 && (p - d0).Length > ClickTol) dragging = true; if (dragging) DragTurnout(p); }
         else if (downAt is Point d && buttonDown)
@@ -230,7 +231,7 @@ public partial class UtView : FrameworkElement
             else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty or UtTool.Szlak or UtTool.Slad) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
-        if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
+        if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || gantryDrag != null || objDrag != null) InvalidateVisual();
     }
 
     public bool Release(Point p, MouseButton b)
@@ -268,6 +269,7 @@ public partial class UtView : FrameworkElement
         if (rzDrag != null) { downAt = null; EndTurnoutDrag(p); return true; }
         if (tDrag != null) { downAt = null; EndTrackMove(); return true; }
         if (devDrag != null) { downAt = null; EndDeviceDrag(); return true; }
+        if (gantryDrag != null) { downAt = null; EndGantryDrag(); return true; }
         if (devFrom != null) { downAt = null; DevRelease(p); return true; }
         if (objDrag != null) { downAt = null; EndObjDrag(); return true; }
         if (objFrom != null) { downAt = null; ObjToolRelease(p); return true; }

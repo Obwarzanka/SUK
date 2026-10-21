@@ -60,6 +60,11 @@ public class UtDevice
     public int? SlupStrona { get; set; }
     /// <summary>Tory, nad którymi belka przechodzi dodatkowo (bez sygnalizatora na nich), np. bramka nad dwoma torami z jednym semaforem.</summary>
     public List<string> NadTorami { get; set; }
+    /// <summary>
+    /// Belka konstrukcji przesunięta wzdłuż toru względem sygnalizatorów [m; + w stronę jazdy pierwszego członka] – rysunek jak w terenie
+    /// (konstrukcja stoi obok miejsca sygnalizatorów), km sygnalizatorów bez zmian. Null – belka w miejscu sygnalizatorów. Na wszystkich członkach.
+    /// </summary>
+    public double? BelkaOff { get; set; }
     /// <summary>Kopia (podgląd przesuwania).</summary>
     public UtDevice Copy() => (UtDevice)MemberwiseClone();
 
@@ -263,14 +268,15 @@ public static class Urzadzenia
         var key = a.Select(x => x.Konstrukcja).FirstOrDefault(x => !string.IsNullOrEmpty(x)) ?? Guid.NewGuid().ToString("N")[..8];
         if (Pos(p, d) is not var (pa, _, _)) return 0;
         var (slupy, strona, tory) = Ustawienia(mast, a);
-        bool set = a.Any(x => x.Slupy != null || x.SlupStrona != null || x.NadTorami != null);
+        bool set = a.Any(x => x.Slupy != null || x.SlupStrona != null || x.NadTorami != null || x.BelkaOff != null);
+        double? off = a.Select(x => x.BelkaOff).FirstOrDefault(x => x != null);
         foreach (var x in a) { x.Konstrukcja = key; x.Mast = mast; x.Dwarf = false; }
         foreach (var x in b.Where(x => !a.Contains(x)))
         {
             x.Konstrukcja = key; x.Mast = mast; x.Dwarf = false;
             // ustawienia konstrukcji (słupy, belka nad torami) – z konstrukcji, do której dołącza
-            if (set) { x.Slupy = slupy; x.SlupStrona = strona == 0 ? null : strona; x.NadTorami = tory.Count > 0 ? tory.ToList() : null; }
-            else { x.Slupy = null; x.SlupStrona = null; x.NadTorami = null; }
+            if (set) { x.Slupy = slupy; x.SlupStrona = strona == 0 ? null : strona; x.NadTorami = tory.Count > 0 ? tory.ToList() : null; x.BelkaOff = off; }
+            else { x.Slupy = null; x.SlupStrona = null; x.NadTorami = null; x.BelkaOff = null; }
             if (p.Tracks.FirstOrDefault(t => t.Id == x.Track) is UtTrack t && Trasa.Compute(t) is var r && r.Elements.Count > 0)
                 x.S = Math.Round(Math.Clamp(r.Nearest(pa, 0.1).S, 0, r.Length), 2);
         }
@@ -288,6 +294,9 @@ public static class Urzadzenia
         var tory = m.SelectMany(x => x.NadTorami ?? new()).Distinct().Where(t => m.All(x => x.Track != t)).ToList();
         return (slupy, strona, tory);
     }
+
+    /// <summary>Przesunięcie belki względem sygnalizatorów [m] (<see cref="UtDevice.BelkaOff"/>, 0 – w miejscu sygnalizatorów).</summary>
+    public static double BelkaOff(List<UtDevice> m) => m.Select(x => x.BelkaOff).FirstOrDefault(x => x != null) ?? 0;
 
     /// <summary>Tory w pobliżu konstrukcji (do 25 m w poprzek), nad którymi może przechodzić belka – bez torów jej sygnalizatorów; najbliższe pierwsze.</summary>
     public static List<(UtTrack T, double Dist)> ToryPrzyKonstrukcji(UtProject p, List<UtDevice> m)

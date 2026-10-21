@@ -29,7 +29,21 @@ public partial class MainWindow
         };
         View.DevicePlace += OnDevicePlace;
         View.DeviceMoved += (id, s) => MoveDevice(id, s, "Przesunięcie urządzenia");
+        View.GantryMoved += (id, off) => SetBelkaOff(id, off);
         View.DeviceMenu += id => { var cm = BuildDeviceMenu(id); cm.PlacementTarget = View; cm.IsOpen = true; };
+    }
+
+    /// <summary>Przesunięcie samej belki konstrukcji względem sygnalizatorów [m] – km sygnalizatorów bez zmian.</summary>
+    public void SetBelkaOff(string id, double off)
+    {
+        if (Urzadzenia.KonstrukcjaOf(Doc.P, id) is not var (mast, m)) return;
+        var ids = m.Select(x => x.Id).ToHashSet();
+        off = Math.Round(off, 2);
+        // konstrukcja bez klucza (bramka w tym samym miejscu) dostaje wspólny klucz – przesunięcie należy do niej
+        string key = m.Select(x => x.Konstrukcja).FirstOrDefault(x => !string.IsNullOrEmpty(x)) ?? Guid.NewGuid().ToString("N")[..8];
+        Doc.Change("Przesunięcie belki", p => { foreach (var x in p.Devices.Where(x => ids.Contains(x.Id))) { x.Konstrukcja = key; x.BelkaOff = Math.Abs(off) < 0.005 ? null : off; } });
+        Message($"{(mast == UtDevice.MastWysiegnik ? "Wysięgnik" : "Bramka")} {string.Join("/", m.Select(x => x.Name))}: belka " +
+                (Math.Abs(off) < 0.005 ? "w miejscu semaforów" : $"przesunięta o {F(Math.Abs(off))} m {(off > 0 ? "w stronę jazdy" : "pod prąd")} – semafory zostają w swoim km") + " (Ctrl+Z cofa)");
     }
 
     /// <summary>Nowy km urządzenia; sygnalizator na wspólnej konstrukcji ciągnie za sobą pozostałe – bramka zostaje w jednym przekroju.</summary>
@@ -195,6 +209,14 @@ public partial class MainWindow
             posts.Children.Add(rb);
         }
         P.Children.Add(posts);
+        // belka obok miejsca semaforów (jak w terenie) – semafory zostają w swoim km
+        P.Children.Add(Label("Belka przesunięta względem semaforów [m, + w stronę jazdy] – przeciągnij belkę na planie"));
+        var offRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+        var offBox = new TextBox { Text = F(Urzadzenia.BelkaOff(m)), Width = 60, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Przesunięcie belki wzdłuż toru; semafory (km, zależności) bez zmian; Enter – zastosuj" };
+        offBox.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(offBox.Text) is double v) SetBelkaOff(d.Id, v); };
+        offRow.Children.Add(offBox);
+        if (Math.Abs(Urzadzenia.BelkaOff(m)) > 0.005) offRow.Children.Add(SmallBtn("Zeruj", () => SetBelkaOff(d.Id, 0), "Belka z powrotem w miejscu semaforów"));
+        P.Children.Add(offRow);
         var near = Urzadzenia.ToryPrzyKonstrukcji(Doc.P, m);
         if (near.Count == 0 && tory.Count == 0) return;
         P.Children.Add(Label("Belka także nad torem (bez sygnalizatora)"));
