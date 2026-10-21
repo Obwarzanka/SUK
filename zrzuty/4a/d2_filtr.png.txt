@@ -1,0 +1,6 @@
+#pol=POCIĄG: dostępny – S1 1A Pociąg
+wysłano: S1 1A Pociąg – ✓ S1 1A Pociąg – przebieg P S1→1A w realizacji, V = 60 km/h
+S2 1A Pociąg: ODRZUCONE odcinek LW:z53 utwierdzony w innym przebiegu (+8)
+ZDARZENIA: wpisów 2, strona 1 / 1, online: tak
+ZDARZENIA: wpisów 2, strona 1 / 1, online: nie
+ZDARZENIA: wpisów 2, strona 1 / 1, online: tak

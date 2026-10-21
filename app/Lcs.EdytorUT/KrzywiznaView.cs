@@ -13,6 +13,8 @@ namespace Lcs.EdytorUT;
 /// granicy elementów w poziomie zmienia długości dwóch sąsiednich elementów, przeciągnięcie poziomu łuku w pionie – promień
 /// (przejściowe dopasowują się same), PPM – podział elementu, wstawienie przejściowej, usunięcie, zamiana prosta / łuk.
 /// Kółko myszy – przybliżenie wzdłuż km, przeciągnięcie pustego miejsca – przesuwanie.
+/// Ślad (narzędzie Ślad, § 5h) – pomarańczowa krzywizna śladu i łuki rozpoznane z niej (R, L, kąt): na km zaznaczonego toru,
+/// gdy ślad biegnie wzdłuż niego, inaczej – na km śladu (bez toru).
 /// </summary>
 public class KrzywiznaView : FrameworkElement
 {
@@ -30,6 +32,16 @@ public class KrzywiznaView : FrameworkElement
     public event Action<double?> HoverS;
     public double? CursorS { get; set; }
     public string LastInfo { get; private set; } = "";
+    List<(double S, double K)> slad = new();
+    List<(double S0, double S1, string Lab, double K)> sladLuki = new();
+    double sladLen;
+    /// <summary>Krzywizna śladu na wykresie (liczba próbek) – do testu.</summary>
+    public int SladCount => slad.Count;
+    /// <summary>Podpisy łuków śladu – do testu.</summary>
+    public IReadOnlyList<string> SladLabels => sladLuki.Select(x => x.Lab).ToList();
+    double Total => res?.Length ?? sladLen;
+    /// <summary>Widoczny zakres km [m] – do testu.</summary>
+    public (double S0, double S1) ViewRange => (s0View, s1View);
 
     const double Left = 56, Right = 12, Top = 18, Bottom = 22;
     static readonly CultureInfo Pl = CultureInfo.GetCultureInfo("pl-PL");
@@ -45,7 +57,30 @@ public class KrzywiznaView : FrameworkElement
         double L = r?.Length ?? 0;
         if (!same || s1View <= s0View || s1View > L + 1) { s0View = 0; s1View = Math.Max(L, 1); }
         kMax = Math.Max(1.0 / 2000, prof.Count > 0 ? prof.Max(p => Math.Max(Math.Abs(p.K0), Math.Abs(p.K1))) * 1.15 : 0);
+        FitSladK();
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Krzywizna śladu (km – na osi wykresu: zaznaczonego toru albo śladu) i łuki rozpoznane ze śladu; pusta lista – bez śladu.
+    /// <paramref name="len"/> – długość śladu (oś, gdy nie ma toru).
+    /// </summary>
+    public void ShowSlad(List<(double S, double K)> pts, List<(double S0, double S1, string Lab, double K)> luki, double len)
+    {
+        slad = pts ?? new(); sladLuki = luki ?? new(); sladLen = len;
+        if (res == null && slad.Count > 0 && (s1View - s0View < 5 || s1View > len + 1 || s0View > len)) { s0View = 0; s1View = Math.Max(len, 1); }
+        if (res == null && slad.Count == 0) { s0View = 0; s1View = 1; }
+        FitSladK();
+        InvalidateVisual();
+    }
+
+    void FitSladK()
+    {
+        if (slad.Count == 0) return;
+        // skala do 98 % próbek (pojedyncze skoki szumu nie spłaszczają wykresu), najwyżej R 100
+        var a = slad.Select(x => Math.Abs(x.K)).OrderBy(x => x).ToList();
+        double q = Math.Min(a[(int)((a.Count - 1) * 0.98)], 1.0 / 100);
+        kMax = Math.Max(kMax, q * 1.15);
     }
 
     double X(double s) => Left + (s - s0View) / Math.Max(1e-9, s1View - s0View) * (ActualWidth - Left - Right);
@@ -59,9 +94,9 @@ public class KrzywiznaView : FrameworkElement
     {
         double w = ActualWidth, h = ActualHeight;
         dc.DrawRectangle(Brushes.White, new Pen(Brushes.Gainsboro, 1), new Rect(0, 0, w, h));
-        if (Track == null || res == null || prof.Count == 0)
+        if ((Track == null || res == null || prof.Count == 0) && slad.Count == 0)
         {
-            dc.DrawText(Text("Wykres krzywizny – zaznacz tor", 12, Brushes.Gray), new Point(10, 8));
+            dc.DrawText(Text("Wykres krzywizny – zaznacz tor (albo narysuj ślad narzędziem Ślad, F)", 12, Brushes.Gray), new Point(10, 8));
             return;
         }
         var axis = new Pen(Brushes.Silver, 1);
@@ -94,8 +129,9 @@ public class KrzywiznaView : FrameworkElement
             }
         }
         geo.Freeze(); dc.DrawGeometry(null, pen, geo);
+        DrawSlad(dc, w, h);
         // etykiety elementów i uchwyty
-        bool edit = Track.Align != null;
+        bool edit = Track?.Align != null;
         var hb = new SolidColorBrush(Color.FromRgb(0xff, 0x90, 0x00));
         foreach (var p in prof)
         {
@@ -117,8 +153,38 @@ public class KrzywiznaView : FrameworkElement
             tri.Freeze(); dc.DrawGeometry(Brushes.Crimson, null, tri);
         }
         if (uwagi.Count > 0) dc.DrawText(Text($"uwagi: {uwagi.Count} – " + uwagi[0].Text + (uwagi.Count > 1 ? " …" : ""), 10.5, Brushes.Crimson), new Point(Left + 4, h - Bottom - 26));
-        else dc.DrawText(Text(edit ? "tor z elementów – przeciągaj granice (■) i poziom łuków (●), PPM – więcej" : "wielobok – PPM: zamień na trasę z elementów, żeby edytować tutaj", 10.5, Brushes.Gray), new Point(Left + 4, h - Bottom - 26));
+        else dc.DrawText(Text(Track == null ? "ślad – krzywizna z punktów (km śladu); poziomo – łuk, pochyło – krzywa przejściowa, zero – prosta" : edit ? "tor z elementów – przeciągaj granice (■) i poziom łuków (●), PPM – więcej" : "wielobok – PPM: zamień na trasę z elementów, żeby edytować tutaj", 10.5, Brushes.Gray), new Point(Left + 4, h - Bottom - 26));
         if (CursorS is double cs && cs >= s0View && cs <= s1View) dc.DrawLine(new Pen(Brushes.OrangeRed, 1), new Point(X(cs), Top), new Point(X(cs), h - Bottom));
+    }
+
+    static readonly Brush SladInk = Frz(Color.FromRgb(0xff, 0x6a, 0x00));
+    static Brush Frz(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
+    void DrawSlad(DrawingContext dc, double w, double h)
+    {
+        if (slad.Count == 0) return;
+        var g = new StreamGeometry(); bool open = false; double lastS = double.NaN;
+        using (var c = g.Open())
+            foreach (var (s, k) in slad)
+            {
+                if (s < s0View || s > s1View) { open = false; continue; }
+                var p = new Point(X(s), Y(Math.Clamp(k, -kMax * 1.05, kMax * 1.05)));
+                // przerwa (ślad obok toru, krawędź wykresu) – nowa linia
+                if (!open || Math.Abs(s - lastS) > 5) { c.BeginFigure(p, false, false); open = true; } else c.LineTo(p, true, false);
+                lastS = s;
+            }
+        g.Freeze(); dc.DrawGeometry(null, new Pen(SladInk, 1.4), g);
+        var dash = new Pen(SladInk, 1) { DashStyle = DashStyles.Dash };
+        foreach (var (s0, s1, lab, k) in sladLuki)
+        {
+            if (s1 < s0View || s0 > s1View) continue;
+            double x0 = X(s0), x1 = X(s1), y = Y(k);
+            dc.DrawLine(dash, new Point(x0, Top), new Point(x0, h - Bottom)); dc.DrawLine(dash, new Point(x1, Top), new Point(x1, h - Bottom));
+            // pod poziomem łuku śladu (nad nim – podpis R toru)
+            var ft = Text(lab, 10.5, SladInk); double ty = Math.Clamp(y + (k >= 0 ? 18 : -32), Top, h - Bottom - 40);
+            dc.DrawRectangle(Brushes.White, null, new Rect((x0 + x1) / 2 - ft.Width / 2 - 2, ty, ft.Width + 4, ft.Height));
+            dc.DrawText(ft, new Point((x0 + x1) / 2 - ft.Width / 2, ty));
+        }
     }
 
     /// <summary>Uchwyt granicy przed elementem <paramref name="ei"/> (punkt na wykresie) – do testu.</summary>
@@ -152,8 +218,8 @@ public class KrzywiznaView : FrameworkElement
     protected override void OnMouseLeave(MouseEventArgs e) { HoverS?.Invoke(null); }
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
-        if (Track == null || res == null) return;
-        double s = S(e.GetPosition(this).X), f = e.Delta > 0 ? 0.8 : 1.25, L = res.Length;
+        if ((Track == null || res == null) && slad.Count == 0) return;
+        double s = S(e.GetPosition(this).X), f = e.Delta > 0 ? 0.8 : 1.25, L = Total;
         double a = s - (s - s0View) * f, b = s + (s1View - s) * f;
         if (b - a > L) { a = 0; b = L; }
         s0View = Math.Max(0, a); s1View = Math.Min(L, Math.Max(s0View + 5, b)); InvalidateVisual(); e.Handled = true;
@@ -173,7 +239,7 @@ public class KrzywiznaView : FrameworkElement
         if (!down || drag == Drag.None) return;
         if (drag == Drag.Pan)
         {
-            double ds = (p.X - dragFrom.X) / Math.Max(1, ActualWidth - Left - Right) * (panS1 - panS0), L = res?.Length ?? 0;
+            double ds = (p.X - dragFrom.X) / Math.Max(1, ActualWidth - Left - Right) * (panS1 - panS0), L = Total;
             double a = Math.Clamp(panS0 - ds, 0, Math.Max(0, L - (panS1 - panS0)));
             s0View = a; s1View = a + (panS1 - panS0); InvalidateVisual(); return;
         }

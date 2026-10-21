@@ -251,6 +251,14 @@ public static class Trasa
                         double arcAng = aa - tau - tau2;
                         if (arcAng > 1e-12) { var e2 = new Element(ElKind.Luk, at, az, R * arcAng, sg * R, 0, false, default, 0, vi); curve.Add(e2); (at, az) = e2.At(e2.Len); }
                         if (L2 > 0) curve.Add(new Element(ElKind.Przejsciowa, at, az, SofX(L2, R, L2), sg * R, L2, true, stPoint, azOut, vi));
+                        // łuk zupełnie się nie mieści (np. R 80 km przy wieloboku zawracającym – oś na setki km): załamanie zamiast łuku,
+                        // inaczej każde przeliczenie i rysowanie takiego toru zamraża edytor
+                        double sides = XY.Dist(pts[j - 1].V.P, vj.P) + XY.Dist(vj.P, pts[j + 1].V.P);
+                        if (curve.Sum(e => e.Len) > 3 * sides + 100 * k)
+                        {
+                            res.Notes.Add((vi, $"łuk R = {vj.R:0.##} m zupełnie się nie mieści (byłby dłuższy niż {curve.Sum(e => e.Len) / k / 1000:0.#} km) – narysowany jako załamanie; zmniejsz R albo popraw wierzchołki", true));
+                            curve = null; tsPoint = stPoint = vj.P; res.Tangent.Remove(vi); res.Tangent2.Remove(vi);
+                        }
                     }
                 }
                 else if (aa > 0.1 * Math.PI / 180)

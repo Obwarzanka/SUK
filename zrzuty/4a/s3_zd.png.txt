@@ -1,0 +1,5 @@
+#pol=POCIĄG: dostępny – S1 1A Pociąg
+wysłano: S1 1A Pociąg – ✓ S1 1A Pociąg – przebieg P S1→1A w realizacji, V = 60 km/h
+#pol=ZD: dostępny – S1 1A ZD
+wysłano: S1 1A ZD – ✓ S1 1A ZD – przebieg zwolniony
+panel „S1 1A”: POCIĄG MANEWR ZD(ciemny) ZDP(ciemny) OPS(ciemny) ZDPP(ciemny); T=12,1; zainicjowane: –; okno potwierdzenia: nie

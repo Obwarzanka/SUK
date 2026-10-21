@@ -1,0 +1,8 @@
+panel „ŁW”: SSS OSSS(ciemny) ZSS OZSS(ciemny) OSZ; T=0,0; zainicjowane: –; okno potwierdzenia: nie
+#pol=SSS: dostępny – LW SSS
+wysłano: LW SSS – ✓ LW SSS – zastopowano wszystkie sygnalizatory stacji (73)
+panel „ŁW”: SSS(ciemny) OSSS ZSS OZSS(ciemny) OSZ; T=0,0; zainicjowane: –; okno potwierdzenia: nie
+#pol=ZSS: dostępny – LW ZSS
+wysłano: LW ZSS – ✓ LW ZSS – zastopowano wszystkie zwrotnice stacji (49)
+panel „ŁW”: SSS(ciemny) OSSS ZSS(ciemny) OZSS OSZ; T=0,0; zainicjowane: –; okno potwierdzenia: nie
+panel „S1”: STOP(ciemny) OSTOP SZ(ciemny) SZI NSZ(ciemny); T=0,0; zainicjowane: –; okno potwierdzenia: nie

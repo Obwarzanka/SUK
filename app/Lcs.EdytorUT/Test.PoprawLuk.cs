@@ -34,6 +34,8 @@ public static partial class Test
             w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rz 60E1-190-1:9";
             var (pr, az) = r.At(cs - 15); w.View.SetView(pr, 0.3);
             w.View.SimDrag(S(pr), S(pr + Element.Dir(az) * (25 * k) - Element.Right(az) * (1 * k)));
+            // rozjazd, którego łuk wystarczy poprawić o kilka cm, montuje się sam (§ 5i) – Ctrl+Z cofa samą poprawkę, dalej ręcznie
+            if (d.UndoName == "Montaż rozjazdu na łuku") { Ok(Naprawa.Polozenie(d.P, d.P.Turnouts[0]) == NaLuku.Ok, $"{tag}: montaż sam ({w.LastMessage})"); w.DoUndo(); }
             var z = d.P.Turnouts.FirstOrDefault();
             var uw = z != null ? Rozjazdy.Check(d.P, z) : new();
             Ok(z != null && uw.Any(x => x.Contains("granicy prostej i łuku") || x.Contains("krzywej przejściowej")), $"{tag}: rozjazd na początku łuku – uwaga „{uw.FirstOrDefault()}”");
@@ -46,8 +48,8 @@ public static partial class Test
             Click(btns[0]);
             var t2 = d.P.Tracks[0]; var z2 = d.P.Turnouts[0];
             Ok(!Rozjazdy.Check(d.P, z2).Any(x => x.Contains("granicy") || x.Contains("przejściowej")) && w.View.Geometry(t2).Ok && XY.Dist(t2.Vertices[1].P, vtx) < 1e-9
-               && t2.Vertices[1].R != r0 && w.LastMessage.Contains("zmiana R") && d.UndoName == "Popraw łuk",
-                $"{tag}: klik – uwaga znika, wierzchołek ten sam, R {r0} → {t2.Vertices[1].R} m ({w.LastMessage})");
+               && (t2.Vertices[1].R != r0 || t2.Vertices[1].L != L || t2.Vertices[1].LOut != L) && w.LastMessage.Contains("Popraw łuk") && d.UndoName == "Popraw łuk",
+                $"{tag}: klik – uwaga znika, wierzchołek ten sam, R {r0} → {t2.Vertices[1].R} m, L {L} → {t2.Vertices[1].L} / {t2.Vertices[1].LOut} m ({w.LastMessage})");
             if (shotRails != null && L > 0) { w.View.SetView(w.View.Geometry(t2).At(cs).P, 0.25); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_popraw_luk.png")); }
             w.DoUndo();
             Ok(Rozjazdy.Check(d.P, d.P.Turnouts[0]).Any(x => x.Contains("granicy") || x.Contains("przejściowej")), $"{tag}: Ctrl+Z – łuk jak był");

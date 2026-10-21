@@ -198,6 +198,10 @@ public static partial class Test
             KeyPress(w, Key.Delete);
             Ok(d.P.Turnouts.All(x => x.Number != "5") && d.P.Tracks.Count == ntr - 1, "Del – rozjazd 5 usunięty z odgałęzieniem");
             w.DoUndo(); Ok(d.P.Turnouts.Any(x => x.Number == "5") && d.P.Tracks.Count == ntr, "Ctrl+Z – rozjazd 5 wrócił");
+            // Del na zaznaczonym odgałęzieniu (torze) – tor razem z rozjazdem (dawniej tylko komunikat „usuń rozjazd”)
+            w.View.Select(z5.Branch); KeyPress(w, Key.Delete);
+            Ok(d.P.Turnouts.All(x => x.Number != "5") && d.P.Tracks.Count == ntr - 1 && w.LastMessage.Contains("razem z rozjazdem 5"), $"Del na odgałęzieniu – tor usunięty razem z rozjazdem 5 ({w.LastMessage})");
+            w.DoUndo(); Ok(d.P.Turnouts.Any(x => x.Number == "5") && d.P.Tracks.Count == ntr, "Ctrl+Z – odgałęzienie i rozjazd 5 wróciły");
             // Del łącznika – oba rozjazdy i tor łączący
             w.View.SelectTurnout(d.P.Turnouts.First(x => x.Number == "4").Id); KeyPress(w, Key.Delete);
             Ok(d.P.Turnouts.All(x => x.Number != "3" && x.Number != "4") && d.P.Tracks.Count == ntr - 1, "Del na rozjeździe 4 – usunięty cały łącznik 3/4");

@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += OnKey;
         InitBg();
         InitTory();
+        InitSlad();
         InitRozjazdy();
         InitUrzadzenia();
         InitWyposazenie();
@@ -106,6 +107,7 @@ public partial class MainWindow : Window
         tb.Items.Add(KrzywBtn);
         tb.Items.Add(new Separator());
         tb.Items.Add(Btn("✔ Sprawdź", (s, e) => { CommitPending(); RunCheck(true); }, "Kontrola układu (Ig-10, etap 7): otwarte końce, rozjazdy bez numeru, urządzenia poza torem, nakładające się tory, odcinki, kilometraż, profil (F7)"));
+        tb.Items.Add(Btn("🔧 Napraw", (s, e) => RepairAll(), "Napraw tory i łuki: zbędne wierzchołki, łuki, które się nie mieszczą, rozjazdy na granicy prostej i łuku albo na przejściowej (montaż na łuku, gdy oś przesuwa się najwyżej o 30 cm); kilometraż urządzeń zostaje w terenie; Ctrl+Z cofa"));
         tb.Items.Add(Btn("Profil…", (s, e) => OpenProfile(), "Profil podłużny zaznaczonego toru: niweleta, pochylenia, teren z NMT GUGiK, nasyp / przekop"));
         tb.Items.Add(Btn("Eksport…", (s, e) => OpenExport(), "Wydruk w skali do PNG / PDF (1:500 … 1:5000, schemat Ig-10 1:2000 / 1:500)"));
         // drugi rząd: narzędzia rysowania
@@ -118,7 +120,8 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Tor, "🛤 Tor", "Rysowanie toru: klik – kolejne wierzchołki wieloboku stycznych, w wierzchołkach łuk R z przejściowymi L (T)"));
         tb.Items.Add(ProstaBtn); tb.Items.Add(LukBtn);
         tb.Items.Add(ToolBtn(UtTool.LukOdDo, "◠ Łuk od–do", "Łuk na torze: klik w miejscu początku łuku, klik w miejscu końca – promień dobiera się sam (K)"));
-        tb.Items.Add(ToolBtn(UtTool.LukPunkty, "◠ Łuk z punktów", "Dokładny łuk: klik łuku toru, potem kilka punktów na osi łuku na zdjęciu – R (Tab: i L) dobiera się do punktów (J)"));
+        tb.Items.Add(ToolBtn(UtTool.LukPunkty, "◠ Łuk z punktów", "Dokładny łuk: klik łuku toru, potem kilka punktów na osi łuku na zdjęciu (albo Ctrl + przeciągnięcie – malowanie, linia OSM) – R (Tab: i L) dobiera się do punktów (J)"));
+        tb.Items.Add(ToolBtn(UtTool.Slad, "〰 Ślad", "Ślad osi toru z linii OSM albo ze zdjęcia: krzywizna i łuki (R, L, kąt) na wykresie pod mapą, „Tor po śladzie” – propozycja toru z elementów (F)"));
         tb.Items.Add(ToolBtn(UtTool.Rownolegly, "⫽ Równoległy", "Tor równoległy z podkładu: klik na torze wzorcowym, klik na osi nowego toru (początek), klik na końcu albo Enter (P)"));
         tb.Items.Add(new TextBlock { Text = " R", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewRBox);
         tb.Items.Add(new TextBlock { Text = " L", VerticalAlignment = VerticalAlignment.Center }); tb.Items.Add(NewLBox);
@@ -169,7 +172,8 @@ public partial class MainWindow : Window
             UtTool.Urzadzenie => $"{UtDevice.KindInfo(View.DevKind).Name}: " + (UtDevice.KindInfo(View.DevKind).Directed && View.DevKind != UtDevice.Koziol
                 ? "wciśnij na torze w miejscu urządzenia i przeciągnij w stronę jazdy, której dotyczy, po stronie, po której stoi"
                 : View.DevKind == UtDevice.Koziol ? "kliknij przy końcu toru (przyciąga się do końca)" : "kliknij na torze w miejscu urządzenia"),
-            UtTool.LukPunkty => "Łuk z punktów: kliknij łuk toru (albo przy załamaniu), potem punkty na osi toru na zdjęciu – na łuku i kawałek na prostych przed nim i za nim; wierzchołek (kierunki prostych), promień i (Tab) krzywe przejściowe L dobiorą się do punktów, przy każdym widać odchyłkę; W – proste stałe (tylko R / L); O – dodaj punkty z OpenStreetMap (osie torów w widoku, do 8 m od toru); na torze z elementów dopasują się długości i promienie elementów; Backspace – usuń punkt; Enter / PPM – zastosuj; Esc – od nowa",
+            UtTool.LukPunkty => "Łuk z punktów: kliknij łuk toru (albo przy załamaniu), potem punkty na osi toru na zdjęciu – na łuku i kawałek na prostych przed nim i za nim (Ctrl + przeciągnięcie – maluj punkty co 2 m; samo przeciągnięcie przesuwa mapę); wierzchołek (kierunki prostych), promień i (Tab) krzywe przejściowe L dobiorą się do punktów, przy każdym widać odchyłkę, odstające są pomijane (X – bez pomijania); W – proste stałe (tylko R / L); Shift + klik przy linii OSM dwa razy – węzły OSM z odcinka; O – węzły OSM do 8 m od toru; G – punkty śladu; na torze z elementów dopasują się długości i promienie elementów; Backspace – usuń punkt; Enter / PPM – zastosuj; Esc – od nowa",
+            UtTool.Slad => "Ślad: klik przy pomarańczowej linii OSM – kolejne kliknięcia biegną po liniach (przez rozjazdy); klik obok linii albo z Ctrl – punkt ze zdjęcia; Ctrl + przeciągnięcie – maluj punkty po osi toru; samo przeciągnięcie – przesuń mapę; krzywizna i łuki śladu – na wykresie i w panelu; Enter / PPM – tor po śladzie (propozycja), drugi Enter – utwórz tor; Backspace – cofnij krok; Esc – wyczyść",
             UtTool.LukOdDo => "Łuk od–do: kliknij na torze w miejscu początku łuku (np. gdzie na zdjęciu kończy się prosta), potem w miejscu końca łuku – wierzchołek i promień dobiorą się same; wierzchołki pośrednie znikną; PPM / Esc – od nowa",
             UtTool.Odcinek => "Odcinek: kliknij na torze – nazwa odcinka kontroli niezajętości dla całego kawałka między granicami (liczniki osi, złącza izolowane, końce torów); kolor = odcinek, czerwone kreski – kawałek bez odcinka",
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
@@ -193,8 +197,10 @@ public partial class MainWindow : Window
     UIElement BuildPanel()
     {
         var root = new StackPanel { Margin = new Thickness(10) };
+        root.Children.Add(SladPanel);
         root.Children.Add(TrackPanel);
         root.Children.Add(CheckExpander);
+        root.Children.Add(RepairExpander);
         root.Children.Add(LayerExpander);
         root.Children.Add(PostExpander);
         var sp = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
@@ -459,6 +465,7 @@ public partial class MainWindow : Window
         if (!inText && !ctrl && View.ParKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.ArcKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.FitKey(e.Key)) { e.Handled = true; return; }
+        if (!inText && !ctrl && View.SladKey(e.Key)) { e.Handled = true; return; }
         if (!inText && View.MultiKey(e.Key)) { e.Handled = true; return; }
         if (ctrl && e.Key == Key.S) { SaveDoc(shift); e.Handled = true; }
         else if (ctrl && e.Key == Key.O) { OpenDoc(); e.Handled = true; }
@@ -480,6 +487,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.U) { SetTool(UtTool.Urzadzenie); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.K) { SetTool(UtTool.LukOdDo); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.J) { SetTool(UtTool.LukPunkty); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.F) { SetTool(UtTool.Slad); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.O) { SetTool(UtTool.Odcinek); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.B) { SetTool(UtTool.Szlak); e.Handled = true; }
         else if (!inText && e.Key == Key.F7) { RunCheck(true); e.Handled = true; }

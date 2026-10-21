@@ -273,14 +273,14 @@ public static class Budowa
         return (res, r, note, null);
     }
     /// <summary>
-    /// Dopasowanie promieni: łuki, które się nie mieszczą („brakuje m prostej”), zmniejszane po 5 % (do pełnych metrów), aż tor nie ma
+    /// Dopasowanie promieni: łuki, które się nie mieszczą („brakuje m prostej”), zmniejszane po 5 % (<paramref name="step"/>) (do pełnych metrów), aż tor nie ma
     /// takich błędów, nie poniżej <paramref name="minR"/> (najmniejszy promień – warunki techniczne § 24); inne łuki bez zmian. Zwraca nowe wierzchołki i listę zmian (wierzchołek, R przed, R po).
     /// </summary>
-    public static (List<UtVertex> V, List<(int I, double From, double To)> Changes) FitRadii(IReadOnlyList<UtVertex> v, double k, Func<int, bool> locked = null, double minR = Rozjazdy.MinRDiv)
+    public static (List<UtVertex> V, List<(int I, double From, double To)> Changes) FitRadii(IReadOnlyList<UtVertex> v, double k, Func<int, bool> locked = null, double minR = Rozjazdy.MinRDiv, double step = 0.95)
     {
         var res = v.Select(x => x.Clone()).ToList();
         var orig = v.Select(x => x.R).ToArray();
-        for (int it = 0; it < 200; it++)
+        for (int it = 0; it < 1000; it++)
         {
             var r = Trasa.Compute(res, k);
             var bad = r.Notes.Where(n => n.Error && n.Text.Contains("nie mieści")).Select(n => n.Vertex).Distinct().ToList();
@@ -289,7 +289,7 @@ public static class Budowa
             foreach (var bi in bad)
                 // błąd przypisany wierzchołkowi i dotyczy prostej przed nim – zmniejsza się łuk w nim i w poprzednim
                 foreach (var j in new[] { bi, bi - 1 })
-                    if (j > 0 && j < res.Count - 1 && res[j].R > minR && locked?.Invoke(j) != true && !res[j].LockR) { res[j].R = Math.Max(minR, Math.Floor(res[j].R * 0.95)); changed = true; }
+                    if (j > 0 && j < res.Count - 1 && res[j].R > minR && locked?.Invoke(j) != true && !res[j].LockR) { res[j].R = Math.Max(minR, Math.Floor(res[j].R * step)); changed = true; }
             if (!changed) break;
         }
         var ch = new List<(int, double, double)>();
@@ -518,18 +518,28 @@ public static class Budowa
     public static double Dist(TrasaResult r, XY p) => Math.Abs(SignedDist(r, p));
 
     /// <summary>Odległość ze znakiem [m w układzie]: + punkt po prawej stronie osi (patrząc w kierunku toru), − po lewej.</summary>
-    public static double SignedDist(TrasaResult r, XY p)
+    public static double SignedDist(TrasaResult r, XY p) => SignedDistS(r, p, out _);
+
+    /// <summary>Jak <see cref="SignedDist"/>, a do tego kilometraż najbliższego punktu osi <paramref name="s"/> [m w terenie].</summary>
+    public static double SignedDistS(TrasaResult r, XY p, out double s)
     {
-        double best = double.MaxValue, sgn = 1;
-        void Take(double dd, XY q, XY dir) { if (dd < best) { best = dd; var w = p - q; var rr = Element.Right(Math.Atan2(dir.Y, dir.X)); sgn = (w.X * rr.X + w.Y * rr.Y) >= 0 ? 1 : -1; } }
-        foreach (var e in r.Elements)
+        double best = double.MaxValue, sgn = 1, bs = 0, e0 = 0;
+        void Take(double dd, XY q, XY dir, double at) { if (dd < best) { best = dd; bs = e0 + at; var w = p - q; var rr = Element.Right(Math.Atan2(dir.Y, dir.X)); sgn = (w.X * rr.X + w.Y * rr.Y) >= 0 ? 1 : -1; } }
+        var starts = new double[r.Elements.Count]; for (int i = 1; i < starts.Length; i++) starts[i] = starts[i - 1] + r.Elements[i - 1].Len;
+        // najpierw proste i łuki (ze wzorów), potem przejściowe – te tylko, gdy mogą być bliżej (punkty przejściowej leżą najwyżej
+        // o jej długość od początku), bo łamana przejściowej jest wolna
+        for (int pass = 0; pass < 2; pass++)
+        for (int ei = 0; ei < r.Elements.Count; ei++)
         {
+            var e = r.Elements[ei]; e0 = starts[ei];
+            if ((pass == 0) != (e.Kind != ElKind.Przejsciowa)) continue;
+            if (pass == 1 && XY.Dist(p, e.Start) - e.Len > best) continue;
             switch (e.Kind)
             {
                 case ElKind.Prosta:
                 {
                     var d = Element.Dir(e.Az0); var w = p - e.Start; double t = Math.Clamp(w.X * d.X + w.Y * d.Y, 0, e.Len);
-                    var q = e.Start + d * t; Take(XY.Dist(p, q), q, d);
+                    var q = e.Start + d * t; Take(XY.Dist(p, q), q, d, t);
                     break;
                 }
                 case ElKind.Luk:
@@ -540,9 +550,9 @@ public static class Budowa
                     if (sArc >= 0 && sArc <= e.Len)
                     {
                         double rad = Math.Sqrt(v.X * v.X + v.Y * v.Y), dd = Math.Abs(rad - Math.Abs(e.R));
-                        if (dd < best) { best = dd; sgn = (rad < Math.Abs(e.R)) == (e.R > 0) ? 1 : -1; }      // łuk w prawo: środek po prawej
+                        if (dd < best) { best = dd; bs = e0 + sArc; sgn = (rad < Math.Abs(e.R)) == (e.R > 0) ? 1 : -1; }      // łuk w prawo: środek po prawej
                     }
-                    else { Take(XY.Dist(p, e.Start), e.Start, Element.Dir(e.Az0)); var (pe, ae) = e.At(e.Len); Take(XY.Dist(p, pe), pe, Element.Dir(ae)); }
+                    else { Take(XY.Dist(p, e.Start), e.Start, Element.Dir(e.Az0), 0); var (pe, ae) = e.At(e.Len); Take(XY.Dist(p, pe), pe, Element.Dir(ae), e.Len); }
                     break;
                 }
                 default:
@@ -554,12 +564,13 @@ public static class Budowa
                         var cur = poly != null ? poly[i] : e.At(e.Len * i / n).P; var d = cur - prev; double l2 = d.X * d.X + d.Y * d.Y;
                         double t = l2 > 0 ? Math.Clamp(((p.X - prev.X) * d.X + (p.Y - prev.Y) * d.Y) / l2, 0, 1) : 0;
                         var q = prev + d * t; double dd = XY.Dist(p, q);
-                        if (dd < best && l2 > 0) Take(dd, q, d * (1 / Math.Sqrt(l2))); prev = cur;
+                        if (dd < best && l2 > 0) Take(dd, q, d * (1 / Math.Sqrt(l2)), e.Len * (i - 1 + t) / n); prev = cur;
                     }
                     break;
                 }
             }
         }
+        s = bs / r.K;
         return best * sgn;
     }
 

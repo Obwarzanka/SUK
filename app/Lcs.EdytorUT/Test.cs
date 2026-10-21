@@ -53,6 +53,12 @@ public static partial class Test
             try
             {
                 w.SetSchemat(false);       // etapy 1–4 sprawdzają widok terenu (północ u góry)
+                // EDYTOR_UT_TEST=slad – tylko część „ślad” (szybka próba w trakcie pracy; pełny test – bez zmiennej)
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "slad") { log.AppendLine("== ślad (tylko ta część)"); await RunSlad(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }
+                // EDYTOR_UT_TEST=zaznacz, EDYTOR_UT_PLIK=kopia projektu – klik na każdym torze w zapisanym widoku (próba zaznaczania)
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "zaznacz") { log.AppendLine("== zaznaczanie torów w projekcie"); await RunZaznacz(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), shot); Finish(); return; }
                 log.AppendLine("== etap 1: szkielet"); Run(w);
                 log.AppendLine("== etap 2: podkłady"); await RunBg(w);
                 log.AppendLine("== etap 3: tory"); await RunTory(w);
@@ -65,7 +71,10 @@ public static partial class Test
                 log.AppendLine("== łuk o zmiennym promieniu (podział łuku)"); await RunLukKoszowy(w);
                 log.AppendLine("== wygładzanie łuku, przejściowe z prędkości"); await RunWygladzanie(w);
                 log.AppendLine("== metody budowy łuku (§ 5g)"); await RunMetodyLuku(w);
+                log.AppendLine("== ślad: łuki z OSM i ze zdjęcia, tor po śladzie, łuk z planu (§ 5h)"); await RunSlad(w);
+                log.AppendLine("== sieć OSM w widoku Schemat (obrócony), dobieranie po przesunięciu"); await RunOsmWidok(w);
                 log.AppendLine("== „Popraw łuk” pod rozjazdem"); await RunPoprawLuk(w);
+                log.AppendLine("== montaż rozjazdów na łuku, „Napraw tory i łuki” (§ 5i)"); await RunMontaz(w);
                 log.AppendLine("== bramka sygnałowa jak na planach (Semaforek, Łódź Widzew)"); await RunBramka(w);
                 log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);

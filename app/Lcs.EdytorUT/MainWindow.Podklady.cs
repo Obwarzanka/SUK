@@ -62,6 +62,8 @@ public partial class MainWindow
         sp.Children.Add(LiveBox);
         OrmBox.Click += (s, e) => View.Live.Overlay = OrmBox.IsChecked == true ? LivePreview.Orm : null;
         sp.Children.Add(OrmBox);
+        sp.Children.Add(OsmBox);
+        sp.Children.Add(OsmBtn);
 
         sp.Children.Add(Label("Pobierz ortofotomapę do projektu (Geoportal)"));
         MapBtn.Click += (s, e) => OpenTileMap();

@@ -61,6 +61,33 @@ public partial class MainWindow
         foreach (var (k, cb) in layerBoxes) cb.IsChecked = !View.Hidden.Contains(k);
     }
 
+    public readonly Expander RepairExpander = new() { IsExpanded = false, Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
+    public readonly ListBox RepairList = new() { MaxHeight = 320, FontSize = 12, BorderThickness = new Thickness(0) };
+    public NaprawaWynik LastRepair { get; private set; }
+
+    /// <summary>
+    /// „Napraw tory i łuki” (cały układ albo tor <paramref name="track"/>, <see cref="Naprawa.Napraw"/>): zbędne wierzchołki, łuki, które się
+    /// nie mieszczą, rozjazdy na granicy łuku i na przejściowej; jedna zmiana (Ctrl+Z). Wynik – lista w panelu „Naprawa”.
+    /// </summary>
+    public NaprawaWynik RepairAll(string track = null)
+    {
+        CommitPending();
+        NaprawaWynik res = null;
+        Doc.Change(track != null ? "Napraw tor i łuki" : "Napraw tory i łuki", p => res = Naprawa.Napraw(p, track));
+        LastRepair = res;
+        RepairList.Items.Clear();
+        ScrollViewer.SetHorizontalScrollBarVisibility(RepairList, ScrollBarVisibility.Disabled);
+        foreach (var z in res.Zmiany) RepairList.Items.Add(new ListBoxItem { Content = new TextBlock { Text = "✔ " + z, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.ForestGreen, Width = 290 } });
+        foreach (var z in res.Zostalo) RepairList.Items.Add(new ListBoxItem { Content = new TextBlock { Text = "⚠ " + z, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkOrange, Width = 290 } });
+        if (RepairList.Items.Count == 0) RepairList.Items.Add(new ListBoxItem { Content = new TextBlock { Text = "✔ Nie było czego naprawiać", Foreground = Brushes.ForestGreen }, IsEnabled = false });
+        RepairExpander.Header = Header($"Naprawa – zmiany: {res.Zmiany.Count}, do decyzji: {res.Zostalo.Count}");
+        RepairExpander.Content = RepairList;
+        RepairExpander.Visibility = Visibility.Visible; RepairExpander.IsExpanded = true;
+        Message(res.Zmiany.Count == 0 ? $"Napraw tory i łuki: bez zmian{(res.Zostalo.Count > 0 ? $", do decyzji {res.Zostalo.Count} – lista w panelu „Naprawa”" : "")}"
+            : $"Napraw tory i łuki: zmian {res.Zmiany.Count} (Ctrl+Z cofa wszystkie), do decyzji {res.Zostalo.Count} – lista w panelu „Naprawa”");
+        return res;
+    }
+
     /// <summary>Kontrola układu: lista w panelu (błędy na czerwono, uwagi na pomarańczowo); <paramref name="open"/> – rozwija listę.</summary>
     public List<Uwaga> RunCheck(bool open)
     {

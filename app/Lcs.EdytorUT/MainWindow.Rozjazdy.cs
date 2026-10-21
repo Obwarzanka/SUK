@@ -57,7 +57,7 @@ public partial class MainWindow
             var master = t.BranchAtEnd && t.Partner != null ? Doc.P.Turnouts.First(x => x.Id == t.Partner) : t;
             double delta = s - t.S;
             Doc.Change("Przesunięcie rozjazdu", p => { var m = p.Turnouts.First(x => x.Id == master.Id); m.S += delta; });
-            Message($"Rozjazd {t.Number} przesunięty o {F(Math.Abs(delta))} m");
+            Message($"Rozjazd {t.Number} przesunięty o {F(Math.Abs(delta))} m" + AutoMount(master.Id, master.Partner));
         };
     }
 
@@ -69,7 +69,8 @@ public partial class MainWindow
         Doc.Change("Łącznik z dwóch rozjazdów", p => err = Rozjazdy.MakeCrossover(p, aId, bId, out shift, true));
         if (err != null) { Message($"Łącznik {a.Number}/{b.Number}: {err}"); return; }
         View.SelectTurnout(aId);
-        Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + Notes(b));
+        string am = AutoMount(aId, bId);
+        Message($"Łącznik {a.Number}/{b.Number}: rozjazd {b.Number} przesunięty o {F(shift)} m, żeby skosy się zeszły" + am + Notes(b));
     }
 
     public ContextMenu BuildTurnoutMenu(string id)
@@ -86,20 +87,42 @@ public partial class MainWindow
         if (t.Partner == null)
             foreach (var (b, sh) in Rozjazdy.CrossoverCandidates(Doc.P, id))
                 Item($"Łącznik z rozjazdem {b.Number} (przesunie się o {F(sh)} m)", () => View_CrossoverJoin(id, b.Id));
-        foreach (var fx in Rozjazdy.ArcFixes(Doc.P, t)) Item("Popraw łuk: " + fx.Label, () => ApplyArcFix(id, fx));
+        foreach (var w in Naprawa.Warianty(Doc.P, t)) Item(WariantText(w), () => ApplyWariant(id, w));
         cm.Items.Add(new Separator());
         Item("Zaznacz odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); });
         Item(t.Partner != null ? "Usuń łącznik" : "Usuń rozjazd", () => { View.SelectTurnout(id); DeleteTurnoutOrCrossing(); });
         return cm;
     }
 
-    /// <summary>„Popraw łuk” pod rozjazdem – nowe wierzchołki toru zasadniczego (zmienia się R jednego łuku).</summary>
-    public void ApplyArcFix(string turnoutId, Rozjazdy.ArcFix fx)
+    /// <summary>Napis przycisku wariantu montażu: „Popraw łuk: …”, „Przesuń rozjazd: …”, „Typ: …”.</summary>
+    static string WariantText(Wariant w) => (w.Luk ? "Popraw łuk: " : w.Type != null ? "Typ: " : "Przesuń: ") + w.Label;
+
+    /// <summary>
+    /// Wariant montażu rozjazdu (<see cref="Naprawa.Warianty"/>): łuk toru zasadniczego (zmiana R / L jednego łuku, kilometraż obiektów
+    /// toru przeliczony – zostają w terenie), przesunięcie rozjazdu albo inny typ.
+    /// </summary>
+    public void ApplyWariant(string turnoutId, Wariant w)
     {
         var z = Doc.P.Turnouts.FirstOrDefault(x => x.Id == turnoutId); if (z == null) return;
-        ChTrack(z.Track, "Popraw łuk", tr => tr.Vertices = fx.V.Select(v => v.Clone()).ToList());
+        string what = w.Luk ? "Popraw łuk" : w.Type != null ? "Typ rozjazdu" : "Przesunięcie rozjazdu";
+        Doc.Change(what, p => { if (p.Turnouts.FirstOrDefault(x => x.Id == turnoutId) is UtTurnout t) Naprawa.Zastosuj(p, t, w); });
         View.SelectTurnout(turnoutId);
-        Message($"Popraw łuk przy rozjeździe {z.Number}: {fx.Label}; zmiana R o {fx.R1 - fx.R0:+0;−0} m (Ctrl+Z przywraca)");
+        Message($"{what} przy rozjeździe {z.Number}: {w.Label}" + (w.Luk && w.R1 != w.R0 ? $"; zmiana R o {w.R1 - w.R0:+0;−0} m" : "") + " (Ctrl+Z przywraca)");
+    }
+
+    /// <summary>
+    /// Montaż rozjazdu łukowego „gdy jest taka potrzeba”: rozjazd (i drugi łącznika) wstawiony albo przesunięty na granicę prostej i łuku
+    /// albo na krzywą przejściową – łuk toru dopasowuje się sam, jeśli oś przesuwa się najwyżej o <see cref="Naprawa.AutoDev"/>
+    /// (osobna zmiana – Ctrl+Z cofa samą poprawkę). Zwraca dopisek do komunikatu.
+    /// </summary>
+    string AutoMount(params string[] ids)
+    {
+        var (kroki, nie) = Naprawa.AutoPlan(Doc.P, ids);
+        if (kroki.Count > 0) Doc.Change("Montaż rozjazdu na łuku", p => Naprawa.Wykonaj(p, kroki));
+        var msg = kroki.Select(k => $"rozjazd {k.Number} zamontowany: {k.W.Label}").ToList();
+        if (kroki.Count > 0) msg[^1] += " (Ctrl+Z cofa samą poprawkę)";
+        if (nie.Count > 0) msg.Add($"{(nie.Count > 1 ? "rozjazdy" : "rozjazd")} {string.Join("/", nie)} nie {(nie.Count > 1 ? "leżą" : "leży")} na stałym promieniu – warianty montażu w panelu rozjazdu");
+        return msg.Count > 0 ? " – " + string.Join("; ", msg) : "";
     }
 
     /// <summary>
@@ -202,8 +225,9 @@ public partial class MainWindow
             t1.Number = nums[0]; t2.Number = nums[1];
             Doc.Change("Łącznik", p => { p.Tracks.Add(link); p.Turnouts.Add(t1); p.Turnouts.Add(t2); });
             View.SelectTurnout(t1.Id);
+            string am = AutoMount(t1.Id, t2.Id);
             var g = View.Geometry(Doc.P.Tracks.First(x => x.Id == link.Id));
-            Message($"Łącznik {t1.Number}/{t2.Number} ({type}): tor łączący {UtView.Len3(g.Length)}" + Notes(t1) + Notes(t2));
+            Message($"Łącznik {t1.Number}/{t2.Number} ({type}): tor łączący {UtView.Len3(g.Length)}" + am + Notes(t1) + Notes(t2));
         }
         else
         {
@@ -214,9 +238,10 @@ public partial class MainWindow
             t.Number = nums[0];
             Doc.Change("Rozjazd", p => { p.Tracks.Add(br); p.Turnouts.Add(t); });
             View.SelectTurnout(t.Id);
-            Message(pl.Offset > 0
-                ? $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – tor odgałęźny równoległy w odstępie {F(pl.Offset)} m (łuk R {F(rz)}); przedłuż go narzędziem Tor od końca" + Notes(t)
-                : $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – odgałęzienie do KR; przedłuż je narzędziem Tor od końca" + Notes(t));
+            string am = AutoMount(t.Id);
+            Message((pl.Offset > 0
+                ? $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – tor odgałęźny równoległy w odstępie {F(pl.Offset)} m (łuk R {F(rz)}); przedłuż go narzędziem Tor od końca"
+                : $"Rozjazd {t.Number} ({type}, {(side > 0 ? "prawy" : "lewy")}) – odgałęzienie do KR; przedłuż je narzędziem Tor od końca") + am + Notes(t));
         }
     }
 
@@ -317,7 +342,7 @@ public partial class MainWindow
         var main = Doc.P.Tracks.FirstOrDefault(x => x.Id == t.Track);
         P.Children.Add(Label($"Tor zasadniczy {(main?.Number.Length > 0 ? main.Number : "(bez numeru)")} – km PR [m od początku toru]"));
         var km = new TextBox { Text = t.S.ToString("0.00", CultureInfo.InvariantCulture), Margin = new Thickness(0, 2, 0, 6), IsEnabled = !t.BranchAtEnd, ToolTip = t.BranchAtEnd ? "Drugi rozjazd łącznika leży na przecięciu – przesuń pierwszy" : "Kilometraż początku rozjazdu, Enter – zastosuj" };
-        km.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(km.Text) is double v) ChTurnout(t.Id, "Kilometraż rozjazdu", x => x.S = v); };
+        km.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(km.Text) is double v) { ChTurnout(t.Id, "Kilometraż rozjazdu", x => x.S = v); if (AutoMount(t.Id, t.Partner) is { Length: > 0 } am) Message("Kilometraż rozjazdu" + am); } };
         P.Children.Add(km);
         P.Children.Add(new TextBlock { Text = $"{(t.Side > 0 ? "prawy" : "lewy")}, w stronę {(t.Dir > 0 ? "rosnącego" : "malejącego")} kilometrażu toru", Margin = new Thickness(0, 0, 0, 4) });
         if (partner == null)
@@ -358,8 +383,10 @@ public partial class MainWindow
                     $"Rozjazdy {t.Number} i {b.Number} jako łącznik ze wspólną wstawką; rozjazd {b.Number} przesunie się tak, żeby skosy się zeszły. Przedłużenia odgałęzień łączące oba rozjazdy znikną."));
         foreach (var n in Rozjazdy.Check(Doc.P, t).Concat(partner != null ? Rozjazdy.Check(Doc.P, partner).Select(x => $"rozjazd {partner.Number}: {x}") : Enumerable.Empty<string>()))
             P.Children.Add(new TextBlock { Text = n, Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
-        foreach (var fx in Rozjazdy.ArcFixes(Doc.P, t))
-            P.Children.Add(SmallBtn("Popraw łuk: " + fx.Label, () => ApplyArcFix(t.Id, fx), "Granica łuku przesuwa się poza rozjazd – zmienia się tylko R łuku (wierzchołek i proste zostają)"));
+        foreach (var w in Naprawa.Warianty(Doc.P, t))
+            P.Children.Add(SmallBtn(WariantText(w), () => ApplyWariant(t.Id, w),
+                w.Luk ? "Montaż na łuku: granica łuku przesuwa się poza rozjazd – zmienia się R albo przejściowa jednego łuku (wierzchołek i proste zostają); rozjazdy i urządzenia toru zostają w terenie"
+                : w.Type != null ? "Inny typ rozjazdu – tor zwrotny rozjazdu łukowego nie mniejszy niż 140 m" : "Rozjazd przesuwa się wzdłuż toru w całości na prostą albo na stały promień (łuk toru bez zmian)"));
         var act = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 6) };
         act.Children.Add(SmallBtn("Odgałęzienie", () => { if (t.Branch != null) View.Select(t.Branch); }, "Zaznacz tor odgałęzienia (przedłużysz go narzędziem Tor od końca)"));
         act.Children.Add(SmallBtn("Usuń rozjazd", () => { View.SelectTurnout(t.Id); DeleteTurnoutOrCrossing(); }, "Usuń rozjazd z odgałęzieniem (Del)"));

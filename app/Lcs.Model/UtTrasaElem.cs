@@ -158,9 +158,12 @@ public static class TrasaElem
             }
             var (p0, az0) = r.At(starts[i]); var (p1, az1) = r.At(starts[j] + els[j].Len);
             var d0 = Element.Dir(az0); var d1 = Element.Dir(az1); double den = d0.X * d1.Y - d0.Y * d1.X;
-            if (Math.Abs(den) > 1e-12)
+            double span = starts[j] + els[j].Len - starts[i];
+            // kąt zwrotu prawie zero (np. łuk R 80 km z szumu) – przecięcie stycznych daleko poza torem; taki łuk to prosta
+            if (Math.Abs(den) > 1e-4)
             {
                 var w = p1 - p0; double t = (w.X * d1.Y - w.Y * d1.X) / den; var x = p0 + d0 * t;
+                if (t < -0.01 * span * k || t > 3 * span * k) { i = j + 1; continue; }
                 var arcs = els.Skip(i).Take(j - i + 1).Where(e => e.Luk).ToList();
                 double R = arcs.Count > 0 ? arcs.Min(e => Math.Abs(e.R0)) : Math.Abs(els[i].R1 != 0 ? els[i].R1 : els[i].R0);
                 double L1 = els[i].Przejsciowa && els[i].R0 == 0 ? els[i].Len : 0, L2 = els[j].Przejsciowa && els[j].R1 == 0 ? els[j].Len : 0;
@@ -170,6 +173,8 @@ public static class TrasaElem
         }
         var end = r.Elements.Count > 0 ? r.Elements[^1].End : new XY(a.X, a.Y);
         v.Add(new UtVertex { X = end.X, Y = end.Y });
+        // łuki stykające się bez prostej (koszowe po dopasowaniu) – wierzchołki za blisko: promienie zmniejszone, aż się zmieszczą
+        if (!Trasa.Compute(v, k).Ok) v = Budowa.FitRadii(v, k, null, Rozjazdy.MinRDiv).V;
         var pr = Trasa.Compute(v, k);
         double max = r.Sample(2).Max(q => Budowa.Dist(pr, q.P)) / k;
         return (v, max);

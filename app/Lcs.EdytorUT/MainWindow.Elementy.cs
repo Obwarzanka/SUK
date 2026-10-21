@@ -51,6 +51,7 @@ public partial class MainWindow
         if (KrzywBtn.IsChecked != true) return;
         var t = Doc?.P.Tracks.FirstOrDefault(x => x.Id == View.SelectedTrack);
         Krzyw.Show(t, t != null ? View.Geometry(t) : null);
+        UpdateKrzywSlad(t);
     }
 
     /// <summary>Wielobok → trasa z elementów (edycja na wykresie krzywizny).</summary>
@@ -146,6 +147,7 @@ public partial class MainWindow
         var lk = new CheckBox { Content = "zablokuj R (dopasowania i uchwyt łuku go nie zmieniają)", IsChecked = v.LockR, Margin = new Thickness(0, 0, 0, 6) };
         lk.Click += (s, e) => ChTrack(id, "Blokada promienia", tr => tr.Vertices[vi].LockR = lk.IsChecked == true);
         TrackPanel.Children.Add(lk);
+        BuildArcPlan(t, r, vi);
     }
 
     /// <summary>R dobrany (połowienie) tak, żeby miara łuku (długość łuku albo styczna) miała zadaną wartość.</summary>

@@ -185,10 +185,12 @@ public static class Rozjazdy
         double rDiv = Math.Abs(k1) < 1e-9 ? 0 : 1 / Math.Abs(k1);
         double tan = rDiv == 0 ? lb / 2 : rDiv * Math.Tan(Math.Abs(dDiv) / 2);
         double q = tan / (typ.R * Math.Tan(typ.Alpha / 2));
-        var sr = pr + Element.Dir(az) * (typ.A * q * k);
+        // ŚR nie bliżej PR niż styczna łuku zwrotnego (a = R·tg(α/2) z katalogu zaokrąglone do mm); promień bez zaokrąglenia – inaczej
+        // styczna wierzchołka odgałęzienia wychodzi o kilka mm dłuższa od odcinka PR – ŚR i tor ma błąd „łuk nie mieści się”
+        var sr = pr + Element.Dir(az) * (Math.Max(typ.A * q, tan) * k);
         double azDiv = az + dDiv;
         string kind = rDiv == 0 ? "Rłd" : Math.Sign(k1) == Math.Sign(kg) ? "Rłj" : "Rłd";
-        return new TurnoutGeo(pr, sr, krm, sr + Element.Dir(azDiv) * (typ.B * q * k), az, azDiv, k, typ, 1 / Math.Abs(kg), Math.Round(rDiv, 1), kind, q);
+        return new TurnoutGeo(pr, sr, krm, sr + Element.Dir(azDiv) * (Math.Max(typ.B * q, tan) * k), az, azDiv, k, typ, 1 / Math.Abs(kg), rDiv, kind, q);
     }
 
     /// <summary>Uwagi o rozjeździe: poza torem, na łuku (rozjazdy łukowe – później), nachodzi na inny rozjazd.</summary>
@@ -202,14 +204,9 @@ public static class Rozjazdy
         double s1 = t.S, s2 = t.S + t.Dir * (typ.A + typ.B);
         if (Math.Min(s1, s2) < -1e-6 || Math.Max(s1, s2) > r.Length + 1e-6) res.Add("rozjazd wychodzi poza koniec toru zasadniczego");
         // rozjazd łukowy leży na stałym promieniu: nie na krzywej przejściowej ani na granicy prostej i łuku
-        double acc = 0; var on = new List<ElKind>();
-        foreach (var e in r.Elements)
-        {
-            double a = acc / r.K, b = (acc + e.Len) / r.K; acc += e.Len;
-            if (e.Len > 1e-9 && b > Math.Min(s1, s2) + 0.01 && a < Math.Max(s1, s2) - 0.01) on.Add(e.Kind);
-        }
-        if (on.Contains(ElKind.Przejsciowa)) res.Add("rozjazd leży na krzywej przejściowej – rozjazd łukowy układa się na stałym promieniu, przesuń go");
-        else if (on.Distinct().Count() > 1)
+        var pol = Naprawa.Polozenie(r, s1, s2);
+        if (pol == NaLuku.Przejsciowa) res.Add("rozjazd leży na krzywej przejściowej – rozjazd łukowy układa się na stałym promieniu, przesuń go albo skróć przejściową (panel rozjazdu)");
+        else if (pol == NaLuku.Granica)
         {
             // granice elementów pod rozjazdem: przesunięcie w stronę malejącego km (koniec przed pierwszą granicą) i rosnącego
             double lo = Math.Min(s1, s2), hi = Math.Max(s1, s2), acc2 = 0, bMin = double.MaxValue, bMax = double.MinValue;
@@ -287,57 +284,9 @@ public static class Rozjazdy
         return res;
     }
 
-    /// <summary>Wariant poprawy łuku pod rozjazdem: opis, wierzchołek łuku, R przed i po, nowe wierzchołki toru zasadniczego.</summary>
-    public record ArcFix(string Label, int Vertex, double R0, double R1, List<UtVertex> V);
-
-    /// <summary>
-    /// „Popraw łuk”: gdy rozjazd leży na granicy prostej i łuku (albo na krzywej przejściowej), granica łuku przesuwa się tuż za rozjazd
-    /// (łuk zaczyna się za końcem rozjazdu / kończy przed jego początkiem) albo tak, żeby rozjazd leżał w całości na łuku. Wierzchołek
-    /// i kierunki prostych zostają, zmienia się R (styczna T – <see cref="Budowa.RadiusFor"/>). Tylko warianty, po których uwaga
-    /// o granicy znika, a tor jest bez błędów. Tor z elementów – bez wariantów (granice przeciąga się na wykresie krzywizny).
-    /// </summary>
-    public static List<ArcFix> ArcFixes(UtProject p, UtTurnout t, double margin = 1)
-    {
-        var res = new List<ArcFix>();
-        var main = Tr(p, t.Track); var typ = Katalog.Find(t.Type); if (main == null || typ == null || main.Align != null) return res;
-        double k = Trasa.KFor(main); var r = Trasa.Compute(main.Vertices, k);
-        double s1 = Math.Min(t.S, t.S + t.Dir * (typ.A + typ.B)), s2 = Math.Max(t.S, t.S + t.Dir * (typ.A + typ.B));
-        bool Boundary(List<string> c) => c.Any(x => x.Contains("granicy prostej i łuku") || x.Contains("krzywej przejściowej"));
-        for (int vi = 1; vi < main.Vertices.Count - 1; vi++)
-        {
-            var v = main.Vertices[vi]; if (v.R <= 0 || v.LockR) continue;
-            if (p.Turnouts.Any(z => z.Branch == main.Id && (z.Partner != null || (!z.BranchAtEnd ? vi <= 1 : vi >= main.Vertices.Count - 2)))) continue;
-            double acc = 0, cs = -1, ce = -1;
-            foreach (var e in r.Elements) { if (e.Vertex == vi && e.Kind != ElKind.Prosta) { if (cs < 0) cs = acc / r.K; ce = (acc + e.Len) / r.K; } acc += e.Len; }
-            if (cs < 0) continue;
-            double T1 = r.Tangent.TryGetValue(vi, out var a1) ? a1 / k : 0, T2 = r.Tangent2.TryGetValue(vi, out var a2) ? a2 / k : 0;
-            var cands = new List<(string, bool, double)>();      // (opis, styczna wyjściowa?, nowa styczna)
-            if (cs > s1 + 0.01 && cs < s2 - 0.01)
-            {
-                cands.Add(($"początek łuku W{vi + 1} za rozjazdem", false, T1 - (s2 + margin - cs)));
-                cands.Add(($"początek łuku W{vi + 1} przed rozjazdem (rozjazd na łuku)", false, T1 + (cs - (s1 - margin))));
-            }
-            if (ce > s1 + 0.01 && ce < s2 - 0.01)
-            {
-                cands.Add(($"koniec łuku W{vi + 1} przed rozjazdem", true, T2 - (ce - (s1 - margin))));
-                cands.Add(($"koniec łuku W{vi + 1} za rozjazdem (rozjazd na łuku)", true, T2 + (s2 + margin - ce)));
-            }
-            foreach (var (label, outT, target) in cands)
-            {
-                if (target <= 0.5) continue;
-                var nv = Budowa.RadiusFor(main.Vertices, vi, k, rr => (outT ? rr.Tangent2 : rr.Tangent).TryGetValue(vi, out var q) ? q / rr.K : double.NaN, target);
-                if (nv == null) continue;
-                // sprawdzenie na kopii: uwaga o granicy znika, tor bez błędów
-                var others = p.Turnouts.Where(z => z.Id != t.Id && z.Track == main.Id).ToList();
-                int before = others.Count(z => Boundary(Check(p, z)));
-                var old = main.Vertices; main.Vertices = nv;
-                bool ok = Trasa.Compute(nv, k).Ok && !Boundary(Check(p, t)) && others.Count(z => Boundary(Check(p, z))) <= before;
-                main.Vertices = old;
-                if (ok) res.Add(new ArcFix($"{label} (R {v.R:0} → {nv[vi].R:0} m)", vi, v.R, nv[vi].R, nv));
-            }
-        }
-        return res.OrderBy(x => Math.Abs(x.R1 - x.R0)).ToList();
-    }
+    /// <summary>Wierzchołek toru ustawiany przez rozjazd: PR i ŚR odgałęzienia (drugi rozjazd łącznika – ostatnie dwa), tor łączący łącznika – cały.</summary>
+    public static bool Locked(UtProject p, UtTrack t, int i) =>
+        p.Turnouts.Any(r => r.Branch == t.Id && (r.Partner != null || (!r.BranchAtEnd ? i <= 1 : i >= t.Vertices.Count - 2)));
 
     /// <summary>Najmniejszy promień toru zwrotnego [m] – rozporządzenie w sprawie warunków technicznych (Dz.U. 2014 poz. 867) § 24 ust. 2 pkt 2.</summary>
     public const double MinRDiv = 140;
@@ -347,8 +296,30 @@ public static class Rozjazdy
         foreach (var tr in p.Tracks.Where(x => x.Align != null)) TrasaElem.SyncEnds(tr);
         p.Turnouts.RemoveAll(t => Tr(p, t.Track) == null || Tr(p, t.Branch) == null);
         foreach (var t in p.Turnouts.Where(t => t.Partner != null && p.Turnouts.All(o => o.Id != t.Partner)).ToList()) { t.Partner = null; t.BranchAtEnd = false; }
+        SyncTurnouts(p, p.Turnouts);
+        p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
+        p.Devices ??= new();
+        p.Devices.RemoveAll(d => Tr(p, d.Track) == null);           // urządzenia usuniętego toru
+        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new();
+        p.Sections.RemoveAll(d => Tr(p, d.Track) == null);
+        p.Platforms.RemoveAll(d => Tr(p, d.Track) == null);
+        foreach (var pl in p.Platforms.Where(x => x.Track2 != null && Tr(p, x.Track2) == null)) pl.Track2 = null;
+        p.LevelCrossings.RemoveAll(d => Tr(p, d.Track) == null);
+        p.KmPoints.RemoveAll(d => Tr(p, d.Track) == null);
+        foreach (var c in p.Crossings)
+        {
+            var ra = Trasa.Compute(Tr(p, c.TrackA)); var rb = Trasa.Compute(Tr(p, c.TrackB));
+            if (Intersect(ra, rb, ra.At(c.SA).P) is var (sa, sb, _)) { c.SA = sa; c.SB = sb; }
+        }
+    }
+
+    /// <summary>Część <see cref="Sync"/> dla wybranych rozjazdów (np. pary łącznika przy sprawdzaniu wariantu): drugi rozjazd łącznika
+    /// na przecięciu, wierzchołki odgałęzień od strony rozjazdu, tor łączący.</summary>
+    public static void SyncTurnouts(UtProject p, IEnumerable<UtTurnout> list)
+    {
+        var sel = list.ToList();
         // najpierw rozjazdy ustawiające początek odgałęzienia, potem drugie rozjazdy łączników
-        foreach (var t in p.Turnouts.OrderBy(t => t.BranchAtEnd ? 1 : 0))
+        foreach (var t in sel.OrderBy(t => t.BranchAtEnd ? 1 : 0))
         {
             if (t.BranchAtEnd && t.Partner != null) Relink(p, t);
             var g = Geometry(p, t); var br = Tr(p, t.Branch); if (g == null || br == null) continue;
@@ -366,7 +337,7 @@ public static class Rozjazdy
             }
         }
         // tor łączący łącznika: PR1 – ŚR1 – (X z łukiem wyrównującym) – ŚR2 – PR2
-        foreach (var t in p.Turnouts.Where(t => t.Partner != null && !t.BranchAtEnd))
+        foreach (var t in sel.Where(t => t.Partner != null && !t.BranchAtEnd))
         {
             var o = p.Turnouts.FirstOrDefault(x => x.Id == t.Partner); var link = Tr(p, t.Branch);
             if (o == null || link == null || o.Branch != t.Branch || Geometry(p, t) is not TurnoutGeo g1 || Geometry(p, o) is not TurnoutGeo g2) continue;
@@ -374,20 +345,6 @@ public static class Rozjazdy
             if (Equalizer(g1, g2) is var (x, _, rx)) nv.Add(V(x, rx));
             nv.Add(V(g2.SR, g2.RDiv)); nv.Add(V(g2.PR, 0));
             link.Vertices = nv;
-        }
-        p.Crossings.RemoveAll(c => Tr(p, c.TrackA) == null || Tr(p, c.TrackB) == null);
-        p.Devices ??= new();
-        p.Devices.RemoveAll(d => Tr(p, d.Track) == null);           // urządzenia usuniętego toru
-        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new();
-        p.Sections.RemoveAll(d => Tr(p, d.Track) == null);
-        p.Platforms.RemoveAll(d => Tr(p, d.Track) == null);
-        foreach (var pl in p.Platforms.Where(x => x.Track2 != null && Tr(p, x.Track2) == null)) pl.Track2 = null;
-        p.LevelCrossings.RemoveAll(d => Tr(p, d.Track) == null);
-        p.KmPoints.RemoveAll(d => Tr(p, d.Track) == null);
-        foreach (var c in p.Crossings)
-        {
-            var ra = Trasa.Compute(Tr(p, c.TrackA)); var rb = Trasa.Compute(Tr(p, c.TrackB));
-            if (Intersect(ra, rb, ra.At(c.SA).P) is var (sa, sb, _)) { c.SA = sa; c.SB = sb; }
         }
     }
 
@@ -400,6 +357,16 @@ public static class Rozjazdy
     /// w przecięciu skosów (Kampczyk, Skoczylas 2017: „łuk kołowy wyrównujący w torach nierównoległych”), a rozjazd 2 stoi tak,
     /// żeby łuk był w środku wstawki (cięciwa ŚR1 – ŚR2 w kierunku średnim obu skosów).
     /// </summary>
+    /// <summary>Km PR i kierunek drugiego rozjazdu łącznika, gdyby jego tor miał wielobok <paramref name="vs"/> (projekt bez zmian) – jak w <see cref="Sync"/>.</summary>
+    public static (double S, int Dir) PairPos(UtProject p, UtTurnout t, List<UtVertex> vs)
+    {
+        var tr = Tr(p, t.Track); double s = t.S; int d = t.Dir;
+        if (tr == null || !t.BranchAtEnd || t.Partner == null) return (s, d);
+        var old = tr.Vertices;
+        try { tr.Vertices = vs; Relink(p, t); return (t.S, t.Dir); }
+        finally { tr.Vertices = old; t.S = s; t.Dir = d; }
+    }
+
     static void Relink(UtProject p, UtTurnout t)
     {
         var m = p.Turnouts.FirstOrDefault(o => o.Id == t.Partner); if (m == null) return;

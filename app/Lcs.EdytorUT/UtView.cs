@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty, Szlak }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty, Szlak, Slad }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
@@ -57,7 +57,7 @@ public partial class UtView : FrameworkElement
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; arcFrom = null; objFrom = null; objDrag = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; arcFrom = null; objFrom = null; objDrag = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -131,7 +131,7 @@ public partial class UtView : FrameworkElement
     /// <summary>Jednostkowy kierunek na ekranie dla azymutu w świecie.</summary>
     public Vector ScreenDir(double azimuth) { var v = ScreenVec(Element.Dir(azimuth)); v.Normalize(); return v; }
 
-    void Moved() { InvalidateVisual(); ViewChanged?.Invoke(); Live.Schedule(); }
+    void Moved() { InvalidateVisual(); ViewChanged?.Invoke(); Live.Schedule(); OsmAuto(); }
     public void SetView(XY c, double m) { center = c; mpp = Math.Clamp(m, MinMpp, MaxMpp); Moved(); }
     /// <summary>Teren (schemat = false) albo Schemat z osią <paramref name="axis"/> [rad] i rozciągnięciem; punkt na środku zostaje.</summary>
     public void SetMode(bool schemat, double axis, double str)
@@ -225,7 +225,8 @@ public partial class UtView : FrameworkElement
         {
             if ((p - d).Length > ClickTol) dragging = true;
             if (bgDragFrom is Point bf) bgOffsetPx = p - bf;
-            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty or UtTool.Szlak) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
+            else if (areaFrom == null && dragging && PaintMode && (painting2 || Mods.HasFlag(ModifierKeys.Control))) PaintPt(d, p);
+            else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty or UtTool.Szlak or UtTool.Slad) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
         if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || objDrag != null) InvalidateVisual();
@@ -253,9 +254,11 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukPunkty && fitArc != null) { if (!FitApply()) { fitArc = null; FitPts.Clear(); InvalidateVisual(); } return true; }
             if (tool == UtTool.Szlak && szlakFrom != null) { SzlakCancel(); return true; }
+            if (tool == UtTool.Slad && SladPts.Count > 0) { if (SladPreview != null) SladAccept(); else _ = SladLicz(); return true; }
             return false;
         }
         if (ReleaseMulti(p)) { downAt = null; return true; }
+        if (painting2) { downAt = null; EndPaint(); return true; }
         if (panFrom != null) { EndPan(); downAt = null; return true; }
         if (painting) { painting = false; downAt = null; PaintEnd?.Invoke(); InvalidateVisual(); return true; }
         if (vDrag != null) { downAt = null; EndVertexDrag(p); return true; }
@@ -289,6 +292,7 @@ public partial class UtView : FrameworkElement
         else if (tool == UtTool.Rownolegly) ParClick(p);
         else if (tool == UtTool.LukOdDo) ArcClick(p);
         else if (tool == UtTool.LukPunkty) FitClick(p);
+        else if (tool == UtTool.Slad) SladClick(p);
         else if (tool == UtTool.Odcinek) OdcClick(p);
         else if (tool == UtTool.Szlak) SzlakClick(p);
         else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
@@ -383,6 +387,7 @@ public partial class UtView : FrameworkElement
             if (Schemat) dc.Pop();
         }
 
+        if (!PrintMode) DrawOsm(dc);
         if (!PrintMode) DrawSelection(dc);
         DrawMulti(dc);
         if (MarkS is var (mt, ms) && Track(mt) is UtTrack mtr && !PrintMode)
@@ -400,6 +405,7 @@ public partial class UtView : FrameworkElement
         DrawParallel(dc, dpi);
         DrawArcBetween(dc, dpi);
         DrawArcFit(dc, dpi);
+        DrawSlad(dc, dpi);
         Overlay?.Invoke(dc);
         DrawCalibration(dc, dpi);
         DrawMeasure(dc, dpi);

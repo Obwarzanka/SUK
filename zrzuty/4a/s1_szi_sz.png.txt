@@ -1,0 +1,9 @@
+#pol=SZI: dostępny – S1 SZI
+wysłano: S1 SZI – ✓ S1 SZI – Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)
+panel „S1”: STOP OSTOP(ciemny) SZ(ciemny) SZI(ciemny) NSZ(ciemny); T=3,0; zainicjowane: S1 SZI; okno potwierdzenia: nie
+panel „S1”: STOP OSTOP(ciemny) SZ SZI(ciemny) NSZ; T=6,1; zainicjowane: S1 SZI; okno potwierdzenia: nie
+#pol=NSZ: dostępny – S1 NSZ
+#pol=SZ: dostępny – S1 SZ
+wysłano: S1 SZ – ✓ S1 SZ – sygnał zastępczy (90 s)
+panel „S1”: STOP OSTOP(ciemny) SZ(ciemny) SZI NSZ(ciemny); T=6,1; zainicjowane: –; okno potwierdzenia: nie
+@6 sygnały: 1C/1- S5, 1C/2- S2, 2C/1+ S2, 2C/2+ S5, 2A/1- S5, 2A/2- S2, 1A/1+ S2, 1A/2+ S5, Tm1 Ms1, Tm2 Ms1, Tm3 Ms1, Tm4 Ms1, Tm5 Ms1, Tm6 Ms1, Tm7 Ms1, Tm8 Ms1, Tm9 Ms1, Tm10 Ms1, Tm11 Ms1, Tm12 Ms1, Tm13 Ms1, Tm14 Ms1, Tm15 Ms1, Tm16 Ms1, Tm17 Ms1, Tm18 Ms1, Tm100 Ms1, Tm21 Ms1, Tm136 Ms1, Tm22 Ms1, Tm23 Ms1, Tm24 Ms1, Tm28 Ms1, Tm29 Ms1, Tm30 Ms1, Tm31 Ms1, Tm32 Ms1, Tm33 Ms1, Tm34 Ms1, Tm35 Ms1, Tm21 Ms1, Tm22 Ms1, Tm24 Ms1, Tm23 Ms1, Tm29 Ms1, Tm30 Ms1, Tm33 Ms1, Tm32 Ms1, Tm36 Ms1, Tm35 Ms1, Tm34 Ms1, W 101/1+ S5, W102/1+ S5, 2W/1+ S5, 1W/1- S5, Tm25 Ms1, Tm26 Ms1, Tm28 Ms1, Tm31 Ms1; pociągi: SM42 9 km/h (it10k)

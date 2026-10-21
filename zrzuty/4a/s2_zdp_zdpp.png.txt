@@ -1,0 +1,10 @@
+#pol=POCIĄG: dostępny – S1 1A Pociąg
+wysłano: S1 1A Pociąg – ✓ S1 1A Pociąg – przebieg P S1→1A w realizacji, V = 60 km/h
+panel „S1 1A”: POCIĄG(ciemny) MANEWR(ciemny) ZD ZDP OPS(ciemny) ZDPP(ciemny); T=10,1; zainicjowane: –; okno potwierdzenia: nie
+#pol=ZDP: dostępny – S1 ZDP
+wysłano: S1 ZDP – ✓ S1 ZDP – Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)
+panel „S1 1A”: POCIĄG(ciemny) MANEWR(ciemny) ZD ZDP(ciemny) OPS ZDPP(ciemny); T=12,1; zainicjowane: S1 ZDP; okno potwierdzenia: nie
+panel „S1 1A”: POCIĄG(ciemny) MANEWR(ciemny) ZD ZDP(ciemny) OPS ZDPP; T=16,1; zainicjowane: S1 ZDP; okno potwierdzenia: nie
+#pol=ZDPP: dostępny – S1 ZDPP
+wysłano: S1 ZDPP – ✓ S1 ZDPP – zwolnienie ze zwłoką czasową 90 s
+panel „S1 1A”: POCIĄG(ciemny) MANEWR(ciemny) ZD(ciemny) ZDP(ciemny) OPS(ciemny) ZDPP(ciemny); T=20,0; zainicjowane: –; okno potwierdzenia: nie

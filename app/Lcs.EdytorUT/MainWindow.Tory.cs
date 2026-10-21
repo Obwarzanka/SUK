@@ -128,12 +128,14 @@ public partial class MainWindow
         if (i >= 0 && t.Align != null) i = -1;     // tor z elementów: Del usuwa tor (wierzchołki to tylko końce)
         if (i >= 0 && View.Locked(id, i)) { Message("Ten wierzchołek ustawia rozjazd – usuń rozjazd albo przesuń go"); return true; }
         if (i >= 0 && View.SkewTurnout(id, i) != null) { Message("Ten wierzchołek leży na skosie rozjazdu – można go tylko przesuwać wzdłuż skosu"); return true; }
-        if (Doc.P.Turnouts.Any(r => r.Branch == id) && (i < 0 || t.Vertices.Count <= 3)) { Message("To odgałęzienie rozjazdu – usuń rozjazd (zaznacz go i Del)"); return true; }
+        if (Doc.P.Turnouts.Any(r => r.Branch == id) && i >= 0 && t.Vertices.Count <= 3) { Message("To odgałęzienie rozjazdu – wierzchołka nie da się usunąć; Del na zaznaczonym torze (bez wierzchołka) usuwa tor razem z rozjazdem"); return true; }
         if (i >= 0 && t.Vertices.Count > 2) { ChTrack(id, "Usunięcie wierzchołka", x => x.Vertices.RemoveAt(i)); View.Select(id); Message($"Usunięty wierzchołek W{i + 1}"); }
         else
         {
             // z torem znikają jego rozjazdy (i skrzyżowania): odgałęzienia do skosu i tory łączące łączników – też; odgałęzienia
             // przedłużone (bocznice) zostają jako zwykłe tory
+            // odgałęzienie: razem z rozjazdem, z którego odchodzi (i jego parą w łączniku)
+            var own = Doc.P.Turnouts.Where(r => r.Branch == id).ToList();
             var rz = Doc.P.Turnouts.Where(r => r.Track == id).ToList();
             var gone = new HashSet<string> { id }; var kept = new List<string>();
             foreach (var r in rz)
@@ -141,16 +143,19 @@ public partial class MainWindow
                 var br = Doc.P.Tracks.FirstOrDefault(x => x.Id == r.Branch); if (br == null) continue;
                 if (r.Partner != null || br.Vertices.Count <= 3) gone.Add(br.Id); else kept.Add(r.Number);
             }
-            Doc.Change("Usunięcie toru", p => p.Tracks.RemoveAll(x => gone.Contains(x.Id)));
+            var ownIds = own.SelectMany(r => new[] { r.Id, r.Partner }).Where(x => x != null).ToHashSet();
+            Doc.Change("Usunięcie toru", p => { p.Tracks.RemoveAll(x => gone.Contains(x.Id)); p.Turnouts.RemoveAll(x => ownIds.Contains(x.Id)); });
             View.Select(null);
-            Message(rz.Count == 0 ? "Tor usunięty (Ctrl+Z przywraca)"
-                : $"Tor usunięty z rozjazdami {string.Join(", ", rz.Select(r => r.Number))}" + (kept.Count > 0 ? $"; odgałęzienia rozjazdów {string.Join(", ", kept)} zostały jako zwykłe tory" : "") + " (Ctrl+Z przywraca)");
+            var ownNr = own.SelectMany(r => new[] { r.Number }.Concat(Doc.P.Turnouts.Where(x => x.Id == r.Partner).Select(x => x.Number))).Distinct().ToList();
+            string ownTxt = ownNr.Count == 0 ? "" : ownNr.Count == 1 ? $" razem z rozjazdem {ownNr[0]}, z którego odchodzi" : $" razem z rozjazdami {string.Join(", ", ownNr)}, z których odchodzi";
+            Message(rz.Count == 0 ? $"Tor usunięty{ownTxt} (Ctrl+Z przywraca)"
+                : $"Tor usunięty{ownTxt} z rozjazdami {string.Join(", ", rz.Select(r => r.Number))}" + (kept.Count > 0 ? $"; odgałęzienia rozjazdów {string.Join(", ", kept)} zostały jako zwykłe tory" : "") + " (Ctrl+Z przywraca)");
         }
         return true;
     }
 
     // ------------------------------------------------------------------ panel toru
-    void RefreshTrackPanel()
+    public void RefreshTrackPanel()
     {
         TrackPanel.Children.Clear();
         if (View.Multi.Count > 0) { BuildMultiPanel(); return; }
@@ -279,6 +284,7 @@ public partial class MainWindow
         act.Children.Add(SmallBtn("Profil…", () => OpenProfile(), "Profil podłużny toru: niweleta, pochylenia, NMT"));
         if (Trasa.Compute(t).Notes.Any(n => n.Error && n.Text.Contains("nie mieści")))
             act.Children.Add(SmallBtn("Dopasuj promienie", () => FitRadii(id), "Zmniejsz R tylko w łukach, które się nie mieszczą (po 5 %, do pełnych metrów, nie poniżej 140 m); łuki ustawiane przez rozjazd bez zmian"));
+        act.Children.Add(SmallBtn("Napraw tor i łuki", () => RepairAll(id), "Zbędne wierzchołki, łuki, które się nie mieszczą (R po 1 %), rozjazdy toru na granicy łuku albo na przejściowej (montaż na łuku do 30 cm przesunięcia osi); Ctrl+Z cofa"));
         act.Children.Add(SmallBtn("Usuń tor", () => { View.Select(id); DeleteSelection(); }, "Usuń tor (Del)"));
         TrackPanel.Children.Add(act);
         if (t.Vertices.Any(x => x.R > 0))
@@ -295,7 +301,7 @@ public partial class MainWindow
         if (t.Vmax <= 0) { Message("Przejściowe z prędkości: wpisz najpierw Vmax toru (pole obok „zelektryfikowany”)"); return; }
         var (nv, rows) = Budowa.TransitionsFromSpeed(t.Vertices, Trasa.KFor(t), t.Vmax, new Dopuszczalne());
         if (rows.All(x => x.Note != null && x.L <= 0)) { Message("Przejściowe z prędkości: " + string.Join("; ", rows.Select(x => $"W{x.Vi + 1}: {x.Note}"))); return; }
-        ChTrack(id, "Przejściowe z prędkości", x => x.Vertices = nv);
+        Doc.Change("Przejściowe z prędkości", p => { if (p.Tracks.FirstOrDefault(x => x.Id == id) is UtTrack x) Naprawa.SetVertices(p, x, nv); });
         Message($"Przejściowe z prędkości {t.Vmax} km/h: " + string.Join("; ", rows.Select(x => $"W{x.Vi + 1} R {F(x.R, "0")}: " +
             (x.L > 0 ? $"h {F(x.H, "0")} mm, L {F(x.L, "0")} m" : "") + (x.Note != null ? $" ({x.Note})" : ""))) + " – wartości dopuszczalne przykładowe (kalkulator przechyłki), Ctrl+Z przywraca");
     }
@@ -306,7 +312,7 @@ public partial class MainWindow
         var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == id); if (t == null) return;
         var (v, ch) = Budowa.FitRadii(t.Vertices, Trasa.Compute(t).K, i => View.Locked(id, i));
         if (ch.Count == 0) { Message("Nie ma czego zmniejszyć – łuki, które się nie mieszczą, ustawia rozjazd albo brakuje miejsca na same wierzchołki"); return; }
-        ChTrack(id, "Dopasowanie promieni", x => x.Vertices = v);
+        Doc.Change("Dopasowanie promieni", p => { if (p.Tracks.FirstOrDefault(x => x.Id == id) is UtTrack x) Naprawa.SetVertices(p, x, v); });
         bool ok = Trasa.Compute(Doc.P.Tracks.First(x => x.Id == id)).Notes.All(n => !(n.Error && n.Text.Contains("nie mieści")));
         Message("Promienie: " + string.Join(", ", ch.Select(c => $"W{c.I + 1} R {F(c.From, "0")} → {F(c.To, "0")} m")) + (ok ? "" : $" – nadal się nie mieści (najmniejszy R {F(Rozjazdy.MinRDiv, "0")} m): odsuń albo usuń wierzchołki, przy dwóch rozjazdach – „Łącznik z rozjazdem”"));
     }

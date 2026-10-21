@@ -49,10 +49,7 @@ public partial class UtView
     public bool Locked(string track, int i)
     {
         if (Doc == null) return false;
-        var t = Track(track); if (t == null) return false;
-        foreach (var r in Doc.P.Turnouts.Where(r => r.Branch == track))
-            if (r.Partner != null || (!r.BranchAtEnd ? i <= 1 : i >= t.Vertices.Count - 2)) return true;   // tor łączący łącznika – cały
-        return false;
+        var t = Track(track); return t != null && Rozjazdy.Locked(Doc.P, t, i);
     }
 
     // ------------------------------------------------------------------ narzędzie
