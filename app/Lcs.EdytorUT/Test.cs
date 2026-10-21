@@ -55,6 +55,7 @@ public static partial class Test
                 w.SetSchemat(false);       // etapy 1–4 sprawdzają widok terenu (północ u góry)
                 // EDYTOR_UT_TEST=slad – tylko część „ślad” (szybka próba w trakcie pracy; pełny test – bez zmiennej)
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "slad") { log.AppendLine("== ślad (tylko ta część)"); await RunSlad(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }
                 // EDYTOR_UT_TEST=zaznacz, EDYTOR_UT_PLIK=kopia projektu – klik na każdym torze w zapisanym widoku (próba zaznaczania)

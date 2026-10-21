@@ -28,8 +28,17 @@ public partial class MainWindow
             if (View.Tool == UtTool.Urzadzenie) ToolShown(); else SetTool(UtTool.Urzadzenie);
         };
         View.DevicePlace += OnDevicePlace;
-        View.DeviceMoved += (id, s) => ChDevice(id, "Przesunięcie urządzenia", d => d.S = s);
+        View.DeviceMoved += (id, s) => MoveDevice(id, s, "Przesunięcie urządzenia");
         View.DeviceMenu += id => { var cm = BuildDeviceMenu(id); cm.PlacementTarget = View; cm.IsOpen = true; };
+    }
+
+    /// <summary>Nowy km urządzenia; sygnalizator na wspólnej konstrukcji ciągnie za sobą pozostałe – bramka zostaje w jednym przekroju.</summary>
+    public void MoveDevice(string id, double s, string what)
+    {
+        int n = 0;
+        Doc.Change(what, p => { if (p.Devices.FirstOrDefault(x => x.Id == id) is UtDevice d) { d.S = s; n = Urzadzenia.Wyrownaj(p, d); } });
+        if (n > 0 && Urzadzenia.KonstrukcjaOf(Doc.P, id) is var (mast, m))
+            Message($"{what}: {(mast == UtDevice.MastWysiegnik ? "wysięgnik" : "bramka")} {string.Join("/", m.Select(x => x.Name))} przesunięta w całości (jeden przekrój)");
     }
 
     void ChDevice(string id, string what, Action<UtDevice> act) => Doc.Change(what, p => { var d = p.Devices.FirstOrDefault(x => x.Id == id); if (d != null) act(d); });
@@ -122,7 +131,7 @@ public partial class MainWindow
         if (Posterunki.Of(Doc.P, d.Track) is UtPost post) P.Children.Add(new TextBlock { Text = $"Posterunek {PostName(post)} (z toru)", Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
         P.Children.Add(Label($"Tor {(tr?.Number.Length > 0 ? tr.Number : "(bez numeru)")} – km [m od początku toru]"));
         var km = new TextBox { Text = d.S.ToString("0.00", CultureInfo.InvariantCulture), Margin = new Thickness(0, 2, 0, 6) };
-        km.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(km.Text) is double v) ChDevice(d.Id, "Kilometraż urządzenia", x => x.S = v); };
+        km.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(km.Text) is double v) MoveDevice(d.Id, v, "Kilometraż urządzenia"); };
         P.Children.Add(km);
         if (d.Directed)
             P.Children.Add(new TextBlock { Text = $"dla jazdy w stronę {(d.Dir > 0 ? "rosnącego" : "malejącego")} km toru, po {(d.Side > 0 ? "prawej" : "lewej")}", Margin = new Thickness(0, 0, 0, 4) });
@@ -161,6 +170,12 @@ public partial class MainWindow
         cb.SelectedIndex = 0; cb.IsEnabled = cand.Count > 0;
         cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex > 0) JoinStructure(d.Id, cand[cb.SelectedIndex - 1].Id); };
         row.Children.Add(cb);
+        if (joined && Urzadzenia.Przekrzywienie(Doc.P, d) > 0.05)
+            P.Children.Add(SmallBtn($"Ustaw bramkę w przekroju {d.Name}", () =>
+            {
+                int n = 0; Doc.Change("Bramka w jednym przekroju", p => { if (p.Devices.FirstOrDefault(x => x.Id == d.Id) is UtDevice dd) n = Urzadzenia.Wyrownaj(p, dd); });
+                Message($"Konstrukcja w przekroju {d.Name}: przesunięte {n} (Ctrl+Z cofa)");
+            }, $"Pozostałe sygnalizatory konstrukcji przesuwają się na swoich torach w poprzek od {d.Name} (o {Urzadzenia.Przekrzywienie(Doc.P, d):0.##} m) – belka prostopadle do torów, jak na planie"));
         if (joined) row.Children.Add(SmallBtn("Odłącz", () => { ChDevice(d.Id, "Odłączenie od konstrukcji", Urzadzenia.Odlacz); Message($"{d.Name} odłączony – osobna konstrukcja"); }, "Sygnalizator na własnej bramce / własnym wysięgniku"));
         P.Children.Add(row);
         if (k is not var (mast, m)) return;              // pojedynczy wysięgnik – własny maszt, bez ustawień konstrukcji
@@ -239,7 +254,10 @@ public partial class MainWindow
         };
         P.Children.Add(pre);
 
-        P.Children.Add(Label("Komory od masztu (kolor, światło)"));
+        // na bramce / wysięgniku semafor wisi – „od masztu” to od dołu, czyli od komory najdalszej od belki (przy belce jest górna)
+        bool hangs = d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik;
+        P.Children.Add(Label(hangs ? "Komory od dołu, jak na maszcie (kolor, światło) – semafor wisi: 1 najdalej od belki, ostatnia (górna) przy belce"
+                                   : "Komory od masztu (kolor, światło)"));
         var grid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
         foreach (var w in new[] { 18.0, 92, 118, 24, 24, 24 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         for (int i = 0; i < lamps.Count; i++)
@@ -262,7 +280,12 @@ public partial class MainWindow
             Put(SmallBtn("✕", () => { if (lamps.Count <= 1) return; var l = lamps.ToList(); l.RemoveAt(ii); SetLamps(l); }, "Usuń komorę"), 5);
         }
         P.Children.Add(grid);
-        P.Children.Add(SmallBtn("+ komora", () => { if (lamps.Count >= 7) return; var l = lamps.ToList(); l.Add(('B', UtDevice.Stale)); SetLamps(l); }, "Nowa komora na końcu (najdalej od masztu), biała"));
+        var lrow = new StackPanel { Orientation = Orientation.Horizontal };
+        lrow.Children.Add(SmallBtn("+ komora", () => { if (lamps.Count >= 7) return; var l = lamps.ToList(); l.Add(('B', UtDevice.Stale)); SetLamps(l); }, "Nowa komora na końcu (najdalej od masztu, na bramce – przy belce), biała"));
+        if (lamps.Count > 1)
+            lrow.Children.Add(SmallBtn("↕ Odwróć kolejność", () => { var l = lamps.ToList(); l.Reverse(); SetLamps(l, "Odwrócenie kolejności komór"); },
+                "Komory w odwrotnej kolejności – gdy wpisano je od góry (np. z planu, od belki bramki), a liczy się od dołu"));
+        P.Children.Add(lrow);
 
         P.Children.Add(Label("Komory tekstem (C Z P B N; * – stałe lub pulsujące, ** – tylko pulsujące)"));
         var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B**PCZ* – od masztu: biała tylko pulsująca, pomarańczowa, czerwona, zielona stała lub pulsująca; Enter – zastosuj" };

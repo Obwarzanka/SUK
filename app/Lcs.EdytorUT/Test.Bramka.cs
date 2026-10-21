@@ -183,5 +183,19 @@ public static partial class Test
             await Settle(w);
             Save(w, shotRails.Replace("_szyny.png", "_bramka_pasy_skos_PZ.png"));
         }
+
+        // bramka w jednym przekroju (zgłoszenie właściciela 2026-10-21, B1 / B102 / B101 schodkami co ~5 m – belka ukośna):
+        // przesunięcie jednego semafora ciągnie pozostałe; bramka już przekrzywiona – „Ustaw bramkę w przekroju”
+        w.JoinStructure(sD.Id, sE.Id);
+        double Skos() => Urzadzenia.Przekrzywienie(d.P, D(sD.Id));
+        Ok(Urzadzenia.KonstrukcjaOf(d.P, sD.Id) is { M.Count: 2 } && Skos() < 0.05, $"D i E połączone – jeden przekrój ({Skos() * 100:0.#} cm)");
+        double sE0 = D(sE.Id).S;
+        w.MoveDevice(sD.Id, D(sD.Id).S - 10, "Przesunięcie urządzenia");
+        Ok(Math.Abs(D(sE.Id).S - sE0) > 9 && Skos() < 0.05 && w.LastMessage.Contains("w całości"), $"D przesunięty o 10 m – E za nim, bramka dalej w jednym przekroju ({Skos() * 100:0.#} cm; {w.LastMessage})");
+        d.Change("Krzywo", p => p.Devices.First(x => x.Id == sE.Id).S += 6);
+        w.SetTool(UtTool.Wskaz); w.View.SelectDevice(sD.Id);
+        var ub = Find<System.Windows.Controls.Button>(w.TrackPanel, b => (b.Content as string) == "Ustaw bramkę w przekroju D");
+        Ok(ub != null, $"bramka przekrzywiona o {Skos():0.##} m – w panelu D „Ustaw bramkę w przekroju D”");
+        if (ub != null) { Click(ub); Ok(Skos() < 0.05 && d.UndoName == "Bramka w jednym przekroju", $"po kliknięciu – jeden przekrój ({Skos() * 100:0.#} cm)"); }
     }
 }

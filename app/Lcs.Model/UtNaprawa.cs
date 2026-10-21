@@ -478,6 +478,10 @@ public static class Naprawa
         foreach (var z in p.Turnouts.Where(z => onlyTrack == null || z.Track == onlyTrack))
             foreach (var n in Rozjazdy.Check(p, z).Where(n => !n.Contains("granicy prostej") && !n.Contains("krzywej przejściowej")))
                 zo.Add($"rozjazd {z.Number}: {n}");
+        // wspólne konstrukcje (bramki, wysięgniki) poza jednym przekrojem – który sygnalizator stoi dobrze, wie projektant
+        foreach (var (mast, m) in Urzadzenia.Konstrukcje(p).Where(k => k.M.Count >= 2 && (onlyTrack == null || k.M.Any(x => x.Track == onlyTrack))))
+            if (Urzadzenia.Przekrzywienie(p, m[0]) > 0.5)
+                zo.Add($"{(mast == UtDevice.MastWysiegnik ? "wysięgnik" : "bramka")} {string.Join("/", m.Select(x => x.Name))}: sygnalizatory nie w jednym przekroju (do {Urzadzenia.Przekrzywienie(p, m[0]):0.#} m) – zaznacz ten, który stoi dobrze, i „Ustaw bramkę w przekroju” w panelu");
         return new NaprawaWynik(zm, zo.Distinct().ToList());
     }
 }

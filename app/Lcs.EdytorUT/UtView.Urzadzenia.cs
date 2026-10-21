@@ -253,20 +253,27 @@ public partial class UtView
         foreach (var (mast, grp) in Urzadzenia.Konstrukcje(Doc.P))
         {
             // położenie członków: punkt na osi toru, kierunek komór (ekran), normalna, strona
-            var m = new List<(Point B, Vector D, UtDevice Dv)>();
+            var m = new List<(Point B, Vector D, UtDevice Dv)>(); (XY P, double Az, double K)? w0 = null;
             foreach (var dv in grp)
             {
                 var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = dv.Copy(); d.S = ds; }
-                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, _)) m.Add((ToScreen(p), ScreenDir(az), dv));
+                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, kk)) { m.Add((ToScreen(p), ScreenDir(az), dv)); w0 ??= (p, az, kk); }
             }
             if (m.Count == 0) continue;
-            var dir = m[0].D; var nrm = new Vector(-dir.Y, dir.X); var o = m[0].B;
-            double along = m.Average(q => (q.B - o) * dir);
+            var dir = m[0].D; var o = m[0].B;
+            // belka w poprzek torów w terenie: w Schemacie (rozciągnięcie w poprzek) prostopadła w terenie nie jest prostopadła na ekranie –
+            // kierunek belki to obraz normalnej toru, a położenie członków w układzie (wzdłuż dir, wzdłuż belki)
+            var (pw0, az0, k0) = w0.Value;
+            var nrm = ToScreen(pw0 + Element.Right(az0) * k0) - ToScreen(pw0); nrm.Normalize();
+            var perp = new Vector(-dir.Y, dir.X); if (nrm * perp < 0) nrm = -nrm;
+            double det = dir.X * nrm.Y - dir.Y * nrm.X;
+            (double A, double C) Loc(Point b) { var w = b - o; return ((w.X * nrm.Y - w.Y * nrm.X) / det, (dir.X * w.Y - dir.Y * w.X) / det); }
+            double along = m.Average(q => Loc(q.B).A);
             // zasięg w poprzek: tory i semafory członków (oś toru ± 1,5 mm, semafor po swojej stronie do 2,4 + 1 + 1,5 mm)
             double lo = double.MaxValue, hi = double.MinValue;
             foreach (var (b, _, dv) in m)
             {
-                double c = (b - o) * nrm, sy = dv.Side * (2.4 + 1 + 1.5) * k;
+                double c = Loc(b).C, sy = dv.Side * (2.4 + 1 + 1.5) * k;
                 lo = Math.Min(lo, Math.Min(c - 1.5 * k, c + sy)); hi = Math.Max(hi, Math.Max(c + 1.5 * k, c + sy));
             }
             var (slupy, strona, tory) = Urzadzenia.Ustawienia(mast, grp);
@@ -275,7 +282,7 @@ public partial class UtView
             {
                 if (Doc.P.Tracks.FirstOrDefault(t => t.Id == tid) is not UtTrack t) continue;
                 var rt = Geometry(t); if (rt.Elements.Count == 0) continue;
-                double c = (ToScreen(rt.At(rt.Nearest(pw, 0.25).S).P) - o) * nrm;          // oś toru pod belką
+                double c = Loc(ToScreen(rt.At(rt.Nearest(pw, 0.25).S).P)).C;                 // oś toru pod belką
                 lo = Math.Min(lo, c - 1.5 * k); hi = Math.Max(hi, c + 1.5 * k);
             }
             double len = m.Max(q => HangingLen(q.Dv)) * k + 1 * k;

@@ -297,6 +297,32 @@ public static class Urzadzenia
             .Select(x => (x.T, Dist: x.R.Nearest(pa, 0.25).Dist / ka)).Where(x => x.Dist < 25).OrderBy(x => x.Dist).ToList();
     }
 
+    /// <summary>
+    /// Wspólna konstrukcja w jednym przekroju: pozostałe sygnalizatory konstrukcji <paramref name="d"/> przesuwają się na swoich torach do
+    /// punktu najbliższego <paramref name="d"/> (prostopadle do toru) – belka bramki idzie w poprzek torów jak na planie, nie ukośnie.
+    /// Zwraca liczbę przesuniętych.
+    /// </summary>
+    public static int Wyrownaj(UtProject p, UtDevice d)
+    {
+        if (KonstrukcjaOf(p, d.Id) is not var (_, m) || m.Count < 2 || Pos(p, d) is not var (pa, _, _)) return 0;
+        int n = 0;
+        foreach (var x in m.Where(x => x.Id != d.Id))
+        {
+            if (p.Tracks.FirstOrDefault(t => t.Id == x.Track) is not UtTrack t || Trasa.Compute(t) is not { Elements.Count: > 0 } r) continue;
+            double s = Math.Round(Math.Clamp(Naprawa.Near(r, pa, x.S, 200), 0, r.Length), 2);
+            if (Math.Abs(s - x.S) > 0.005) { x.S = s; n++; }
+        }
+        return n;
+    }
+
+    /// <summary>Największe odsunięcie członków konstrukcji od przekroju <paramref name="d"/> wzdłuż toru [m] (0 – w jednym przekroju).</summary>
+    public static double Przekrzywienie(UtProject p, UtDevice d)
+    {
+        if (KonstrukcjaOf(p, d.Id) is not var (_, m) || m.Count < 2 || Pos(p, d) is not var (pa, aza, ka)) return 0;
+        var da = Element.Dir(aza);
+        return m.Where(x => x.Id != d.Id).Select(x => Pos(p, x) is var (pb, _, _) ? Math.Abs((pb - pa).X * da.X + (pb - pa).Y * da.Y) / ka : 0).DefaultIfEmpty(0).Max();
+    }
+
     /// <summary>Odłączenie od wspólnej konstrukcji: własny klucz – sam na bramce (albo na własnym wysięgniku), nawet tuż obok innych.</summary>
     public static void Odlacz(UtDevice d) => d.Konstrukcja = Guid.NewGuid().ToString("N")[..8];
 
@@ -316,7 +342,7 @@ public static class Urzadzenia
             var da = Element.Dir(aza);
             var far = p.Devices.Where(x => x.Id != d.Id && x.Konstrukcja == d.Konstrukcja && Sygnalizator(x) && (x.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik))
                 .Where(x => Pos(p, x) is var (pb, _, _) && Math.Abs((pb - pa).X * da.X + (pb - pa).Y * da.Y) / ka > 8).Select(x => x.Name).ToList();
-            if (far.Count > 0) res.Add($"na wspólnej konstrukcji z {string.Join(", ", far)}, ale ponad 8 m od nich wzdłuż toru – przesuń albo odłącz");
+            if (far.Count > 0) res.Add($"na wspólnej konstrukcji z {string.Join(", ", far)}, ale ponad 8 m od nich wzdłuż toru – „Ustaw bramkę w przekroju” w panelu albo odłącz");
         }
         if (d.Powtarzajacy)
         {
