@@ -34,6 +34,8 @@ public partial class KomputerZaleznosci
     public Dictionary<string, Route> Routes = new();
     public Dictionary<string, List<RouteDef>> RouteTable = new();
     public PowerState Power = new();
+    /// <summary>Posterunki z zastopowanymi wszystkimi sygnalizatorami (SSS) i wszystkimi zwrotnicami (ZSS) – polecenia dodatkowe ISDR.</summary>
+    public HashSet<string> SssPosts = new(), ZssPosts = new();
     int seq = 1;
 
     public KomputerZaleznosci(Simulator sim)
@@ -344,6 +346,7 @@ public partial class KomputerZaleznosci
         {
             var d = L.Signals[n];
             if (s.Aspect == Aspect.Sz && T >= s.SzUntil) { s.Aspect = Aspect.Stop; Log("Zdarzenie", "Sygnał zastępczy wygasł samoczynnie", "Semafor", n); }
+            if (s.Aspect != Aspect.Sz) s.W24 = false;
             if (d.Type == "odstepowy")
             {
                 var bs = Blocks[d.Szlak];

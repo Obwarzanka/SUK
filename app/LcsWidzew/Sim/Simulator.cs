@@ -13,7 +13,7 @@ public partial class Simulator
 {
     public static class Cfg
     {
-        public const double SwTime = 5, SwTimeout = 12, SzTime = 90, SpecialConfirm = 60, SpecialMinWait = 5, TimeRelease = 120,
+        public const double SwTime = 5, SwTimeout = 12, SzTime = 90, SpecialConfirm = 60, SpecialMinWait = 5, TimeRelease = 120, ZwlokaZd = 90,
             BlockRelease = 3, AzkTime = 5, NbrDelay = 6, ReqAlarmAfter = 180, ParamTimeout = 60;
     }
 

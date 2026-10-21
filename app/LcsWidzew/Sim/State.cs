@@ -43,6 +43,8 @@ public class SigState
     public string Sig;
     /// <summary>Liczba na wskaźniku W21 przy sygnale zezwalającym (dziesiątki km/h); 0 – nie świeci / brak.</summary>
     public int W21;
+    /// <summary>Wskaźnik W24 „kierunek przeciwny” razem z sygnałem zastępczym (NSZ, Ie-1 § W24 lit. c).</summary>
+    public bool W24;
     /// <summary>Status karty: sygnał wyświetlany w terenie.</summary>
     public string Wyswietlany;
     public double SzUntil;

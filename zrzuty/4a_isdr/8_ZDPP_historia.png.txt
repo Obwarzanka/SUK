@@ -1,0 +1,14 @@
+#pol=POCIĄG: dostępny – S1 1A Pociąg
+wysłano: S1 1A Pociąg – ✓ S1 1A Pociąg – przebieg P S1→1A w realizacji, V = 60 km/h
+panel „S1”: STOP OSTOP(ciemny) SZ(ciemny) SZI(ciemny) NSZ(ciemny) STÓJ OSZ(ciemny) ZCZ OZCZ(ciemny) ZDM(ciemny); T=10,1; zainicjowane: –; okno potwierdzenia: nie
+#pol=ZDP: dostępny – S1 ZDP
+wysłano: S1 ZDP – ✓ S1 ZDP – Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)
+#pol=ZDPP: dostępny – S1 ZDPP
+wysłano: S1 ZDPP – ✓ S1 ZDPP – przebieg pociągowy zwolniony natychmiast
+panel „S1”: STOP OSTOP(ciemny) SZ(ciemny) SZI NSZ(ciemny) STÓJ(ciemny) OSZ(ciemny) ZCZ(ciemny) OZCZ(ciemny) ZDM(ciemny); T=17,1; zainicjowane: –; okno potwierdzenia: nie
+#pol=POCIĄG: dostępny – S1 1A Pociąg
+wysłano: S1 1A Pociąg – ✓ S1 1A Pociąg – przebieg P S1→1A w realizacji, V = 60 km/h
+#pol=ZDP: dostępny – S1 ZDP
+wysłano: S1 ZDP – ✓ S1 ZDP – Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)
+#pol=ZDPP: dostępny – S1 ZDPP
+wysłano: S1 ZDPP – ✓ S1 ZDPP – przebieg pociągowy zwolniony natychmiast

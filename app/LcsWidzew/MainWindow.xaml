@@ -54,8 +54,8 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="5"/>
-            <RowDefinition Height="140"/>
-            <RowDefinition Height="92"/>
+            <RowDefinition Height="170"/>
+            <RowDefinition Height="112"/>
         </Grid.RowDefinitions>
 
         <!-- pasek górny -->
@@ -113,7 +113,9 @@
             <ui:PanelView x:Name="Panel"/>
             <TextBlock x:Name="TxtClock" Text="06:00:00" Foreground="#00e000" FontFamily="Consolas" FontSize="30" FontWeight="Bold"
                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,8" IsHitTestVisible="False"/>
-            <TextBlock x:Name="TxtPaused" Text="PAUZA" Foreground="#e8c000" FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,14,0" Visibility="Collapsed" IsHitTestVisible="False"/>
+            <TextBlock x:Name="TxtPaused" Text="PAUZA" Foreground="#e8c000" FontSize="14" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,40,0,0" Visibility="Collapsed" IsHitTestVisible="False"/>
+            <!-- panel „Polecenia / Historia” wg ISDR – zastępuje menu PPM (ROZWOJ.md § 2a) -->
+            <ui:PanelPolecen x:Name="Pol" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,16,0" Panel.ZIndex="6"/>
         </Grid>
 
         <!-- linia poleceń -->
@@ -134,64 +136,8 @@
 
         <GridSplitter Grid.Row="3" HorizontalAlignment="Stretch" Background="#222"/>
 
-        <!-- ZDARZENIA -->
-        <DockPanel Grid.Row="4">
-            <Border DockPanel.Dock="Top" Background="#1b1b1b" BorderBrush="#333" BorderThickness="0,0,0,1">
-                <StackPanel Orientation="Horizontal" Margin="4,2">
-                    <Border Background="#1f3d8a" Padding="8,1"><TextBlock Text="ZDARZENIA" Foreground="White" FontWeight="SemiBold"/></Border>
-                    <TextBlock Text="  Kategoria:" VerticalAlignment="Center" Foreground="#888"/>
-                    <ComboBox x:Name="EvFilter" Width="130" Margin="4,0" SelectionChanged="EvFilter_Changed"/>
-                    <Button Content="Eksport CSV" Click="Export_Click"/>
-                    <TextBlock x:Name="EvCount" VerticalAlignment="Center" Margin="10,0" Foreground="#888"/>
-                </StackPanel>
-            </Border>
-            <DataGrid x:Name="GridEvents">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Czas" Binding="{Binding Czas}" Width="70"/>
-                    <DataGridTextColumn Header="Obszar" Binding="{Binding Obszar}" Width="85"/>
-                    <DataGridTextColumn Header="Stacja" Binding="{Binding Stacja}" Width="50"/>
-                    <DataGridTextColumn Header="Typ obiektu" Binding="{Binding TypObiektu}" Width="110"/>
-                    <DataGridTextColumn Header="Obiekt" Binding="{Binding Obiekt}" Width="80"/>
-                    <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="90"/>
-                    <DataGridTextColumn Header="Zdarzenie" Binding="{Binding Zdarzenie}" Width="*"/>
-                    <DataGridTextColumn Header="Operator" Binding="{Binding Operator}" Width="100"/>
-                    <DataGridTextColumn Header="Notatka" Binding="{Binding Notatka}" Width="80"/>
-                    <DataGridTextColumn Header="Źródło" Binding="{Binding Zrodlo}" Width="60"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </DockPanel>
-
-        <!-- ALARMY -->
-        <DockPanel Grid.Row="5">
-            <Border DockPanel.Dock="Top" Background="#1b1b1b" BorderBrush="#333" BorderThickness="0,1,0,1">
-                <StackPanel Orientation="Horizontal" Margin="4,2">
-                    <Border Background="#9a1010" Padding="8,1"><TextBlock Text="ALARMY" Foreground="White" FontWeight="SemiBold"/></Border>
-                    <Button Content="Kwituj wszystkie (KW)" Click="Ack_Click" Margin="8,0"/>
-                    <CheckBox x:Name="ChkMute" Content="Wycisz" Foreground="#aaa" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="AlCount" VerticalAlignment="Center" Margin="10,0" Foreground="#ff7070"/>
-                </StackPanel>
-            </Border>
-            <DataGrid x:Name="GridAlarms" MouseDoubleClick="GridAlarms_DoubleClick">
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Setter Property="Foreground" Value="#ff8080"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Ack}" Value="True"><Setter Property="Foreground" Value="#777"/></DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Czas" Binding="{Binding Czas}" Width="70"/>
-                    <DataGridTextColumn Header="Obszar" Binding="{Binding Obszar}" Width="85"/>
-                    <DataGridTextColumn Header="Stacja" Binding="{Binding Stacja}" Width="50"/>
-                    <DataGridTextColumn Header="Typ obiektu" Binding="{Binding TypObiektu}" Width="110"/>
-                    <DataGridTextColumn Header="Obiekt" Binding="{Binding Obiekt}" Width="80"/>
-                    <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="90"/>
-                    <DataGridTextColumn Header="Zdarzenie" Binding="{Binding Zdarzenie}" Width="*"/>
-                    <DataGridTextColumn Header="Operator" Binding="{Binding Operator}" Width="100"/>
-                    <DataGridTextColumn Header="Stan alarmu" Binding="{Binding Stan}" Width="130"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </DockPanel>
+        <!-- ZDARZENIA i ALARMY wg ISDR (UI/Dziennik.cs) -->
+        <ContentControl x:Name="HostZdarzenia" Grid.Row="4"/>
+        <ContentControl x:Name="HostAlarmy" Grid.Row="5"/>
     </Grid>
 </Window>

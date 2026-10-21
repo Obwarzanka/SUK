@@ -16,8 +16,11 @@ public partial class KomputerZaleznosci
         switch (code)
         {
             case "SZ":
+            case "SZI":
+            case "NSZ":
             {
                 var s = key;
+                if (code == "NSZ" && !WyjazdPodPrad(s)) return ($"Z {Station.Lbl(s)} nie ma wyjazdu na tor szlaku w kierunku przeciwnym do zasadniczego – NSZ niemożliwe (Ie-104 § 12)", null, null);
                 if (!L.Signals[s].IsTrain) return ("Sygnał zastępczy możliwy tylko na semaforze", null, null);
                 if (Sigs[s].Aspect == Aspect.Train) return ("Semafor wyświetla sygnał zezwalający", null, null);
                 if (Sigs[s].Flank.Count > 0) return ($"Semafor utwierdzony w ochronie bocznej przebiegu {FlankOwner(Sigs[s].Flank, null)}", null, null);
@@ -54,6 +57,37 @@ public partial class KomputerZaleznosci
         }
         return (null, key, new());
     }
+
+    /// <summary>
+    /// Czy z semafora jest przebieg pociągowy na tor szlaku w kierunku przeciwnym do zasadniczego (warunek NSZ, Ie-104 § 12):
+    /// kierunek wyjazdu (Dir semafora) przeciwny do kierunku zasadniczego szlaku (defDir).
+    /// </summary>
+    public bool WyjazdPodPrad(string s) =>
+        RouteTable.GetValueOrDefault(s, new()).Any(r => r.Type == "P" && r.EndKind == "szlak" && L.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && b.DefDir != 0 && L.Signals[s].Dir == -b.DefDir);
+
+    /// <summary>
+    /// Zwolnienie przebiegu ze zwłoką: przebieg otwarty, a pociąg w strefie zbliżania albo już za semaforem – odliczanie (przebieg w magencie),
+    /// inaczej od razu; zawsze – zwłoka bez warunku (ZDPP). Przebieg manewrowy (ZD) zwalnia się od razu.
+    /// </summary>
+    CmdResult ZwolnijZeZwloka(Route r, double zwloka, bool zawsze, string jak)
+    {
+        var s = r.Start;
+        if (r.Type == "M") { ReleaseRoute(r.Uid, jak); return new(true, "przebieg manewrowy zwolniony"); }
+        var appr = L.Signals[s].ApproachSec;
+        bool opened = r.State is "set" or "stopped" || r.Passed;
+        if (zawsze || (opened && (r.Passed || (appr != null && SecOcc(appr)))))
+        {
+            Sigs[s].Aspect = Sigs[s].Aspect == Aspect.Sz ? Aspect.Sz : Aspect.Stop;
+            r.TimeRelUntil = T + zwloka;
+            foreach (var sc in r.Secs) if (Secs[sc].Lock == r.Uid) Secs[sc].TimeRel = r.TimeRelUntil;
+            return new(true, $"zwolnienie ze zwłoką czasową {zwloka:0} s");
+        }
+        ReleaseRoute(r.Uid, jak); return new(true, "przebieg zwolniony");
+    }
+
+    /// <summary>Sygnalizatory stacji (bez odstępowych – należą do szlaku) albo zwrotnice posterunku.</summary>
+    IEnumerable<string> SygnalizatoryPosterunku(string post) => L.Signals.Values.Where(x => x.Post == post && x.Type != "odstepowy" && Sigs.ContainsKey(x.Name)).Select(x => x.Name);
+    IEnumerable<string> ZwrotnicePosterunku(string post) => L.Switches.Values.Where(x => x.Post == post && Sws.ContainsKey(x.Num)).Select(x => x.Num);
 
     /// <summary>Polecenie „wszystkie semafory Stój” (STW).</summary>
     public CmdResult WszystkieStoj()
@@ -108,6 +142,33 @@ public partial class KomputerZaleznosci
                 var r = Routes.Values.FirstOrDefault(x => x.Start == s && x.Type == "M");
                 if (r == null) return new(false, "Brak przebiegu manewrowego od " + Station.Lbl(s));
                 ReleaseRoute(r.Uid, "ZDM"); return new(true, "przebieg manewrowy zwolniony");
+            }
+            case "ZD":
+            {
+                // zwolnienie doraźne (ISDR, decyzja właściciela 2026-10-20): jednoetapowe, przy pociągu w strefie zbliżania – zwłoka 90 s
+                var r = Routes.Values.FirstOrDefault(x => x.Start == k0 && (p.Obiekty.Count < 2 || x.End == p.Obiekty[^1]));
+                if (r == null) return new(false, "Brak przebiegu od " + Station.Lbl(k0) + (p.Obiekty.Count > 1 ? " do " + Station.Lbl(p.Obiekty[^1]) : ""));
+                return ZwolnijZeZwloka(r, Cfg.ZwlokaZd, false, "ZD");
+            }
+            case "SSS":
+            case "OSSS":
+            {
+                bool on = code == "SSS"; var post = k0; int n = 0;
+                foreach (var k in SygnalizatoryPosterunku(post))
+                {
+                    var g = Sigs[k]; g.Closed = on; n++;
+                    if (on && g.Aspect is Aspect.Train or Aspect.Shunt) { g.Aspect = Aspect.Stop; if (g.Route != null && Routes.TryGetValue(g.Route, out var q)) q.State = "stopped"; }
+                }
+                if (on) SssPosts.Add(post); else SssPosts.Remove(post);
+                return new(true, on ? $"zastopowano wszystkie sygnalizatory stacji ({n})" : $"odwołano zastopowanie sygnalizatorów stacji ({n})");
+            }
+            case "ZSS":
+            case "OZSS":
+            {
+                bool on = code == "ZSS"; var post = k0; int n = 0;
+                foreach (var k in ZwrotnicePosterunku(post)) { Sws[k].Stopped = on; n++; }
+                if (on) ZssPosts.Add(post); else ZssPosts.Remove(post);
+                return new(true, on ? $"zastopowano wszystkie zwrotnice stacji ({n})" : $"odwołano zastopowanie zwrotnic stacji ({n})");
             }
             case "ZCZ":
             {
@@ -191,6 +252,23 @@ public partial class KomputerZaleznosci
                 var st = Sigs[s]; st.Aspect = Aspect.Sz; st.SzUntil = T + Cfg.SzTime; st.FailAlarm = false;
                 CheckSzPractice(s);
                 return new(true, $"sygnał zastępczy ({Cfg.SzTime:0} s)");
+            }
+            case "NSZ":
+            {
+                // sygnał zastępczy przy wyjeździe na tor szlaku w kierunku przeciwnym do zasadniczego: Sz razem z W24 (Ie-1, W24 lit. c)
+                var s = k0;
+                if (!WyjazdPodPrad(s)) return new(false, $"Z {Station.Lbl(s)} nie ma wyjazdu na tor szlaku w kierunku przeciwnym do zasadniczego");
+                var st = Sigs[s]; st.Aspect = Aspect.Sz; st.SzUntil = T + Cfg.SzTime; st.FailAlarm = false; st.W24 = true;
+                CheckSzPractice(s);
+                return new(true, $"sygnał zastępczy z W24 ({Cfg.SzTime:0} s)");
+            }
+            case "ZDPP":
+            {
+                // wykonanie zwolnienia doraźnego po ZDP (ISDR): natychmiast, jak ZDP (decyzja właściciela 2026-10-20)
+                var r = Routes.Values.FirstOrDefault(x => x.Start == k0 && x.Type == "P");
+                if (r == null) return new(false, "Brak przebiegu pociągowego od " + Station.Lbl(k0));
+                if (Sigs[k0].Aspect != Aspect.Sz) Sigs[k0].Aspect = Aspect.Stop;
+                ReleaseRoute(r.Uid, "ZDPP"); return new(true, "przebieg pociągowy zwolniony natychmiast");
             }
             case "ZDP":
             {

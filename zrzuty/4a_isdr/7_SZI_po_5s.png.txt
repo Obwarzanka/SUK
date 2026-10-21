@@ -1,0 +1,6 @@
+#pol=SZI: dostępny – S1 SZI
+wysłano: S1 SZI – ✓ S1 SZI – Polecenie specjalne zainicjowane – sprawdź adres i kod, potwierdź (nie wcześniej niż po 5 s)
+panel „S1”: STOP OSTOP(ciemny) SZ SZI(ciemny) NSZ STÓJ(ciemny) OSZ(ciemny) ZCZ(ciemny) OZCZ(ciemny) ZDM(ciemny); T=6,1; zainicjowane: S1 SZI; okno potwierdzenia: nie
+#pol=SZ: dostępny – S1 SZ
+wysłano: S1 SZ – ✓ S1 SZ – sygnał zastępczy (90 s)
+panel „S1”: STOP OSTOP(ciemny) SZ(ciemny) SZI NSZ(ciemny) STÓJ OSZ ZCZ(ciemny) OZCZ(ciemny) ZDM(ciemny); T=7,1; zainicjowane: –; okno potwierdzenia: nie

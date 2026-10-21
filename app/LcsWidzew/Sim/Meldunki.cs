@@ -12,7 +12,7 @@ namespace LcsWidzew.Sim;
 public class SecInd { public bool TrainOcc, Closed, NoData; public string Fault, LockType, Lock; public double? TimeRel; public List<string> Shared; }
 public class MoveInd { public string Target; public double Started; }
 public class SwInd { public string Pos = "+", Lock; public MoveInd Moving; public bool Stopped, Rozpr, NoCtrl, Frozen, NoData, Local; }
-public class SigInd { public string Sig; public Aspect Aspect; public bool Closed, LampFault, FailAlarm, NoData, Dark; public string Route, RouteEnd; public double SzLeft; /** <summary>Przebieg od tego sygnalizatora w trakcie nastawiania (zwrotnice się przekładają).</summary> */ public bool Setting; }
+public class SigInd { public string Sig; public Aspect Aspect; public bool Closed, LampFault, FailAlarm, NoData, Dark; public string Route, RouteEnd; public double SzLeft; /** <summary>Przebieg od tego sygnalizatora w trakcie nastawiania (zwrotnice się przekładają).</summary> */ public bool Setting; /** <summary>Sygnał zastępczy z W24 (NSZ).</summary> */ public bool W24; }
 public class DerInd { public bool On; public bool? MovingTo; public string Lock; }
 public class ReqInd { public int EndIdx; }
 public class BlockInd
@@ -51,6 +51,8 @@ public class Indication
     /// <summary>Żądania przekazania sterowania skierowane do tego stanowiska.</summary>
     public List<ControlRequest> ControlReqs = new();
     public int BookDrafts;
+    /// <summary>Posterunki z zastopowanymi wszystkimi sygnalizatorami (SSS) i wszystkimi zwrotnicami (ZSS).</summary>
+    public List<string> Sss = new(), Zss = new();
     public bool SecOcc(string id) => Secs.TryGetValue(id, out var s) && (s.TrainOcc || s.Fault != null);
 }
 
@@ -109,7 +111,7 @@ public partial class Simulator : IPulpitSource
         bool Shown(string uid) => uid != null && (!Routes.TryGetValue(uid, out var rr) || rr.State != "setting");
         foreach (var (k, s) in Secs) I.Secs[k] = new SecInd { TrainOcc = s.TrainOcc, Closed = s.Closed, NoData = s.NoData, Fault = s.Fault, LockType = Shown(s.Lock) ? s.LockType : null, Lock = Shown(s.Lock) ? s.Lock : null, TimeRel = s.TimeRel, Shared = s.Shared.Count == 0 ? null : s.Shared.Where(Shown).ToList() };
         foreach (var (k, w) in Sws) I.Sws[k] = new SwInd { Pos = w.Pos, Lock = Shown(w.Lock) ? w.Lock : null, Moving = w.Moving == null ? null : new MoveInd { Target = w.Moving.Target, Started = w.Moving.Started }, Stopped = w.Stopped, Rozpr = w.Rozpr, NoCtrl = w.NoCtrl, Frozen = w.Frozen, NoData = w.NoData, Local = w.Local };
-        foreach (var (k, s) in Sigs) I.Sigs[k] = new SigInd { Aspect = s.Aspect, Closed = s.Closed, LampFault = s.LampFault, FailAlarm = s.FailAlarm, NoData = s.NoData, Dark = s.Dark, Sig = s.Sig, Route = Shown(s.Route) ? s.Route : null, RouteEnd = Shown(s.RouteEnd) ? s.RouteEnd : null, SzLeft = s.SzUntil - T, Setting = s.Route != null && !Shown(s.Route) };
+        foreach (var (k, s) in Sigs) I.Sigs[k] = new SigInd { Aspect = s.Aspect, Closed = s.Closed, LampFault = s.LampFault, FailAlarm = s.FailAlarm, NoData = s.NoData, Dark = s.Dark, Sig = s.Sig, Route = Shown(s.Route) ? s.Route : null, RouteEnd = Shown(s.RouteEnd) ? s.RouteEnd : null, SzLeft = s.SzUntil - T, Setting = s.Route != null && !Shown(s.Route), W24 = s.W24 };
         foreach (var (k, x) in Ders) I.Ders[k] = new DerInd { On = x.On, MovingTo = x.MovingTo, Lock = Shown(x.Lock) ? x.Lock : null };
         foreach (var (k, b) in Blocks)
             I.Blocks[k] = new BlockInd
@@ -123,6 +125,7 @@ public partial class Simulator : IPulpitSource
             I.Pending = new PendingInd { Code = Pending.Code, Arg = Pending.Arg, Line = Pending.Line, Desc = Pending.Desc, Targets = new(Pending.Targets), Notes = new(Pending.Notes), NotBefore = Pending.NotBefore, Until = Pending.Until };
         I.Power = new PowerInd { Mains = Power.Mains, Ups = Power.Ups, Gen = Power.Gen, NN = Power.NN };
         I.Windows = Nadrzedny.Pip.Okna();
+        I.Sss = Kz.SssPosts.ToList(); I.Zss = Kz.ZssPosts.ToList();
         I.Control = new(Control);
         I.Desks = Desks.Values.Select(x => new DeskInd { Id = x.Id, Name = x.Name, User = x.User?.Name, Host = x.Host }).ToList();
         if (d != null) I.ControlReqs = ControlReqs.Where(r => r.To == d.Id).ToList();

@@ -1,0 +1,1 @@
+panel „S1 1A”: POCIĄG MANEWR ZD(ciemny) ZDP(ciemny) OPS(ciemny) ZDPP(ciemny); T=0,0; zainicjowane: –; okno potwierdzenia: nie

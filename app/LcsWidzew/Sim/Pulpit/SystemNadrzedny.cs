@@ -62,9 +62,18 @@ public class SystemNadrzedny
         ["STOP"] = new("Stop", "zastopowanie sygnalizatora / zwrotnicy, zamknięcie wyjazdu na szlak", false),
         ["OSTOP"] = new("oStop", "odwołanie zastopowania / zamknięcia wyjazdu", false),
         ["SZ"] = new("SZ", "sygnał zastępczy", true),
+        ["NSZ"] = new("NSZ", "sygnał zastępczy przy wyjeździe na tor szlaku dwutorowego w kierunku przeciwnym do zasadniczego (Sz + W24)", true),
+        ["SZI"] = new("SZI", "inicjalizacja polecenia specjalnego sygnału zastępczego (ISDR) – wykonanie: SZ albo NSZ po 5 s", true),
         ["OSZ"] = new("oSZ", "odwołanie sygnału zastępczego", false),
         ["ZDP"] = new("ZDP", "zwolnienie doraźne natychmiastowe przebiegu pociągowego", true),
         ["ZDM"] = new("ZDM", "zwolnienie doraźne natychmiastowe przebiegu manewrowego", false),
+        ["ZD"] = new("ZD", "zwolnienie doraźne przebiegu (ISDR) – przy pociągu w strefie zbliżania ze zwłoką 90 s", false),
+        ["ZDPP"] = new("ZDPP", "wykonanie zwolnienia doraźnego po ZDP (ISDR) – zwolnienie natychmiastowe", true),
+        ["OPS"] = new("OPS", "odwołanie zainicjowanego polecenia specjalnego (ISDR, Ie-104 § 11 ust. 17)", false),
+        ["SSS"] = new("SSS", "zastopowanie wszystkich sygnalizatorów stacji (polecenie dodatkowe ISDR)", false),
+        ["OSSS"] = new("OSSS", "odwołanie zastopowania wszystkich sygnalizatorów stacji (ISDR)", false),
+        ["ZSS"] = new("ZSS", "zastopowanie wszystkich zwrotnic stacji (polecenie dodatkowe ISDR)", false),
+        ["OZSS"] = new("OZSS", "odwołanie zastopowania wszystkich zwrotnic stacji (ISDR)", false),
         ["ZCZ"] = new("ZCZ", "zwolnienie doraźne przebiegu pociągowego ze zwłoką czasową", false),
         ["OZCZ"] = new("oZCZ", "przerwanie odliczania czasu zwolnienia przebiegu", false),
         ["PLUS"] = new("Plus", "przestawienie zwrotnicy do „+” / założenie wykolejnicy", false),
@@ -93,10 +102,10 @@ public class SystemNadrzedny
 
     static readonly Dictionary<string, string> Aliases = new()
     {
-        ["POC"] = "POCIAG", ["PP"] = "POCIAG", ["MAN"] = "MANEWR", ["PM"] = "MANEWR", ["ST"] = "STOJ", ["SSS"] = "STOJ",
+        ["POC"] = "POCIAG", ["PP"] = "POCIAG", ["MAN"] = "MANEWR", ["PM"] = "MANEWR", ["ST"] = "STOJ",
         ["Z+"] = "PLUS", ["Z-"] = "MINUS", ["ZS"] = "STOP", ["ZO"] = "OSTOP", ["SZM"] = "STOP", ["SOM"] = "OSTOP", ["OZ"] = "OSZ",
         ["ZP"] = "ZCZ", ["DZ"] = "ZDP", ["RK"] = "KSR", ["ZER"] = "ZEROLO", ["ZLO"] = "ZEROLO", ["ZT"] = "ZMK", ["OT"] = "OZMK",
-        ["WZ"] = "PLUS", ["WD"] = "MINUS", ["MINUSBZ"] = "MINBZ", ["BKA"] = "AZK", ["NN1"] = "NN", ["NN0"] = "ONN", ["NSZ"] = "SZ",
+        ["WZ"] = "PLUS", ["WD"] = "MINUS", ["MINUSBZ"] = "MINBZ", ["BKA"] = "AZK", ["NN1"] = "NN", ["NN0"] = "ONN",
         ["POCIAG"] = "POCIAG", ["MANEWR"] = "MANEWR", ["KO"] = "BKON", ["BKON"] = "BKON"
     };
 
@@ -109,6 +118,8 @@ public class SystemNadrzedny
         foreach (var c in n) if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
         return sb.ToString();
     }
+    /// <summary>Kod polecenia (klucz w <see cref="Codes"/>) dla słowa z wiersza polecenia albo null.</summary>
+    public static string KodPolecenia(string tok) => string.IsNullOrEmpty(tok) ? null : CodeOf(tok);
     static string CodeOf(string tok)
     {
         var f = Fold(tok);
@@ -239,10 +250,24 @@ public class SystemNadrzedny
                 obj.Add(end);
                 return (P(obj.ToArray()), null);
             }
-            case "STOJ": case "ZDM": case "ZCZ": case "OZCZ": case "SZ": case "ZDP":
+            case "STOJ": case "ZDM": case "ZCZ": case "OZCZ": case "SZ": case "ZDP": case "NSZ": case "SZI": case "ZDPP":
             {
                 var s = Resolve(a0, "sig");
                 return s == null ? (null, $"Nieznany sygnalizator „{a0}”") : (P(s), null);
+            }
+            case "ZD":
+            {
+                // początek przebiegu i (opcjonalnie) jego koniec – para wskazana na obrazie
+                var s = Resolve(a0, "sig");
+                if (s == null) return (null, $"Nieznany sygnalizator „{a0}”");
+                if (args.Count < 2) return (P(s), null);
+                var e = Resolve(args[^1], "sig", "blk", "end");
+                return e == null ? (null, $"Nieznany koniec przebiegu „{args[^1]}”") : (P(s, e), null);
+            }
+            case "SSS": case "OSSS": case "ZSS": case "OZSS":
+            {
+                var post = ResolvePost(a0);
+                return post == null ? (null, $"Nieznany posterunek „{a0}” (podaj skrót z ikony nastawni)") : (P(post), null);
             }
             case "OSZ":
             {
@@ -304,11 +329,20 @@ public class SystemNadrzedny
         var args = JoinNames(toks.Take(ci).ToList()).Concat(JoinNames(toks.Skip(ci + 1).ToList())).ToList();
         if (code == "KW") { foreach (var x in S.Alarms) x.Ack = true; return new(true, "Alarmy potwierdzone"); }
         if (User == null) return Reject(line, "Brak zalogowanego użytkownika – polecenia zablokowane (Ie-20 §7 ust. 2)");
+        if (IsdrDwuetapowe(code, line, args, confirm) is CmdResult isdr) return isdr;
         if (Pending != null && !confirm && Pending.Desk != null && CurDesk != null && Pending.Desk != CurDesk.Id && Codes[code].Special) return Reject(line, "Inne stanowisko ma zainicjowane polecenie specjalne – spróbuj za chwilę");
         if (Pending != null && !confirm && (Pending.Desk == null || CurDesk == null || Pending.Desk == CurDesk.Id)) return Reject(line, $"Zainicjowano polecenie specjalne {Pending.Code} {Station.Lbl(Pending.Arg)} – potwierdź lub wycofaj (Ie-104 § 11 ust. 16)");
         // dawne skróty z parametrem (ZB n +, BK szlak)
         if (orig == "ZB" && args.Count > 1) { code = args[1] == "-" ? "MINBZ" : "PLUSBZ"; args = args.Take(1).ToList(); }
         if (orig == "BK") code = "WBL";
+        // OSZ na ikonie nastawni (ISDR): odświeżenie stanu komputera zobrazowania – stanowisko pobiera pełny obraz stanu
+        if (code == "OSZ" && Resolve(args.FirstOrDefault(), "sig") == null && ResolvePost(args.FirstOrDefault()) is string op)
+        {
+            S.Log("Polecenie", $"{line} – odświeżenie stanu komputera zobrazowania ({PostName(op)})", "Polecenie", "", "PC");
+            return new(true, "odświeżono stan zobrazowania");
+        }
+        // SZI zatwierdzone w oknie potwierdzenia (wpis z linii poleceń) – wykonanie: sygnał zastępczy
+        if (code == "SZI" && confirm) { code = "SZ"; line = string.Join(' ', toks.Select((t, i) => i == ci ? "SZ" : t)); }
         if (orig == "STW")
         {
             var all = S.Kz.WszystkieStoj();
@@ -353,6 +387,44 @@ public class SystemNadrzedny
         return Exec(p.Line, true);
     }
 
+    /// <summary>
+    /// Polecenia specjalne dwuetapowe jak w ISDR (Ie-104 § 11 ust. 13–17): inicjalizacja SZI → wykonanie SZ albo NSZ, inicjalizacja ZDP → wykonanie ZDPP,
+    /// nie wcześniej niż po 5 s; OPS – odwołanie zainicjowanego polecenia. null – polecenie idzie dalej zwykłą drogą.
+    /// </summary>
+    CmdResult IsdrDwuetapowe(string code, string line, List<string> args, bool confirm)
+    {
+        bool mine = Pending != null && (Pending.Desk == null || CurDesk == null || Pending.Desk == CurDesk.Id);
+        if (code == "OPS")
+        {
+            if (Pending == null) return Reject(line, "Brak zainicjowanego polecenia specjalnego");
+            if (!mine) return Reject(line, "Polecenie specjalne zainicjowało inne stanowisko");
+            var pl = Pending.Line; CancelPending();
+            return new(true, "odwołano polecenie specjalne " + pl);
+        }
+        if (confirm || code is not ("SZ" or "NSZ" or "ZDPP")) return null;
+        string init = code == "ZDPP" ? "ZDP" : "SZI";
+        if (Pending == null || Pending.Code != init)
+            return code == "ZDPP" ? Reject(line, "Najpierw zainicjuj zwolnienie doraźne (ZDP), wykonanie ZDPP po 5 s") : null;
+        if (!mine) return Reject(line, "Polecenie specjalne zainicjowało inne stanowisko");
+        var key = Resolve(args.FirstOrDefault(), "sig");
+        if (key != Pending.Arg) return Reject(line, $"Zainicjowano {Pending.Code} {Station.Lbl(Pending.Arg)} – wykonanie dotyczy innego sygnalizatora");
+        if (T > Pending.Until) { Pending = null; return Reject(line, "Upłynął czas na wykonanie polecenia specjalnego"); }
+        if (T < Pending.NotBefore) return Reject(line, $"Wykonanie możliwe po upływie 5 s od inicjalizacji (Ie-104 § 11 ust. 13) – jeszcze {Pending.NotBefore - T:0} s");
+        S.Log("Polecenie", $"Wykonanie polecenia specjalnego {line} (zainicjowano: {Pending.Line})", "Polecenie", key, "PC");
+        Pending = null;
+        return Exec(line, true);
+    }
+
+    /// <summary>Posterunek wskazany skrótem z ikony nastawni, kodem albo nazwą; jeden posterunek na obrazie – ten.</summary>
+    public string ResolvePost(string tok)
+    {
+        if (string.IsNullOrEmpty(tok)) return null;
+        var f = Fold(tok.Trim('„', '”', '"'));
+        foreach (var (k, n) in L.Posts)
+            if (Fold(k) == f || Fold(n ?? "") == f || Fold(Simulator.PostShort(L, k)) == f) return k;
+        return null;
+    }
+
     public void CancelPending() { if (Pending != null) { S.Log("Polecenie", "Wycofano polecenie specjalne: " + Pending.Line, "Polecenie", Pending.Arg, "PC"); Pending = null; } }
 
     /// <summary>Polecenie specjalne – pierwszy etap: adres (system nadrzędny) i warunki wstępne (komputer zależności).</summary>
@@ -363,6 +435,8 @@ public class SystemNadrzedny
         switch (code)
         {
             case "SZ":
+            case "SZI":
+            case "NSZ":
             case "ZDP":
                 key = Resolve(a0, "sig"); if (key == null) return ($"Nieznany sygnalizator „{a0}”", null, null); break;
             case "PLUSBZ":
@@ -432,6 +506,9 @@ public class SystemNadrzedny
     string CheckControl(string code, List<string> args)
     {
         if (CurDesk == null || code is "KW" or "NN" or "ONN" or "AGR") return null;
+        // polecenia stacji (ISDR): adresem jest posterunek – stanowisko musi nim sterować
+        if (code is "SSS" or "OSSS" or "ZSS" or "OZSS" && ResolvePost(args.FirstOrDefault()) is string ps && !Controls(ps))
+            return $"Posterunek {PostName(ps)} nie należy do obszaru sterowania tego stanowiska – steruje nim {DeskName(Control.GetValueOrDefault(ps))}";
         foreach (var a in args)
         {
             var k = Resolve(a); if (k == null) continue;

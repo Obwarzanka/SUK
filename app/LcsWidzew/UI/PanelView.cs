@@ -31,18 +31,31 @@ public class PanelView : FrameworkElement
     Indication Ind => I ??= sim?.Receive();
     public PageDef Page;
     public string SelStart, SelSwitch;
+    /// <summary>Wybrany koniec przebiegu (klucz jak w <see cref="Targets"/>) – turkusowa ramka; obiekt wybrany do poleceń (zwrotnica, odcinek, szlak…).</summary>
+    public string SelEnd, SelObj;
+    /// <summary>Polecenie przygotowane w panelu, jeszcze niewysłane – ramki początku i końca zielone (ISDR).</summary>
+    public bool Prepared;
+    /// <summary>Możliwy koniec przebiegu pod kursorem – kwadrat żółty (podgląd, ISDR).</summary>
+    public string HoverTarget;
+    /// <summary>Tryb zrzutu: podgląd najazdu ustawiony przez test, mysz go nie zmienia.</summary>
+    public bool HoverFixed;
+    Brush FrameBrush => Prepared ? Green : SetFrame;
     public List<string> SelVia = new();
     /// <summary>Możliwe końce przebiegu od wybranego początku: klucze sygnalizatorów, znaczników końca, „blk:węzeł granicy” szlaku.</summary>
     public HashSet<string> Targets = new();
 
     /// <summary>Możliwy koniec przebiegu – turkusowe kółko i wypełniony kwadrat pod symbolem (jak na pulpicie).</summary>
-    void TargetMark(DrawingContext dc, Rect r)
+    void TargetMark(DrawingContext dc, Rect r, string key = null)
     {
         var c = new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
         dc.DrawEllipse(null, new Pen(SetFrame, 1.4), c, Math.Max(r.Width, r.Height) / 2 + 5, Math.Max(r.Width, r.Height) / 2 + 5);
-        dc.DrawRoundedRectangle(SetFrame, null, r, 3, 3);
+        dc.DrawRoundedRectangle(key != null && key == HoverTarget ? Yellow : SetFrame, null, r, 3, 3);
     }
-    public event Action<string, MouseButtonEventArgs> SignalClicked, SwitchClicked, SectionClicked, BlockClicked, TrackEndClicked, DerailerClicked, LinkClicked;
+    /// <summary>Ramka wybranego końca przebiegu (turkusowa, po wybraniu polecenia zielona).</summary>
+    void EndFrame(DrawingContext dc, Rect r) => dc.DrawRoundedRectangle(null, new Pen(FrameBrush, 2), r, 3, 3);
+    public event Action<string, MouseButtonEventArgs> SignalClicked, SwitchClicked, SectionClicked, BlockClicked, TrackEndClicked, DerailerClicked, LinkClicked, PostClicked;
+    /// <summary>Klik w puste miejsce obrazu (bez przeciągania).</summary>
+    public event Action<MouseButtonEventArgs> EmptyClicked;
     public event Action<string> Hover;
 
     double scale = 0.7, offX = 20, offY = 10;
@@ -138,8 +151,21 @@ public class PanelView : FrameworkElement
             return;
         }
         var hit = HitTest(S2W(p));
+        var ht = TargetKey(hit.kind, hit.id);
+        if (ht != HoverTarget && !HoverFixed) { HoverTarget = ht; InvalidateVisual(); }
         Hover?.Invoke(hit.kind == null ? "" : Describe(hit.kind, hit.id));
         Cursor = hit.kind == null ? Cursors.Arrow : Cursors.Hand;
+    }
+
+    /// <summary>Klucz możliwego końca przebiegu dla trafionego obiektu (semafor, trójkąt semafora wjazdowego, szlak, znacznik końca) albo null.</summary>
+    public string TargetKey(string kind, string id)
+    {
+        if (kind == null || Targets.Count == 0 || Lay == null) return null;
+        if (kind is "sig" or "te" && Targets.Contains(id)) return id;
+        if (kind == "sig" && Lay.Signals.TryGetValue(id, out var sg) && Targets.Contains("blk:" + sg.Node)) return "blk:" + sg.Node;
+        if (kind == "blk" && Lay.Blocks.TryGetValue(id, out var b))
+            foreach (var en in b.Ends) if (en.EntrySig != null && Lay.Signals.TryGetValue(en.EntrySig, out var es) && Targets.Contains("blk:" + es.Node)) return "blk:" + es.Node;
+        return null;
     }
 
     void HitAndRaise(MouseButtonEventArgs e)
@@ -147,6 +173,8 @@ public class PanelView : FrameworkElement
         var (kind, id) = HitTest(S2W(e.GetPosition(this)));
         switch (kind)
         {
+            case null: EmptyClicked?.Invoke(e); break;
+            case "post": PostClicked?.Invoke(id, e); break;
             case "sig": SignalClicked?.Invoke(id, e); break;
             case "sw": SwitchClicked?.Invoke(id, e); break;
             case "sec": SectionClicked?.Invoke(id, e); break;
@@ -176,6 +204,8 @@ public class PanelView : FrameworkElement
             for (int i = 0; i < b.Ends.Count; i++) if (OnPageNode(b.Ends[i].Boundary) && BlockRect(b, i).Contains(w)) return ("blk", b.Id);
         }
         foreach (var (nid, te) in L.TrackEnds) { var n = L.Nodes[nid]; if (L.HiddenSyms.Contains(nid)) continue; if (Math.Abs(w.X - n.X) < 14 && Math.Abs(w.Y - n.Y) < 16) return ("te", te.Id); }
+        // ikona nastawni (polecenia stacji: SSS, OSSS, ZSS, OZSS, OSZ)
+        foreach (var l in L.Labels) if (l.Anchor == "nastawnia" && OnPage(l.X) && Math.Abs(w.X - l.X) < 16 && w.Y > l.Y - 25 && w.Y < l.Y + 10) return ("post", l.Text);
         foreach (var e in L.Edges.Values)
         {
             if (e.Link) continue;
@@ -201,25 +231,25 @@ public class PanelView : FrameworkElement
                 var s = S.Sigs[id]; var d = L.Signals[id];
                 var asp = s.Aspect switch { Aspect.Train => "zezwalający dla pociągu", Aspect.Shunt => "zezwalający dla manewru", Aspect.Sz => $"zastępczy ({Math.Max(0, s.SzLeft):0} s)", _ => "„Stój”" };
                 var t = d.Type == "tm" ? "Tarcza manewrowa" : d.Type == "wjazdowy" ? "Semafor wjazdowy" : "Semafor";
-                return $"{t} {lbl}: {asp}{(s.Closed ? ", zastopowany" : "")}   ·  LPM: początek / koniec przebiegu, Ctrl+LPM: punkt pośredni, PPM: polecenia";
+                return $"{t} {lbl}: {asp}{(s.Closed ? ", zastopowany" : "")}   ·  LPM: początek / koniec przebiegu i polecenia w panelu, Ctrl+LPM: punkt pośredni";
             }
             case "sw":
             {
                 var w = S.Sws[id];
-                return $"Zwrotnica {L.Switches[id].Label} (na bok {L.Switches[id].VBok:0} km/h{(L.Switches[id].VProsto > 0 ? $", na wprost {L.Switches[id].VProsto:0} km/h" : "")}): „{w.Pos}”{(w.Moving != null ? ", przestawianie" : "")}{(w.Lock != null ? ", utwierdzona" : "")}{(w.Stopped ? ", ZASTOPOWANA" : "")}{(w.Rozpr ? ", ROZPRUCIE" : "")}{(w.NoCtrl ? ", BRAK KONTROLI" : "")}   ·  LPM: polecenia, Ctrl+LPM: punkt pośredni";
+                return $"Zwrotnica {L.Switches[id].Label} (na bok {L.Switches[id].VBok:0} km/h{(L.Switches[id].VProsto > 0 ? $", na wprost {L.Switches[id].VProsto:0} km/h" : "")}): „{w.Pos}”{(w.Moving != null ? ", przestawianie" : "")}{(w.Lock != null ? ", utwierdzona" : "")}{(w.Stopped ? ", ZASTOPOWANA" : "")}{(w.Rozpr ? ", ROZPRUCIE" : "")}{(w.NoCtrl ? ", BRAK KONTROLI" : "")}   ·  LPM: polecenia w panelu, przy wybranym początku – punkt pośredni";
             }
             case "sec":
             {
                 var s = S.Secs[id];
                 var st = s.Fault switch { "reset" => "wymagane potwierdzenie zerowania", "await" => "oczekiwanie na pierwszy przejazd", "occ" => "zajęty (usterka?)", _ => s.TrainOcc ? "zajęty" : "wolny" };
                 var vs = L.Sections[id].Edges.Select(x => L.Edges[x]).Select(x => x.VMax > 0 ? x.VMax : 0).Where(x => x > 0).Distinct().ToList();
-                return $"Odcinek {lbl} – {L.Sections[id].DetectionName}, posterunek {L.Posts.GetValueOrDefault((id.Contains(':') ? id[..id.IndexOf(':')] : "")) ?? "?"} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  PPM: polecenia";
+                return $"Odcinek {lbl} – {L.Sections[id].DetectionName}, posterunek {L.Posts.GetValueOrDefault((id.Contains(':') ? id[..id.IndexOf(':')] : "")) ?? "?"} ({L.Sections[id].Edges.Sum(x => L.Edges[x].Len):0} m{(vs.Count > 0 ? ", V " + string.Join("/", vs) + " km/h" : "")}): {st}{(s.LockType != null ? ", utwierdzony" : "")}{(s.Closed ? ", ZAMKNIĘTY" : "")}   ·  LPM: polecenia w panelu";
             }
             case "blk":
             {
                 var b = L.Blocks[id]; var bs = S.Blocks[id]; int e = EndIdxOnPage(b);
                 var req = bs.Req == null ? "" : bs.Req.EndIdx == e ? ", wysłano żądanie pozwolenia" : ", ŻĄDANIE POZWOLENIA od strony przeciwnej";
-                return $"Szlak {id} – {b.TypeName} (LK{b.Line}, tor {b.Tor}, {b.Nbr}): {(b.NoBlock ? "bez blokady" : bs.Dir == 0 ? "stan neutralny" : bs.Dir == b.Ends[e].Outward ? "kierunek WYJAZD" : "kierunek PRZYJAZD")}{req}{(bs.AwaitEnd != null ? ", ZABLOKOWANY – brak bloku końcowego" : "")}{(bs.StopEnd[e] ? ", wyjazd zamknięty" : "")}   ·  LPM: koniec przebiegu, PPM: polecenia";
+                return $"Szlak {id} – {b.TypeName} (LK{b.Line}, tor {b.Tor}, {b.Nbr}): {(b.NoBlock ? "bez blokady" : bs.Dir == 0 ? "stan neutralny" : bs.Dir == b.Ends[e].Outward ? "kierunek WYJAZD" : "kierunek PRZYJAZD")}{req}{(bs.AwaitEnd != null ? ", ZABLOKOWANY – brak bloku końcowego" : "")}{(bs.StopEnd[e] ? ", wyjazd zamknięty" : "")}   ·  LPM: koniec przebiegu albo polecenia w panelu";
             }
             case "te": return $"Znacznik końca przebiegu manewrowego {Station.Lbl(id)}";
             case "der": return $"Wykolejnica {L.Derailers[id].Label}: {(S.Ders[id].On ? "założona" : "zdjęta")}";
@@ -398,6 +428,7 @@ public class PanelView : FrameworkElement
                 dc.DrawRectangle(null, ip, new Rect(l.X - 7, l.Y - 19, 14, 6));
                 dc.DrawEllipse(Dim2, null, new Point(l.X, l.Y - 10), 1.6, 1.6);
                 Text(dc, "„" + l.Text + "”", l.X, l.Y + 3, 10, Dim2, true, dpi, Mono);
+                if (SelObj == "post:" + l.Text) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(l.X - 17, l.Y - 26, 34, 41), 3, 3);
                 continue;
             }
             Text(dc, l.Text, l.X, l.Y, 10, Grey, l.Anchor == "middle", dpi, Mono, l.Anchor == "end");
@@ -561,7 +592,8 @@ public class PanelView : FrameworkElement
         foreach (var (nid, te) in L.TrackEnds)
         {
             var n = L.Nodes[nid]; if (!OnPage(n.X) || L.HiddenSyms.Contains(nid)) continue;
-            if (Targets.Contains(te.Id)) TargetMark(dc, new Rect(n.X - 10, n.Y - 19, 20, 14));
+            if (Targets.Contains(te.Id)) TargetMark(dc, new Rect(n.X - 10, n.Y - 19, 20, 14), te.Id);
+            if (SelEnd == te.Id) EndFrame(dc, new Rect(n.X - 12, n.Y - 21, 24, 40));
             dc.DrawLine(new Pen(Grey, 3), new Point(n.X, n.Y - 7), new Point(n.X, n.Y + 7));
             if (!te.Marker) continue;
             bool end = S.Routes.Values.Any(r => r.End == te.Id && r.State != "setting");
@@ -814,7 +846,7 @@ public class PanelView : FrameworkElement
         double tipX = cx + d * 8;
         double x0 = Math.Min(tipX, tipX - d * 22);
         if (S.Pending?.Targets.Contains(s.Name) == true) dc.DrawRectangle(Orange, null, new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
-        else if (Targets.Contains(s.Name) && !Targets.Contains("blk:" + s.Node)) TargetMark(dc, new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
+        else if (Targets.Contains(s.Name) && !Targets.Contains("blk:" + s.Node)) TargetMark(dc, new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8), s.Name);
         if (s.Type == "tm")
             dc.DrawGeometry(null, new Pen(c, 2.4) { LineJoin = PenLineJoin.Miter }, Chevron(tipX, cy, d, h, 10));
         else if (s.Type == "wjazdowy")
@@ -824,8 +856,11 @@ public class PanelView : FrameworkElement
             bool endR = S.Routes.Values.Any(r => r.EndNode == s.Node && r.State != "setting" && r.EndKind is "szlak" or "szlakM" or "gr");
             // po stronie stacji, za semaforem, skierowany w stronę szlaku (jak na pulpicie)
             dc.DrawRectangle(Bg, null, new Rect(cx + d * 15 - 6, cy - 4, 12, 8));      // przerwa w torze pod trójkątem
-            dc.DrawGeometry(endR ? Red : Grey, null, Tri(cx + d * 18, cy, -d, 5, true));
-            if (Targets.Contains("blk:" + s.Node)) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(cx + d * 15 - 7, cy - 9, 14, 18), 3, 3);
+            // możliwy koniec przebiegu na szlak: turkusowe kółko z kwadratem na trójkącie (najazd – kwadrat żółty), wybrany – ramka
+            bool tgt = Targets.Contains("blk:" + s.Node);
+            if (tgt) TargetMark(dc, new Rect(cx + d * 15 - 7, cy - 8, 14, 16), "blk:" + s.Node);
+            dc.DrawGeometry(endR ? Red : tgt ? TargetSym : Grey, null, Tri(cx + d * 18, cy, -d, 5, true));
+            if (SelEnd == "blk:" + s.Node) EndFrame(dc, new Rect(cx + d * 15 - 8, cy - 9, 16, 18));
         }
         else
         {
@@ -833,7 +868,7 @@ public class PanelView : FrameworkElement
             dc.DrawGeometry(c, null, Tri(tipX, cy, d, h + 1, true));
             if (!s.NoShunt) dc.DrawGeometry(null, new Pen(c, 2.4) { LineJoin = PenLineJoin.Miter }, Chevron(tipX - d * 11.5, cy, d, h + 1, 9));
         }
-        if (SelStart == s.Name) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(x0 - 4, cy - h - 5, 30, 2 * h + 10), 3, 3);
+        if (SelStart == s.Name || SelObj == s.Name || SelEnd == s.Name) dc.DrawRoundedRectangle(null, new Pen(SelObj == s.Name ? SetFrame : FrameBrush, 2), new Rect(x0 - 4, cy - h - 5, 30, 2 * h + 10), 3, 3);
         else if (SelVia.Contains(s.Name)) dc.DrawRectangle(null, new Pen(Azure, 1.6), new Rect(x0 - 3, cy - h - 4, 28, 2 * h + 8));
         // przebieg od tego sygnalizatora w trakcie nastawiania – turkusowa ramka (jak na pulpicie), droga jeszcze nie wyświetlona
         if (st.Setting) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 1.8), new Rect(x0 - 4, cy - h - 5, 30, 2 * h + 10), 3, 3);

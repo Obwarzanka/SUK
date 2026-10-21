@@ -37,8 +37,9 @@ public partial class MainWindow : Window
     string scenario = "podstawowy";
     /// <summary>Układ torowy z pliku – dla komputera zależności (station po Bind to zobrazowanie pulpitu).</summary>
     Station layout;
-    readonly ObservableCollection<EventRecord> events = new();
-    readonly ObservableCollection<EventRecord> alarms = new();
+    /// <summary>Dzienniki ZDARZENIA i ALARMY wg ISDR (zakres dat, filtry kolumn, strony, Online).</summary>
+    Dziennik zdarzenia, alarmy;
+    CheckBox ChkMute; TextBlock AlCount;
     readonly List<string> history = new(); int histIdx;
     SpecialConfirmWindow confirmWin;
     NetWindow netWin;
@@ -49,12 +50,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         station = layout = Station.Load(App.StationPath);
-        GridEvents.ItemsSource = events;
-        GridAlarms.ItemsSource = alarms;
-        EvFilter.ItemsSource = new[] { "wszystkie", "Polecenie", "Odrzucone", "Zdarzenie", "Alarm", "Ruch", "Telefon", "Uwaga", "Ocena", "Instruktor", "E-1758" };
-        EvFilter.SelectedIndex = 0;
+        BudujDzienniki();
         Panel.SignalClicked += OnSignal; Panel.SwitchClicked += OnSwitch; Panel.SectionClicked += OnSection;
         Panel.BlockClicked += OnBlock; Panel.TrackEndClicked += OnTrackEnd; Panel.DerailerClicked += OnDerailer;
+        Panel.PostClicked += OnPost; Panel.EmptyClicked += e => ClearSel();
+        Pol.Przygotowano += p => { Panel.Prepared = true; Panel.Targets.Clear(); Panel.InvalidateVisual(); };
+        Pol.Wyslano += Send;
         Panel.LinkClicked += (pg, e) => ShowPage(station.Pages.FindIndex(p => p.Id == pg));
         Panel.Hover += t => Hint.Text = t;
         Panel.OverviewClicked += pid => ShowPage(station.Pages.FindIndex(p => p.Id == pid));
@@ -142,13 +143,20 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(() => Panel.FitPage(), DispatcherPriority.Render);
     }
 
-    void ClearSel() { Panel.SelStart = null; Panel.SelSwitch = null; Panel.SelVia.Clear(); Panel.Targets.Clear(); Panel.InvalidateVisual(); }
+    void ClearSel()
+    {
+        Panel.SelStart = null; Panel.SelSwitch = null; Panel.SelVia.Clear(); Panel.Targets.Clear();
+        Panel.SelEnd = null; Panel.SelObj = null; Panel.Prepared = false; Panel.HoverTarget = null;
+        selKind = null; selId = null; selAll = new(); selRoutes = new(); selEndKey = null;
+        Pol?.Wyczysc(); Panel.InvalidateVisual();
+    }
 
     /// <summary>Początek przebiegu: możliwe końce (z punktami pośrednimi) oznaczone na obrazie.</summary>
     void SetStart(string name)
     {
         Panel.SelStart = name; Panel.SelVia.Clear();
         MarkTargets();
+        Select("sig", name);
     }
 
     void MarkTargets()
@@ -175,6 +183,7 @@ public partial class MainWindow : Window
         paused = true;
         foreach (var c in ShotCmds)
         {
+            TrackHistory();
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (localWorld != null) localWorld.AdvanceTo(until, () => server?.Push()); else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
             if (c == "#opisy") { SetOpisy(true); continue; }
@@ -202,6 +211,25 @@ public partial class MainWindow : Window
             if (c.StartsWith("#plan")) { planShot = c.Length > 6 ? c[6..] : ""; continue; }
             if (c.StartsWith("#sw=")) { Panel.SelSwitch = station.Switches.Values.First(x => x.Label == c[4..] && Panel.Page.Posts.Contains(x.Post)).Num; continue; }
             if (c.StartsWith("#via=")) { ToggleVia(station.Switches.Values.First(x => x.Label == c[5..] && Panel.Page.Posts.Contains(x.Post)).Num); continue; }
+            if (c.StartsWith("#koniec="))
+            {
+                var nm = c[8..];
+                var sg = station.Signals.Values.FirstOrDefault(x => x.Label == nm && Panel.Page.Posts.Contains(x.Post));
+                Dest(sg?.Name ?? (station.Blocks.ContainsKey(nm) ? nm : station.TrackEnds.Values.FirstOrDefault(x => x.Disp == nm)?.Id ?? nm));
+                continue;
+            }
+            if (c.StartsWith("#hover=")) { var sg = station.Signals.Values.First(x => x.Label == c[7..] && Panel.Page.Posts.Contains(x.Post)); Panel.HoverTarget = Panel.TargetKey("sig", sg.Name); Panel.HoverFixed = true; continue; }
+            if (c.StartsWith("#pol=")) { RefreshPanel(); var bt = Pol.Przyciski.FirstOrDefault(x => x.Label == c[5..]); File.AppendAllText(ShotPath + ".txt", $"{c}: {(bt == null ? "BRAK PRZYCISKU" : bt.Enabled ? "dostępny – " + bt.Line : "NIEDOSTĘPNY")}{(char)10}"); if (bt != null) Pol.Wybierz(bt); continue; }
+            if (c == "#przyciski") { UpdateTop(); RefreshPanel(); File.AppendAllText(ShotPath + ".txt", $"panel „{Pol.Obiekty}”: {string.Join(" ", Pol.Przyciski.Select(x => x.Label + (x.Enabled ? "" : "(ciemny)")))}; T={ses.Receive()?.T:0.0}; zainicjowane: {ses.Receive()?.Pending?.Line ?? "–"}; okno potwierdzenia: {(confirmWin != null ? "tak" : "nie")}{(char)10}"); continue; }
+            if (c == "#wyslij") { var w = Pol.Wybrane; Send(w); File.AppendAllText(ShotPath + ".txt", $"wysłano: {w?.Line} – {CmdRes.Text}{(char)10}"); continue; }
+            if (c == "#historia") { Pol.Pokaz(true); continue; }
+            // dzienniki: „#filtr=Kategoria:Polecenie|Odrzucone”, „#strona=2”, „#zakres=HH:mm-HH:mm”, „#online”
+            if (c.StartsWith("#filtr=")) { var f = c[7..].Split(':', 2); zdarzenia.UstawFiltr(f[0], f[1].Split('|').ToHashSet()); zdarzenia.Tick(); continue; }
+            if (c.StartsWith("#zakres=")) { var z = c[8..].Split('-'); zdarzenia.UstawZakres(DateTime.Today + TimeSpan.Parse(z[0]), DateTime.Today + TimeSpan.Parse(z[1])); continue; }
+            if (c == "#online") { zdarzenia.UstawOnline(); continue; }
+            if (c == "#dziennik") { UpdateLayout(); zdarzenia.Przelicz(); zdarzenia.Tick(); File.AppendAllText(ShotPath + ".txt", $"ZDARZENIA: wpisów {zdarzenia.LiczbaWpisow}, strona {zdarzenia.Strona + 1} / {zdarzenia.Stron}, online: {(zdarzenia.Online ? "tak" : "nie")}{(char)10}"); continue; }
+            if (c.StartsWith("#nastawnia=")) { OnPost(c[11..], null); continue; }
+            if (c.StartsWith("#obj=")) { var o = c[5..].Split(':', 2); var key = o[0] == "sw" ? station.Switches.Values.First(x => x.Label == o[1] && Panel.Page.Posts.Contains(x.Post)).Num : o[1]; ClearSel(); if (o[0] == "sw") Panel.SelSwitch = key; else Panel.SelObj = key; Select(o[0], key); continue; }
             if (c.StartsWith("#start=")) { SetStart(station.Signals.Values.First(x => x.Label == c[7..] && Panel.Page.Posts.Contains(x.Post)).Name); continue; }
             if (c.StartsWith("#ctl=")) { var r = ses.RequestControl(c[5..]); File.AppendAllText(ShotPath + ".txt", $"przejęcie {c[5..]}: {r ?? "OK"}\n"); continue; }
             var res = Run(c);
@@ -211,7 +239,7 @@ public partial class MainWindow : Window
         else Pump(-1);
         File.WriteAllText(ShotPath + ".world.json", System.Text.Json.JsonSerializer.Serialize(new
         { local = localWorld != null, status = localWorld?.Status, remote = ses is RemoteSession }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-        UpdateTop(); Panel.InvalidateVisual();
+        UpdateTop(); RefreshPanel(); TrackHistory(); zdarzenia.Tick(); alarmy.Tick(); Panel.InvalidateVisual();
         Dispatcher.BeginInvoke(() =>
         {
             Panel.FitPage(); UpdateLayout();
@@ -304,12 +332,10 @@ public partial class MainWindow : Window
         station = x.L;
         var area = station.Name ?? "LCS";
         TxtArea.Text = area; Title = $"Symulator {area} – komputerowe urządzenia srk (Ie-20)";
-        events.Clear(); alarms.Clear(); ctlPrompted.Clear();
-        foreach (var e in x.Events.Where(Matches).Reverse().Take(3000)) events.Add(e);
-        foreach (var a in x.Alarms) alarms.Add(a);
-        SortAlarms();
-        x.EventAdded += e => { if (ses != x) return; if (Matches(e)) events.Insert(0, e); if (events.Count > 3000) events.RemoveAt(events.Count - 1); };
-        x.AlarmAdded += a => { if (ses != x) return; alarms.Insert(0, a); SortAlarms(); };
+        ctlPrompted.Clear();
+        zdarzenia.Zrodlo = () => x.Events; alarmy.Zrodlo = () => x.Alarms; zdarzenia.Reset(); alarmy.Reset();
+        x.EventAdded += e => { if (ses == x) zdarzenia.NowyWpis(e); };
+        x.AlarmAdded += a => { if (ses == x) alarmy.NowyWpis(a); };
         x.AlarmsChanged += () => { if (ses == x) SortAlarms(); };
         x.Beep += () => { if (ses == x && ChkMute.IsChecked != true) System.Media.SystemSounds.Asterisk.Play(); };
         x.SpecialExecuted += () => { if (ses == x) Dispatcher.BeginInvoke(() => new BookWindow(ses) { Owner = this }.Show()); };
@@ -386,10 +412,37 @@ public partial class MainWindow : Window
     public LcsServer Server => server;
 
     /// <summary>Kolejność na liście alarmów: niepotwierdzone, trwające potwierdzone, nietrwające potwierdzone (Ie-104 § 7 ust. 5).</summary>
-    void SortAlarms()
+    void SortAlarms() => alarmy.Przelicz();
+
+    /// <summary>ZDARZENIA i ALARMY (kolumny jak dotąd; Czas – data i godzina jak w ISDR).</summary>
+    void BudujDzienniki()
     {
-        var sorted = alarms.OrderBy(a => a.Ack ? (a.Active ? 1 : 2) : 0).ThenByDescending(a => a.T).ToList();
-        for (int i = 0; i < sorted.Count; i++) { int j = alarms.IndexOf(sorted[i]); if (j != i) alarms.Move(j, i); }
+        zdarzenia = new Dziennik("ZDARZENIA", new SolidColorBrush(Color.FromRgb(0x1f, 0x3d, 0x8a)), "zdarzeń", new (string, string, double)[]
+        {
+            ("Czas", "Czas", 128), ("Obszar", "Obszar", 100), ("Stacja", "Stacja", 72), ("Typ obiektu", "TypObiektu", 120), ("Obiekt", "Obiekt", 92), ("Kategoria", "Kategoria", 104),
+            ("Zdarzenie", "Zdarzenie", 0), ("Operator", "Operator", 100), ("Notatka", "Notatka", 80), ("Źródło", "Zrodlo", 60)
+        });
+        var exp = new Button { Content = "Eksport CSV", Margin = new Thickness(10, 0, 0, 0) }; exp.Click += Export_Click;
+        zdarzenia.Dodatki.Children.Add(exp);
+        HostZdarzenia.Content = zdarzenia;
+        alarmy = new Dziennik("ALARMY", new SolidColorBrush(Color.FromRgb(0x9a, 0x10, 0x10)), "alarmów", new (string, string, double)[]
+        {
+            ("Czas", "Czas", 128), ("Obszar", "Obszar", 100), ("Stacja", "Stacja", 72), ("Typ obiektu", "TypObiektu", 120), ("Obiekt", "Obiekt", 92), ("Kategoria", "Kategoria", 104),
+            ("Zdarzenie", "Zdarzenie", 0), ("Operator", "Operator", 100), ("Stan alarmu", "Stan", 130)
+        });
+        // kolejność: niepotwierdzone, trwające potwierdzone, nietrwające potwierdzone (Ie-104 § 7 ust. 5)
+        alarmy.Porzadek = x => x.OrderBy(a => a.Ack ? (a.Active ? 1 : 2) : 0).ThenByDescending(a => a.T);
+        var rs = new Style(typeof(DataGridRow));
+        rs.Setters.Add(new Setter(ForegroundProperty, new SolidColorBrush(Color.FromRgb(0xff, 0x80, 0x80))));
+        var tr = new DataTrigger { Binding = new System.Windows.Data.Binding("Ack"), Value = true }; tr.Setters.Add(new Setter(ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x77))));
+        rs.Triggers.Add(tr);
+        alarmy.Grid.RowStyle = rs;
+        alarmy.Grid.MouseDoubleClick += GridAlarms_DoubleClick;
+        var kw = new Button { Content = "Kwituj wszystkie (KW)", Margin = new Thickness(10, 0, 4, 0) }; kw.Click += Ack_Click;
+        ChkMute = new CheckBox { Content = "Wycisz", Foreground = new SolidColorBrush(Color.FromRgb(0xaa, 0xaa, 0xaa)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+        AlCount = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0), Foreground = new SolidColorBrush(Color.FromRgb(0xff, 0x70, 0x70)) };
+        alarmy.Dodatki.Children.Add(kw); alarmy.Dodatki.Children.Add(ChkMute); alarmy.Dodatki.Children.Add(AlCount);
+        HostAlarmy.Content = alarmy;
     }
 
     void ShowLogin()
@@ -424,6 +477,7 @@ public partial class MainWindow : Window
         if (server != null && ++pushTick % 4 == 0) server.Push();        // meldunki do stanowisk sieciowych co 0,2 s
         Panel.InvalidateVisual();
         UpdateTop();
+        RefreshPanel(); TrackHistory(); zdarzenia.Tick(); alarmy.Tick();
         // dźwięk co kilka sekund, dopóki istnieje niepotwierdzony alarm; głośniejszy po minucie (Ie-104 § 7 ust. 6)
         var un = ses.Alarms.Where(a => !a.Ack).ToList();
         var T = ses.Last?.T ?? 0;
@@ -453,8 +507,9 @@ public partial class MainWindow : Window
             + (I.Desks.Count > 1 || ses is RemoteSession ? " · steruje: " + (mine.Count > 0 ? string.Join(", ", mine) : "–") : "");
         var n = ses.Alarms.Count(a => !a.Ack);
         AlCount.Text = n > 0 ? $"Niepotwierdzone: {n}" : "";
-        EvCount.Text = $"{ses.Events.Count} zdarzeń";
-        if (I.Pending != null && confirmWin == null)
+        if (I.Pending == null) panelInit = null;
+        // polecenie specjalne zainicjowane w panelu (SZI, ZDP) wykonuje się przyciskiem w panelu (SZ / NSZ, ZDPP) – bez okna potwierdzenia
+        if (I.Pending != null && confirmWin == null && I.Pending.Line != panelInit)
         {
             confirmWin = new SpecialConfirmWindow(ses) { Owner = this };
             confirmWin.Closed += (a, b) => { confirmWin = null; Panel.InvalidateVisual(); };
@@ -477,9 +532,35 @@ public partial class MainWindow : Window
     }
 
     // ------------------------------------------------------------------ polecenia
-    public CmdResult Run(string line)
+    public CmdResult Run(string line) => Run(line, null, null, null);
+
+    /// <summary>Polecenie do systemu nadrzędnego i wpis w zakładce „Historia” (Czas, Polecenie, Przyjęcie, Realizacja).</summary>
+    CmdResult Run(string line, string hdr, string start, string typ)
     {
         var r = ses.Exec(line);
+        if (!string.IsNullOrWhiteSpace(line))
+        {
+            if (start == null)
+            {
+                // polecenie wpisane: przebieg – początek z pierwszego adresu na wyświetlanym obrazie
+                var t = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var k = t.Select(SystemNadrzedny.KodPolecenia).FirstOrDefault(x => x != null);
+                if (k is "POCIAG" or "MANEWR")
+                {
+                    typ = k == "POCIAG" ? "P" : "M";
+                    var f = SystemNadrzedny.Fold(t[0]);
+                    start = station.Signals.Values.FirstOrDefault(x => (SystemNadrzedny.Fold(x.Label ?? "") == f || SystemNadrzedny.Fold(x.Name) == f) && (Panel.Page == null || Panel.Page.Posts.Contains(x.Post)))?.Name;
+                }
+            }
+            var I = ses.Receive();
+            Pol.Historia.Insert(0, new HistoriaWpis
+            {
+                Czas = I?.Clock ?? "", Polecenie = hdr ?? line.Trim(), Przyjecie = r.Ok ? "przyjęte" : "odrzucone",
+                Realizacja = !r.Ok ? "–" : start != null ? "w realizacji" : r.Msg.Contains("zainicjowane") ? "zainicjowane" : "wykonane",
+                Start = r.Ok ? start : null, Typ = typ, Wyslano = I?.T ?? 0
+            });
+            while (Pol.Historia.Count > 300) Pol.Historia.RemoveAt(Pol.Historia.Count - 1);
+        }
         if (r.Msg != "")
         {
             CmdRes.Text = (r.Ok ? "✓ " : "✗ ") + line + (r.Msg != "" ? " – " + r.Msg : "");
@@ -500,19 +581,29 @@ public partial class MainWindow : Window
     bool Ctrl => Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
     Indication Ind => ses.Receive() ?? new Indication();
 
-    // ------------------------------------------------------------------ mysz na pulpicie
+    // ------------------------------------------------------------------ mysz na pulpicie i panel „Polecenia” (wg ISDR, ROZWOJ.md § 2a)
+    // Panel zastępuje menu PPM: klik (LPM albo PPM) wybiera obiekt, panel pokazuje jego polecenia, „Wyślij” przekazuje polecenie.
+    /// <summary>Wybór do panelu: „sig”, „route” (para początek–koniec), „sw”, „sec”, „blk”, „der”, „post” – i obiekt.</summary>
+    string selKind, selId;
+    /// <summary>Wybrana para początek–koniec: przebiegi do wskazanego końca (wszystkie i zgodne z punktami pośrednimi), klucz końca w poleceniu.</summary>
+    List<RouteDef> selAll = new(), selRoutes = new(); string selEndKey;
+    /// <summary>Wiersz polecenia specjalnego zainicjowanego z panelu (SZI, ZDP) – wykonanie przyciskiem w panelu, bez okna potwierdzenia.</summary>
+    string panelInit;
+
     void OnSignal(string name, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Right) { SignalMenu(name); return; }
+        if (e.ChangedButton == MouseButton.Right) { ClearSel(); Panel.SelObj = name; Select("sig", name); return; }
         if (Panel.SelStart != null && Ctrl) { ToggleVia(name); return; }
-        if (Panel.SelStart == null)
+        // klik na możliwym końcu przebiegu (semafor albo trójkąt semafora wjazdowego) – para początek–koniec w panelu
+        if (Panel.SelStart != null && Panel.SelStart != name && Panel.TargetKey("sig", name) != null) { Dest(name); return; }
+        if (Panel.SelStart == name && Panel.SelEnd == null && !Panel.Prepared) { ClearSel(); return; }
+        ClearSel();
+        if (ses.RouteTable.TryGetValue(name, out var l) && l.Count > 0)
         {
-            if (!ses.RouteTable.TryGetValue(name, out var l) || l.Count == 0) { Hint.Text = "Brak przebiegów od " + L(name); return; }
             SetStart(name);
             Hint.Text = $"Początek: {L(name)} – wskaż koniec przebiegu (oznaczone turkusowo). Przebieg wariantowy: najpierw kliknij zwrotnice, przez które ma prowadzić. Esc – rezygnacja.";
         }
-        else if (Panel.SelStart == name) ClearSel();
-        else Dest(name);
+        else { Panel.SelObj = name; Select("sig", name); Hint.Text = "Brak przebiegów od " + L(name); }
         Panel.InvalidateVisual();
     }
 
@@ -526,36 +617,37 @@ public partial class MainWindow : Window
 
     bool Passes(RouteDef r, string v) => Simulator.Passes(station, r, v);
 
-    /// <summary>Koniec przebiegu – menu z przebiegiem zasadniczym i wariantowymi (Ie-104 § 5 ust. 4).</summary>
+    /// <summary>
+    /// Koniec przebiegu (ISDR): koniec w turkusowej ramce, kółka znikają, panel pokazuje polecenia przebiegu (POCIĄG, MANEWR, ZD, ZDP, OPS, ZDPP).
+    /// Klik na końcu nie nastawia przebiegu – dopiero polecenie i „Wyślij”.
+    /// </summary>
     void Dest(string end)
     {
         var start = Panel.SelStart;
+        if (start == null || !ses.RouteTable.TryGetValue(start, out var od)) return;
         var ends = new List<string> { end };
+        string frame = end;
         // semafor wjazdowy: także przebiegi na szlak – kończą się przy nim (mały trójkąt końca przebiegu wyjazdowego)
         if (station.Signals.TryGetValue(end, out var sd))
-            ends.AddRange(ses.RouteTable[start].Where(r => r.EndNode == sd.Node && r.EndKind is "szlak" or "szlakM").Select(r => r.End).Distinct());
-        var all = ses.RouteTable[start].Where(r => ends.Contains(r.End)).ToList();
+        {
+            ends.AddRange(od.Where(r => r.EndNode == sd.Node && r.EndKind is "szlak" or "szlakM").Select(r => r.End).Distinct());
+            if (Panel.Targets.Contains("blk:" + sd.Node)) frame = "blk:" + sd.Node;     // koniec na szlak – ramka na trójkącie końca przebiegu wyjazdowego
+        }
+        else if (station.Blocks.ContainsKey(end))
+        {
+            var r0 = od.FirstOrDefault(r => r.End == end && r.EndKind is "szlak" or "szlakM");
+            if (r0 != null) frame = "blk:" + r0.EndNode;
+        }
+        var all = od.Where(r => ends.Contains(r.End)).ToList();
         var list = all.Where(r => Panel.SelVia.All(v => Passes(r, v))).ToList();
-        string Cmdl(RouteDef r)
-        {
-            var via = ViaFor(r, all.Where(x => x.End == r.End).ToList());
-            return $"{L(start)} {string.Join(" ", via.Select(L))}{(via.Count > 0 ? " " : "")}{L(r.End)} {(r.Type == "P" ? "Pociąg" : "Manewr")}";
-        }
-        var m = NewMenu($"Przebieg {L(start)} → {L(end)}");
-        if (list.Count == 0)
-        {
-            if (all.Count == 0 && ses.RouteTable[start].Any(r => r.Type == "M"))
-                Add(m, $"Przebieg manewrowy złożony {L(start)} → {L(end)}", $"{L(start)} {L(end)} Manewr");
-            else { Hint.Text = $"Brak przebiegu {L(start)} → {L(end)}{(Panel.SelVia.Count > 0 ? " przez wskazane punkty" : "")}"; return; }
-        }
-        foreach (var r in list)
-        {
-            var kind = r.Type == "P" ? "pociągowy" : "manewrowy";
-            var var_ = r.Variant == 0 ? "zasadniczy" : $"wariantowy {r.Variant}";
-            Add(m, $"Przebieg {kind} {var_}{(r.EndKind is "szlak" or "szlakM" ? " na szlak " + r.End : "")}   [{r.SwText}]", Cmdl(r));
-        }
-        m.Closed += (a, b) => ClearSel();
-        m.IsOpen = true;
+        bool chain = all.Count == 0 && station.Signals.ContainsKey(end) && od.Any(r => r.Type == "M");
+        if (list.Count == 0 && !chain) { Hint.Text = $"Brak przebiegu {L(start)} → {L(end)}{(Panel.SelVia.Count > 0 ? " przez wskazane punkty" : "")}"; return; }
+        selAll = all; selRoutes = list; selEndKey = list.FirstOrDefault()?.End ?? end;
+        Panel.SelEnd = frame; Panel.Targets.Clear(); Panel.HoverTarget = null;
+        selKind = "route"; selId = start;
+        RefreshPanel();
+        Hint.Text = $"Przebieg {L(start)} → {L(selEndKey)}: wybierz polecenie w panelu i „Wyślij”. Esc – rezygnacja.";
+        Panel.InvalidateVisual();
     }
 
     /// <summary>Punkty pośrednie jednoznacznie wskazujące wariant (zwrotnica w położeniu odróżniającym od zasadniczego).</summary>
@@ -569,57 +661,174 @@ public partial class MainWindow : Window
         return diff.Select(q => q.Num + q.Pos).ToList();
     }
 
-    void SignalMenu(string name)
-    {
-        var I = Ind; if (!I.Sigs.TryGetValue(name, out var s)) return; var d = station.Signals[name];
-        var m = NewMenu((d.Type == "tm" ? "Tarcza " : "Semafor ") + L(name));
-        Add(m, "Wybierz jako początek przebiegu", null, () => { SetStart(name); Panel.InvalidateVisual(); });
-        if (s.Aspect is Aspect.Train or Aspect.Shunt) Add(m, "Sygnał „Stój”", $"{L(name)} Stój");
-        var r = I.Routes.Values.FirstOrDefault(x => x.Start == name);
-        if (r != null && r.Type == "P") { Add(m, "Zwolnienie przebiegu ze zwłoką (ZCZ)", $"{L(name)} ZCZ"); if (r.TimeRel) Add(m, "Przerwanie odliczania (oZCZ)", $"{L(name)} oZCZ"); }
-        if (r != null && r.Type == "M") Add(m, "Zwolnienie przebiegu manewrowego (ZDM)", $"{L(name)} ZDM");
-        Add(m, s.Closed ? "Odwołanie zastopowania (oStop)" : "Zastopowanie sygnalizatora (Stop)", $"{L(name)} {(s.Closed ? "oStop" : "Stop")}");
-        if (s.Aspect == Aspect.Sz) Add(m, "Odwołanie sygnału zastępczego (oSZ)", $"{L(name)} oSZ");
-        if (d.IsTrain)
-        {
-            Sep(m, "Polecenia specjalne");
-            Add(m, "Sygnał zastępczy (SZ)", $"{L(name)} SZ", special: true);
-            Add(m, "Zwolnienie doraźne natychmiastowe (ZDP)", $"{L(name)} ZDP", special: true, enabled: r != null && r.Type == "P");
-        }
-        m.IsOpen = true;
-    }
-
     void OnSwitch(string num, MouseButtonEventArgs e)
     {
         // wybrany początek przebiegu: klik na zwrotnicy wskazuje wariant (przebieg ma przez nią prowadzić)
-        if (Panel.SelStart != null && e.ChangedButton == MouseButton.Left) { ToggleVia(num); return; }
-        var I = Ind; if (!I.Sws.TryGetValue(num, out var w)) return;
-        Panel.SelSwitch = num; Panel.InvalidateVisual();
-        var lb = station.Switches[num].Label;
-        var m = NewMenu($"Zwrotnica {lb} (położenie {w.Pos})");
-        Add(m, "Przestawienie do „+” (Plus)", $"{lb} Plus", enabled: w.Pos != "+" || w.Moving != null);
-        Add(m, "Przestawienie do „−” (Minus)", $"{lb} Minus", enabled: w.Pos != "-" || w.Moving != null);
-        Add(m, w.Stopped ? "Odwołanie zastopowania (oStop)" : "Zastopowanie (Stop)", $"{lb} {(w.Stopped ? "oStop" : "Stop")}");
-        var sec = station.Switches[num].Sec; var sc = I.Secs.GetValueOrDefault(sec) ?? new SecInd();
-        Add(m, sc.Closed ? "Odwołanie zamknięcia ruchowego (oZmk)" : "Zamknięcie ruchowe (Zmk)", $"{lb} {(sc.Closed ? "oZmk" : "Zmk")}");
-        Sep(m, "Polecenia specjalne");
-        Add(m, "Przestawienie „+” z bocznikowaniem (PlusBZ)", $"{lb} PlusBZ", special: true);
-        Add(m, "Przestawienie „−” z bocznikowaniem (MinBZ)", $"{lb} MinBZ", special: true);
-        Add(m, "Kasowanie sygnalizacji rozprucia (KSR)", $"{lb} KSR", special: true, enabled: w.Rozpr);
-        Add(m, "Zerowanie licznika osi (ZeroLO)", $"{lb} ZeroLO", special: true, enabled: sc.Fault != null);
-        m.Closed += (a, b) => { Panel.SelSwitch = null; };
-        m.IsOpen = true;
+        if (Panel.SelStart != null && Panel.SelEnd == null && e.ChangedButton == MouseButton.Left) { ToggleVia(num); return; }
+        ClearSel(); Panel.SelSwitch = num; Select("sw", num);
     }
 
     void OnSection(string sec, MouseButtonEventArgs e)
     {
         if (Panel.SelStart != null && Ctrl) { ToggleVia(sec); return; }
-        if (e.ChangedButton != MouseButton.Right) return;
+        if (Panel.SelStart != null && e.ChangedButton == MouseButton.Left) return;      // wybór przebiegu trwa – klik obok symbolu go nie przerywa
+        ClearSel(); Panel.SelObj = sec; Select("sec", sec);
+    }
+
+    void OnBlock(string id, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left && Panel.SelStart != null && Panel.SelEnd == null) { Dest(id); return; }
+        ClearSel(); Panel.SelObj = id; Select("blk", id);
+    }
+    void OnTrackEnd(string id, MouseButtonEventArgs e) { if (Panel.SelStart != null) Dest(id); }
+    void OnDerailer(string name, MouseButtonEventArgs e) { ClearSel(); Panel.SelObj = name; Select("der", name); }
+    void OnPost(string label, MouseButtonEventArgs e) { ClearSel(); Panel.SelObj = "post:" + label; Select("post", label); }
+
+    void Select(string kind, string id) { selKind = kind; selId = id; RefreshPanel(); Panel.InvalidateVisual(); }
+
+    /// <summary>Panel: przyciski dla wybranego obiektu w bieżącym stanie (odświeżane cyklicznie – np. SZ dostępne 5 s po SZI).</summary>
+    void RefreshPanel()
+    {
+        if (selKind == null || ses == null) { if (Pol.Obiekty != null) Pol.Wyczysc(); return; }
+        var (hdr, list, opis) = selKind switch
+        {
+            "sig" => SigCmds(selId), "route" => RouteCmds(), "sw" => SwitchCmds(selId), "sec" => SecCmds(selId),
+            "blk" => BlockCmds(selId), "der" => DerCmds(selId), "post" => PostCmds(selId), _ => (null, null, null)
+        };
+        if (list == null) { ClearSel(); return; }
+        Pol.Ustaw(hdr, list, opis);
+    }
+
+    /// <summary>Semafor (zdjęcia ISDR): STOP OSTOP SZ SZI NSZ; SZ i NSZ dostępne dopiero 5 s po SZI (Ie-104 § 11 ust. 13).</summary>
+    (string, List<PolecenieBtn>, string) SigCmds(string name)
+    {
+        var I = Ind; if (!I.Sigs.TryGetValue(name, out var s) || !station.Signals.TryGetValue(name, out var d)) return (null, null, null);
+        var p = I.Pending; bool szi = p?.Code == "SZI" && p.Arg == name, po5 = szi && I.T >= p.NotBefore;
+        var n = L(name);
+        var list = new List<PolecenieBtn>
+        {
+            new("STOP", $"{n} Stop", !s.Closed, false, "Zastopowanie sygnalizatora (Stop)"),
+            new("OSTOP", $"{n} oStop", s.Closed, false, "Odwołanie zastopowania (oStop)"),
+            new("SZ", $"{n} SZ", d.IsTrain && po5, false, "Wykonanie: sygnał zastępczy (po SZI, nie wcześniej niż po 5 s)"),
+            new("SZI", $"{n} SZI", d.IsTrain && p == null && s.Aspect != Aspect.Train, true, "Inicjalizacja polecenia specjalnego – sygnał zastępczy (1. etap)"),
+            new("NSZ", $"{n} NSZ", d.IsTrain && po5 && PodPrad(name), false, "Wykonanie: sygnał zastępczy z W24 – wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego (po SZI)"),
+        };
+        // dodatkowo (decyzja właściciela 2026-10-20, poza zdjęciami ISDR): Stój, oSZ, ZCZ, oZCZ, ZDM
+        var r = I.Routes.Values.FirstOrDefault(x => x.Start == name);
+        list.Add(new("STÓJ", $"{n} Stój", s.Aspect is Aspect.Train or Aspect.Shunt or Aspect.Sz, false, "Sygnał „Stój” (przebieg pozostaje utwierdzony)"));
+        list.Add(new("OSZ", $"{n} oSZ", s.Aspect == Aspect.Sz, false, "Odwołanie sygnału zastępczego (oSZ)"));
+        list.Add(new("ZCZ", $"{n} ZCZ", r != null && r.Type == "P" && !r.TimeRel, false, "Zwolnienie przebiegu pociągowego ze zwłoką czasową (ZCZ)"));
+        list.Add(new("OZCZ", $"{n} oZCZ", r != null && r.TimeRel, false, "Przerwanie odliczania czasu zwolnienia (oZCZ)"));
+        list.Add(new("ZDM", $"{n} ZDM", r != null && r.Type == "M", false, "Zwolnienie doraźne przebiegu manewrowego (ZDM)"));
+        var asp = s.Aspect switch { Aspect.Train => "zezwalający", Aspect.Shunt => "manewrowy", Aspect.Sz => "zastępczy", _ => "„Stój”" };
+        return (n, list, $"{(d.Type == "tm" ? "Tarcza" : "Semafor")} {n}: {asp}{(s.Closed ? ", zastopowany" : "")}{(szi ? ", zainicjowano SZI" : "")}");
+    }
+
+    /// <summary>Wyjazd z semafora na tor szlaku w kierunku przeciwnym do zasadniczego (warunek NSZ).</summary>
+    bool PodPrad(string s) => ses.RouteTable.GetValueOrDefault(s, new()).Any(r => r.Type == "P" && r.EndKind == "szlak" && station.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && b.DefDir != 0 && station.Signals[s].Dir == -b.DefDir);
+
+    /// <summary>Para początek–koniec (zdjęcia ISDR): POCIĄG MANEWR ZD ZDP OPS ZDPP.</summary>
+    (string, List<PolecenieBtn>, string) RouteCmds()
+    {
+        var start = Panel.SelStart; if (start == null) return (null, null, null);
+        var I = Ind; var p = I.Pending;
+        var rp = selRoutes.Where(r => r.Type == "P").OrderBy(r => r.Variant).FirstOrDefault();
+        var rm = selRoutes.Where(r => r.Type == "M").OrderBy(r => r.Variant).FirstOrDefault();
+        string Line(RouteDef r, string kod)
+        {
+            var via = ViaFor(r, selAll.Where(x => x.End == r.End).ToList());
+            return $"{L(start)} {string.Join(" ", via.Select(L))}{(via.Count > 0 ? " " : "")}{L(r.End)} {kod}";
+        }
+        var ends = selAll.Select(r => r.End).Append(selEndKey).ToHashSet();
+        var cur = I.Routes.Values.FirstOrDefault(r => r.Start == start && ends.Contains(r.End));
+        bool zdp = p?.Code == "ZDP" && p.Arg == start;
+        var e = L(selEndKey);
+        var list = new List<PolecenieBtn>
+        {
+            new("POCIĄG", rp != null ? Line(rp, "Pociąg") : "", rp != null && cur == null, false, rp != null ? $"Przebieg pociągowy {(rp.Variant == 0 ? "zasadniczy" : "wariantowy " + rp.Variant)} [{rp.SwText}]" : null),
+            new("MANEWR", rm != null ? Line(rm, "Manewr") : $"{L(start)} {e} Manewr", cur == null && (rm != null || (selAll.Count == 0 && station.Signals.ContainsKey(selEndKey))), false, rm != null ? $"Przebieg manewrowy {(rm.Variant == 0 ? "zasadniczy" : "wariantowy " + rm.Variant)} [{rm.SwText}]" : "Przebieg manewrowy złożony"),
+            new("ZD", $"{L(start)} {e} ZD", cur != null && !cur.TimeRel, false, "Zwolnienie doraźne – przy pociągu w strefie zbliżania ze zwłoką 90 s"),
+            new("ZDP", $"{L(start)} ZDP", cur?.Type == "P" && !cur.TimeRel && p == null, false, "Inicjalizacja zwolnienia doraźnego przebiegu pociągowego (1. etap), wykonanie – ZDPP po 5 s (zwolnienie natychmiastowe)"),
+            new("OPS", $"{L(start)} {e} OPS", p != null, false, "Odwołanie zainicjowanego polecenia specjalnego"),
+            new("ZDPP", $"{L(start)} ZDPP", zdp && I.T >= p.NotBefore, false, "Wykonanie zwolnienia doraźnego po ZDP – przebieg zwolniony natychmiast"),
+        };
+        return ($"{L(start)} {e}", list, $"Przebieg {L(start)} → {e}{(cur != null ? " – nastawiony" : "")}");
+    }
+
+    /// <summary>Kod polecenia z wiersza (napis przycisku): kod Ie-104 wielkimi literami, strona szlaku jako strzałka.</summary>
+    static string CodeLabel(string line)
+    {
+        var t = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        int i = Array.FindIndex(t, x => SystemNadrzedny.KodPolecenia(x) != null); if (i < 0) return line;
+        var k = SystemNadrzedny.Codes[SystemNadrzedny.KodPolecenia(t[i])].Code.ToUpperInvariant();
+        var side = t.Skip(i + 1).Select(x => x == "E" ? "→" : x == "W" ? "←" : x);
+        return string.Join(" ", side.Prepend(k));
+    }
+
+    // przyciski dla obiektów, których nie ma na zdjęciach ISDR – kody Ie-104 z dawnego menu (decyzja właściciela 2026-10-20)
+    List<PolecenieBtn> NewMenu(string title) { menuTitle = title; return new(); }
+    string menuTitle;
+    static void Sep(List<PolecenieBtn> m, string t) { }
+    static void Add(List<PolecenieBtn> m, string label, string cmd, bool special = false, bool enabled = true) =>
+        m.Add(new(CodeLabel(cmd), cmd, enabled, special, label + (special ? " – polecenie specjalne (dwuetapowe)" : "")));     // specjalne – czerwone jak SZI (decyzja właściciela 2026-10-20)
+
+    (string, List<PolecenieBtn>, string) SwitchCmds(string num)
+    {
+        var I = Ind; if (!I.Sws.TryGetValue(num, out var w)) return (null, null, null);
+        var lb = station.Switches[num].Label;
+        var m = NewMenu($"Zwrotnica {lb} (położenie {w.Pos})");
+        Add(m, "Przestawienie do „+” (Plus)", $"{lb} Plus", enabled: w.Pos != "+" || w.Moving != null);
+        Add(m, "Przestawienie do „−” (Minus)", $"{lb} Minus", enabled: w.Pos != "-" || w.Moving != null);
+        Add(m, "Zastopowanie (Stop)", $"{lb} Stop", enabled: !w.Stopped);
+        Add(m, "Odwołanie zastopowania (oStop)", $"{lb} oStop", enabled: w.Stopped);
+        var sec = station.Switches[num].Sec; var sc = I.Secs.GetValueOrDefault(sec) ?? new SecInd();
+        Add(m, "Zamknięcie ruchowe (Zmk)", $"{lb} Zmk", enabled: !sc.Closed);
+        Add(m, "Odwołanie zamknięcia ruchowego (oZmk)", $"{lb} oZmk", enabled: sc.Closed);
+        Add(m, "Przestawienie „+” z bocznikowaniem (PlusBZ)", $"{lb} PlusBZ", special: true);
+        Add(m, "Przestawienie „−” z bocznikowaniem (MinBZ)", $"{lb} MinBZ", special: true);
+        Add(m, "Kasowanie sygnalizacji rozprucia (KSR)", $"{lb} KSR", special: true, enabled: w.Rozpr);
+        Add(m, "Zerowanie licznika osi (ZeroLO)", $"{lb} ZeroLO", special: true, enabled: sc.Fault != null);
+        return (lb, m, menuTitle);
+    }
+
+    (string, List<PolecenieBtn>, string) SecCmds(string sec)
+    {
         var s = Ind.Secs.GetValueOrDefault(sec) ?? new SecInd(); var m = NewMenu("Odcinek " + L(sec));
-        Add(m, s.Closed ? "Odwołanie zamknięcia ruchowego (oZmk)" : "Zamknięcie ruchowe toru (Zmk)", $"{L(sec)} {(s.Closed ? "oZmk" : "Zmk")}");
-        Sep(m, "Polecenia specjalne");
+        Add(m, "Zamknięcie ruchowe toru (Zmk)", $"{L(sec)} Zmk", enabled: !s.Closed);
+        Add(m, "Odwołanie zamknięcia ruchowego (oZmk)", $"{L(sec)} oZmk", enabled: s.Closed);
         Add(m, "Zerowanie licznika osi (ZeroLO)", $"{L(sec)} ZeroLO", special: true, enabled: s.Fault is "reset" or "occ");
-        m.IsOpen = true;
+        return (L(sec), m, menuTitle);
+    }
+
+    (string, List<PolecenieBtn>, string) DerCmds(string name)
+    {
+        if (!Ind.Ders.TryGetValue(name, out var d)) return (null, null, null); var lb = station.Derailers[name].Label; var m = NewMenu("Wykolejnica " + lb);
+        Add(m, "Założenie na tor (Plus)", $"{lb} Plus", enabled: !d.On); Add(m, "Zdjęcie z toru (Minus)", $"{lb} Minus", enabled: d.On);
+        return (lb, m, menuTitle);
+    }
+
+    /// <summary>Posterunek z ikony nastawni: skrót, kod albo nazwa; jeden posterunek na obrazie – ten.</summary>
+    string PostOfLabel(string label)
+    {
+        var f = SystemNadrzedny.Fold(label ?? "");
+        foreach (var (k, n) in station.Posts) if (SystemNadrzedny.Fold(k) == f || SystemNadrzedny.Fold(n ?? "") == f || SystemNadrzedny.Fold(Simulator.PostShort(station, k)) == f) return k;
+        return Panel.Page?.Posts.Count == 1 ? Panel.Page.Posts[0] : null;
+    }
+
+    /// <summary>Ikona nastawni (zdjęcia ISDR): SSS OSSS ZSS OZSS OSZ.</summary>
+    (string, List<PolecenieBtn>, string) PostCmds(string label)
+    {
+        var post = PostOfLabel(label); if (post == null) { Hint.Text = $"Nastawnia „{label}” – nie rozpoznano posterunku"; return (null, null, null); }
+        var I = Ind; bool sss = I.Sss.Contains(post), zss = I.Zss.Contains(post);
+        var list = new List<PolecenieBtn>
+        {
+            new("SSS", $"{post} SSS", !sss, false, "Zastopowanie wszystkich sygnalizatorów stacji"),
+            new("OSSS", $"{post} OSSS", sss, false, "Odwołanie zastopowania wszystkich sygnalizatorów stacji"),
+            new("ZSS", $"{post} ZSS", !zss, false, "Zastopowanie wszystkich zwrotnic stacji"),
+            new("OZSS", $"{post} OZSS", zss, false, "Odwołanie zastopowania wszystkich zwrotnic stacji"),
+            new("OSZ", $"{post} OSZ", true, false, "Odświeżenie stanu komputera zobrazowania"),
+        };
+        return (label, list, "Nastawnia " + (station.Posts.GetValueOrDefault(post) ?? post));
     }
 
     /// <summary>Koniec szlaku po stronie posterunku, którym steruje stanowisko (albo wyświetlanego obrazu).</summary>
@@ -632,10 +841,9 @@ public partial class MainWindow : Window
         return 0;
     }
 
-    void OnBlock(string id, MouseButtonEventArgs e)
+    (string, List<PolecenieBtn>, string) BlockCmds(string id)
     {
-        if (e.ChangedButton == MouseButton.Left && Panel.SelStart != null) { Dest(id); return; }
-        var b = station.Blocks[id]; if (!Ind.Blocks.TryGetValue(id, out var bs)) return; int ei = EndIdxHere(b);
+        var b = station.Blocks[id]; if (!Ind.Blocks.TryGetValue(id, out var bs)) return (null, null, null); int ei = EndIdxHere(b);
         string PN(string p) => station.Posts.GetValueOrDefault(p ?? "") ?? p;
         if (!b.Permission)
         {
@@ -644,8 +852,7 @@ public partial class MainWindow : Window
             if (b.SemiAuto) foreach (var (en, i) in b.Ends.Select((x, i) => (x, i))) SemiItems(mj, id, b, bs, i, $" {(en.Outward > 0 ? "E" : "W")}", b.Ends.Count > 1 ? " – " + PN(en.Post) : "");
             foreach (var (en, i) in b.Ends.Select((x, i) => (x, i)))
                 Add(mj, (bs.StopEnd[i] ? "Odwołanie zamknięcia wyjazdu" : "Zamknięcie wyjazdu na szlak") + (b.Ends.Count > 1 ? " z " + PN(en.Post) : ""), $"{id} {(bs.StopEnd[i] ? "oStop" : "Stop")} {(en.Outward > 0 ? "E" : "W")}");
-            mj.IsOpen = true;
-            return;
+            return (id, mj, menuTitle);
         }
         var I = Ind;
         bool bothMine = b.Internal && b.Ends.All(en => I.Control.GetValueOrDefault(en.Post ?? "") == ses.DeskId);
@@ -659,10 +866,8 @@ public partial class MainWindow : Window
             if (b.SemiAuto) foreach (var (en, i) in b.Ends.Select((x, i) => (x, i))) SemiItems(mi, id, b, bs, i, $" {(en.Outward > 0 ? "E" : "W")}", " – " + PN(en.Post));
             foreach (var (en, i) in b.Ends.Select((x, i) => (x, i)))
                 Add(mi, (bs.StopEnd[i] ? "Odwołanie zamknięcia wyjazdu z " : "Zamknięcie wyjazdu na szlak z ") + PN(en.Post), $"{id} {(bs.StopEnd[i] ? "oStop" : "Stop")} {(en.Outward > 0 ? "E" : "W")}");
-            Sep(mi, "Polecenia specjalne");
             foreach (var en in b.Ends) Add(mi, $"Awaryjna zmiana kierunku na {(en.Outward > 0 ? "zachód (←)" : "wschód (→)")}", $"{id} AZK {(en.Outward > 0 ? "E" : "W")}", special: true);
-            mi.IsOpen = true;
-            return;
+            return (id, mi, menuTitle);
         }
         // blokada z blokiem pozwolenia: szlak zewnętrzny albo wewnętrzny, którego drugi koniec obsługuje inne stanowisko
         var dirText = bs.Dir == 0 ? "stan neutralny" : bs.Dir == b.Ends[ei].Outward ? "kierunek WYJAZD" : "kierunek PRZYJAZD";
@@ -670,48 +875,60 @@ public partial class MainWindow : Window
         bool reqFromOther = bs.Req != null && bs.Req.EndIdx != ei, reqMine = bs.Req != null && bs.Req.EndIdx == ei;
         string side = b.Internal ? $" {(b.Ends[ei].Outward > 0 ? "E" : "W")}" : "";
         Add(m, "Włączenie kierunku WYJAZD (Wbl)", $"{id} Wbl{side}", enabled: !reqMine && bs.Dir != b.Ends[ei].Outward);
-        if (reqMine) Add(m, "Odwołanie żądania (oWbl)", $"{id} oWbl{side}");
+        Add(m, "Odwołanie żądania (oWbl)", $"{id} oWbl{side}", enabled: reqMine);
         Add(m, "Pozwolenie – kierunek PRZYJAZD (Pzk)", $"{id} Pzk{side}", enabled: reqFromOther);
         Add(m, "Zwolnienie kierunku (Zwbl)", $"{id} Zwbl{side}", enabled: bs.Dir != 0);
         if (b.SemiAuto) SemiItems(m, id, b, bs, ei, side, "");
-        Add(m, bs.StopEnd[ei] ? "Odwołanie zamknięcia wyjazdu (oStop)" : "Zamknięcie wyjazdu na szlak (Stop)", $"{id} {(bs.StopEnd[ei] ? "oStop" : "Stop")}{side}");
-        Sep(m, "Polecenia specjalne");
+        Add(m, "Zamknięcie wyjazdu na szlak (Stop)", $"{id} Stop{side}", enabled: !bs.StopEnd[ei]);
+        Add(m, "Odwołanie zamknięcia wyjazdu (oStop)", $"{id} oStop{side}", enabled: bs.StopEnd[ei]);
         Add(m, "Awaryjna zmiana kierunku (AZK)", $"{id} AZK{side}", special: true);
-        m.IsOpen = true;
+        return (id, m, menuTitle);
     }
     /// <summary>Przyciski blokady półsamoczynnej (KOMPUTERY.pdf 1.6.2): Po, Ko, Poz oraz doraźne dPo, dKo (z licznikami).</summary>
-    void SemiItems(ContextMenu m, string id, BlockDef b, BlockInd bs, int i, string side, string where)
+    void SemiItems(List<PolecenieBtn> m, string id, BlockDef b, BlockInd bs, int i, string side, string where)
     {
         int outw = b.Ends[i].Outward;
-        Sep(m, "Blokada półsamoczynna" + where + (bs.Pwl.Length > i && bs.Pwl[i] ? " – Pwl" : ""));
-        Add(m, "Blok początkowy (Po)", $"{id} Po{side}", enabled: bs.AwaitEnd == null && bs.Dir == outw);
-        Add(m, "Blok końcowy (Ko)" + (bs.KoReady.Length > i && bs.KoReady[i] ? " – wjazd stwierdzony" : ""), $"{id} Ko{side}", enabled: bs.AwaitEnd == i);
-        Add(m, "Blok pozwolenia – oddanie pozwolenia (Poz)", $"{id} Poz{side}", enabled: bs.AwaitEnd == null && b.Permission);
-        Add(m, "Doraźny blok początkowy (dPo) – wyjazd na Sz / rozkaz", $"{id} dPo{side}", special: true, enabled: bs.AwaitEnd == null);
-        Add(m, "Doraźny blok końcowy (dKo) – wjazd na Sz / rozkaz", $"{id} dKo{side}", special: true, enabled: bs.AwaitEnd == i);
-    }
-    void OnTrackEnd(string id, MouseButtonEventArgs e) { if (Panel.SelStart != null) Dest(id); }
-    void OnDerailer(string name, MouseButtonEventArgs e)
-    {
-        if (!Ind.Ders.TryGetValue(name, out var d)) return; var lb = station.Derailers[name].Label; var m = NewMenu("Wykolejnica " + lb);
-        Add(m, "Założenie na tor (Plus)", $"{lb} Plus", enabled: !d.On); Add(m, "Zdjęcie z toru (Minus)", $"{lb} Minus", enabled: d.On);
-        m.IsOpen = true;
+        Add(m, "Blok początkowy (Po)" + where, $"{id} Po{side}", enabled: bs.AwaitEnd == null && bs.Dir == outw);
+        Add(m, "Blok końcowy (Ko)" + where + (bs.KoReady.Length > i && bs.KoReady[i] ? " – wjazd stwierdzony" : ""), $"{id} Ko{side}", enabled: bs.AwaitEnd == i);
+        Add(m, "Blok pozwolenia – oddanie pozwolenia (Poz)" + where, $"{id} Poz{side}", enabled: bs.AwaitEnd == null && b.Permission);
+        Add(m, "Doraźny blok początkowy (dPo) – wyjazd na Sz / rozkaz" + where, $"{id} dPo{side}", special: true, enabled: bs.AwaitEnd == null);
+        Add(m, "Doraźny blok końcowy (dKo) – wjazd na Sz / rozkaz" + where, $"{id} dKo{side}", special: true, enabled: bs.AwaitEnd == i);
     }
 
-    ContextMenu NewMenu(string title)
+    /// <summary>„Wyślij” w panelu: polecenie do systemu nadrzędnego, wpis w Historii; ramki znikają.</summary>
+    void Send(PolecenieBtn p)
     {
-        var m = new ContextMenu { PlacementTarget = Panel, Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint };
-        m.Items.Add(new MenuItem { Header = title, IsEnabled = false, FontWeight = FontWeights.Bold });
-        m.Items.Add(new Separator());
-        return m;
+        if (p == null || string.IsNullOrEmpty(p.Line)) return;
+        var kod = SystemNadrzedny.KodPolecenia(p.Line.Split(' ').FirstOrDefault(t => SystemNadrzedny.KodPolecenia(t) != null) ?? "");
+        bool init = kod is "SZI" or "ZDP";
+        if (init) panelInit = p.Line;
+        var hdr = $"{p.Label} {Pol.Obiekty}";
+        string start = kod is "POCIAG" or "MANEWR" ? Panel.SelStart : null;
+        var r = Run(p.Line, hdr, start, kod == "POCIAG" ? "P" : kod == "MANEWR" ? "M" : null);
+        if (!r.Ok && init) panelInit = null;
+        ClearSel();
+        if (r.Ok && kod == "OSZ") Odswiez();
     }
-    void Sep(ContextMenu m, string t) { m.Items.Add(new Separator()); m.Items.Add(new MenuItem { Header = t, IsEnabled = false, Foreground = Brushes.DarkRed, FontSize = 11 }); }
-    void Add(ContextMenu m, string label, string cmd, Action fn = null, bool special = false, bool enabled = true)
+
+    /// <summary>OSZ na nastawni: odświeżenie stanu komputera zobrazowania – nowy telegram stanu, dzienniki i obraz od nowa.</summary>
+    void Odswiez()
     {
-        var mi = new MenuItem { Header = label, IsEnabled = enabled, InputGestureText = cmd ?? "" };
-        if (special) mi.Foreground = Brushes.DarkRed;
-        mi.Click += (a, b) => { if (fn != null) fn(); else { ClearSel(); Run(cmd); } };
-        m.Items.Add(mi);
+        Panel.Sim = ses; ClearSel();
+        zdarzenia.Przelicz(); alarmy.Przelicz();
+        Panel.InvalidateVisual(); UpdateTop();
+    }
+
+    /// <summary>Realizacja w Historii: przebieg nastawiony (sygnał / droga utwierdzona) albo niezrealizowany.</summary>
+    void TrackHistory()
+    {
+        var I = ses?.Receive(); if (I == null) return;
+        foreach (var h in Pol.Historia)
+        {
+            if (h.Start == null || h.Realizacja != "w realizacji") continue;
+            var r = I.Routes.Values.FirstOrDefault(x => x.Start == h.Start && x.Type == h.Typ);
+            if (r != null) { h.Widziany = true; if (r.State != "setting") h.Realizacja = "zrealizowane " + I.Clock; }
+            else if (h.Widziany || I.T - h.Wyslano > 30) h.Realizacja = "niezrealizowane";
+        }
     }
 
     // ------------------------------------------------------------------ przyciski
@@ -760,15 +977,7 @@ public partial class MainWindow : Window
         netWin.Show();
     }
     void Ack_Click(object s, RoutedEventArgs e) { Run("KW"); SortAlarms(); }
-    void GridAlarms_DoubleClick(object s, MouseButtonEventArgs e) { if (GridAlarms.SelectedItem is EventRecord a) { ses.AckAlarm(a.Id); SortAlarms(); } }
-
-    bool Matches(EventRecord e) => EvFilter.SelectedIndex <= 0 || e.Kategoria == (string)EvFilter.SelectedItem;
-    void EvFilter_Changed(object s, SelectionChangedEventArgs e)
-    {
-        if (ses == null) return;
-        events.Clear();
-        foreach (var x in ses.Events.Where(Matches).Reverse().Take(3000)) events.Add(x);
-    }
+    void GridAlarms_DoubleClick(object s, MouseButtonEventArgs e) { if (alarmy.Grid.SelectedItem is EventRecord a) { a.Ack = true; ses.AckAlarm(a.Id); SortAlarms(); } }
 
     void Export_Click(object s, RoutedEventArgs e)
     {
