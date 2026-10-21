@@ -158,6 +158,13 @@ public static partial class Test
         var l2 = d.P.Lines.FirstOrDefault(x => x.Numer == "2A");
         var dr2 = l2 != null ? Szlaki.Droga(d.P, l2) : null;
         Ok(l2 != null && dr2.Err == null && Math.Abs(dr2.Dlugosc - 150) < 0.05 && dr2.Semafory.Count == 0, "szlak 2A: semafor B – koniec toru 1, 150 m, bez odstępów");
+        // końce ręcznie: zwrot semaforów nie ma znaczenia – S60 i A działają w tę samą stronę, kolejność końców dowolna
+        UtLineEnd SE(string n) => new() { Semafor = Dev(n).Id };
+        var drS = Szlaki.Droga(d.P, new UtLine { Konce = new() { SE("S60"), SE("A") } });
+        var drS2 = Szlaki.Droga(d.P, new UtLine { Konce = new() { SE("A"), SE("S60") } });
+        var drK = Szlaki.Droga(d.P, new UtLine { Konce = new() { new() { Track = t1.Id, AtStart = false }, SE("B") } });
+        Ok(Dev("S60").Dir == Dev("A").Dir && drS.Err == null && drS2.Err == null && Math.Abs(drS.Dlugosc - drS2.Dlugosc) < 0.05 && drS.Dlugosc > 1 && drK.Err == null && Math.Abs(drK.Dlugosc - 150) < 0.05,
+            $"szlak ręcznie S60 – A i A – S60 (ten sam zwrot), koniec toru 1 – B: droga jest ({drS.Err ?? drS2.Err ?? drK.Err ?? $"{drS.Dlugosc:0} m"})");
         // uwagi do szlaków: brak posterunku sąsiedniego
         var ch = Kontrola.Run(d.P);
         Ok(ch.Count(u => u.Kind == Kontrola.KSzlak && u.Text.Contains("brak nazwy posterunku sąsiedniego")) == 2, "„Sprawdź”: na obu szlakach brak nazwy posterunku sąsiedniego");

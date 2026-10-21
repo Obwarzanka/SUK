@@ -89,55 +89,69 @@ public static class Szlaki
         return $"{(e.AtStart ? "początek" : "koniec")} toru {(t?.Number.Length > 0 ? t.Number : "?")}" + (e.Sasiad.Length > 0 ? $" – {e.Sasiad}" : " – granica obszaru");
     }
 
-    /// <summary>Miejsce i kierunek wyjścia z końca szlaku w głąb szlaku: tor, km, kierunek wzdłuż km (+1 / −1).</summary>
-    static (string Track, double S, int Dir)? Start(UtProject p, UtLineEnd e, Dictionary<string, TrasaResult> r)
+    /// <summary>
+    /// Miejsce końca szlaku i kierunki wyjścia z niego w głąb szlaku: tor, km, kierunki wzdłuż km (+1 / −1). Semafor – obie strony
+    /// (najpierw przeciwna do kierunku działania, jak przy wjazdowym), bo zwrot semafora nie wyznacza szlaku; koniec toru – w głąb toru.
+    /// </summary>
+    static (string Track, double S, int[] Dirs)? Start(UtProject p, UtLineEnd e, Dictionary<string, TrasaResult> r)
     {
         if (e.Semafor != null)
         {
             var d = p.Devices.FirstOrDefault(x => x.Id == e.Semafor);
-            // semafor wjazdowy działa dla jazdy w stronę posterunku – szlak leży w drugą stronę
-            return d == null || !r.ContainsKey(d.Track) ? null : (d.Track, d.S, -d.Dir);
+            if (d == null || !r.ContainsKey(d.Track)) return null;
+            int pierwszy = d.Dir == 0 ? 1 : -d.Dir;
+            return (d.Track, d.S, new[] { pierwszy, -pierwszy });
         }
         if (e.Track == null || !r.TryGetValue(e.Track, out var rt)) return null;
-        return (e.Track, e.AtStart ? 0 : rt.Length, e.AtStart ? 1 : -1);
+        return (e.Track, e.AtStart ? 0 : rt.Length, new[] { e.AtStart ? 1 : -1 });
     }
 
     /// <summary>
-    /// Droga szlaku po torach od końca 1 do końca 2: z końca 1 w głąb szlaku, przez styki końców torów (nie przez rozjazdy),
-    /// do semafora albo końca toru końca 2.
+    /// Droga szlaku po torach od końca 1 do końca 2: z końca 1 w tę stronę, w którą da się dojść do końca 2 (zwrot semaforów na końcach
+    /// nie ma znaczenia), przez styki końców torów (nie przez rozjazdy; przy kilku torach najpierw najbardziej na wprost, potem pozostałe),
+    /// do semafora albo końca toru końca 2. Gdy dojść się da w obie strony – krótsza droga.
     /// </summary>
     public static SzlakDroga Droga(UtProject p, UtLine l, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
     {
-        var res = new List<SzlakKawalek>(); var uw = new List<string>();
-        if (l.Konce.Count != 2) return new(res, new(), uw, "szlak bez dwóch końców");
+        var uw = new List<string>();
+        if (l.Konce.Count != 2) return new(new(), new(), uw, "szlak bez dwóch końców");
         r ??= Topologia.Routes(p);
-        if (Start(p, l.Konce[0], r) is not var (track, s, dir)) return new(res, new(), uw, $"koniec 1 ({Opis(p, l.Konce[0])}) – brak toru albo semafora");
-        if (Start(p, l.Konce[1], r) is not var (bTrack, bS, bDir)) return new(res, new(), uw, $"koniec 2 ({Opis(p, l.Konce[1])}) – brak toru albo semafora");
+        if (Start(p, l.Konce[0], r) is not var (track, s, dirs)) return new(new(), new(), uw, $"koniec 1 ({Opis(p, l.Konce[0])}) – brak toru albo semafora");
+        if (Start(p, l.Konce[1], r) is not var (bTrack, bS, _)) return new(new(), new(), uw, $"koniec 2 ({Opis(p, l.Konce[1])}) – brak toru albo semafora");
         styki ??= Topologia.Styki(p, r);
-        var seen = new HashSet<string>();
-        for (int k = 0; k < 500; k++)
+        List<SzlakKawalek> best = null; List<string> bestUw = null; string err = null;
+        foreach (var dir in dirs)
         {
-            var len = r[track].Length;
-            // koniec 2 na tym torze, przed nami
-            if (track == bTrack && (dir > 0 ? bS >= s - 1e-6 : bS <= s + 1e-6))
-            {
-                res.Add(new(track, Math.Min(s, bS), Math.Max(s, bS)));
-                // z końca 2 szlak biegnie w stronę, z której przyszliśmy
-                if (bDir != -dir) uw.Add($"koniec 2 ({Opis(p, l.Konce[1])}) zwrócony w drugą stronę – semafor wjazdowy ma działać dla jazdy ze szlaku do posterunku");
-                return Wynik(p, res, uw, null);
-            }
-            double se = dir > 0 ? len : 0;
-            res.Add(new(track, Math.Min(s, se), Math.Max(s, se)));
-            if (!seen.Add(track + (dir > 0 ? "+" : "-"))) return Wynik(p, res, uw, "droga szlaku zawraca w pętli");
-            bool atStart = se == 0;
-            var dalej = Dalej(styki, track, atStart, se);
-            var t = p.Tracks.First(x => x.Id == track);
-            if (dalej.Count == 0) return Wynik(p, res, uw, $"droga szlaku urywa się na {(atStart ? "początku" : "końcu")} toru {(t.Number.Length > 0 ? t.Number : "?")} – nie dochodzi do końca 2 ({Opis(p, l.Konce[1])})");
-            var (nt, fromStart) = Prosto(r, track, atStart, dalej);
-            if (dalej.Count > 1) uw.Add($"na {(atStart ? "początku" : "końcu")} toru {(t.Number.Length > 0 ? t.Number : "?")} schodzą się {dalej.Count + 1} tory – droga szlaku poszła najbardziej na wprost (tor {Nr(p, nt)})");
-            track = nt; s = fromStart ? 0 : r[nt].Length; dir = fromStart ? 1 : -1;
+            var res = new List<SzlakKawalek>(); var u = new List<string>(); string e = null; int kroki = 0;
+            if (!Szukaj(p, r, styki, track, s, dir, bTrack, bS, res, u, new HashSet<string>(), ref e, ref kroki)) { err ??= e; continue; }
+            if (best == null || res.Sum(k => k.S1 - k.S0) < best.Sum(k => k.S1 - k.S0)) { best = res; bestUw = u; }
         }
-        return Wynik(p, res, uw, "droga szlaku za długa");
+        if (best == null) return Wynik(p, new(), uw, $"brak drogi po torach do końca 2 ({Opis(p, l.Konce[1])})" + (err != null ? $" – {err}" : ""));
+        return Wynik(p, best, bestUw, null);
+    }
+
+    /// <summary>Szukanie drogi w głąb (krok drogi szlaku): z miejsca na torze w kierunku dir do końca 2; res – kawałki od startu.</summary>
+    static bool Szukaj(UtProject p, Dictionary<string, TrasaResult> r, List<Styk> styki, string track, double s, int dir, string bTrack, double bS,
+        List<SzlakKawalek> res, List<string> uw, HashSet<string> seen, ref string err, ref int kroki)
+    {
+        if (++kroki > 2000) { err ??= "droga szlaku za długa"; return false; }
+        // koniec 2 na tym torze, przed nami
+        if (track == bTrack && (dir > 0 ? bS >= s - 1e-6 : bS <= s + 1e-6)) { res.Add(new(track, Math.Min(s, bS), Math.Max(s, bS))); return true; }
+        if (!seen.Add(track + (dir > 0 ? "+" : "-"))) { err ??= "droga szlaku zawraca w pętli"; return false; }
+        double se = dir > 0 ? r[track].Length : 0;
+        bool atStart = se == 0;
+        var dalej = Dalej(styki, track, atStart, se);
+        if (dalej.Count == 0) { err ??= $"droga urywa się na {(atStart ? "początku" : "końcu")} toru {Nr(p, track)}"; return false; }
+        res.Add(new(track, Math.Min(s, se), Math.Max(s, se)));
+        foreach (var (nt, fromStart) in WgProstosci(r, track, atStart, dalej))
+        {
+            int n = res.Count, nu = uw.Count;
+            if (dalej.Count > 1) uw.Add($"na {(atStart ? "początku" : "końcu")} toru {Nr(p, track)} schodzą się {dalej.Count + 1} tory – droga szlaku poszła torem {Nr(p, nt)}");
+            if (Szukaj(p, r, styki, nt, fromStart ? 0 : r[nt].Length, fromStart ? 1 : -1, bTrack, bS, res, uw, seen, ref err, ref kroki)) return true;
+            res.RemoveRange(n, res.Count - n); uw.RemoveRange(nu, uw.Count - nu);
+        }
+        res.RemoveAt(res.Count - 1); seen.Remove(track + (dir > 0 ? "+" : "-"));
+        return false;
     }
 
     static string Nr(UtProject p, string track) => p.Tracks.FirstOrDefault(x => x.Id == track) is UtTrack t && t.Number.Length > 0 ? t.Number : "(bez numeru)";
@@ -149,14 +163,18 @@ public static class Szlaki
             .Distinct().ToList();
 
     /// <summary>Spośród torów za stykiem – najbardziej na wprost (najmniejsza zmiana kierunku jazdy).</summary>
-    static (string Track, bool FromStart) Prosto(Dictionary<string, TrasaResult> r, string track, bool atStart, List<(string Track, bool FromStart)> dalej)
+    static (string Track, bool FromStart) Prosto(Dictionary<string, TrasaResult> r, string track, bool atStart, List<(string Track, bool FromStart)> dalej) =>
+        WgProstosci(r, track, atStart, dalej).First();
+
+    /// <summary>Tory za stykiem od najbardziej na wprost.</summary>
+    static IEnumerable<(string Track, bool FromStart)> WgProstosci(Dictionary<string, TrasaResult> r, string track, bool atStart, List<(string Track, bool FromStart)> dalej)
     {
         var rt = r[track]; double azOut = atStart ? rt.At(0).Az + Math.PI : rt.At(rt.Length).Az;
         return dalej.OrderBy(x =>
         {
             var rn = r[x.Track]; double az = x.FromStart ? rn.At(0).Az : rn.At(rn.Length).Az + Math.PI;
             return Math.Abs(Math.IEEERemainder(az - azOut, 2 * Math.PI));
-        }).First();
+        }).ToList();
     }
 
     /// <summary>Propozycja szlaku z miejsca na torze: końce, droga, uwagi, błąd (null – można utworzyć).</summary>
@@ -202,6 +220,13 @@ public static class Szlaki
             var sem = p.Devices.Where(d => d.Kind == UtDevice.Semafor && d.Track == track && (dir > 0 ? d.S > s + 1e-6 : d.S < s - 1e-6))
                 .OrderBy(d => dir * d.S).ToList();
             var wj = sem.FirstOrDefault(d => d.Funkcja == UtDevice.FWjazdowy || (d.Dir == dir && string.IsNullOrEmpty(d.Funkcja) && t.Post != null));
+            // wjazdowy odwrócony: na torze posterunku – miejsce w obrębie posterunku; na torze szlaku (bez posterunku) zwrot semafora
+            // nie przesądza o szlaku – koniec szlaku z uwagą
+            if (wj != null && wj.Dir != dir && post0 == null)
+            {
+                uw.Add($"semafor {wj.Name} na końcu szlaku zwrócony w stronę szlaku – sprawdź zwrot (wjazdowy działa dla jazdy ze szlaku do posterunku)");
+                return new UtLineEnd { Semafor = wj.Id };
+            }
             if (wj != null && wj.Dir != dir)
             {
                 var po = Posterunki.Of(p, wj.Track);
@@ -302,6 +327,11 @@ public static class Szlaki
             {
                 if (e.Semafor != null && p.Devices.FirstOrDefault(x => x.Id == e.Semafor) is UtDevice sd && sd.Funkcja != UtDevice.FWjazdowy)
                     res.Add((false, $"{nm}: na końcu {Opis(p, e)} – funkcja semafora powinna być „wjazdowy”", sd.Track, sd.S, l.Id));
+                // zwrot wjazdowego tylko jako uwaga – nie wpływa na drogę szlaku
+                else if (e.Semafor != null && p.Devices.FirstOrDefault(x => x.Id == e.Semafor) is UtDevice wd && wd.Dir != 0
+                    && (e == l.Konce[0] ? d.Kawalki[0] : d.Kawalki[^1]) is var k && k.Track == wd.Track && k.S1 - k.S0 > 0.05
+                    && (Math.Abs(k.S0 - wd.S) < 0.05) == (wd.Dir > 0))
+                    res.Add((false, $"{nm}: semafor wjazdowy {wd.Name} zwrócony w stronę szlaku – działa dla jazdy z posterunku na szlak", wd.Track, wd.S, l.Id));
                 if (e.Semafor == null && p.Tracks.FirstOrDefault(x => x.Id == e.Track) is UtTrack t && !(e.AtStart ? t.OpenStart : t.OpenEnd))
                     res.Add((false, $"{nm}: koniec {Opis(p, e)} nie jest zaznaczony jako granica obszaru", e.Track, 0, l.Id));
                 if (e.Semafor == null && e.Sasiad.Length == 0) res.Add((false, $"{nm}: na końcu {Opis(p, e)} brak nazwy posterunku sąsiedniego", e.Track, 0, l.Id));
