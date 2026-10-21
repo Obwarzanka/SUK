@@ -79,7 +79,14 @@ public partial class UtView
         {
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(p); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
-            foreach (var q in new[] { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) })
+            var pts = new List<Point> { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) };
+            // sygnalizator: cały rząd komór (wiszący na bramce – od belki, na maszcie – za masztem), żeby chwycić go za dowolną komorę
+            if (Urzadzenia.Sygnalizator(d))
+            {
+                double len = d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik ? HangingLen(d) + 3 : 5 + 2 * UtDevice.ParseLights(d.LightsOrDefault).Count;
+                for (double x = 1; x <= len; x += 1) pts.Add(b + n * (2.4 * k) + dd * (x * k));
+            }
+            foreach (var q in pts)
             { double dist = (q - s).Length; if (dist < bd) { bd = dist; best = d.Id; } }
         }
         return best;
