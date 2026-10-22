@@ -350,12 +350,37 @@ public partial class KomputerZaleznosci
             if (d.Type == "odstepowy")
             {
                 var bs = Blocks[d.Szlak];
-                var ahead = Forward(d.Node, d.Dir, null).FirstOrDefault();
-                bool free = ahead != null && !SecOcc(L.Edges[ahead.Edge].Sec);
+                var odst = OdstepSecs(n);
+                bool free = odst.Count > 0 && !odst.Any(SecOcc);
                 s.Dark = bs.Dir != d.Dir || bs.AzkUntil != null;
                 s.Aspect = !s.Dark && free && bs.ReleaseUntil == null ? Aspect.Train : Aspect.Stop;
             }
         }
+    }
+
+    readonly Dictionary<string, List<string>> odstepCache = new();
+    /// <summary>
+    /// Odcinki odstępu blokowego osłanianego semaforem odstępowym (Ie-4 § 3 pkt 44, § 51 ust. 2): tor do następnego semafora
+    /// odstępowego albo wjazdowego tego kierunku, z odcinkiem, w którym ten semafor stoi. Liczone od pierwszej granicy odcinka
+    /// za semaforem – przy czujniku kilkanaście metrów za semaforem (rozmieszczenie rozproszone, § 51 ust. 17) kawałek między
+    /// semaforem a czujnikiem należy do odstępu poprzedniego. Odstęp może mieć kilka odcinków.
+    /// </summary>
+    internal List<string> OdstepSecs(string sig)
+    {
+        if (odstepCache.TryGetValue(sig, out var c)) return c;
+        var d = L.Signals[sig]; var res = new List<string>();
+        var back = Forward(d.Node, -d.Dir, null).FirstOrDefault();
+        string skip = back != null ? L.Edges[back.Edge].Sec : null, node = d.Node, from = null;
+        for (int k = 0; k < 200; k++)
+        {
+            var nx = Forward(node, d.Dir, from).FirstOrDefault(); if (nx == null) break;
+            var sec = L.Edges[nx.Edge].Sec;
+            if (sec != skip) { skip = null; if (!res.Contains(sec)) res.Add(sec); }
+            node = L.Other(nx.Edge, node); from = nx.Edge;
+            if (L.Nodes[node].Signals.Any(x => L.Signals[x].Dir == d.Dir && L.Signals[x].Type is "odstepowy" or "wjazdowy")) break;
+        }
+        if (res.Count == 0 && skip != null) res.Add(skip);     // brak granicy do następnego semafora – cały odcinek
+        return odstepCache[sig] = res;
     }
 
     readonly Dictionary<string, string> nextSigCache = new();
