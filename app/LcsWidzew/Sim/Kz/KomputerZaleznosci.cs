@@ -58,14 +58,26 @@ public partial class KomputerZaleznosci
             if (s.Type is not ("wjazdowy" or "wyjazdowy" or "tm")) continue;
             RouteTable[s.Name] = ApplyRules(RawRoutes(s.Name)).Where(r => !r.Off).ToList();
         }
+        // przebiegi z projektu, których nie ma w układzie (np. po zmianie UT) – uwaga, przebieg pominięty
+        BrakujacePrzebiegi = L.Przebiegi == null ? new() : L.Przebiegi
+            .Where(q => !(RouteTable.TryGetValue(q.Start, out var l) && l.Any(r => r.Type == q.Type && r.End == q.End && r.SwKey == q.Sw)))
+            .Select(q => $"{q.Type} {Station.Lbl(q.Start)}→{Station.Lbl(q.End)}" + (q.Sw.Length > 0 ? $" ({string.Join(" ", q.Sw.Split(' ').Select(Station.Lbl))})" : "")).ToList();
+        foreach (var b in BrakujacePrzebiegi) Remark($"Przebieg z projektu {b} – brak w układzie, pominięty");
         // ten sam opis przebiegu na kilku posterunkach obszaru (np. „P A→C1” na obu stacjach LCS) – z kodem posterunku,
         // żeby dziennik, tablica przebiegów i podgląd KZ je rozróżniały; opisy niepowtarzalne bez zmian
         foreach (var g in RouteTable.Values.SelectMany(x => x).GroupBy(r => r.Id).Where(g => g.Select(r => L.Signals[r.Start].Post).Distinct().Count() > 1))
             foreach (var r in g) r.Id += $" ({L.Signals[r.Start].Post})";
     }
 
+    /// <summary>Przebiegi z projektu (<see cref="Station.Przebiegi"/>), których nie da się poprowadzić w układzie – pominięte w tablicy.</summary>
+    public List<string> BrakujacePrzebiegi = new();
+
+    /// <summary>Przebieg z tablicy pasuje do reguły (start, koniec, rodzaj, położenia zwrotnic).</summary>
+    static bool Pasuje(RouteRule q, RouteDef r) => q.Start == r.Start && q.End == r.End && q.Type == r.Type && (q.Sw ?? "") == r.SwKey;
+
     /// <summary>
-    /// Reguły z edytora: przebieg wyłączony (off) albo wskazany jako zasadniczy (basic) – staje się wariantem 0,
+    /// Przebiegi zaprojektowane w edytorze zobrazowania (<see cref="Station.Przebiegi"/>): w tablicy tylko one, zasadniczy z projektu.
+    /// Bez projektu – reguły z edytora: przebieg wyłączony (off) albo wskazany jako zasadniczy (basic) – staje się wariantem 0,
     /// pozostałe są wariantami 1, 2, … (Ie-104: przebieg zasadniczy i przebiegi wariantowe).
     /// </summary>
     public List<RouteDef> ApplyRules(List<RouteDef> raw)
@@ -76,14 +88,14 @@ public partial class KomputerZaleznosci
             var list = grp.OrderBy(r => r.Variant).ToList();
             foreach (var r in list)
             {
-                r.Off = L.RouteRules.Any(q => q.Off && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey);
+                r.Off = L.Przebiegi != null ? !L.Przebiegi.Any(q => Pasuje(q, r)) : L.RouteRules.Any(q => q.Off && Pasuje(q, r));
                 // prędkość ustalona przez projektanta: zależności specjalne (wpis dla wariantu przed wpisem dla wszystkich wariantów), potem routeRules z pliku układu
                 var zv = r.Type == "P" ? L.Zal.Dla(r.Type, r.Start, r.End, r.SwKey).Where(z => z.V > 0).OrderBy(z => string.IsNullOrEmpty(z.Sw)).FirstOrDefault()?.V ?? 0 : 0;
-                r.VSet = zv > 0 ? zv : L.RouteRules.FirstOrDefault(q => q.VMax > 0 && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey)?.VMax ?? 0;
+                r.VSet = zv > 0 ? zv : (L.Przebiegi ?? L.RouteRules).FirstOrDefault(q => q.VMax > 0 && Pasuje(q, r))?.VMax ?? 0;
                 r.VCalc = RouteSpeed(r);
                 ApplySpecial(r);
             }
-            var basic = list.FirstOrDefault(r => !r.Off && L.RouteRules.Any(q => q.Basic && q.Start == r.Start && q.End == r.End && q.Type == r.Type && q.Sw == r.SwKey));
+            var basic = list.FirstOrDefault(r => !r.Off && (L.Przebiegi ?? L.RouteRules).Any(q => q.Basic && Pasuje(q, r)));
             if (basic != null) { list.Remove(basic); list.Insert(0, basic); }
             int v = 0;
             foreach (var r in list)
@@ -111,11 +123,16 @@ public partial class KomputerZaleznosci
         return v >= 1e4 ? 60 : v;
     }
 
-    /// <summary>Wszystkie przebiegi od sygnalizatora wyznaczone z topologii (do 6 wariantów na koniec), bez reguł edytora.</summary>
+    /// <summary>
+    /// Przebiegi od sygnalizatora wyznaczone z topologii (do 6 wariantów na koniec), bez reguł edytora. Przy projekcie przebiegów
+    /// (<see cref="Station.Przebiegi"/>) tylko przez położenia zwrotnic użyte w przebiegach z tego sygnalizatora i bez limitu wariantów.
+    /// </summary>
     public List<RouteDef> RawRoutes(string sigName)
     {
         var s = L.Signals[sigName];
         var all = new List<RouteDef>();
+        var proj = L.Przebiegi?.Where(q => q.Start == sigName).SelectMany(q => (q.Sw ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToHashSet();
+        if (proj != null && !L.Przebiegi.Any(q => q.Start == sigName)) return all;
         {
             foreach (var type in new[] { "P", "M" })
             {
@@ -130,6 +147,7 @@ public partial class KomputerZaleznosci
                     {
                         // rozjazd krzyżowy pojedynczy: bez jazdy przez brakujący przejazd
                         if (L.NoPass.Count > 0 && L.NoPass.Any(p => p.A == o.Edge && edges.Contains(p.B) || p.B == o.Edge && edges.Contains(p.A))) continue;
+                        if (proj != null && o.Num != null && !proj.Contains(o.Num + o.Pos)) continue;
                         var e2 = new List<string>(edges) { o.Edge };
                         var r2 = o.Num != null ? new List<(string, string)>(reqs) { (o.Num, o.Pos) } : reqs;
                         var nn = L.Other(o.Edge, nid);
@@ -183,7 +201,7 @@ public partial class KomputerZaleznosci
                             if (nx.Count > 0) rd.Overlap = L.Edges[nx[0].Edge].Sec;
                         }
                         all.Add(rd);
-                        if (v >= 6) break;
+                        if (v >= 6 && proj == null) break;
                     }
                 }
             }

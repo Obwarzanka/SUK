@@ -253,6 +253,11 @@ public class Station
     public List<(string Sec, double X, double Y)> SecLabels = new();
     public string SecLabelsMode = "nazadanie";
     public List<RouteRule> RouteRules = new();
+    /// <summary>
+    /// Przebiegi zaprojektowane w edytorze zobrazowania (pole „przebiegi”, etap 3): w tablicy tylko one – start, koniec, rodzaj,
+    /// położenia zwrotnic (Sw – jak <c>RouteDef.SwKey</c>), Basic – przebieg zasadniczy. Null – plik bez projektu, przebiegi z topologii jak dotąd.
+    /// </summary>
+    public List<RouteRule> Przebiegi;
     /// <summary>Zależności specjalne przebiegów z pliku &lt;układ&gt;.zaleznosci.json (projektuje człowiek).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Zaleznosci Zal = new();
     public double Width = 2000, Height = 1125;
@@ -536,6 +541,10 @@ public class Station
             foreach (var p in rr.EnumerateArray())
                 st.RouteRules.Add(new RouteRule { Start = S(p, "start"), End = S(p, "end"), Type = S(p, "type"), Sw = S(p, "sw", ""), Off = p.TryGetProperty("off", out var of) && of.GetBoolean(), Basic = p.TryGetProperty("basic", out var bs) && bs.GetBoolean(),
                     VMax = p.TryGetProperty("vmax", out var rv) && rv.ValueKind == JsonValueKind.Number ? rv.GetDouble() : 0 });
+        if (r.TryGetProperty("przebiegi", out var pz) && pz.ValueKind == JsonValueKind.Array)
+            st.Przebiegi = pz.EnumerateArray().Select(p => new RouteRule { Start = S(p, "start"), End = S(p, "end"), Type = S(p, "type", "P"), Sw = S(p, "sw", ""), Basic = p.TryGetProperty("basic", out var bs) && bs.GetBoolean(),
+                    VMax = p.TryGetProperty("v", out var pv) && pv.ValueKind == JsonValueKind.Number ? pv.GetDouble() : 0 })
+                .Where(p => p.Start != null && p.End != null).ToList();
         if (st.Pages.Count == 0) st.Pages.Add(new PageDef { Id = "ALL", Name = st.Name, X0 = -1e9, X1 = 1e9 });
         st.Sanitize();
         st.Finalize();
