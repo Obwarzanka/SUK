@@ -65,6 +65,57 @@ sym('rkp', 'Rozjazd pojedynczy krzyżowy', 'zał. 8, s. 22', ANCH_RK,
 sym('st', 'Skrzyżowanie torów kolejowych', 'zał. 8, s. 24', ANCH_RK,
     [center] + ends('', '', True, True) + [nr_rk])
 
+# Obiekty inżynieryjne (Ig-10 zał. 8 s. 41–44, 63; PLAN_EDYTOR_UT.md § 5m). Tabelki podają tylko grubość linii 0,18 mm i kreskowanie
+# (kreska 1 mm, odstęp 1 mm); bok 3 mm od osi, skrzydełka 7 × 3 mm itd. odczytane z rysunków (UtView.Wym). Edytor rysuje je po osi toru
+# między km od–do (wzdłuż) albo wzdłuż osi przeszkody (poprzeczne) – tu podgląd na odcinku 20 mm.
+def dashed(x0, y0, x1, y1, a=1.0, b=1.0):
+    import math
+    L = math.hypot(x1 - x0, y1 - y0); res, t = [], 0.0
+    while t < L - 1e-9:
+        e = min(L, t + a); res.append(line((x0 + (x1 - x0) * t / L, y0 + (y1 - y0) * t / L), (x0 + (x1 - x0) * e / L, y0 + (y1 - y0) * e / L))); t = e + b
+    return res
+OL, BOK, SD, SO = 20.0, 3.0, 7.0, 3.0
+def wings(x0, x1, h, dl, od):
+    return [line((x0, h), (x0 - dl, h + od)), line((x0, -h), (x0 - dl, -h - od)), line((x1, h), (x1 + dl, h + od)), line((x1, -h), (x1 + dl, -h - od))]
+axis = line((-10, 0), (OL + 10, 0))
+ANCH_OW = 'obiekt wzdłuż toru: x – km od (0) do km do (tu 20 mm), y – w poprzek osi toru; boki ±3 mm od osi (przy kilku torach – od skrajnych)'
+ANCH_OP = 'obiekt poprzeczny: oś przeszkody pionowo (x = 0 – oś toru); tu tor poziomo, przeszkoda ±10 mm'
+sym('ob_most', 'Most', 'zał. 8, s. 41', ANCH_OW,
+    [axis, line((0, BOK), (OL, BOK)), line((0, -BOK), (OL, -BOK)), line((0, BOK), (0, -BOK)), line((OL, BOK), (OL, -BOK))] + wings(0, OL, BOK, SD, SO))
+sym('ob_tunel', 'Linia kolejowa w tunelu', 'zał. 8, s. 42', ANCH_OW,
+    [line((-10, 0), (0, 0)), line((OL, 0), (OL + 10, 0))] + dashed(0, 0, OL, 0) + dashed(0, BOK, OL, BOK) + dashed(0, -BOK, OL, -BOK) +
+    [line((0, BOK), (0, -BOK)), line((OL, BOK), (OL, -BOK))] + wings(0, OL, BOK, SD, SO))
+W5, WD, WO = 5.0, 3.4, 1.4
+def wiad(x0, x1):
+    return [line((x0, W5), (x1, W5)), line((x0, -W5), (x1, -W5)), line((x0, W5), (x0, -W5)), line((x1, W5), (x1, -W5)),
+            line((x0, W5), (x0 - WO, W5 + WD)), line((x0, -W5), (x0 - WO, -W5 - WD)), line((x1, W5), (x1 + WO, W5 + WD)), line((x1, -W5), (x1 + WO, -W5 - WD))]
+sym('ob_wiadukt', 'Wiadukt kolejowy nad drogą (linia kolejowa w poziomie górnym)', 'zał. 8, s. 43', ANCH_OW + '; krawędzie drogi kreskowane',
+    [axis] + wiad(6, 14) + dashed(7, -9, 7, 9) + dashed(13, -9, 13, 9))
+sym('ob_wiadukt_tor', 'Skrzyżowanie dwóch torów w różnych poziomach (wiadukt nad torem)', 'zał. 8, s. 44', ANCH_OW + '; tor dolny przerywany pod obiektem',
+    [line((-10, 0), (OL + 10, 0), w=0.5)] + wiad(6, 14) + [line((10, -12), (10, -W5))] + dashed(10, -W5, 10, W5) + [line((10, W5), (10, 12))])
+sym('ob_wiadukt_drog', 'Wiadukt drogowy nad torami (linia kolejowa w poziomie dolnym)', 'zał. 8, s. 44', ANCH_OP + '; tor pod obiektem przerywany',
+    [line((-10, 0), (-3.5, 0)), line((3.5, 0), (10, 0))] + dashed(-3.5, 0, 3.5, 0) +
+    [line((-3.5, -5.3), (3.5, -5.3)), line((-3.5, 5.3), (3.5, 5.3)), line((-3.5, -5.3), (-3.5, 5.3)), line((3.5, -5.3), (3.5, 5.3)),
+     line((-3.5, 5.3), (-4.9, 8.7)), line((3.5, 5.3), (4.9, 8.7)), line((-3.5, -5.3), (-4.9, -8.7)), line((3.5, -5.3), (4.9, -8.7))] +
+    dashed(-2.5, -10, -2.5, 10) + dashed(2.5, -10, 2.5, 10))
+def tpod(name, ig, extra=()):
+    return [line((-10, 0), (10, 0))] + dashed(-BOK, -10, -BOK, 10) + dashed(BOK, -10, BOK, 10) + [line((-BOK, -10), (BOK, -10)), line((-BOK, 10), (BOK, 10)),
+            line((-BOK, 10), (-BOK - SO, 10 + SD)), line((BOK, 10), (BOK + SO, 10 + SD)), line((-BOK, -10), (-BOK - SO, -10 - SD)), line((BOK, -10), (BOK + SO, -10 - SD))] + list(extra)
+sym('ob_tunel_pod', 'Tunel pod linią kolejową', 'zał. 8, s. 43', ANCH_OP, tpod('', ''))
+sym('ob_przejscie_pod', 'Przejście piesze pod torami kolejowymi', 'zał. 8, s. 42', ANCH_OP, tpod('', ''))
+sym('ob_przepust', 'Przepust', 'zał. 8, s. 43', ANCH_OP,
+    [line((-10, 0), (10, 0))] + dashed(0, -7, 0, 7) + [line((0, 7), (-3, 8.5)), line((0, 7), (3, 8.5)), line((0, -7), (-3, -8.5)), line((0, -7), (3, -8.5))])
+sym('ob_kladka', 'Przejście piesze nad torami kolejowymi (kładka)', 'zał. 8, s. 42', ANCH_OP,
+    [line((-10, 0), (10, 0)), line((-BOK, -10), (-BOK, 10)), line((BOK, -10), (BOK, 10)), line((-BOK, -10), (BOK, -10)), line((-BOK, 10), (BOK, 10))] +
+    [line((-BOK, y), (BOK, y)) for i in range(1, 5) for y in (-10 + 0.8 * i, 10 - 0.8 * i)])
+def mur(n):
+    res = [line((0, 3), (40, 3)), line((0, 4), (40, 4))]
+    for g in range(4):
+        for j in range(n): x = 5 + 10 * g + 0.5 * j; res.append(line((x, 3), (x + 0.5, 4)))
+    return res
+sym('ob_sciana', 'Ściana oporowa', 'zał. 8, s. 63', 'wzdłuż toru po stronie ściany, w odległości od osi z panelu; grupy 3 kresek co 10 mm', [line((-5, 0), (45, 0))] + mur(3))
+sym('ob_mur', 'Mur oporowy', 'zał. 8, s. 63', 'wzdłuż toru po stronie muru, w odległości od osi z panelu; grupy 2 kresek co 10 mm', [line((-5, 0), (45, 0))] + mur(2))
+
 out = os.path.join(os.path.dirname(__file__), '..', 'app', 'Lcs.EdytorUT', 'Dane', 'symbole_ig10.json')
 def one(x): return json.dumps(x, ensure_ascii=False, separators=(', ', ': '))
 NL = chr(10)

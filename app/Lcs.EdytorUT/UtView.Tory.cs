@@ -674,7 +674,7 @@ public partial class UtView
         var src = Dragged(t); var res = Geometry(src);
         var v = src.Vertices;
         // wielobok stycznych
-        for (int i = 1; i < v.Count; i++) dc.DrawLine(PolyPen, ToScreen(v[i - 1].P), ToScreen(v[i].P));
+        for (int i = 1; i < v.Count; i++) DashLine(dc, PolyPen, ToScreen(v[i - 1].P), ToScreen(v[i].P));
         // granice elementów (początki i końce przejściowych i łuków)
         foreach (var e in res.Elements.Where(e => e.Kind != ElKind.Prosta))
             foreach (var (p, az) in new[] { e.At(0), e.At(e.Len) })

@@ -55,6 +55,7 @@ public class ZobDocument
     {
         path = System.IO.Path.GetFullPath(path);
         var p = Deserialize(File.ReadAllText(path));
+        if (p.Version == ObrProject.Wersja) throw new InvalidDataException("To plik nowego edytora zobrazowania (wersja 2) – otwórz go w EdytorZobrazowania2.exe");
         if (p.Version != 1) throw new InvalidDataException($"Nieznana wersja pliku zobrazowania ({p.Version})");
         p.Obrazy ??= new();
         foreach (var o in p.Obrazy) Normalize(o);

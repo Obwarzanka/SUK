@@ -96,7 +96,7 @@ public class SymbolsWindow : Window
     void Build()
     {
         cards.Children.Clear();
-        src.Text = $"{Symbole.All.Count} znaków · plik: {Symbole.Source} · wymiary w mm arkusza (x – wzdłuż toru, y – w stronę odgałęzienia); podgląd 12 px/mm";
+        src.Text = $"{Symbole.All.Count} znaków · plik: {Symbole.Source} · wymiary w mm arkusza (x – wzdłuż toru, y – w stronę odgałęzienia); podgląd 12 px/mm (obiekty inżynieryjne – w skali dopasowanej do karty)";
         foreach (var s in Symbole.All)
         {
             var sp = new System.Windows.Controls.StackPanel { Width = 250, Margin = new Thickness(6) };
@@ -117,6 +117,19 @@ public class SymbolsWindow : Window
             double w = ActualWidth, h = ActualHeight, k = 12, dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
             dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, w, h));
             var track = new Pen(Brushes.Black, 0.35 * k / 2); var thin = new Pen(Brushes.Black, 1);
+            if (s.Id.StartsWith("ob_"))
+            {
+                // obiekt inżynieryjny: tor i przeszkoda są w samym znaku – podgląd w skali dopasowanej do karty (najwyżej 12 px/mm)
+                var pts = s.Prims.SelectMany(p => p.Pts ?? new()).Concat(s.Prims.Where(p => p.At != null).Select(p => p.At)).ToList();
+                if (pts.Count == 0) return;
+                double x0 = pts.Min(p => p[0]), x1 = pts.Max(p => p[0]), y0 = pts.Min(p => p[1]), y1 = pts.Max(p => p[1]);
+                double kk = Math.Min(k, Math.Min((w - 16) / Math.Max(1, x1 - x0), (h - 16) / Math.Max(1, y1 - y0)));
+                var c = new Point(w / 2 - (x0 + x1) / 2 * kk, h / 2 + (y0 + y1) / 2 * kk);
+                SymbolPainter.Draw(dc, s, c, new Vector(1, 0), -1, kk, "", dpi);
+                var ft = new FormattedText($"{kk:0.#} px/mm", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 10, Brushes.Gray, dpi);
+                dc.DrawText(ft, new Point(w - ft.Width - 4, h - ft.Height - 2));
+                return;
+            }
             bool cross = s.Id.StartsWith("rk") || s.Id == "st";
             var a = cross ? new Point(w / 2, h / 2 + 8) : new Point(w * 0.35, h * 0.62);
             dc.DrawLine(track, new Point(6, a.Y), new Point(w - 6, a.Y));

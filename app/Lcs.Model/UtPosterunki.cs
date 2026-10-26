@@ -48,13 +48,18 @@ public class UtLine
     public bool Samoczynna => Typ is Sbl or Sbl1;
 }
 
-/// <summary>Koniec szlaku: semafor wjazdowy (<see cref="Semafor"/>) albo koniec toru na granicy obszaru (<see cref="Track"/> + <see cref="AtStart"/>).</summary>
+/// <summary>
+/// Koniec szlaku: semafor wjazdowy (<see cref="Semafor"/>), miejsce na torze (<see cref="Track"/> + <see cref="S"/>) albo koniec toru
+/// na granicy obszaru (<see cref="Track"/> + <see cref="AtStart"/>).
+/// </summary>
 public class UtLineEnd
 {
-    /// <summary>Semafor wjazdowy posterunku na końcu szlaku (id urządzenia); null – koniec toru na granicy obszaru.</summary>
+    /// <summary>Semafor wjazdowy posterunku na końcu szlaku (id urządzenia); null – miejsce albo koniec toru na granicy obszaru.</summary>
     public string Semafor { get; set; }
     public string Track { get; set; }
     public bool AtStart { get; set; }
+    /// <summary>Miejsce na torze [m od początku toru] – koniec szlaku w środku toru (granica obszaru); null – koniec toru (<see cref="AtStart"/>).</summary>
+    public double? S { get; set; }
     /// <summary>Posterunek sąsiedni spoza obszaru (koniec na granicy obszaru), np. „Łódź Andrzejów”.</summary>
     public string Sasiad { get; set; } = "";
     /// <summary>Oznaczenie końca szlaku na pulpicie (np. „1A”, „1G”) – puste: numer szlaku.</summary>
@@ -86,7 +91,23 @@ public static class Szlaki
             return d == null ? "semafor (usunięty)" : $"semafor {d.Name}" + (post != null ? $" ({post.Kod})" : "");
         }
         var t = p.Tracks.FirstOrDefault(x => x.Id == e.Track);
-        return $"{(e.AtStart ? "początek" : "koniec")} toru {(t?.Number.Length > 0 ? t.Number : "?")}" + (e.Sasiad.Length > 0 ? $" – {e.Sasiad}" : " – granica obszaru");
+        var nr = t?.Number.Length > 0 ? t.Number : "?";
+        return (e.S is double s ? $"tor {nr} km {s:0} m" : $"{(e.AtStart ? "początek" : "koniec")} toru {nr}") + (e.Sasiad.Length > 0 ? $" – {e.Sasiad}" : " – granica obszaru");
+    }
+
+    /// <summary>Koniec szlaku z miejsca na torze: przy samym końcu toru (do 1 m) – koniec toru, inaczej miejsce w środku toru.</summary>
+    public static UtLineEnd Miejsce(string track, double s, double len) =>
+        s < 1 ? new() { Track = track, AtStart = true } : s > len - 1 ? new() { Track = track, AtStart = false } : new() { Track = track, S = Math.Round(s, 2) };
+
+    /// <summary>Kierunek wzdłuż km toru końca <paramref name="i"/> w głąb drogi szlaku (+1 / −1); null – brak drogi.</summary>
+    public static int? WGlab(UtProject p, UtLine l, int i, SzlakDroga d = null)
+    {
+        d ??= Droga(p, l);
+        if (d.Err != null || d.Kawalki.Count == 0) return null;
+        var k = i == 0 ? d.Kawalki[0] : d.Kawalki[^1];
+        var r = Topologia.Routes(p);
+        if (Start(p, l.Konce[i], r) is not var (_, s, _)) return null;
+        return Math.Abs(k.S0 - s) < Math.Abs(k.S1 - s) ? 1 : -1;
     }
 
     /// <summary>
@@ -100,9 +121,11 @@ public static class Szlaki
             var d = p.Devices.FirstOrDefault(x => x.Id == e.Semafor);
             if (d == null || !r.ContainsKey(d.Track)) return null;
             int pierwszy = d.Dir == 0 ? 1 : -d.Dir;
-            return (d.Track, d.S, new[] { pierwszy, -pierwszy });
+            // semafor na samym końcu toru bywa zapisany o kilka cm za końcem (km zaokrąglony) – w obrębie toru
+            return (d.Track, Math.Clamp(d.S, 0, r[d.Track].Length), new[] { pierwszy, -pierwszy });
         }
         if (e.Track == null || !r.TryGetValue(e.Track, out var rt)) return null;
+        if (e.S is double sv) return (e.Track, Math.Clamp(sv, 0, rt.Length), new[] { 1, -1 });
         return (e.Track, e.AtStart ? 0 : rt.Length, new[] { e.AtStart ? 1 : -1 });
     }
 
@@ -119,14 +142,15 @@ public static class Szlaki
         if (Start(p, l.Konce[0], r) is not var (track, s, dirs)) return new(new(), new(), uw, $"koniec 1 ({Opis(p, l.Konce[0])}) – brak toru albo semafora");
         if (Start(p, l.Konce[1], r) is not var (bTrack, bS, _)) return new(new(), new(), uw, $"koniec 2 ({Opis(p, l.Konce[1])}) – brak toru albo semafora");
         styki ??= Topologia.Styki(p, r);
-        List<SzlakKawalek> best = null; List<string> bestUw = null; string err = null;
+        List<SzlakKawalek> best = null; List<string> bestUw = null; var errs = new List<string>();
         foreach (var dir in dirs)
         {
             var res = new List<SzlakKawalek>(); var u = new List<string>(); string e = null; int kroki = 0;
-            if (!Szukaj(p, r, styki, track, s, dir, bTrack, bS, res, u, new HashSet<string>(), ref e, ref kroki)) { err ??= e; continue; }
+            if (!Szukaj(p, r, styki, track, s, dir, bTrack, bS, res, u, new HashSet<string>(), ref e, ref kroki)) { if (e != null && !errs.Contains(e)) errs.Add(e); continue; }
             if (best == null || res.Sum(k => k.S1 - k.S0) < best.Sum(k => k.S1 - k.S0)) { best = res; bestUw = u; }
         }
-        if (best == null) return Wynik(p, new(), uw, $"brak drogi po torach do końca 2 ({Opis(p, l.Konce[1])})" + (err != null ? $" – {err}" : ""));
+        // błąd z każdej strony szukania (z semafora – w obie strony)
+        if (best == null) return Wynik(p, new(), uw, $"brak drogi po torach do końca 2 ({Opis(p, l.Konce[1])})" + (errs.Count > 0 ? $" – {string.Join("; ", errs)}" : ""));
         return Wynik(p, best, bestUw, null);
     }
 
@@ -136,7 +160,7 @@ public static class Szlaki
     {
         if (++kroki > 2000) { err ??= "droga szlaku za długa"; return false; }
         // koniec 2 na tym torze, przed nami
-        if (track == bTrack && (dir > 0 ? bS >= s - 1e-6 : bS <= s + 1e-6)) { res.Add(new(track, Math.Min(s, bS), Math.Max(s, bS))); return true; }
+        if (track == bTrack && (dir > 0 ? bS >= s - 0.05 : bS <= s + 0.05)) { res.Add(new(track, Math.Min(s, bS), Math.Max(s, bS))); return true; }
         if (!seen.Add(track + (dir > 0 ? "+" : "-"))) { err ??= "droga szlaku zawraca w pętli"; return false; }
         double se = dir > 0 ? r[track].Length : 0;
         bool atStart = se == 0;
@@ -206,6 +230,75 @@ public static class Szlaki
         var rz = p.Turnouts.Where(z => d.Kawalki.Any(k => k.Track == z.Track && k.Contains(z.S, 0.5))).Select(z => z.Number).Distinct().ToList();
         if (rz.Count > 0) uw.Add($"na drodze szlaku {(rz.Count > 1 ? "rozjazdy" : "rozjazd")} {string.Join(", ", rz.Take(6))}{(rz.Count > 6 ? "…" : "")} – czy to na pewno szlak? Przypisz tory stacji do posterunku albo ustaw semaforom funkcję „wjazdowy”");
         return new(a, b, d, uw.Concat(d.Uwagi).Distinct().ToList(), d.Err);
+    }
+
+    /// <summary>
+    /// Szlak z zaznaczonych torów (funkcja „szlak” w panelu toru): tory muszą tworzyć jeden ciąg przez styki końców. Na każdym wolnym końcu
+    /// ciągu – semafor do 30 m od końca (na tym torze albo na torze dalej, bez odstępowych i powtarzaczy; wjazdowy najpierw), inaczej
+    /// koniec toru. FreeTrack, FreeAtStart – wolny koniec ciągu.
+    /// </summary>
+    public static (List<(UtLineEnd E, string FreeTrack, bool FreeAtStart)> Konce, string Err) ZTorow(UtProject p, IEnumerable<string> tracks, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        var T = tracks.Where(x => r.TryGetValue(x, out var rt) && rt.Elements.Count > 0).ToHashSet();
+        if (T.Count == 0) return (null, "nie zaznaczono torów");
+        var wolne = new List<(string Track, bool AtStart)>();
+        foreach (var t in T)
+            foreach (var at in new[] { true, false })
+                if (!Dalej(styki, t, at, at ? 0 : r[t].Length).Any(x => T.Contains(x.Track))) wolne.Add((t, at));
+        if (wolne.Count == 0) return (null, "zaznaczone tory tworzą pętlę");
+        // jeden ciąg: od wolnego końca przez styki dochodzi się do wszystkich torów
+        var byl = new HashSet<string> { wolne[0].Track }; var kolejka = new Queue<string>(byl);
+        while (kolejka.Count > 0)
+        {
+            var t = kolejka.Dequeue();
+            foreach (var at in new[] { true, false })
+                foreach (var n in Dalej(styki, t, at, at ? 0 : r[t].Length)) if (T.Contains(n.Track) && byl.Add(n.Track)) kolejka.Enqueue(n.Track);
+        }
+        if (wolne.Count != 2 || byl.Count != T.Count)
+            return (null, $"zaznaczone tory nie tworzą jednego ciągu (tory {string.Join(", ", T.Select(x => Nr(p, x)))}) – zaznacz tory szlaku po kolei, połączone końcami");
+        UtLineEnd Kon(string t, bool at)
+        {
+            double se = at ? 0 : r[t].Length;
+            var kand = new List<(UtDevice D, double Dist)>();
+            bool Ok(UtDevice d) => d.Kind == UtDevice.Semafor && !d.Powtarzajacy && d.Funkcja is not (UtDevice.FOdstepowy or UtDevice.FPowtarzacz);
+            kand.AddRange(p.Devices.Where(d => d.Track == t && Ok(d) && Math.Abs(d.S - se) <= 30).Select(d => (d, Math.Abs(d.S - se))));
+            foreach (var (nt, fromStart) in Dalej(styki, t, at, se).Where(x => !T.Contains(x.Track)))
+            {
+                double ne = fromStart ? 0 : r[nt].Length;
+                kand.AddRange(p.Devices.Where(d => d.Track == nt && Ok(d) && Math.Abs(d.S - ne) <= 30).Select(d => (d, Math.Abs(d.S - ne))));
+            }
+            var best = kand.OrderBy(x => x.D.Funkcja == UtDevice.FWjazdowy ? 0 : 1).ThenBy(x => x.Dist).FirstOrDefault().D;
+            return best != null ? new UtLineEnd { Semafor = best.Id } : new UtLineEnd { Track = t, AtStart = at };
+        }
+        return (wolne.Select(w => (Kon(w.Track, w.AtStart), w.Track, w.AtStart)).ToList(), null);
+    }
+
+    /// <summary>
+    /// Szlak <paramref name="l"/> rozszerzony o tory <paramref name="nowe"/>: ciąg z torów drogi i nowych (<see cref="ZTorow"/>), dawny koniec
+    /// zostaje, gdy ciąg kończy się za nim na jego torze. Wynik – nowe końce (w kolejności dawnych) albo błąd.
+    /// </summary>
+    public static (List<UtLineEnd> Konce, string Err) Rozszerz(UtProject p, UtLine l, IEnumerable<string> nowe, Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        var d = Droga(p, l, r, styki);
+        var stare = d.Err == null && d.Kawalki.Count > 0 ? d.Kawalki.Select(k => k.Track).ToList() : new();
+        var (kon, err) = ZTorow(p, stare.Concat(nowe), r, styki);
+        if (err != null) return (null, err);
+        // dawny koniec zostaje, gdy za nim (na zewnątrz drogi) koniec jego toru jest nadal wolnym końcem ciągu
+        var res = kon.Select(k => k.E).ToList(); var uzyte = new bool[2]; int[] gdzie = { -1, -1 };
+        if (stare.Count > 0)
+            for (int i = 0; i < 2; i++)
+            {
+                var tor = i == 0 ? d.Kawalki[0].Track : d.Kawalki[^1].Track;
+                if (WGlab(p, l, i, d) is not int wg) continue;
+                bool naPoczatku = -wg < 0;
+                int j = Enumerable.Range(0, 2).FirstOrDefault(x => !uzyte[x] && kon[x].FreeTrack == tor && kon[x].FreeAtStart == naPoczatku, -1);
+                if (j >= 0) { res[j] = l.Konce[i]; uzyte[j] = true; gdzie[i] = j; }
+            }
+        // kolejność jak dawniej (koniec 1 – przy dawnym końcu 1)
+        if (gdzie[0] == 1 || gdzie[1] == 0) res.Reverse();
+        return (res, null);
     }
 
     static UtLineEnd Idz(UtProject p, string track, double s, int dir, Dictionary<string, TrasaResult> r, List<Styk> styki, List<string> uw, out string err)
@@ -332,7 +425,7 @@ public static class Szlaki
                     && (e == l.Konce[0] ? d.Kawalki[0] : d.Kawalki[^1]) is var k && k.Track == wd.Track && k.S1 - k.S0 > 0.05
                     && (Math.Abs(k.S0 - wd.S) < 0.05) == (wd.Dir > 0))
                     res.Add((false, $"{nm}: semafor wjazdowy {wd.Name} zwrócony w stronę szlaku – działa dla jazdy z posterunku na szlak", wd.Track, wd.S, l.Id));
-                if (e.Semafor == null && p.Tracks.FirstOrDefault(x => x.Id == e.Track) is UtTrack t && !(e.AtStart ? t.OpenStart : t.OpenEnd))
+                if (e.Semafor == null && e.S == null && p.Tracks.FirstOrDefault(x => x.Id == e.Track) is UtTrack t && !(e.AtStart ? t.OpenStart : t.OpenEnd))
                     res.Add((false, $"{nm}: koniec {Opis(p, e)} nie jest zaznaczony jako granica obszaru", e.Track, 0, l.Id));
                 if (e.Semafor == null && e.Sasiad.Length == 0) res.Add((false, $"{nm}: na końcu {Opis(p, e)} brak nazwy posterunku sąsiedniego", e.Track, 0, l.Id));
             }

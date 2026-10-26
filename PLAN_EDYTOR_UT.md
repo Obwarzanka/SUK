@@ -16,7 +16,7 @@ Kolejność: **edytor UT → edytor zobrazowania → przekazywanie danych z UT d
 
 **Aktualizacja techniczna 2026-10-18:** `uruchom_edytor_ut.bat` korzysta ze wspólnego launchera i SDK zgodnego z `app/global.json` (SDK 10.0.402; obsługiwana lokalna kopia `.tools/dotnet`). Przy błędzie budowania terminal pozostaje otwarty. Edytor i model UT nadal mają dotychczasowe cele .NET 8; zakres etapów UT i ustalenia geometrii nie zmieniają się. Wyniki bieżącej regresji w raporcie `SUK_plan_multiplayer/raporty/S01.01_audyt_2026-10-18.md`.
 
-**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7, 9 i 10 zrobione, krok 8 odłożony; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7). **2026-10-18:** etap Z0 (funkcja semafora, posterunki, szlaki w UT) zrobiony – `PLAN_EDYTOR_ZOBRAZOWANIA.md`.  **2026-10-19:** zmiana numeru wstawionego rozjazdu (menu PPM, w łączniku oba numery naraz; zajęty numer – zamiana po potwierdzeniu; wpis w polu przyjmowany przed zapisem, cofnięciem i zamknięciem); etap 9 – rozjazdy krzyżowe, pochylenia i przycisk „Opisy” na pulpicie. Projekt testowy „LCS testowe” (dwie stacje, Rkpd / Rkp, szlak wewnętrzny) – `projekty_ut/lcs_testowe/`. Tarcze ostrzegawcze i powtarzacze: pole „Powtarza” w UT (z „Zaproponuj”), w symulatorze `repeats`. Semafor: W21 „świetlny” albo tablica, pasy i W21 eksportowane do symulatora (`stripes`, `w21`) – dobór sygnału do prędkości przebiegu. Edytor zobrazowania: „Kopiuj obraz”. Łączenie bramek i masztów na wysięgniku we wspólną konstrukcję (panel urządzenia, menu PPM); bramka nad 1 albo 2 torami, na 1 albo 2 słupach. **2026-10-21:** montaż rozjazdów na łuku samoczynny i „Napraw tory i łuki” (§ 5i); poprawiony promień toru zwrotnego rozjazdu łukowego i km obiektów po zmianie łuku.
+**Stan (2026-10-17):** etapy 0–7 zrobione (skrót w `ROZWOJ.md`, etap 1, szczegóły w `HISTORIA_EDYTOR_UT.md`): podkłady, tory, rozjazdy (też łukowe i krzyżowe), urządzenia, odcinki kontroli niezajętości, W4 / W5, perony, przejazdy, kilometraż, profil z NMT, „Sprawdź”, warstwy, wydruk w skali (§ 5f). Pytania 11–15 rozstrzygnięte (§ 7). Następny: karty urządzeń w symulatorze (`PODZIAL_MODULOW.md` kroki 5–7, 9 i 10 zrobione, krok 8 odłożony; decyzja właściciela 2026-10-17), potem etap 8 – edytor zobrazowania (§ 7). **2026-10-18:** etap Z0 (funkcja semafora, posterunki, szlaki w UT) zrobiony – `PLAN_EDYTOR_ZOBRAZOWANIA.md`.  **2026-10-19:** zmiana numeru wstawionego rozjazdu (menu PPM, w łączniku oba numery naraz; zajęty numer – zamiana po potwierdzeniu; wpis w polu przyjmowany przed zapisem, cofnięciem i zamknięciem); etap 9 – rozjazdy krzyżowe, pochylenia i przycisk „Opisy” na pulpicie. Projekt testowy „LCS testowe” (dwie stacje, Rkpd / Rkp, szlak wewnętrzny) – `projekty_ut/lcs_testowe/`. Tarcze ostrzegawcze i powtarzacze: pole „Powtarza” w UT (z „Zaproponuj”), w symulatorze `repeats`. Semafor: W21 „świetlny” albo tablica, pasy i W21 eksportowane do symulatora (`stripes`, `w21`) – dobór sygnału do prędkości przebiegu. Edytor zobrazowania: „Kopiuj obraz”. Łączenie bramek i masztów na wysięgniku we wspólną konstrukcję (panel urządzenia, menu PPM); bramka nad 1 albo 2 torami, na 1 albo 2 słupach. **2026-10-21:** montaż rozjazdów na łuku samoczynny i „Napraw tory i łuki” (§ 5i); poprawiony promień toru zwrotnego rozjazdu łukowego i km obiektów po zmianie łuku. **2026-10-22:** obiekty inżynieryjne (§ 5m) – mosty, wiadukty, tunele, przepusty, przejścia, ściany i mury oporowe.
 
 ---
 
@@ -205,6 +205,46 @@ Cel: łuk policzyć bez rysowania go najpierw ręcznie. OpenRailwayMap pokazuje 
 2. **Narzędzie Szlak (B):** kursor na torze szlaku – podgląd (`Szlaki.Proponuj`): od kursora w obie strony po torach do pierwszego semafora wjazdowego działającego ze szlaku do posterunku albo do końca toru bez dalszego połączenia (granica obszaru); droga zielonym pasem, oba końce opisane, semafory odstępowe w ramkach, długość na pasku stanu; klik – szlak. Kursor w obrębie posterunku (za semaforem wjazdowym albo na torze stacyjnym bez wyjścia na szlak) – podgląd z błędem, klik nic nie tworzy. Szlak nie wchodzi na tory innego posterunku: kończy się na ostatnim semaforze w stronę stacji przed granicą (funkcja inna niż wjazdowy – uwaga). Klik na torze istniejącego szlaku – zaznacza go. Ctrl + klik – końce ręcznie, z podglądem drogi do końca pod kursorem; zwrot semaforów i kolejność końców bez znaczenia (droga szukana w obie strony, poprawka 2026-10-21), zwrot wjazdowego – tylko uwaga w „Sprawdź”.
 3. **Droga przez styk kilku torów:** zamiast błędu „niejednoznaczna” – tor najbardziej na wprost, z uwagą.
 
+## 5k. Szlak OD – DO i „Należy do: szlak” w panelu toru (propozycja właściciela 2026-10-21: „zaznaczenie od do i funkcja SZLAK”, wybrane „oba naraz”)
+
+**Stan: zrobione (2026-10-21); szczegóły w `HISTORIA_EDYTOR_UT.md`.** Zastępuje sposób wskazywania z § 5j pkt 2 (propozycja z toru jest teraz pod Ctrl).
+
+1. **Narzędzie Szlak (B) – OD i DO:** klik – OD (semafor, koniec toru do 14 px albo dowolne miejsce toru), klik – DO; między klikami podgląd drogi do miejsca pod kursorem. Droga szukana w obie strony od końców, zwrot semaforów bez znaczenia. Klik w środku istniejącego szlaku zaznacza go. Ctrl + klik na torze – propozycja całego szlaku jak w § 5j (końce same).
+2. **Koniec w środku toru:** `UtLineEnd.S` – koniec szlaku w dowolnym miejscu toru (granica obszaru w środku toru); do symulatora jako węzeł `far` w tym miejscu.
+3. **„Należy do” w panelu toru i zaznaczenia:** posterunek albo szlak (lista posterunków, szlaków, „+ nowy posterunek…”, „+ nowy szlak z tych torów…”). Szlak z torów (`Szlaki.ZTorow`): tory muszą tworzyć jeden ciąg przez styki końców; na wolnym końcu ciągu – semafor do 30 m od końca (wjazdowy najpierw, bez odstępowych i powtarzaczy), inaczej koniec toru. Tory do istniejącego szlaku (`Szlaki.Rozszerz`): ciąg z torów drogi i nowych, dawny koniec zostaje, gdy za nim jego tor nadal kończy ciąg. Tory szlaku tracą posterunek. Posterunek dla toru na drodze szlaku – droga się nie zmienia (komunikat).
+
+## 5l. Kilometraż ze słupków OSM, osie kilometracji wg linii (propozycja przyjęta przez właściciela 2026-10-21: „to jako jedna oś kilometracji, w przypadku innych linii kolejna oś”)
+
+**Stan: zrobione (2026-10-21); szczegóły w `HISTORIA_EDYTOR_UT.md`.**
+
+1. **Słupki z OSM** (`railway=milestone`, km z `railway:position:exact` albo `railway:position`) w widoku i do 1,5 km dookoła; numer linii z najbliższego toru OSM z `ref` (do 60 m), bo słupek go nie ma. Zapasowy serwer Overpass przy przeciążeniu.
+2. **Oś kilometracji = linia:** słupki jednej linii idą na jeden tor projektu – ten, przy którym stoi ich najwięcej (do 25 m od osi); inna linia – osobna oś. Kierunek wzrostu km z sąsiedniego słupka na tej osi albo ze słupka spoza projektu; bez sąsiada – uwaga „kierunek do sprawdzenia”.
+3. **Tylko propozycje:** panel w narzędziu km – „Szukaj słupków km w widoku”, lista osi i punktów (uwagi: położenie szacowane – `source=interpolation`, brak numeru linii), zaznaczenie punktów albo całej osi, „Dodaj zaznaczone” – jeden krok cofania. Słupki, których km tej linii już jest w projekcie, są pomijane.
+4. **Ograniczenie danych:** przy Łodzi Widzewie (stan OSM 2026-07) wszystkie słupki są pełnymi kilometrami z położeniem szacowanym – punkt z OSM trzeba sprawdzić na zdjęciu albo planie.
+
+## 5m. Obiekty inżynieryjne: mosty, wiadukty, tunele, przepusty (zlecenie właściciela 2026-10-22: „dodaj obiekty inżynieryjne do UT wg propozycji – km od–do na torze, rodzaj, profil bez NMT na obiekcie, rysunek”)
+
+**Stan: zrobione (2026-10-22); szczegóły w `HISTORIA_EDYTOR_UT.md`; wymiary znaków zaakceptowane przez właściciela 2026-10-22 (zrzuty `zrzuty/EdytorUT_obiekty_*.png`).** Plan zaakceptowany, odpowiedzi właściciela 2026-10-22 (§ 6, pyt. 17–20): obiekt na jednym albo na kilku torach – oba sposoby (projektant wybiera); na razie tylko UT, bez symulatora i zobrazowania; urządzenia i rozjazdy na obiekcie bez uwag; wymiary znaków odczytane z rysunku Ig-10 i pokazane na zrzucie do akceptacji.** Podstawa: Ig-10 § 4 ust. 1 pkt 15a (mosty, wiadukty, tunele, przepusty, ściany i mury oporowe, przejścia i kładki na planie), pkt 20 (km mostów, wiaduktów, przepustów), zał. 8 (znaki). Zał. 4 wyłącza je z wykazu budynków i budowli, więc są tylko na planie, z km.
+
+1. **Model (`Lcs.Model`, nowy `UtObiekt`):** id, rodzaj, tor, położenie na torze jak peron (odległość od początku toru, km liczony z osi), nazwa albo numer obiektu, co przekracza (np. „ul. …”, „rz. …”, „linia nr …”), uwagi. Dwa typy położenia:
+   - **wzdłuż toru – km od–do:** most, wiadukt kolejowy, linia w tunelu, ściana / mur oporowy (z dodatkiem: strona toru);
+   - **poprzeczny – jeden km i szerokość:** przepust, tunel pod linią, przejście piesze pod / nad torami, wiadukt drogowy nad torami, kładka.
+   Obiekt idzie z torem przy przesunięciu i przy zmianie łuku (`Naprawa.Reanchor`, jak inne obiekty z km).
+2. **Rodzaje i znaki wg Ig-10 zał. 8** (warstwa „budowla”, linia 0,18 mm, przerywana: kreska 1 mm, odstęp 1 mm):
+   - most – s. 41 (prostokąt ciągły wzdłuż toru, ukośne skrzydełka na końcach);
+   - wiadukt kolejowy nad drogą – s. 43 „skrzyżowanie linii kolejowej z drogą w dwóch poziomach, linia kolejowa w poziomie górnym”; nad innym torem – s. 44 „skrzyżowanie dwóch torów w różnych poziomach”;
+   - linia kolejowa w tunelu – s. 42 (prostokąt przerywany ze skrzydełkami);
+   - tunel pod linią kolejową, przepust – s. 43; przejście piesze pod torami / nad torami – s. 42;
+   - wiadukt drogowy nad torami – s. 44 (linia kolejowa w poziomie dolnym);
+   - ściana oporowa, mur oporowy – s. 63 (kreska wzdłuż toru po stronie, kreski ukośne co 10 mm).
+   Znaki trafiają do `Dane/symbole_ig10.json` (generator `tools/symbole_ig10.py`), w mm arkusza razem z torami (`lcs-ut-skala-arkusza`). Znak wzdłuż toru rysowany po osi między km od–do, na łuku po łuku. Wymiarów, których tabelki Ig-10 nie podają (długość i kąt skrzydełek, odstęp boku od osi), nie zgaduję – pyt. 20. Opis obiektu (nazwa, km) jak przy przejeździe, przycisk warstwy „Budowle”.
+3. **Profil:** na wykresie obiekt jako pas z nazwą na długości km od–do (poprzeczny – kreska w km). „Niweleta z terenu” na długości mostu, wiaduktu i tunelu nie bierze punktów NMT, tylko prowadzi niweletę między terenem przed i za obiektem. Na obiekcie nie ma nasypu ani przekopu, teren pod nim cienką linią. Ręczna poprawka załomów jak dotąd.
+4. **Narzędzie „Obiekt”:** rodzaj z listy; obiekt wzdłuż toru – klik OD i klik DO na torze, z podglądem jak przy peronie; poprzeczny – jeden klik. Panel obiektu: rodzaj, km od / do (wpisywane), nazwa, przekraczana przeszkoda, strona (mur), tory. Obiekt na kilku torach (pyt. 17): Ctrl + klik dokłada tor do zaznaczonego obiektu (km od–do przenoszony prostopadle na tor dołożony, każdy tor ma własne km), „Rozdziel na tory” w PPM robi z niego osobne obiekty. PPM: usuń, zmień rodzaj.
+5. **„Sprawdź”:** obiekt poza torem, km od ≥ km do, dwa obiekty nakładające się na tym samym torze, obiekt bez nazwy (uwaga). Rozjazd i urządzenia na obiekcie – bez uwag (pyt. 19).
+6. **Zapis i wydruk:** `objects` w `*.ut.json` (stare pliki bez zmian), wydruk i PNG ze znakami w skali.
+7. **Symulator i zobrazowanie:** na razie nic (pyt. 18).
+8. **Test jak użytkownik** (`Test.Obiekty`): na mijance z testu – wiadukt nad drogą na łuku toru 1 klikami OD–DO, tunel, przepust, mur oporowy; km i znaki po zmianie łuku; profil z NMT bez doliny pod wiaduktem; „Sprawdź”; zapis / odczyt; wydruk; zrzut.
+
 ## 6. Pytania do właściciela
 
 1.–7. Rozstrzygnięte (sekcja 5).
@@ -213,6 +253,10 @@ Cel: łuk policzyć bez rysowania go najpierw ręcznie. OpenRailwayMap pokazuje 
 10. Rozjazdy łukowe: czy wystarczy przybliżenie z § 5e (jeden łuk toru zwrotnego), czy potrzebne są dokładne wymiary z kart katalogowych Rłj / Rłd? Wstawka – czy liczyć ją między KR (styki), jak teraz?
 11.–15. Rozstrzygnięte 2026-10-17 – zostaje jak jest (§ 7).
 16. (2026-10-21, § 5i) Próg samoczynnego montażu i naprawy – **30 cm zostaje (decyzja właściciela 2026-10-21)**. Otwarte: czy km obiektów ma się przeliczać z położenia także przy ręcznej edycji toru (przeciąganie wierzchołka, R z panelu), czy zostać stały jak dziś?
+17. (2026-10-22, § 5m) Obiekt na kilku torach – **oba sposoby: jeden obiekt z listą torów albo osobny na każdym torze, wybiera projektant (decyzja 2026-10-22).**
+18. (§ 5m) Symulator i zobrazowanie – **na razie tylko UT (decyzja 2026-10-22).**
+19. (§ 5m) Rozjazd, semafor albo licznik osi na obiekcie – **bez uwag (decyzja 2026-10-22).**
+20. (§ 5m) Wymiary znaków nieopisane w Ig-10 – **odczytane z rysunku zał. 8, pokazane na zrzutach i zaakceptowane przez właściciela (2026-10-22).**
 
 ## 7. Decyzje właściciela (2026-10-17)
 

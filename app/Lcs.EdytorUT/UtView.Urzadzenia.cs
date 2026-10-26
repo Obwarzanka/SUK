@@ -169,12 +169,13 @@ public partial class UtView
     {
         double yy = Y; bool litDone = false;
         // komora świecąca – pierwsza od dołu o kolorze stanu zasadniczego (jak na maszcie)
-        int litIdx = -1; for (int i = 0; i < lamps.Count && !litDone; i++) if (lamps[i].C == lit) { litIdx = i; litDone = true; }
+        int litIdx = -1; for (int i = 0; i < lamps.Count && !litDone; i++) if (lamps[i].C == lit && lamps[i].Pulse != UtDevice.Nieczynna) { litIdx = i; litDone = true; }
         for (int i = lamps.Count - 1; i >= 0; i--)
         {
             var (col, pulse) = lamps[i];
             double cx = x + R; x += 2 * R;
             dc.DrawEllipse(Brushes.White, pen, P(cx, yy), R * k, R * k);
+            if (pulse == UtDevice.Nieczynna) { Kreskowana(L, cx, yy, R, pen); continue; }
             var mp = i == litIdx ? thick : pen; double a = R * 0.7;
             switch (col)
             {
@@ -218,6 +219,18 @@ public partial class UtView
     /// Kreski na obwodzie komory: światło stałe lub pulsujące – 2 (ukośnie, na przeciwnych stronach), tylko pulsujące – 4
     /// (uwaga właściciela 2026-10-17, plan Łódź Widzew – L2).
     /// </summary>
+    /// <summary>Komora nieczynna: kreskowana ukośnie (3 cięciwy „/”), bez znaku koloru – uwaga właściciela 2026-10-22 (plan, semafor E7).</summary>
+    static void Kreskowana(Action<double, double, double, double, Pen> L, double cx, double cy, double R, Pen pen)
+    {
+        double s = Math.Sqrt(0.5);
+        foreach (var o in new[] { -0.5 * R, 0, 0.5 * R })
+        {
+            double h = Math.Sqrt(R * R - o * o);
+            double mx = cx + o * s, my = cy + o * s;              // środek cięciwy: przesunięty w poprzek kreskowania (1, 1)
+            L(mx - h * s, my + h * s, mx + h * s, my - h * s, pen);
+        }
+    }
+
     static double[] PulseTicks(int mode) => mode switch
     {
         UtDevice.StaleLubPulsujace => new[] { 45.0, 225 },
@@ -487,6 +500,7 @@ public partial class UtView
                 {
                     double cx = x + R; x += 2 * R;
                     dc.DrawEllipse(Brushes.White, pen, P(cx, yy), R * k, R * k);
+                    if (pulse == UtDevice.Nieczynna) { Kreskowana((a1, b1, c1, d1, pp) => L(a1, b1, c1, d1, pp), cx, yy, R, pen); continue; }
                     bool isLit = !litDone && col == lit; if (isLit) litDone = true;
                     var mp = isLit ? thick : pen; double a = R * 0.7;
                     switch (col)

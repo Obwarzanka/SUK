@@ -31,6 +31,9 @@ public partial class UtView
         return res;
     }
 
+    /// <summary>Test: numery prostych z uchwytem.</summary>
+    public string StraightHandlesForTest(UtTrack t) => string.Join(",", StraightHandles(t).Select(x => x.Seg));
+
     /// <summary>Uchwyty początku (Kind 1) i końca (Kind 2) łuków: punkt i kierunek stycznej.</summary>
     List<(int Vi, int Kind, XY P, double Az)> ArcEndHandles(UtTrack t)
     {

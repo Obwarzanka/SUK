@@ -91,7 +91,7 @@ public static class Naprawa
     }
 
     /// <summary>Kilometraż obiektów toru <paramref name="tr"/> po zmianie jego geometrii (stara trasa <paramref name="old"/>): rozjazdy (PR),
-    /// skrzyżowania, urządzenia, odcinki, perony, przejazdy, punkty km, niweleta i teren – zostają w tym samym miejscu w terenie.</summary>
+    /// skrzyżowania, urządzenia, odcinki, perony, przejazdy, punkty km, obiekty inżynieryjne, niweleta i teren – zostają w tym samym miejscu w terenie.</summary>
     public static void Reanchor(UtProject p, UtTrack tr, TrasaResult old)
     {
         var nr = Trasa.Compute(tr);
@@ -104,6 +104,7 @@ public static class Naprawa
         foreach (var d in (p.Platforms ?? new()).Where(d => d.Track == tr.Id)) { d.S0 = Math.Round(M(d.S0), 2); d.S1 = Math.Round(M(d.S1), 2); }
         foreach (var d in (p.LevelCrossings ?? new()).Where(d => d.Track == tr.Id)) d.S = Math.Round(M(d.S), 2);
         foreach (var d in (p.KmPoints ?? new()).Where(d => d.Track == tr.Id)) d.S = Math.Round(M(d.S), 2);
+        Obiekty.MapKm(p, tr.Id, M);
         foreach (var q in (tr.Profile ?? new()).Concat(tr.Terrain ?? new())) q.S = Math.Round(M(q.S), 2);
     }
 

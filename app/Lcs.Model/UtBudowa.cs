@@ -715,7 +715,8 @@ public static class Budowa
 
     /// <summary>
     /// Prosta między wierzchołkami seg−1 i seg przesunięta równolegle o d [m w terenie, + w prawo]: nowe wierzchołki w przecięciu
-    /// przesuniętej prostej z sąsiednimi prostymi (te zachowują kierunek); na końcu toru – wierzchołek przesunięty prostopadle.
+    /// przesuniętej prostej z sąsiednimi prostymi (te zachowują kierunek); na końcu toru i przy sąsiedniej prostej prawie równoległej
+    /// (poniżej ok. 0,6°) – wierzchołek przesunięty prostopadle.
     /// </summary>
     public static List<UtVertex> ShiftStraight(IReadOnlyList<UtVertex> v, int seg, double k, double d)
     {
@@ -724,7 +725,9 @@ public static class Budowa
         var a2 = a + o;
         XY Hit(XY p, XY q)
         {
-            var u = q - p; double den = u.X * dir.Y - u.Y * dir.X; if (Math.Abs(den) < 1e-12) return q + o;
+            // sąsiednia prosta prawie równoległa (załamanie bez łuku na jednej prostej, np. po połączeniu torów): przecięcie leży
+            // setki tysięcy km dalej – wierzchołek przesuwa się prostopadle razem z prostą
+            var u = q - p; double den = u.X * dir.Y - u.Y * dir.X; if (Math.Abs(den) < 0.01 * Math.Sqrt(u.X * u.X + u.Y * u.Y)) return q + o;
             var w = a2 - p; double t = (w.X * dir.Y - w.Y * dir.X) / den; return p + u * t;
         }
         var na = seg - 1 == 0 ? a + o : Hit(v[seg - 2].P, a);

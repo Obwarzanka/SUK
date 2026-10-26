@@ -193,6 +193,32 @@ public static class Rozjazdy
         return new TurnoutGeo(pr, sr, krm, sr + Element.Dir(azDiv) * (Math.Max(typ.B * q, tan) * k), az, azDiv, k, typ, 1 / Math.Abs(kg), rDiv, kind, q);
     }
 
+    /// <summary>
+    /// Za początkiem (<paramref name="atStart"/>) albo końcem toru <paramref name="main"/> jest na styku tor na wprost (kierunek ±1°)
+    /// długi co najmniej na <paramref name="dl"/> m. Tylko tory, których pierwszy albo ostatni wierzchołek leży w końcu toru (bez
+    /// topologii całego układu – wywoływane przy każdym rysowaniu). Opis – co jest za końcem (do komunikatu): brak toru, załamanie
+    /// na styku, za krótki tor.
+    /// </summary>
+    static (bool Ok, string Opis) DalejNaWprost(UtProject p, UtTrack main, TrasaResult r, bool atStart, double dl)
+    {
+        if (r.Elements.Count == 0) return (false, "brak toru");
+        var (pe, az) = r.At(atStart ? 0 : r.Length); double azOut = atStart ? az + Math.PI : az;
+        string opis = "dalej nie ma toru";
+        foreach (var o in p.Tracks)
+        {
+            if (o.Id == main.Id || o.Vertices.Count < 2) continue;
+            bool odPocz = XY.Dist(o.Vertices[0].P, pe) < 0.1, odKonca = XY.Dist(o.Vertices[^1].P, pe) < 0.1;
+            if (!odPocz && !odKonca) continue;
+            var ro = Trasa.Compute(o); if (ro.Elements.Count == 0) continue;
+            double azIn = odPocz ? ro.At(0).Az : ro.At(ro.Length).Az + Math.PI, kat = Math.Abs(Math.IEEERemainder(azIn - azOut, 2 * Math.PI)) * 180 / Math.PI;
+            string nr = o.Number.Length > 0 ? $"tor {o.Number}" : "tor dalej";
+            if (kat >= 1) { opis = $"{nr} odchodzi na styku pod kątem {kat:0.##}° – wyrównaj tory na styku"; continue; }
+            if (ro.Length < dl - 0.01) { opis = $"{nr} ma tylko {ro.Length:0.##} m"; continue; }
+            return (true, null);
+        }
+        return (false, opis);
+    }
+
     /// <summary>Uwagi o rozjeździe: poza torem, na łuku (rozjazdy łukowe – później), nachodzi na inny rozjazd.</summary>
     public static List<string> Check(UtProject p, UtTurnout t)
     {
@@ -202,7 +228,11 @@ public static class Rozjazdy
         if (typ == null) { res.Add($"nieznany typ „{t.Type}” – brak w katalogu"); return res; }
         var r = Trasa.Compute(main);
         double s1 = t.S, s2 = t.S + t.Dir * (typ.A + typ.B);
-        if (Math.Min(s1, s2) < -1e-6 || Math.Max(s1, s2) > r.Length + 1e-6) res.Add("rozjazd wychodzi poza koniec toru zasadniczego");
+        // za końcem toru: dopuszczalne, gdy tor przechodzi na styku w tor na wprost (np. rozjazd tuż za KR innego rozjazdu, którego
+        // odgałęzienie jest osobnym torem – takich torów nie da się połączyć; zgłoszenie właściciela 2026-10-21, rozjazd 79)
+        double przed = -Math.Min(s1, s2), za = Math.Max(s1, s2) - r.Length;
+        if (przed > 1e-6 && DalejNaWprost(p, main, r, true, przed) is (false, var op)) res.Add($"rozjazd wychodzi {przed:0.##} m przed początek toru zasadniczego ({op}) – przesuń go albo przedłuż tor");
+        if (za > 1e-6 && DalejNaWprost(p, main, r, false, za) is (false, var oz)) res.Add($"rozjazd wychodzi {za:0.##} m za koniec toru zasadniczego ({oz}) – przesuń go albo przedłuż tor");
         // rozjazd łukowy leży na stałym promieniu: nie na krzywej przejściowej ani na granicy prostej i łuku
         var pol = Naprawa.Polozenie(r, s1, s2);
         if (pol == NaLuku.Przejsciowa) res.Add("rozjazd leży na krzywej przejściowej – rozjazd łukowy układa się na stałym promieniu, przesuń go albo skróć przejściową (panel rozjazdu)");
@@ -306,6 +336,7 @@ public static class Rozjazdy
         foreach (var pl in p.Platforms.Where(x => x.Track2 != null && Tr(p, x.Track2) == null)) pl.Track2 = null;
         p.LevelCrossings.RemoveAll(d => Tr(p, d.Track) == null);
         p.KmPoints.RemoveAll(d => Tr(p, d.Track) == null);
+        Obiekty.Sprzatnij(p, id => Tr(p, id) != null);
         foreach (var c in p.Crossings)
         {
             var ra = Trasa.Compute(Tr(p, c.TrackA)); var rb = Trasa.Compute(Tr(p, c.TrackB));

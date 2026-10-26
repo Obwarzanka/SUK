@@ -1,5 +1,7 @@
 # Edytor zobrazowania (etap 8) – plan do akceptacji
 
+> **Program usunięty 2026-10-22** (decyzja właściciela po etapie E8): zastąpił go `EdytorZobrazowania2.exe` – `PLAN_EDYTOR_ZOBRAZOWANIA_V2.md`. Pliki `*.zob.json` w wersji 1 otwiera nowy edytor; model `Zob*` i eksport `DoSymulatora` zostają w `Lcs.Model`. Ten plan – tylko historia.
+
 Projekt z 2026-10-17. **Stan: zaakceptowany przez właściciela 2026-10-17** z propozycjami z § 8 (decyzje w § 9). **Z0–Z3 zrobione 2026-10-18, Z4–Z6 – 2026-10-19 – plan wykonany** (szczegóły w `HISTORIA_EDYTOR_UT.md`, decyzje do Z4–Z6 – § 10). Etap 9 – rozjazdy krzyżowe, pochylenia, przycisk „Opisy” na pulpicie – zrobione 2026-10-19 (decyzje – § 11). Kopiowanie obrazu („Kopiuj obraz”) – 2026-10-19.
 
 Podstawa: decyzje właściciela z `PLAN_EDYTOR_UT.md` § 7 (2026-10-17), Ie-104 § 4 ust. 8–19, § 5, § 6, § 8–9, zasady z `ROZWOJ.md` § 2 i § 2a.

@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "ut": "Nowy obszar – odzyskany.ut.json",
+  "utZapis": "2026-10-22T15:13:13.6066115+02:00",
+  "siatka": 8,
+  "obrazy": [
+    {
+      "id": "765adca6",
+      "nazwa": "Łódź Widzew R3 pzs",
+      "rodzaj": "szczegolowy",
+      "posterunki": [
+        "cdb5be11",
+        "e31e1069"
+      ],
+      "szer": 1920,
+      "wys": 1080,
+      "opisyOdcinkow": "nazadanie",
+      "tory": [],
+      "zwrotnice": [],
+      "sygnalizatory": [],
+      "wykolejnice": [],
+      "kozly": [],
+      "przerwy": [],
+      "odcinki": [],
+      "numeryTorow": [],
+      "perony": [],
+      "przejazdy": [],
+      "szlaki": [],
+      "napisy": []
+    },
+    {
+      "id": "ae0a06ae",
+      "nazwa": "Obraz 2",
+      "rodzaj": "szczegolowy",
+      "posterunki": [
+        "cdb5be11",
+        "e31e1069"
+      ],
+      "szer": 1920,
+      "wys": 1080,
+      "opisyOdcinkow": "nazadanie",
+      "tory": [
+        {
+          "id": "2159c631",
+          "ut": {
+            "tor": "e594285a",
+            "s0": 0,
+            "s1": 789.98
+          },
+          "pkt": [
+            [
+              1920,
+              520
+            ],
+            [
+              1680,
+              520
+            ],
+            [
+              1320,
+              520
+            ]
+          ],
+          "bezKontroli": false
+        },
+        {
+          "id": "d7552418",
+          "ut": {
+            "tor": "026340ee",
+            "s0": 0,
+            "s1": 1332.97
+          },
+          "pkt": [
+            [
+              1920,
+              560
+            ],
+            [
+              1320,
+              560
+            ]
+          ],
+          "bezKontroli": false
+        },
+        {
+          "id": "c150e05b",
+          "ut": {
+            "tor": "a1a98f93",
+            "s0": 0,
+            "s1": 88.69
+          },
+          "pkt": [
+            [
+              1760,
+              520
+            ],
+            [
+              1752,
+              528
+            ],
+            [
+              1752,
+              552
+            ],
+            [
+              1744,
+              560
+            ]
+          ],
+          "bezKontroli": false
+        }
+      ],
+      "zwrotnice": [],
+      "sygnalizatory": [],
+      "wykolejnice": [],
+      "kozly": [],
+      "przerwy": [],
+      "odcinki": [],
+      "numeryTorow": [],
+      "perony": [],
+      "przejazdy": [],
+      "szlaki": [],
+      "napisy": []
+    }
+  ]
+}

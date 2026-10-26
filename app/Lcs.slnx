@@ -5,7 +5,7 @@
   <Project Path="Lcs.WorldHost.Testy/Lcs.WorldHost.Testy.csproj" />
   <Project Path="Lcs.EdytorTaboru/Lcs.EdytorTaboru.csproj" />
   <Project Path="Lcs.EdytorUT/Lcs.EdytorUT.csproj" />
-  <Project Path="Lcs.EdytorZobrazowania/Lcs.EdytorZobrazowania.csproj" />
+  <Project Path="Lcs.EdytorZobrazowania2/Lcs.EdytorZobrazowania2.csproj" />
   <Project Path="Lcs.Logi/Lcs.Logi.csproj" />
   <Project Path="Lcs.Logi.Testy/Lcs.Logi.Testy.csproj" />
   <Project Path="Lcs.Komputerownia/Lcs.Komputerownia.csproj" />

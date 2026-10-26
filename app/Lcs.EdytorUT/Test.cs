@@ -57,9 +57,14 @@ public static partial class Test
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "slad") { log.AppendLine("== ślad (tylko ta część)"); await RunSlad(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "przeciagnij") { log.AppendLine("== przeciągnięcie sygnalizatora w projekcie"); await RunPrzeciagnij(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), Environment.GetEnvironmentVariable("EDYTOR_UT_SYG") ?? "B1"); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "posterunki") { log.AppendLine("== posterunki i szlaki (tylko ta część)"); await RunPosterunki(w, shot); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "komory") { log.AppendLine("== komora nieczynna (tylko ta część)"); await RunKomory(w, shot); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "obiekty") { log.AppendLine("== obiekty inżynieryjne (tylko ta część)"); await RunObiekty(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "kmosm") { log.AppendLine("== kilometraż ze słupków OSM (tylko ta część)"); await RunKmOsm(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "metody") { log.AppendLine("== metody budowy łuku (tylko ta część)"); await RunMetodyLuku(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "zawis") { log.AppendLine("== połączenie torów w zapisanym widoku"); await RunZawis(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), Environment.GetEnvironmentVariable("EDYTOR_UT_TORY"), Environment.GetEnvironmentVariable("EDYTOR_UT_WIDOK"), shot); Finish(); return; }
                 // EDYTOR_UT_TEST=zaznacz, EDYTOR_UT_PLIK=kopia projektu – klik na każdym torze w zapisanym widoku (próba zaznaczania)
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "zaznacz") { log.AppendLine("== zaznaczanie torów w projekcie"); await RunZaznacz(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), shot); Finish(); return; }
                 log.AppendLine("== etap 1: szkielet"); Run(w);
@@ -81,7 +86,10 @@ public static partial class Test
                 log.AppendLine("== bramka sygnałowa jak na planach (Semaforek, Łódź Widzew)"); await RunBramka(w);
                 log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);
+                log.AppendLine("== kilometraż ze słupków OSM: osie wg linii, propozycje do zatwierdzenia"); await RunKmOsm(w, shot);
                 log.AppendLine("== etap Z0: posterunki, szlaki, funkcja semafora"); await RunPosterunki(w, shot);
+                log.AppendLine("== obiekty inżynieryjne: mosty, wiadukty, tunele, przepusty, przejścia, mury (§ 5m)"); await RunObiekty(w, shot);
+                log.AppendLine("== komora nieczynna semafora (uwaga właściciela 2026-10-22)"); await RunKomory(w, shot);
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();

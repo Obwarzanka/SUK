@@ -7,9 +7,9 @@ namespace Lcs.EdytorUT;
 
 /// <summary>
 /// Posterunki i szlaki (etap Z0, PLAN_EDYTOR_ZOBRAZOWANIA.md § 6): tory posterunków podświetlone kolorem posterunku, szlaki – droga
-/// po torach z numerem. Narzędzie Szlak (B, PLAN_EDYTOR_UT.md § 5j): kursor na torze szlaku – podgląd szlaku do semaforów wjazdowych
-/// albo granicy obszaru (<see cref="Szlaki.Proponuj"/>), klik – szlak; Ctrl + klik – końce ręcznie (semafor albo koniec toru), z podglądem
-/// drogi; klik na torze istniejącego szlaku – zaznacza go. Znaczniki tylko w edytorze (nie na wydruku).
+/// po torach z numerem. Narzędzie Szlak (B, PLAN_EDYTOR_UT.md § 5j): klik OD (semafor, koniec toru albo miejsce na torze), klik DO –
+/// z podglądem drogi; Ctrl + klik na torze – końce same, do semaforów wjazdowych albo granicy obszaru (<see cref="Szlaki.Proponuj"/>);
+/// klik w środku istniejącego szlaku – zaznacza go. Znaczniki tylko w edytorze (nie na wydruku).
 /// </summary>
 public partial class UtView
 {
@@ -34,7 +34,7 @@ public partial class UtView
         if (Doc == null) return new();
         var p = Doc.P;
         var sig = Doc.UndoName + "|" + string.Join(";", p.Tracks.Select(Sig)) + "|" + string.Join(";", p.Devices.Where(d => d.Kind == UtDevice.Semafor).Select(d => $"{d.Id}:{d.Track}:{d.S}:{d.Dir}:{d.Funkcja}"))
-            + "|" + string.Join(";", p.Lines.Select(l => l.Id + string.Concat(l.Konce.Select(e => $"{e.Semafor}{e.Track}{e.AtStart}"))));
+            + "|" + string.Join(";", p.Lines.Select(l => l.Id + string.Concat(l.Konce.Select(e => $"{e.Semafor}{e.Track}{e.AtStart}{e.S}"))));
         if (sig == drogiSig && drogiRes != null) return drogiRes;
         drogiSig = sig; podKey = null; topo = (Topologia.Routes(p), null); topo.Styki = Topologia.Styki(p, topo.R);
         drogiRes = Szlaki.Drogi(p, topo.R, topo.Styki); return drogiRes;
@@ -42,6 +42,8 @@ public partial class UtView
     (Dictionary<string, TrasaResult> R, List<Styk> Styki) topo;
     /// <summary>Trasy i styki torów (pamięć razem z drogami szlaków – liczone po zmianie układu).</summary>
     (Dictionary<string, TrasaResult> R, List<Styk> Styki) TopoNow() { DrogiNow(); return topo; }
+    public Dictionary<string, TrasaResult> TopoR => TopoNow().R;
+    public List<Styk> TopoStyki => TopoNow().Styki;
 
     // ------------------------------------------------------------------ narzędzie Szlak
     /// <summary>Koniec szlaku pod kursorem: semafor albo koniec toru (do 14 px).</summary>
@@ -63,19 +65,36 @@ public partial class UtView
         return best;
     }
 
+    /// <summary>Koniec szlaku pod kursorem: semafor, koniec toru albo dowolne miejsce toru.</summary>
+    UtLineEnd EndAt(Point s)
+    {
+        if (HitLineEnd(s) is UtLineEnd e) return e;
+        if (HitTrack(s) is not string id) return null;
+        var r = TopoNow().R[id];
+        return Szlaki.Miejsce(id, r.Nearest(ToWorld(s), 0.5).S, r.Length);
+    }
+
+    static bool SameEnd(UtLineEnd a, UtLineEnd b) => a.Semafor == b.Semafor && a.Track == b.Track && a.AtStart == b.AtStart && Math.Abs((a.S ?? -1) - (b.S ?? -1)) < 0.5;
+    static string EndKey(UtLineEnd e) => e == null ? "" : $"{e.Semafor}{e.Track}{e.AtStart}{(e.S is double s ? Math.Round(s) : -1)}";
+
     string podKey;
-    /// <summary>Ruch kursora w narzędziu Szlak: podgląd (propozycja z toru albo droga do drugiego końca) i podpowiedź.</summary>
+    /// <summary>Koniec OD pod kursorem przed pierwszym klikiem (znacznik na planie).</summary>
+    UtLineEnd szlakPodKoniec;
+    /// <summary>
+    /// Ruch kursora w narzędziu Szlak: przed pierwszym klikiem – miejsce OD pod kursorem (Ctrl – propozycja całego szlaku z toru),
+    /// po pierwszym – droga OD – DO do miejsca pod kursorem.
+    /// </summary>
     void SzlakHover(Point p)
     {
         if (Doc == null) return;
         var (r, styki) = TopoNow();
-        string key; Szlaki.Propozycja prop = null; string istn = null;
+        string key; Szlaki.Propozycja prop = null; string istn = null; UtLineEnd pod = null;
         if (szlakFrom != null)
         {
-            var e = HitLineEnd(p);
-            key = "R" + (e == null ? "" : $"{e.Semafor}{e.Track}{e.AtStart}");
+            var e = EndAt(p);
+            key = "R" + EndKey(e);
             if (key == podKey) return;
-            if (e != null && !(e.Semafor == szlakFrom.Semafor && e.Track == szlakFrom.Track && e.AtStart == szlakFrom.AtStart))
+            if (e != null && !SameEnd(e, szlakFrom))
             {
                 var d = Szlaki.Droga(Doc.P, new UtLine { Konce = new() { szlakFrom, e } }, r, styki);
                 prop = new(szlakFrom, e, d, d.Uwagi, d.Err);
@@ -85,12 +104,14 @@ public partial class UtView
         {
             var id = HitTrack(p);
             double s = id != null ? r[id].Nearest(ToWorld(p), 0.5).S : 0;
-            if (id != null && Szlaki.At(Doc.P, DrogiNow(), id, s) is UtLine l) { istn = l.Id; key = "L" + l.Id; }
-            else key = id == null ? "" : $"T{id}:{Math.Round(s / 5)}";
+            var end = HitLineEnd(p);
+            if (end == null && id != null && Szlaki.At(Doc.P, DrogiNow(), id, s) is UtLine l) { istn = l.Id; key = "L" + l.Id; }
+            else if (Ctrl) key = id == null ? "C" : $"C{id}:{Math.Round(s / 5)}";
+            else { pod = end ?? (id != null ? Szlaki.Miejsce(id, s, r[id].Length) : null); key = "O" + EndKey(pod); }
             if (key == podKey) return;
-            if (id != null && istn == null) prop = Szlaki.Proponuj(Doc.P, id, s, r, styki);
+            if (Ctrl && id != null && istn == null) prop = Szlaki.Proponuj(Doc.P, id, s, r, styki);
         }
-        podKey = key; SzlakPodglad = prop; szlakPodIstniejacy = istn;
+        podKey = key; SzlakPodglad = prop; szlakPodIstniejacy = istn; szlakPodKoniec = pod;
         DraftInfo?.Invoke(SzlakInfo());
         InvalidateVisual();
     }
@@ -99,46 +120,52 @@ public partial class UtView
     public string SzlakInfo()
     {
         if (szlakPodIstniejacy != null && Doc.P.Lines.FirstOrDefault(x => x.Id == szlakPodIstniejacy) is UtLine l)
-            return $"Szlak {l.Numer}{(l.NazwaSkr.Length > 0 ? $" ({l.NazwaSkr})" : "")} – klik zaznacza; nowy szlak: najedź na tor bez szlaku";
+            return $"Szlak {l.Numer}{(l.NazwaSkr.Length > 0 ? $" ({l.NazwaSkr})" : "")} – klik zaznacza; nowy szlak: klik na semaforze, końcu toru albo torze bez szlaku";
         var pr = SzlakPodglad;
-        if (szlakFrom != null && pr == null) return $"Szlak od: {Szlaki.Opis(Doc.P, szlakFrom)} – najedź na drugi koniec (semafor albo koniec toru), klik; PPM / Esc – od nowa";
-        if (pr == null) return "Szlak: najedź na tor szlaku – program sam znajdzie końce (semafory wjazdowe albo granicę obszaru), klik – utwórz; Ctrl + klik – końce ręcznie";
+        if (szlakFrom != null && pr == null) return $"Szlak OD: {Szlaki.Opis(Doc.P, szlakFrom)} – klik DO: semafor, koniec toru albo dowolne miejsce toru; PPM / Esc – od nowa";
+        if (pr == null && szlakPodKoniec != null) return $"Szlak: klik – OD {Szlaki.Opis(Doc.P, szlakPodKoniec)}, potem klik DO; Ctrl – program sam znajdzie oba końce";
+        if (pr == null) return "Szlak: klik OD (semafor, koniec toru albo miejsce na torze), potem klik DO; Ctrl + klik na torze – końce same; zaznaczone tory – „Należy do: szlak” w panelu toru";
         if (pr.Err != null) return "Szlak: " + pr.Err;
         var d = pr.Droga;
         return $"Szlak: {Szlaki.Opis(Doc.P, pr.A)} – {Szlaki.Opis(Doc.P, pr.B)}, {Len(d.Dlugosc)}" + (d.Semafory.Count > 0 ? $", odstępowe: {string.Join(", ", d.Semafory.Select(x => x.Name))}" : ", bez semaforów na szlaku")
-            + (pr.Uwagi.Count > 0 ? " – UWAGA: " + string.Join("; ", pr.Uwagi) : "") + " – klik: utwórz" + (szlakFrom == null ? "; Ctrl + klik – końce ręcznie" : "");
+            + (pr.Uwagi.Count > 0 ? " – UWAGA: " + string.Join("; ", pr.Uwagi) : "") + " – klik: utwórz";
     }
 
     void SzlakClick(Point p)
     {
         SzlakHover(p);
-        // ręcznie: Ctrl + klik na semaforze albo końcu toru, potem drugi koniec
-        if (szlakFrom == null && Ctrl)
-        {
-            var e = HitLineEnd(p);
-            if (e == null) { DraftInfo?.Invoke("Szlak (ręcznie): Ctrl + klik na semaforze wjazdowym albo przy końcu toru na granicy obszaru"); return; }
-            szlakFrom = e; podKey = null; SzlakPodglad = null;
-            DraftInfo?.Invoke(SzlakInfo()); InvalidateVisual(); return;
-        }
         if (szlakFrom != null)
         {
-            var e = HitLineEnd(p);
-            if (e == null) { DraftInfo?.Invoke("Szlak: kliknij drugi koniec – semafor albo koniec toru; PPM / Esc – od nowa"); return; }
-            var a = szlakFrom; szlakFrom = null; podKey = null; SzlakPodglad = null;
-            if (a.Semafor == e.Semafor && a.Track == e.Track && a.AtStart == e.AtStart) { DraftInfo?.Invoke("Szlak: drugi koniec musi być inny niż pierwszy"); return; }
+            // DO: semafor, koniec toru albo miejsce na torze
+            var e = EndAt(p);
+            if (e == null) { DraftInfo?.Invoke("Szlak: kliknij DO – semafor, koniec toru albo miejsce na torze; PPM / Esc – od nowa"); return; }
+            if (SameEnd(e, szlakFrom)) { DraftInfo?.Invoke("Szlak: DO musi być w innym miejscu niż OD"); return; }
+            var a = szlakFrom; var pr0 = SzlakPodglad;
+            if (pr0?.Err != null) { DraftInfo?.Invoke("Szlak: " + pr0.Err + " – kliknij DO w innym miejscu; PPM / Esc – od nowa"); return; }
+            szlakFrom = null; podKey = null; SzlakPodglad = null;
             SzlakPlace?.Invoke(a, e);
             InvalidateVisual(); return;
         }
-        if (szlakPodIstniejacy != null) { SelectObj(Kontrola.KSzlak, szlakPodIstniejacy); return; }
-        var pr = SzlakPodglad;
-        if (pr == null) { DraftInfo?.Invoke(SzlakInfo()); return; }
-        if (pr.Err != null) { DraftInfo?.Invoke("Szlak: " + pr.Err); return; }
-        podKey = null; SzlakPodglad = null;
-        SzlakPlace?.Invoke(pr.A, pr.B);
-        InvalidateVisual();
+        if (Ctrl)
+        {
+            // Ctrl + klik na torze: końce same (propozycja)
+            if (szlakPodIstniejacy != null) { SelectObj(Kontrola.KSzlak, szlakPodIstniejacy); return; }
+            var pr = SzlakPodglad;
+            if (pr == null) { DraftInfo?.Invoke(SzlakInfo()); return; }
+            if (pr.Err != null) { DraftInfo?.Invoke("Szlak: " + pr.Err); return; }
+            podKey = null; SzlakPodglad = null;
+            SzlakPlace?.Invoke(pr.A, pr.B);
+            InvalidateVisual(); return;
+        }
+        // OD; klik w środku istniejącego szlaku – zaznacza go
+        if (HitLineEnd(p) == null && szlakPodIstniejacy != null) { SelectObj(Kontrola.KSzlak, szlakPodIstniejacy); return; }
+        var od = EndAt(p);
+        if (od == null) { DraftInfo?.Invoke(SzlakInfo()); return; }
+        szlakFrom = od; podKey = null; SzlakPodglad = null; szlakPodKoniec = null;
+        DraftInfo?.Invoke(SzlakInfo()); InvalidateVisual();
     }
 
-    public void SzlakCancel() { szlakFrom = null; podKey = null; SzlakPodglad = null; InvalidateVisual(); }
+    public void SzlakCancel() { szlakFrom = null; podKey = null; SzlakPodglad = null; szlakPodKoniec = null; InvalidateVisual(); }
 
     // ------------------------------------------------------------------ rysowanie
     static readonly Color[] PostColors =
@@ -211,6 +238,8 @@ public partial class UtView
         // narzędzie Szlak: pierwszy koniec (ręcznie) i podgląd – droga, końce, semafory odstępowe
         if (tool == UtTool.Szlak && szlakFrom != null && EndPoint(szlakFrom) is Point ep)
             dc.DrawEllipse(null, new Pen(Brushes.OrangeRed, 2.5), ep, 9, 9);
+        if (tool == UtTool.Szlak && szlakFrom == null && szlakPodKoniec != null && EndPoint(szlakPodKoniec) is Point hp)
+            dc.DrawEllipse(null, new Pen(Brushes.OrangeRed, 1.5) { DashStyle = DashStyles.Dash }, hp, 8, 8);
         if (tool == UtTool.Szlak && SzlakPodglad is { } pr)
         {
             bool ok = pr.Err == null, warn = ok && pr.Uwagi.Count > 0;
@@ -238,7 +267,7 @@ public partial class UtView
     {
         if (e.Semafor != null) return Doc.P.Devices.FirstOrDefault(x => x.Id == e.Semafor) is UtDevice d ? Pt(d.Track, d.S) : null;
         var t = Track(e.Track); if (t == null) return null;
-        var r = Geometry(t); return r.Elements.Count == 0 ? null : ToScreen(r.At(e.AtStart ? 0 : r.Length).P);
+        var r = Geometry(t); return r.Elements.Count == 0 ? null : ToScreen(r.At(e.S is double s ? Math.Clamp(s, 0, r.Length) : e.AtStart ? 0 : r.Length).P);
     }
 
     /// <summary>Opis szlaku na planie: oznaczenie i nazwa skrócona.</summary>

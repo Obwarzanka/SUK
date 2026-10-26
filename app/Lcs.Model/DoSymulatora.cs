@@ -7,18 +7,25 @@ namespace Lcs.Model;
 /// Topologia (węzły, tory, zwrotnice, odcinki, sygnalizatory, szlaki) powstaje z UT: każdy tor UT dzieli się na kawałki między
 /// rozjazdami, urządzeniami i granicami odcinków; długości – km UT. Geometria pulpitu („display”) – z obrazów zobrazowania: punkt
 /// na torze obrazu wynika z km UT, interpolowanego między symbolami narysowanymi przez człowieka (kolejność sprawdza „Sprawdź”).
-/// Plan schematyczny (korzeń pliku) – z geometrii UT wzdłuż osi schematu. Przebiegi wyznacza symulator z topologii, jak dla
-/// istniejących układów; tablicę zależności (routeRules) projektuje człowiek w symulatorze.
+/// Plan schematyczny (korzeń pliku) – z geometrii UT wzdłuż osi schematu. Tablicę przebiegów projektuje człowiek w edytorze
+/// zobrazowania (<see cref="ObrProject.Przebiegi"/> → pole „przebiegi”, symulator bierze tylko je); bez projektu symulator wyznacza
+/// przebiegi z topologii jak dla istniejących układów. Zależności specjalne – plik &lt;układ&gt;.zaleznosci.json w symulatorze.
 /// Nazwy obiektów: kod posterunku z UT + „:” + nazwa (np. „MT:A”, „MT:1”), odcinki szlaku – sama nazwa (jak w dotychczasowych plikach).
 /// </summary>
 public static class DoSymulatora
 {
     /// <summary>Wynik: plik symulatora i uwagi (czego nie przeniesiono albo co uzupełniono).</summary>
-    public record Wynik(JsonObject Json, List<string> Uwagi);
+    public record Wynik(JsonObject Json, List<string> Uwagi)
+    {
+        /// <summary>Id urządzenia UT → nazwa sygnalizatora w symulatorze („MT:A”).</summary>
+        public Dictionary<string, string> Sygnaly { get; init; } = new();
+        /// <summary>Tor symulatora (id krawędzi) → tor UT i km na nim (podświetlenie drogi przebiegu na obrazie).</summary>
+        public Dictionary<string, (string Tor, double S0, double S1)> Krawedzie { get; init; } = new();
+    }
 
     const double Tol = 0.5;           // [m] – punkty toru bliżej niż Tol to ten sam węzeł
 
-    public static Wynik Buduj(UtProject ut, ZobProject zob, string source = null)
+    public static Wynik Buduj(UtProject ut, ZobProject zob, string source = null, List<ObrPrzebieg> przebiegi = null)
     {
         var uw = new List<string>();
         var r = Topologia.Routes(ut);
@@ -31,6 +38,7 @@ public static class DoSymulatora
 
         // ---------- węzły na torach (km UT) ----------
         var pts = tracks.ToDictionary(t => t.Id, _ => new List<(double S, string N)>());
+        var kraw = new Dictionary<string, (string Tor, double S0, double S1)>();
         var nodePost = new Dictionary<string, string>();
         var nodeKind = new Dictionary<string, (string Kind, string Ref)>();
         int nn = 0;
@@ -122,6 +130,9 @@ public static class DoSymulatora
         {
             NodeOn(t.Id, 0); NodeOn(t.Id, r[t.Id].Length);
         }
+        // końce szlaków w środku toru (granica obszaru w dowolnym miejscu)
+        foreach (var e in ut.Lines.SelectMany(l => l.Konce).Where(e => e.Semafor == null && e.S != null && e.Track != null && pts.ContainsKey(e.Track)))
+            NodeOn(e.Track, Math.Clamp(e.S.Value, 0, r[e.Track].Length));
 
         // ---------- plan schematyczny (korzeń): oś schematu ----------
         double az = ut.SchematAz();
@@ -192,6 +203,7 @@ public static class DoSymulatora
                 }
                 var sec = SecName(t.Id, mid, out bool szlak, out var line);
                 var id = $"e{ne++}";
+                kraw[id] = (t.Id, s0, s1);
                 var pl = new JsonArray();
                 int n = t.Vertices.Count > 2 || t.Align != null ? 6 : 1;
                 for (int k = 0; k <= n; k++) { var q = PlanAt(t.Id, s0 + (s1 - s0) * k / n); pl.Add(new JsonArray(q.X, q.Y)); }
@@ -289,14 +301,20 @@ public static class DoSymulatora
                 {
                     int outward = -sg.Dir;
                     post = Kod(sg.Track);
-                    ends.Add(new JsonObject { ["boundary"] = bn, ["outward"] = outward, ["entrySig"] = $"{post}:{sg.Name}", ["post"] = post, ["label"] = en.Oznaczenie.Length > 0 ? en.Oznaczenie : ln.Numer });
+                    var eo = new JsonObject { ["boundary"] = bn, ["outward"] = outward, ["entrySig"] = $"{post}:{sg.Name}", ["post"] = post, ["label"] = en.Oznaczenie.Length > 0 ? en.Oznaczenie : ln.Numer };
+                    // tor w stronę szlaku (za semaforem, na jego torze UT) – jednoznaczny także w styku torów o przeciwnym km
+                    if (edgeInfo.FirstOrDefault(e => e.Track == sg.Track && (outward > 0 ? e.A == bn : e.B == bn)).Id is string oe) eo["outEdge"] = oe;
+                    // semafor na końcu swojego toru – szlak po drugiej stronie styku: jedyny inny tor w węźle
+                    else if (edgeInfo.FirstOrDefault(e => e.Track == sg.Track && (outward > 0 ? e.B == bn : e.A == bn)).Id is string ie &&
+                             edgeInfo.Where(e => e.Id != ie && (e.A == bn || e.B == bn)).ToList() is { Count: 1 } inne) eo["outEdge"] = inne[0].Id;
+                    ends.Add(eo);
                     boundaries[bn] = new JsonObject { ["szlak"] = ln.Numer };
                     lineOfEntry[sg.Id] = ln.Numer;
                     if (defDir == 0) defDir = outward;
                 }
                 else if (en.Track != null && pts.ContainsKey(en.Track))
                 {
-                    far = NodeOn(en.Track, en.AtStart ? 0 : r[en.Track].Length);
+                    far = NodeOn(en.Track, en.S is double es ? Math.Clamp(es, 0, r[en.Track].Length) : en.AtStart ? 0 : r[en.Track].Length);
                     nbr = en.Sasiad;
                 }
             }
@@ -342,6 +360,11 @@ public static class DoSymulatora
             var key = $"{post}:{d.Name}";
             if (d.Name.Length == 0 || signals.ContainsKey(key)) { uw.Add($"sygnalizator bez nazwy albo z powtórzoną nazwą ({key}) – pominięty"); continue; }
             var o = new JsonObject { ["name"] = key, ["node"] = node, ["dir"] = d.Dir, ["type"] = type, ["label"] = d.Name, ["post"] = post, ["track"] = Nr(d.Track) };
+            // tor przed sygnalizatorem (kawałek jego toru UT w kierunku Dir; na końcu toru – tor za nim, „behind”): w styku dwóch torów UT
+            // o przeciwnym km symulator po ujednoliceniu kierunku torów nie odgadnie z samego ±1, w którą stronę patrzy sygnalizator
+            var ahead = edgeInfo.FirstOrDefault(e => e.Track == d.Track && (d.Dir > 0 ? e.A == node : e.B == node)).Id;
+            var behind = edgeInfo.FirstOrDefault(e => e.Track == d.Track && (d.Dir > 0 ? e.B == node : e.A == node)).Id;
+            if (ahead != null) o["ahead"] = ahead; else if (behind != null) o["behind"] = behind;
             if (lineOfEntry.TryGetValue(d.Id, out var szl)) o["szlak"] = szl;
             else if (type == "odstepowy")
             {
@@ -350,7 +373,7 @@ public static class DoSymulatora
                 o["szlak"] = l.Numer;
             }
             if (type == "wjazdowy" && !lineOfEntry.ContainsKey(d.Id)) uw.Add($"semafor wjazdowy {d.Name} nie jest końcem żadnego szlaku w UT");
-            var lights = UtDevice.ParseLights(d.LightsOrDefault);
+            var lights = UtDevice.Czynne(d.LightsOrDefault);     // komory nieczynne nie świecą – bez nich
             if (d.Kind == UtDevice.Semafor)
             {
                 o["lamps"] = lights.Count;
@@ -401,6 +424,7 @@ public static class DoSymulatora
             // geometria główna: każdy tor i węzeł z pierwszego obrazu, na którym jest; geometria każdej strony (pageGeo) – wszystko z tej strony,
             // więc obiekt narysowany na dwóch obrazach pulpit pokazuje na obu (decyzja właściciela 2026-10-19, plan § 10 pkt 5)
             var main = PustaGeometria();
+            var szlakNodes = edges.OfType<JsonObject>().Where(e => e["szlak"] != null).SelectMany(e => new[] { (string)e["a"], (string)e["b"] }).ToHashSet();
             var pageGeo = new JsonObject();
             string secMode = null;
             int x0 = 0;
@@ -422,6 +446,12 @@ public static class DoSymulatora
                     if (!dn.ContainsKey(ei.B)) dn[ei.B] = new JsonArray(line[^1].X + x0, line[^1].Y);
                     if (zt.BezKontroli) pg["dashedEdges"].AsArray().Add(ei.Id);
                 }
+                // przerwy na szlaku: węzły przerw i sygnalizatorów postawionych przez człowieka na obrazie; inne granice odcinków
+                // i semafory odstępowe bez symbolu pulpit rysuje w sposób ciągły (odstępy jak na obrazie)
+                var gaps = new JsonArray();
+                foreach (var s in ob.Przerwy.Concat(ob.Sygnalizatory).Where(s => s.P != null && s.Ut != null))
+                    if (devNode.TryGetValue(s.Ut, out var gn) && szlakNodes.Contains(gn) && dn.ContainsKey(gn) && !gaps.Any(x => (string)x == gn)) gaps.Add(gn);
+                pg["szlakGaps"] = gaps;
                 foreach (var n in ob.Napisy.Where(n => n.P != null && n.Tekst.Length > 0))
                     pg["labels"].AsArray().Add(new JsonObject { ["text"] = n.Tekst, ["x"] = n.P[0] + x0, ["y"] = n.P[1], ["anchor"] = n.Rodzaj == ZobNapis.Nastawnia ? "nastawnia" : "middle" });
                 foreach (var pr in ob.Perony.Where(p => p.Prost is { Length: 4 }))
@@ -453,11 +483,27 @@ public static class DoSymulatora
                     if (k >= ln.Konce.Count || ln.Konce[k].Semafor == null) continue;
                     pg["blockMarks"].AsArray().Add(new JsonObject { ["block"] = ln.Numer, ["end"] = idx, ["x"] = s.P[0] + x0, ["y"] = s.P[1] });
                 }
+                // semafory wjazdowe bez trójkąta końca przebiegu (nowy edytor) – klucz tylko, gdy są
+                foreach (var s in ob.Sygnalizatory.Where(s => s.BezKonca == true && s.Ut != null && sigKey.ContainsKey(s.Ut)))
+                    (pg["noEndMark"] as JsonArray ?? (JsonArray)(pg["noEndMark"] = new JsonArray())).Add(sigKey[s.Ut]);
+                if (pg["noEndMark"] is JsonArray nea)
+                    foreach (var v in nea) (main["noEndMark"] as JsonArray ?? (JsonArray)(main["noEndMark"] = new JsonArray())).Add(v.DeepClone());
+                // okna numeru pociągu dla szlaku (nowy edytor, E6) – klucz tylko, gdy są
+                foreach (var s in ob.PolaPip?.Where(s => s.P != null) ?? Enumerable.Empty<ZobSymbol>())
+                {
+                    var ln = ut.Lines.FirstOrDefault(x => x.Id == s.Ut); if (ln == null || !blocks.ContainsKey(ln.Numer)) continue;
+                    var tf = pg["trainFields"] as JsonArray ?? (JsonArray)(pg["trainFields"] = new JsonArray());
+                    tf.Add(new JsonObject { ["block"] = ln.Numer, ["x"] = s.P[0] + x0, ["y"] = s.P[1], ["w"] = s.Zasieg?[0] ?? 88, ["h"] = s.Zasieg?[1] ?? 68 });
+                }
+                if (pg["trainFields"] is JsonArray tfa)
+                    foreach (var v in tfa) (main["trainFields"] as JsonArray ?? (JsonArray)(main["trainFields"] = new JsonArray())).Add(v.DeepClone());
                 // do geometrii głównej: tory i węzły jeszcze niezajęte, elementy Z4 strony
                 foreach (var (id, v) in de) if (!main["edges"].AsObject().ContainsKey(id)) main["edges"][id] = v.DeepClone();
                 foreach (var (id, v) in dn) if (!main["nodes"].AsObject().ContainsKey(id)) main["nodes"][id] = v.DeepClone();
                 foreach (var key in new[] { "labels", "platforms", "crossings", "trackLabels", "secLabels", "blockMarks" })
                     foreach (var v in pg[key].AsArray()) main[key].AsArray().Add(v.DeepClone());
+                var mg = main["szlakGaps"] as JsonArray ?? (JsonArray)(main["szlakGaps"] = new JsonArray());
+                foreach (var v in gaps) if (!mg.Any(x => (string)x == (string)v)) mg.Add(v.DeepClone());
                 foreach (var v in pg["dashedEdges"].AsArray()) if (!main["dashedEdges"].AsArray().Any(x => (string)x == (string)v)) main["dashedEdges"].AsArray().Add(v.DeepClone());
                 pageGeo[ob.Id] = pg;
                 x0 += ob.Szer;
@@ -491,7 +537,8 @@ public static class DoSymulatora
         };
         if (noPass.Count > 0) root["noPass"] = noPass;
         if (display != null) root["display"] = display;
-        return new Wynik(root, uw);
+        if (przebiegi != null) root["przebiegi"] = PrzebiegiJson(przebiegi);
+        return new Wynik(root, uw) { Sygnaly = sigKey, Krawedzie = kraw };
     }
 
     /// <summary>Pusta geometria pulpitu (główna albo jednej strony).</summary>
@@ -562,5 +609,20 @@ public static class DoSymulatora
         res.Add(At(hi));
         if (rev) res.Reverse();
         return res;
+    }
+
+    /// <summary>Tablica przebiegów z edytora zobrazowania → pole „przebiegi” pliku symulatora (start, koniec, rodzaj, zwrotnice, zasadniczy).</summary>
+    public static JsonArray PrzebiegiJson(IEnumerable<ObrPrzebieg> przebiegi)
+    {
+        var a = new JsonArray();
+        foreach (var p in przebiegi)
+        {
+            var o = new JsonObject { ["type"] = p.Typ, ["start"] = p.Od, ["end"] = p.Do };
+            if (!string.IsNullOrEmpty(p.Zwr)) o["sw"] = p.Zwr;
+            if (p.Zasadniczy) o["basic"] = true;
+            if (p.V > 0) o["v"] = p.V;
+            a.Add(o);
+        }
+        return a;
     }
 }

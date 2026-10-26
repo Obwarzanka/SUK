@@ -41,7 +41,9 @@ public static partial class Test
         // trafiał „do pola” (OnKey: inText), więc test raz przechodził, raz nie
         Keyboard.ClearFocus(); w.View.Focus(); Keyboard.Focus(w.View);
         var src = PresentationSource.FromVisual(w);
-        w.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, k) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+        MainWindow.KeyFromTest = true;
+        try { w.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, k) { RoutedEvent = Keyboard.PreviewKeyDownEvent }); }
+        finally { MainWindow.KeyFromTest = false; }
     }
     static void Enter(TextBox t)
     {

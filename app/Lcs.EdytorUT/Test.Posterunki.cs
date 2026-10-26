@@ -94,7 +94,7 @@ public static partial class Test
         var q0 = new Point(all.Min(q => q.X) - 30, all.Min(q => q.Y) - 30); var q1 = new Point(all.Max(q => q.X) + 30, all.Max(q => q.Y) + 30);
         UtView.TestMods = ModifierKeys.Shift; w.View.SimDrag(q0, q1); UtView.TestMods = ModifierKeys.None;
         Ok(w.View.Multi.Count(x => x.Kind == Kontrola.KTor) == 4, $"Shift + prostokąt: 4 tory mijanki ({w.View.Multi.Count} elementów)");
-        Ok(Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(brak – szlak / poza posterunkami)")) != null, "panel zaznaczenia: lista „Posterunek zaznaczonych torów”");
+        Ok(Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("(brak – poza posterunkami i szlakami)") && c.Items.Contains("+ nowy szlak z tych torów…")) != null, "panel zaznaczenia: lista „Zaznaczone tory należą do” (posterunek albo szlak)");
         var codes = new Queue<string>(new[] { "MJ", "Mijanka" });
         w.AskNameForTest = _ => codes.Dequeue();
         Click(Find<Button>((DependencyObject)w.PostExpander.Content, x => x.Content as string == "+ posterunek"));
@@ -123,18 +123,34 @@ public static partial class Test
         // --- szlaki narzędziem Szlak (B)
         KeyPress(w, Key.B);
         Ok(w.View.Tool == UtTool.Szlak && w.LastMessage.StartsWith("Szlak:"), "B – narzędzie Szlak z opisem na pasku stanu");
-        // ręcznie (Ctrl + klik): pierwszy koniec, Esc
-        w.View.CtrlForTest = true;
+        // OD – DO: klik przy początku toru 1 – OD, Esc
         Look(r1.At(0).P, 0.4); w.View.SimClick(S(r1.At(0).P));
-        Ok(w.View.SzlakFrom is { Track: var ft, AtStart: true } && ft == t1.Id && w.LastMessage.StartsWith("Szlak od: początek toru 1"), $"Ctrl + klik przy początku toru 1 – pierwszy koniec ręcznie ({w.LastMessage})");
-        w.View.CtrlForTest = null;
+        Ok(w.View.SzlakFrom is { Track: var ft, AtStart: true, S: null } && ft == t1.Id && w.LastMessage.StartsWith("Szlak OD: początek toru 1"), $"klik przy początku toru 1 – OD ({w.LastMessage})");
         KeyPress(w, Key.Escape);
-        Ok(w.View.SzlakFrom == null && w.View.Tool == UtTool.Szlak, "Esc – pierwszy koniec zdjęty, narzędzie zostaje");
-        // kursor na torze szlaku – podgląd: początek toru 1 (granica obszaru) – semafor wjazdowy A, odstępowy S60
+        Ok(w.View.SzlakFrom == null && w.View.Tool == UtTool.Szlak, "Esc – OD zdjęte, narzędzie zostaje");
+        // OD w dowolnym miejscu toru, DO na semaforze A – droga 120 m (zwrot semafora bez znaczenia)
+        w.AskNameForTest = _ => "9";
+        Look(r1.At(30).P, 0.4); w.View.SimClick(S(r1.At(30).P));
+        var odS = w.View.SzlakFrom?.S;
+        Look(r1.At(150).P, 0.4); w.View.Drag(S(r1.At(150).P), false);
+        var pvA = w.View.SzlakPodglad;
+        if (shot != null)
+        {
+            w.View.SetView(r1.At(90).P, 0.3); w.View.Drag(S(r1.At(150).P), false); await Settle(w);
+            Save(w, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(shot))!, Path.GetFileNameWithoutExtension(shot) + "_szlak_od_do.png"));
+        }
+        w.View.SimClick(S(r1.At(150).P));
+        var l9 = d.P.Lines.SingleOrDefault(); var dr9 = l9 != null ? Szlaki.Droga(d.P, l9) : null;
+        Ok(odS is double os && Math.Abs(os - 30) < 0.5 && pvA?.Err == null && pvA?.B?.Semafor == Dev("A").Id && l9 != null && dr9.Err == null && Math.Abs(dr9.Dlugosc - 120) < 0.6,
+            $"OD – miejsce toru 1 km 30, DO – semafor A: podgląd i szlak 120 m ({w.LastMessage})");
+        w.DoUndo(); w.AskNameForTest = null;
+        Ok(d.P.Lines.Count == 0, "Ctrl+Z – szlak OD – DO cofnięty");
+        // Ctrl: kursor na torze szlaku – podgląd całego szlaku: początek toru 1 (granica obszaru) – semafor wjazdowy A, odstępowy S60
+        w.View.CtrlForTest = true;
         Look(r1.At(75).P, 0.4); w.View.Drag(S(r1.At(75).P), false);
         var pv = w.View.SzlakPodglad;
         Ok(pv != null && pv.Err == null && pv.A?.Semafor != null != (pv.B?.Semafor != null) && pv.Droga.Semafory.Select(x => x.Name).SequenceEqual(new[] { "S60" }) && w.LastMessage.Contains("semafor A") && w.LastMessage.Contains("klik: utwórz"),
-            $"kursor na torze szlaku – podgląd do semafora wjazdowego i granicy obszaru ({w.LastMessage})");
+            $"Ctrl + kursor na torze szlaku – podgląd do semafora wjazdowego i granicy obszaru ({w.LastMessage})");
         if (shotRails != null) { w.View.SetView(r1.At(110).P, 0.35); w.View.Drag(S(r1.At(75).P), false); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_szlak_podglad.png")); }
         // w obrębie posterunku (między semaforami wjazdowymi) – bez propozycji
         Look(r1.At(600).P, 0.4); w.View.Drag(S(r1.At(600).P), false);
@@ -149,15 +165,40 @@ public static partial class Test
             $"szlak 1A: początek toru 1 – semafor A, 150 m, na szlaku S60 ({w.LastMessage})");
         Ok(w.View.SelectedObj == (Kontrola.KSzlak, l1?.Id) && Find<TextBlock>(w.TrackPanel, x => x.Text == "Szlak 1A") != null && Find<TextBlock>(w.TrackPanel, x => x.Text == "Semafory na szlaku: S60") != null,
             "panel szlaku 1A: droga, semafory na szlaku");
+        w.View.CtrlForTest = null;
         // klik na torze istniejącego szlaku – zaznacza go, nowy nie powstaje
         w.View.Select(null); w.View.SimClick(S(r1.At(100).P));
-        Ok(d.P.Lines.Count == 1 && w.View.SelectedObj == (Kontrola.KSzlak, l1?.Id), "klik na torze szlaku 1A – zaznaczony, bez nowego szlaku");
+        Ok(d.P.Lines.Count == 1 && w.View.SzlakFrom == null && w.View.SelectedObj == (Kontrola.KSzlak, l1?.Id), "klik na torze szlaku 1A – zaznaczony, bez nowego szlaku");
+        // szlak 2A: klik OD na semaforze B, klik DO przy końcu toru 1
         w.AskNameForTest = _ => "2A";
-        Look(r1.At(1120).P, 0.4); w.View.SimClick(S(r1.At(1120).P));
+        Look(r1.At(1050).P, 0.4); w.View.SimClick(S(r1.At(1050).P));
+        Ok(w.View.SzlakFrom?.Semafor == Dev("B").Id, $"klik na semaforze B – OD ({w.LastMessage})");
+        Look(r1.At(1200).P, 0.4); w.View.SimClick(S(r1.At(1200).P));
         w.AskNameForTest = null;
         var l2 = d.P.Lines.FirstOrDefault(x => x.Numer == "2A");
         var dr2 = l2 != null ? Szlaki.Droga(d.P, l2) : null;
-        Ok(l2 != null && dr2.Err == null && Math.Abs(dr2.Dlugosc - 150) < 0.05 && dr2.Semafory.Count == 0, "szlak 2A: semafor B – koniec toru 1, 150 m, bez odstępów");
+        Ok(l2 != null && dr2.Err == null && Math.Abs(dr2.Dlugosc - 150) < 0.05 && dr2.Semafory.Count == 0, $"szlak 2A klikami OD – DO: semafor B – koniec toru 1, 150 m, bez odstępów ({w.LastMessage})");
+        // „Należy do”: tor 9 dołączony do początku toru 1 – do szlaku 1A (koniec 1A przesuwa się na koniec toru 9), potem nowy szlak z toru 9
+        var t9 = new UtTrack { Number = "9", Vertices = new() { new() { X = Go(r1.At(0).P, lineAz + 180, 200).X, Y = Go(r1.At(0).P, lineAz + 180, 200).Y }, new() { X = r1.At(0).P.X, Y = r1.At(0).P.Y } } };
+        d.Change("Tor 9 (test)", q => q.Tracks.Add(t9));
+        w.SetTool(UtTool.Wskaz); w.View.Select(t9.Id);
+        var nc = Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("+ nowy szlak z tego toru…"));
+        var it1A = nc?.Items.Cast<object>().FirstOrDefault(x => x.ToString().StartsWith("szlak 1A"));
+        if (nc != null && it1A != null) nc.SelectedItem = it1A;
+        var dr1b = Szlaki.Droga(d.P, l1);
+        Ok(nc != null && dr1b.Err == null && Math.Abs(dr1b.Dlugosc - 350) < 0.6 && l1.Konce.Any(e => e.Track == t9.Id && e.AtStart) && l1.Konce.Any(e => e.Semafor == Dev("A").Id) && d.UndoName == "Tory szlaku",
+            $"panel toru 9: „Należy do” – szlak 1A: 350 m, od początku toru 9 do A ({w.LastMessage})");
+        w.DoUndo();
+        w.View.Select(t9.Id);
+        w.AskNameForTest = _ => "9";
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("+ nowy szlak z tego toru…")).SelectedItem = "+ nowy szlak z tego toru…";
+        w.AskNameForTest = null;
+        var l9b = d.P.Lines.FirstOrDefault(x => x.Numer == "9"); var dr9b = l9b != null ? Szlaki.Droga(d.P, l9b) : null;
+        Ok(l9b != null && dr9b.Err == null && Math.Abs(dr9b.Dlugosc - 200) < 0.6, $"„+ nowy szlak z tego toru” – szlak 9 z toru 9, 200 m ({w.LastMessage})");
+        w.DoUndo(); w.DoUndo();
+        l1 = d.P.Lines.First(x => x.Numer == "1A"); l2 = d.P.Lines.First(x => x.Numer == "2A");
+        Ok(d.P.Lines.Count == 2 && d.P.Tracks.Count == 4 && Math.Abs(Szlaki.Droga(d.P, l1).Dlugosc - 150) < 0.05, $"Ctrl+Z ×2 – szlak 9 i tor 9 cofnięte, 1A jak był ({d.P.Lines.Count} szlaki, {d.P.Tracks.Count} tory)");
+        w.SetTool(UtTool.Szlak);
         // końce ręcznie: zwrot semaforów nie ma znaczenia – S60 i A działają w tę samą stronę, kolejność końców dowolna
         UtLineEnd SE(string n) => new() { Semafor = Dev(n).Id };
         var drS = Szlaki.Droga(d.P, new UtLine { Konce = new() { SE("S60"), SE("A") } });
@@ -165,6 +206,13 @@ public static partial class Test
         var drK = Szlaki.Droga(d.P, new UtLine { Konce = new() { new() { Track = t1.Id, AtStart = false }, SE("B") } });
         Ok(Dev("S60").Dir == Dev("A").Dir && drS.Err == null && drS2.Err == null && Math.Abs(drS.Dlugosc - drS2.Dlugosc) < 0.05 && drS.Dlugosc > 1 && drK.Err == null && Math.Abs(drK.Dlugosc - 150) < 0.05,
             $"szlak ręcznie S60 – A i A – S60 (ten sam zwrot), koniec toru 1 – B: droga jest ({drS.Err ?? drS2.Err ?? drK.Err ?? $"{drS.Dlugosc:0} m"})");
+        // semafor na końcu toru zapisany 3 cm za końcem (km zaokrąglony, jak K w „Nowy obszar”) – droga dochodzi do niego
+        var kEnd = new UtDevice { Kind = UtDevice.Semafor, Name = "K9", Track = t1.Id, S = r1.Length + 0.03, Dir = -1 };
+        d.Change("Semafor na końcu (test)", q => q.Devices.Add(kEnd));
+        var drE = Szlaki.Droga(d.P, new UtLine { Konce = new() { SE("B"), new() { Semafor = kEnd.Id } } });
+        Ok(drE.Err == null && Math.Abs(drE.Dlugosc - 150) < 0.1, $"semafor 3 cm za końcem toru – droga B – K9 150 m ({drE.Err ?? $"{drE.Dlugosc:0.00} m"})");
+        w.DoUndo();
+        l1 = d.P.Lines.First(x => x.Numer == "1A"); l2 = d.P.Lines.First(x => x.Numer == "2A");
         // uwagi do szlaków: brak posterunku sąsiedniego
         var ch = Kontrola.Run(d.P);
         Ok(ch.Count(u => u.Kind == Kontrola.KSzlak && u.Text.Contains("brak nazwy posterunku sąsiedniego")) == 2, "„Sprawdź”: na obu szlakach brak nazwy posterunku sąsiedniego");

@@ -17,6 +17,7 @@ public class UtDocument
 
     readonly Stack<(string What, string Json)> undo = new(), redo = new();
     public string UndoName => undo.Count > 0 ? undo.Peek().What : null;
+    public int UndoCount => undo.Count;
     public string RedoName => redo.Count > 0 ? redo.Peek().What : null;
     public const int UndoLimit = 200;
 
@@ -45,7 +46,7 @@ public class UtDocument
         p.Backgrounds ??= new();
         p.Tracks ??= new();
         p.Turnouts ??= new(); p.Crossings ??= new(); p.Devices ??= new();
-        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new();
+        p.Sections ??= new(); p.Platforms ??= new(); p.LevelCrossings ??= new(); p.KmPoints ??= new(); p.Obiekty ??= new();
         foreach (var t in p.Tracks) { t.Profile ??= new(); t.Terrain ??= new(); }
         Rozjazdy.Sync(p);
         return new UtDocument(p, System.IO.Path.GetFullPath(path));

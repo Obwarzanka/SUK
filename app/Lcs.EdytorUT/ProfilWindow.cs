@@ -54,6 +54,8 @@ public class ProfilWindow : Window
 
     public UtTrack Track => main.Doc.P.Tracks.FirstOrDefault(t => t.Id == TrackId);
     public TrasaResult Route => Track is UtTrack t ? main.View.Geometry(t) : null;
+    /// <summary>Obiekty inżynieryjne na torze profilu (km od–do na tym torze).</summary>
+    public List<(UtObiekt O, double S0, double S1)> ObiektyToru => Obiekty.NaTorze(main.Doc.P, TrackId).ToList();
 
     public void SetTrack(string id) { TrackId = id; Refresh(); }
 
@@ -136,10 +138,13 @@ public class ProfilWindow : Window
     {
         var t = Track; if (t == null) return;
         if (t.Terrain.Count < 2) { status.Text = "Najpierw „Teren z NMT GUGiK”"; return; }
-        var v = Profil.FromTerrain(t.Terrain, Num(TolBox.Text) ?? 0.3, Num(MinLenBox.Text) ?? 100);
+        // most, wiadukt, tunel: NMT pokazuje dolinę albo wzgórze – niweleta przechodzi przez obiekt prosto (§ 5m)
+        var bez = Obiekty.BezNmt(main.Doc.P, t.Id);
+        var v = Profil.FromTerrain(t.Terrain, Num(TolBox.Text) ?? 0.3, Num(MinLenBox.Text) ?? 100, bez.Select(b => (b.S0, b.S1)).ToList());
         Change("Niweleta z terenu", x => x.Profile = v);
         var secs = Profil.Sections(v);
-        status.Text = $"Niweleta: {v.Count} załomów, pochylenia {string.Join(" / ", secs.Select(s => F(s.Promil, "0.0")))} ‰ – popraw ręcznie (NMT to teren, nie główka szyny)";
+        status.Text = $"Niweleta: {v.Count} załomów, pochylenia {string.Join(" / ", secs.Select(s => F(s.Promil, "0.0")))} ‰" +
+            (bez.Count > 0 ? $"; bez NMT na obiektach: {string.Join(", ", bez.Select(b => Obiekty.Opis(b.O)).Distinct())}" : "") + " – popraw ręcznie (NMT to teren, nie główka szyny)";
         main.Message(status.Text);
     }
 
@@ -208,15 +213,33 @@ public class ProfilView : FrameworkElement
         double stepS = UtView.Nice((s1 - s0) / 12), stepZ = UtView.Nice((z1 - z0) / 8);
         for (double s = Math.Ceiling(s0 / stepS) * stepS; s <= s1; s += stepS) { dc.DrawLine(grid, new Point(X(s), T), new Point(X(s), H - B)); var f = Tx(s.ToString("0", pl), 10.5, Brushes.DimGray); dc.DrawText(f, new Point(X(s) - f.Width / 2, H - B + 2)); }
         for (double z = Math.Ceiling(z0 / stepZ) * stepZ; z <= z1; z += stepZ) { dc.DrawLine(grid, new Point(L, Y(z)), new Point(W - R, Y(z))); var f = Tx(z.ToString("0.#", pl), 10.5, Brushes.DimGray); dc.DrawText(f, new Point(L - f.Width - 4, Y(z) - f.Height / 2)); }
-        var cap = Tx("km toru [m]  ·  Z [m n.p.m.]  ·  przewyższenie ×" + ((H - T - B) / (z1 - z0) / ((W - L - R) / (s1 - s0))).ToString("0", pl) + "  ·  szary – teren (NMT), czarny – niweleta, pomarańczowy – nasyp, niebieski – przekop", 11, Brushes.DimGray);
+        var cap = Tx("km toru [m]  ·  Z [m n.p.m.]  ·  przewyższenie ×" + ((H - T - B) / (z1 - z0) / ((W - L - R) / (s1 - s0))).ToString("0", pl) + "  ·  szary – teren (NMT), czarny – niweleta, pomarańczowy – nasyp, niebieski – przekop, brązowy – obiekty", 11, Brushes.DimGray);
         dc.DrawText(cap, new Point(L, H - cap.Height - 2));
         var v = t.Profile.Select(q => new UtProfilePoint { S = q.S, Z = q.Z, Rv = q.Rv }).ToList();
         if (drag >= 0 && drag < v.Count) v[drag].Z = dragZ;
+        // obiekty inżynieryjne: pas u góry z nazwą (wzdłuż toru), kreska w km (poprzeczne); na moście / wiadukcie / w tunelu bez nasypu i przekopu
+        var obs = w.ObiektyToru;
+        bool OnObj(double s) => obs.Any(x => Obiekty.Info(x.O.Kind).BezNmt && s > x.S0 && s < x.S1);
+        foreach (var (o, a, b) in obs)
+        {
+            var oi = Obiekty.Info(o.Kind); var f = Tx((o.Name.Length > 0 ? o.Name : oi.Name) + (o.Nad.Length > 0 ? " – " + o.Nad : ""), 10.5, Brushes.SaddleBrown);
+            if (oi.Pol == Obiekty.Pol.Poprzeczny)
+            {
+                dc.DrawLine(new Pen(Brushes.SaddleBrown, 1) { DashStyle = DashStyles.Dash }, new Point(X(a), T), new Point(X(a), H - B));
+                dc.DrawText(f, new Point(X(a) + 3, T + 16));
+                continue;
+            }
+            var rr = new Rect(new Point(X(a), T), new Point(Math.Max(X(a) + 1, X(b)), H - B));
+            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(oi.BezNmt ? (byte)0x22 : (byte)0x10, 0x8b, 0x45, 0x13)), null, rr);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0x90, 0x8b, 0x45, 0x13)), null, new Rect(rr.X, T, rr.Width, 3));
+            if (rr.Width > f.Width + 4) dc.DrawText(f, new Point(rr.X + (rr.Width - f.Width) / 2, T + 4));
+        }
         // nasyp / przekop
         if (t.Terrain.Count > 1 && v.Count > 0)
             for (int i = 0; i + 1 < t.Terrain.Count; i++)
             {
                 double sa = t.Terrain[i].S, sb = t.Terrain[i + 1].S, za = Profil.Z(v, sa), zb = Profil.Z(v, sb);
+                if (OnObj((sa + sb) / 2)) continue;
                 var g = new StreamGeometry();
                 using (var c = g.Open()) { c.BeginFigure(new Point(X(sa), Y(za)), true, true); c.LineTo(new Point(X(sb), Y(zb)), false, false); c.LineTo(new Point(X(sb), Y(t.Terrain[i + 1].Z)), false, false); c.LineTo(new Point(X(sa), Y(t.Terrain[i].Z)), false, false); }
                 bool fill = (za + zb) / 2 >= (t.Terrain[i].Z + t.Terrain[i + 1].Z) / 2;
@@ -228,6 +251,13 @@ public class ProfilView : FrameworkElement
             var g = new StreamGeometry();
             using (var c = g.Open()) { c.BeginFigure(new Point(X(t.Terrain[0].S), Y(t.Terrain[0].Z)), false, false); foreach (var q in t.Terrain.Skip(1)) c.LineTo(new Point(X(q.S), Y(q.Z)), true, true); }
             dc.DrawGeometry(null, new Pen(Brushes.Gray, 1.2), g);
+            // pod mostem / wiaduktem / nad tunelem teren cienką linią przerywaną
+            for (int i = 0; i + 1 < t.Terrain.Count; i++)
+                if (OnObj((t.Terrain[i].S + t.Terrain[i + 1].S) / 2))
+                {
+                    var a0 = new Point(X(t.Terrain[i].S), Y(t.Terrain[i].Z)); var b0 = new Point(X(t.Terrain[i + 1].S), Y(t.Terrain[i + 1].Z));
+                    dc.DrawLine(new Pen(Brushes.White, 2.4), a0, b0); dc.DrawLine(new Pen(Brushes.Gray, 0.8) { DashStyle = DashStyles.Dash }, a0, b0);
+                }
         }
         // niweleta (z łukami pionowymi – próbki co 1 m)
         if (v.Count > 0)
@@ -261,7 +291,8 @@ public class ProfilView : FrameworkElement
             double s = SAt(h.X), zn = Profil.Z(v, s), zt = Profil.Ground(t.Terrain, s);
             dc.DrawLine(new Pen(Brushes.SteelBlue, 1) { DashStyle = DashStyles.Dash }, new Point(h.X, T), new Point(h.X, H - B));
             var txt = $"km {s.ToString("0.0", pl)} m" + (double.IsNaN(zn) ? "" : $"   niweleta {zn.ToString("0.00", pl)}") + (double.IsNaN(zt) ? "" : $"   teren {zt.ToString("0.00", pl)}") +
-                (!double.IsNaN(zn) && !double.IsNaN(zt) ? $"   {(zn >= zt ? "nasyp" : "przekop")} {Math.Abs(zn - zt).ToString("0.00", pl)} m" : "");
+                (obs.FirstOrDefault(x => s >= x.S0 - 0.5 && s <= x.S1 + 0.5) is var (oh, _, _) && oh != null ? "   " + Obiekty.Opis(oh)
+                : !double.IsNaN(zn) && !double.IsNaN(zt) ? $"   {(zn >= zt ? "nasyp" : "przekop")} {Math.Abs(zn - zt).ToString("0.00", pl)} m" : "");
             var f = Tx(txt, 11.5, Brushes.SteelBlue);
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0xe0, 0xff, 0xff, 0xff)), null, new Rect(h.X + 6, T, f.Width + 6, f.Height + 2));
             dc.DrawText(f, new Point(h.X + 9, T + 1));

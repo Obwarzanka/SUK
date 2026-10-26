@@ -88,6 +88,8 @@ public class SignalDef
     public int VDir;
     /// <summary>Strona toru na planie: „P” – prawa (domyślnie, względem kierunku jazdy), „L” – lewa.</summary>
     public string Side = "P";
+    /// <summary>Semafor wjazdowy bez trójkąta końca przebiegu wyjazdowego w stanie zasadniczym (zobrazowanie, nowy edytor – odmiana semafora).</summary>
+    public bool NoEndMark;
     public bool IsTrain => Type is "wjazdowy" or "wyjazdowy";
     public bool ForTrains => Type is "wjazdowy" or "wyjazdowy" or "odstepowy";
     /// <summary>Semafor wyjazdowy bez funkcji tarczy manewrowej (nie podaje Ms2) – w JSON "shunt": false.</summary>
@@ -251,6 +253,8 @@ public class Station
     public List<LabelDef> TrackLabels = new();
     /// <summary>Zobrazowanie: opisy odcinków (odcinek, środek napisu) i kiedy je pokazywać: „nazadanie” (Ie-104 § 5 ust. 2), „zawsze”, „nie”.</summary>
     public List<(string Sec, double X, double Y)> SecLabels = new();
+    /// <summary>Okna numeru pociągu dla szlaku (z nowego edytora zobrazowania, display „trainFields”): blokada, prostokąt.</summary>
+    public List<(string Block, double X, double Y, double W, double H)> TrainFields = new();
     public string SecLabelsMode = "nazadanie";
     public List<RouteRule> RouteRules = new();
     /// <summary>
@@ -269,6 +273,11 @@ public class Station
     public Station Display;
     /// <summary>Zobrazowanie: symbole (sygnalizatory, wykolejnice, kozły – identyfikatory) ukryte na pulpicie, choć ich węzeł leży na torze obrazu.</summary>
     public HashSet<string> HiddenSyms = new();
+    /// <summary>
+    /// Zobrazowanie z edytora: węzły szlaku z przerwą postawioną przez człowieka (przerwa albo sygnalizator na obrazie). Pozostałe
+    /// granice odcinków i semafory odstępowe na szlaku pulpit rysuje w sposób ciągły, jak na obrazie. Null – przerwa na każdej granicy.
+    /// </summary>
+    public HashSet<string> SzlakGaps;
     /// <summary>Zobrazowanie: widok każdej strony z własną geometrią (obiekty narysowane na kilku obrazach); brak – geometria główna.</summary>
     public Dictionary<string, Station> PageViews = new();
     /// <summary>
@@ -411,6 +420,14 @@ public class Station
             foreach (var x in bm.OfType<System.Text.Json.Nodes.JsonObject>())
                 if ((string)x["block"] is string bid && d.Blocks.TryGetValue(bid, out var db) && x["end"]?.GetValue<int>() is int ei && ei >= 0 && ei < db.Ends.Count)
                 { db.Ends[ei].MarkX = x["x"].GetValue<double>(); db.Ends[ei].MarkY = x["y"].GetValue<double>(); }
+        if (disp["szlakGaps"] is System.Text.Json.Nodes.JsonArray sga)
+            d.SzlakGaps = new(sga.Select(x => x?.GetValue<string>()).Where(x => x != null));
+        if (disp["noEndMark"] is System.Text.Json.Nodes.JsonArray nem)
+            foreach (var x in nem) if (x?.GetValue<string>() is string sn && d.Signals.TryGetValue(sn, out var sd)) sd.NoEndMark = true;
+        if (disp["trainFields"] is System.Text.Json.Nodes.JsonArray tfa)
+            foreach (var x in tfa.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["block"] is string tb && d.Blocks.ContainsKey(tb))
+                    d.TrainFields.Add((tb, x["x"].GetValue<double>(), x["y"].GetValue<double>(), x["w"]?.GetValue<double>() ?? 88, x["h"]?.GetValue<double>() ?? 68));
         if (disp["pip"] is System.Text.Json.Nodes.JsonArray pa) d.PipPosts = new(pa.Select(x => x?.GetValue<string>()).Where(x => x != null));
         else if (disp["pip"] is System.Text.Json.Nodes.JsonValue pv && pv.TryGetValue<bool>(out var pb) && !pb) d.PipPosts = new();
         // położenia zwrotnic (+/−) i iglica – z układu torowego (zobrazowanie nie zmienia zależności)

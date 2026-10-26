@@ -20,7 +20,7 @@ public partial class UtView
     {
         ("tory", "układ torowy (osie torów, kozły)"), ("rozjazdy", "rozjazdy i skrzyżowania"), ("sygnalizator", "sygnalizator (semafory, tarcze)"),
         ("wskazniki", "wskaźniki (W4, W5, W17)"), ("wykolejnica", "wykolejnica"), ("licznik osi", "licznik osi"), ("zlacze", "złącze izolowane"),
-        ("odcinki", "odcinki kontroli niezajętości"), ("peron", "peron"), ("drogi", "drogi (przejazdy)"), ("kilometraz", "kilometraż (km, hm)"),
+        ("odcinki", "odcinki kontroli niezajętości"), ("peron", "peron"), ("drogi", "drogi (przejazdy)"), ("budowle", "budowla (mosty, wiadukty, tunele, przepusty, mury)"), ("kilometraz", "kilometraż (km, hm)"),
         ("opis", "opis (pochylenia niwelety, numery)"), ("podklady", "podkłady (ortofotomapa, grafiki)"),
     };
     public readonly HashSet<string> Hidden = new();
@@ -143,6 +143,7 @@ public partial class UtView
         if (Doc == null) return null;
         var p = Doc.P;
         if (HitLine(s) is var (lk, lid)) return (lk, lid);
+        if (HitObiekt(s) is var (bk, bid)) return (bk, bid);
         if (Shown("kilometraz"))
             foreach (var k in p.KmPoints)
                 if (KmMark(k) is Point q && (q - s).Length < 9) return (Kontrola.KKm, k.Id);
@@ -179,6 +180,7 @@ public partial class UtView
         Kontrola.KPrzejazd => Doc.P.LevelCrossings.Where(x => x.Id == id).Select(x => (x.Track, x.S)).FirstOrDefault(),
         Kontrola.KKm => Doc.P.KmPoints.Where(x => x.Id == id).Select(x => (x.Track, x.S)).FirstOrDefault(),
         Kontrola.KOdcinek => Doc.P.Sections.Where(x => x.Id == id).Select(x => (x.Track, x.S)).FirstOrDefault(),
+        Kontrola.KObiekt => Doc.P.Obiekty.Where(x => x.Id == id).Select(x => (x.Track, x.S0)).FirstOrDefault(),
         _ => (null, 0),
     };
 

@@ -14,12 +14,12 @@ public partial class MainWindow
         var sel = View.Multi.ToList(); if (sel.Count == 0) return false;
         HashSet<string> Of(string kind) => sel.Where(x => x.Kind == kind).Select(x => x.Id).ToHashSet();
         var tracks = Of(Kontrola.KTor); var turnouts = Of(Kontrola.KRozjazd); var crossings = Of(Kontrola.KSkrzyzowanie); var devices = Of(Kontrola.KUrzadzenie);
-        var objs = Of(Kontrola.KOdcinek).Concat(Of(Kontrola.KPeron)).Concat(Of(Kontrola.KPrzejazd)).Concat(Of(Kontrola.KKm)).ToHashSet();
+        var objs = Of(Kontrola.KOdcinek).Concat(Of(Kontrola.KPeron)).Concat(Of(Kontrola.KPrzejazd)).Concat(Of(Kontrola.KKm)).Concat(Of(Kontrola.KObiekt)).ToHashSet();
         Doc.Change($"Usunięcie zaznaczonych ({sel.Count})", p =>
         {
             p.Devices.RemoveAll(x => devices.Contains(x.Id));
             p.Sections.RemoveAll(x => objs.Contains(x.Id)); p.Platforms.RemoveAll(x => objs.Contains(x.Id));
-            p.LevelCrossings.RemoveAll(x => objs.Contains(x.Id)); p.KmPoints.RemoveAll(x => objs.Contains(x.Id));
+            p.LevelCrossings.RemoveAll(x => objs.Contains(x.Id)); p.KmPoints.RemoveAll(x => objs.Contains(x.Id)); p.Obiekty.RemoveAll(x => objs.Contains(x.Id));
             p.Crossings.RemoveAll(x => crossings.Contains(x.Id));
             // rozjazdy: z łącznikiem (partner) i odgałęzieniem
             var rz = p.Turnouts.Where(x => turnouts.Contains(x.Id)).ToList();
@@ -55,7 +55,7 @@ public partial class MainWindow
         act.Children.Add(SmallBtn("Usuń zaznaczone", () => DeleteMulti(), "Usuń wszystkie zaznaczone elementy (Del); jedno Ctrl+Z przywraca"));
         act.Children.Add(SmallBtn("Odznacz", () => View.ClearMulti(), "Koniec zaznaczenia (Esc)"));
         P.Children.Add(act);
-        PostCombo(P, View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList(), "Posterunek zaznaczonych torów");
+        PostCombo(P, View.Multi.Where(x => x.Kind == Kontrola.KTor).Select(x => x.Id).ToList(), "Zaznaczone tory należą do (posterunek albo szlak)");
         P.Children.Add(new Separator { Margin = new Thickness(0, 4, 0, 10) });
     }
 
@@ -71,6 +71,7 @@ public partial class MainWindow
             Kontrola.KOdcinek => p.Sections.FirstOrDefault(x => x.Id == id)?.Name,
             Kontrola.KPeron => p.Platforms.FirstOrDefault(x => x.Id == id)?.Name,
             Kontrola.KPrzejazd => p.LevelCrossings.FirstOrDefault(x => x.Id == id)?.Name,
+            Kontrola.KObiekt => p.Obiekty.FirstOrDefault(x => x.Id == id) is UtObiekt ob ? Obiekty.Opis(ob) : null,
             Kontrola.KKm => p.KmPoints.FirstOrDefault(x => x.Id == id) is UtKmPoint k ? $"{k.Line} km {k.Km:0.000}" : null,
             Kontrola.KSzlak => p.Lines.FirstOrDefault(x => x.Id == id)?.Numer,
             Kontrola.KPosterunek => p.Posts.FirstOrDefault(x => x.Id == id)?.Kod,

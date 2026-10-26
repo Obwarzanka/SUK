@@ -36,6 +36,8 @@ public class UtProject
     public List<UtPlatform> Platforms { get; set; } = new();
     /// <summary>Przejazdy kolejowo-drogowe i przejścia w poziomie szyn.</summary>
     public List<UtLevelCrossing> LevelCrossings { get; set; } = new();
+    /// <summary>Obiekty inżynieryjne: mosty, wiadukty, tunele, przepusty, przejścia, ściany i mury oporowe (§ 5m).</summary>
+    public List<UtObiekt> Obiekty { get; set; } = new();
     /// <summary>Punkty kilometrażu linii kolejowych na torach.</summary>
     public List<UtKmPoint> KmPoints { get; set; } = new();
     /// <summary>Posterunki ruchu (obszary: tory przypisane w <see cref="UtTrack.Post"/>).</summary>

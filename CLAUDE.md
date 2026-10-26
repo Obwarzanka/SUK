@@ -9,6 +9,7 @@ Najważniejsze zasady:
 - Logika srk ma się zgadzać z Ie-20, Ie-104 i `Zrodla/KOMPUTERY_notatki.md`. W razie wątpliwości pytaj właściciela.
 - Teksty w programie i rozmowy po polsku.
 - Zobrazowanie = obrazy pulpitu (wg Ie-104). Układ torowy (UT) = rzeczywista geometria w PUWG 1992 (X – północ, Y – wschód, Z – wysokość, metry), symbole wg Ig-10. Pulpit rysuje zobrazowanie, komputer zależności liczy z układu.
+- Edytor zobrazowania to `app/Lcs.EdytorZobrazowania2` (plan `PLAN_EDYTOR_ZOBRAZOWANIA_V2.md`). Stary `app/Lcs.EdytorZobrazowania` usunięto 2026-10-22 – nie przywracaj go.
 - Edytor UT to osobny program `app/Lcs.EdytorUT` z modelem `app/Lcs.Model`. Stary edytor w `LcsWidzew` jest usunięty (commit `d2c7431`), nie przywracaj go i nie przenoś jego kodu poza tym, co wymienia `PLAN_EDYTOR_UT.md` § 4.
 - Wynik pokaż na zrzucie i zbuduj wersję do uruchamiania (`dotnet build -c Release` w `app/LcsWidzew` i w `app/Lcs.EdytorUT`, przy zamkniętym programie).
-- Po zmianach: build, selftest na `app/LcsWidzew/Testy/station_test.json` (`WYNIK: nastawione 25 z 26`, kontrola zależności 4 z 4), test edytora `EdytorUT.exe --test wynik.txt zrzut.png` (`błędów: 0`). Potem zaktualizuj `ROZWOJ.md` (skrót), `HISTORIA_EDYTOR_UT.md` (szczegółowy opis prac nad edytorem UT), stan w `PLAN_EDYTOR_UT.md` i obsługę w `README.md`.
+- Po zmianach: build, selftest na `app/LcsWidzew/Testy/station_test.json` (`WYNIK: nastawione 25 z 26`, kontrola zależności 5 z 5), test edytora `EdytorUT.exe --test wynik.txt zrzut.png` (`błędów: 0`). Potem zaktualizuj `ROZWOJ.md` (skrót), `HISTORIA_EDYTOR_UT.md` (szczegółowy opis prac nad edytorem UT), stan w `PLAN_EDYTOR_UT.md` i obsługę w `README.md`.

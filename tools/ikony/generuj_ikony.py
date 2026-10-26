@@ -17,7 +17,7 @@ ROZMIARY = [256, 64, 48, 40, 32, 24, 20, 16]
 PROGRAMY = {
     "symulator": "LcsWidzew",
     "edytor_ut": "Lcs.EdytorUT",
-    "edytor_zobrazowania": "Lcs.EdytorZobrazowania",
+    "edytor_zobrazowania2": "Lcs.EdytorZobrazowania2",
     "edytor_taboru": "Lcs.EdytorTaboru",
     "komputerownia": "Lcs.Komputerownia",
     "przechylka": "Lcs.Przechylka",

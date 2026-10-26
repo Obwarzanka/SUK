@@ -232,9 +232,9 @@ public partial class UtView
         else dc.DrawEllipse(null, SnapPen, ToScreen(t.Vertices[vi].P), 7, 7);
         if (vi >= 0 && FitResult is { Error: null } fr)
         {
-            if (fr.Vertex is XY nv) dc.DrawLine(new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[vi].P), ToScreen(nv));
+            if (fr.Vertex is XY nv) DashLine(dc, new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[vi].P), ToScreen(nv));
             if (fr.Parts != null)
-                foreach (var (pi, pp, _, _) in fr.Parts) dc.DrawLine(new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[pi].P), ToScreen(pp));
+                foreach (var (pi, pp, _, _) in fr.Parts) DashLine(dc, new Pen(DraftInk, 1) { DashStyle = DashStyles.Dot }, ToScreen(t.Vertices[pi].P), ToScreen(pp));
             if (FitGeometry() is TrasaResult fg) dc.DrawGeometry(null, pen, Line(fg.Sample(0.5), 0));
         }
         var red = new Pen(Red, 1.6); var grey = new Pen(Brushes.Gray, 1.6);

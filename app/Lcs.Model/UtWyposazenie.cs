@@ -280,9 +280,16 @@ public static class Profil
     /// Niweleta z terenu: uproszczenie próbek (tolerancja [m], najkrótszy odcinek [m]), wysokości zaokrąglone do 1 cm. NaN w próbkach
     /// (brak danych NMT) – pominięte.
     /// </summary>
-    public static List<UtProfilePoint> FromTerrain(IReadOnlyList<UtProfilePoint> terrain, double tol = 0.3, double minLen = 100)
+    public static List<UtProfilePoint> FromTerrain(IReadOnlyList<UtProfilePoint> terrain, double tol = 0.3, double minLen = 100) => FromTerrain(terrain, tol, minLen, null);
+
+    /// <summary>
+    /// Niweleta z terenu z pominięciem próbek w zakresach <paramref name="bez"/> (most, wiadukt, tunel – NMT pokazuje tam dolinę albo
+    /// wzgórze, § 5m): niweleta przechodzi przez obiekt prosto między terenem przed nim i za nim.
+    /// </summary>
+    public static List<UtProfilePoint> FromTerrain(IReadOnlyList<UtProfilePoint> terrain, double tol, double minLen, IReadOnlyList<(double S0, double S1)> bez)
     {
-        var pts = terrain.Where(q => !double.IsNaN(q.Z)).Select(q => (q.S, q.Z)).ToList();
+        bool Out(double s) => bez == null || !bez.Any(b => s > b.S0 && s < b.S1);
+        var pts = terrain.Where(q => !double.IsNaN(q.Z) && Out(q.S)).Select(q => (q.S, q.Z)).ToList();
         if (pts.Count == 0) return new();
         return Simplify(pts, tol, minLen).Select(q => new UtProfilePoint { S = Math.Round(q.S, 2), Z = Math.Round(q.H, 2) }).ToList();
     }

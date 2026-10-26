@@ -150,6 +150,7 @@ public partial class UtView
         foreach (var x in Doc.P.LevelCrossings) if (At(x.Track, x.S) is XY p && In(p)) res.Add((Kontrola.KPrzejazd, x.Id));
         foreach (var x in Doc.P.KmPoints) if (At(x.Track, x.S) is XY p && In(p)) res.Add((Kontrola.KKm, x.Id));
         foreach (var x in Doc.P.Platforms) if (At(x.Track, x.S0) is XY p0 && At(x.Track, x.S1) is XY p1 && In(p0) && In(p1)) res.Add((Kontrola.KPeron, x.Id));
+        foreach (var x in Doc.P.Obiekty) if (At(x.Track, x.S0) is XY p0 && At(x.Track, x.S1) is XY p1 && In(p0) && In(p1)) res.Add((Kontrola.KObiekt, x.Id));
         return res;
     }
 

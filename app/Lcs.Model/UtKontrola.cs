@@ -10,7 +10,7 @@ public record Uwaga(bool Error, string Text, XY? At, string Kind, string Id);
 public static class Kontrola
 {
     public const string KTor = "tor", KRozjazd = "rozjazd", KSkrzyzowanie = "skrzyzowanie", KUrzadzenie = "urzadzenie", KOdcinek = "odcinek",
-        KPeron = "peron", KPrzejazd = "przejazd", KKm = "km", KSzlak = "szlak", KPosterunek = "posterunek";
+        KPeron = "peron", KPrzejazd = "przejazd", KKm = "km", KSzlak = "szlak", KPosterunek = "posterunek", KObiekt = "obiekt";
 
     public static List<Uwaga> Run(UtProject p)
     {
@@ -40,6 +40,26 @@ public static class Kontrola
             if (t.Number.Length == 0 && !p.Turnouts.Any(z => z.Branch == t.Id) && !p.Crossings.Any(c => c.TrackB == t.Id))
                 res.Add(new Uwaga(false, "tor bez numeru", At(t.Id, rt.Length / 2), KTor, t.Id));
         }
+        // załamania na stykach koniec – koniec dwóch torów (jak w wierzchołku bez łuku: powyżej 0,1°); miejsca, gdzie schodzą się
+        // więcej niż dwa końce, pominięte (rozgałęzienie bez rozjazdu – osobna sprawa)
+        var bylo = new HashSet<string>();
+        foreach (var st in styki.Where(x => x.OtherEnd))
+        {
+            if (!r.TryGetValue(st.Track, out var ra) || !r.TryGetValue(st.Other, out var rb) || ra.Elements.Count == 0 || rb.Elements.Count == 0) continue;
+            bool bStart = st.OtherS < rb.Length / 2;
+            string key = string.CompareOrdinal(st.Track, st.Other) < 0 ? $"{st.Track}{st.AtStart}|{st.Other}{bStart}" : $"{st.Other}{bStart}|{st.Track}{st.AtStart}";
+            if (!bylo.Add(key)) continue;
+            double se = st.AtStart ? 0 : ra.Length;
+            if (styki.Count(x => (x.Track == st.Track && x.AtStart == st.AtStart && x.OtherEnd) || (x.Other == st.Track && x.OtherEnd && Math.Abs(x.OtherS - se) < 0.06)) > 2) continue;
+            double azOut = st.AtStart ? ra.At(0).Az + Math.PI : ra.At(ra.Length).Az;
+            double azIn = bStart ? rb.At(0).Az : rb.At(rb.Length).Az + Math.PI;
+            double kat = Math.Abs(Math.IEEERemainder(azIn - azOut, 2 * Math.PI));
+            if (kat <= 0.1 * Math.PI / 180) continue;
+            var ta = p.Tracks.First(x => x.Id == st.Track); var tb = p.Tracks.First(x => x.Id == st.Other);
+            res.Add(new Uwaga(false, $"załamanie {kat * 180 / Math.PI:0.##}° na styku torów {Nr(ta)} ({(st.AtStart ? "początek" : "koniec")}) i {Nr(tb)} ({(bStart ? "początek" : "koniec")}) bez łuku – wyrównaj tory albo połącz je (Ctrl+J) i wpisz R",
+                ra.At(se).P, KTor, ta.Id));
+        }
+
         // nakładające się tory (wspólny odcinek osi dłuższy niż 3 m poza rozjazdami)
         var tl = p.Tracks.Where(t => r[t.Id].Elements.Count > 0).ToList();
         for (int i = 0; i < tl.Count; i++)
@@ -91,6 +111,7 @@ public static class Kontrola
             if (p.Turnouts.Any(z => z.Track == lc.Track && Katalog.Find(z.Type) is RozjazdTyp ty && lc.S > Math.Min(z.S, z.S + z.Dir * (ty.A + ty.B)) && lc.S < Math.Max(z.S, z.S + z.Dir * (ty.A + ty.B))))
                 res.Add(new Uwaga(true, $"{UtLevelCrossing.CatName(lc.Cat)} {lc.Name}: w obrębie rozjazdu", At(lc.Track, lc.S), KPrzejazd, lc.Id));
         }
+        foreach (var (err, text, track, s, id) in Obiekty.Check(p, r)) res.Add(new Uwaga(err, text, track != null ? At(track, s) : null, KObiekt, id));
         foreach (var (text, track, s) in Kilometraz.Check(p)) res.Add(new Uwaga(false, text, At(track, s), KTor, track));
         foreach (var k in p.KmPoints.Where(k => !r.ContainsKey(k.Track) || k.S < -0.01 || k.S > r[k.Track].Length + 0.01))
             res.Add(new Uwaga(true, $"punkt kilometrażu km {Kilometraz.Fmt(k.Km)}: poza torem", At(k.Track, k.S), KKm, k.Id));
@@ -120,11 +141,27 @@ public static class Kontrola
             if (z.Track == a.Id && z.Branch == b.Id) skip.Add((Math.Min(z.S, z.S + z.Dir * l), Math.Max(z.S, z.S + z.Dir * l)));
             if (z.Track == b.Id && z.Branch == a.Id) skip.Add(z.BranchAtEnd ? (ra.Length - l, ra.Length) : (0, l));
         }
+        // siatka próbek osi toru b (co 2 m, oczka 10 m): punkt toru a bez próbki w swoim i sąsiednich oczkach leży dalej niż 9 m od b –
+        // bez szukania najbliższego punktu (długie tory: kontrola trwała ok. 10 s)
+        const double oko = 10;
+        var siatka = new HashSet<(long, long)>();
+        for (double s = 0; ; s += 2)
+        {
+            var q = rb.At(Math.Min(s, rb.Length)).P;
+            siatka.Add(((long)Math.Floor(q.X / oko), (long)Math.Floor(q.Y / oko)));
+            if (s >= rb.Length) break;
+        }
+        bool Blisko(XY q)
+        {
+            long cx = (long)Math.Floor(q.X / oko), cy = (long)Math.Floor(q.Y / oko);
+            for (long i = -1; i <= 1; i++) for (long j = -1; j <= 1; j++) if (siatka.Contains((cx + i, cy + j))) return true;
+            return false;
+        }
         double run = 0, start = 0, best = 0, bestS = 0;
         for (double s = 0; s <= ra.Length; s += 0.5)
         {
             bool ok = false;
-            if (!skip.Any(q => s >= q.S0 && s <= q.S1))
+            if (!skip.Any(q => s >= q.S0 && s <= q.S1) && Blisko(ra.At(s).P))
             {
                 var (pt, az) = ra.At(s); var (sb, dist) = rb.Nearest(pt, 0.5);
                 if (dist < 0.3 && sb > 0.01 && sb < rb.Length - 0.01) { var azb = rb.At(sb).Az; ok = Math.Abs(Math.Sin(az - azb)) < 0.03; }

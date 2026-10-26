@@ -64,7 +64,7 @@ public static class ZobSymbole
         {
             var e = l.Konce[koniec];
             if (e.Semafor != null && ut.Devices.FirstOrDefault(x => x.Id == e.Semafor) is UtDevice sd) return (sd.Track, sd.S);
-            if (e.Track != null && ut.Tracks.FirstOrDefault(t => t.Id == e.Track) is UtTrack tt) return (e.Track, e.AtStart ? 0 : Trasa.Compute(tt).Length);
+            if (e.Track != null && ut.Tracks.FirstOrDefault(t => t.Id == e.Track) is UtTrack tt) return (e.Track, e.S ?? (e.AtStart ? 0 : Trasa.Compute(tt).Length));
         }
         return null;
     }
@@ -135,7 +135,9 @@ public static class ZobSymbole
         if (t == null || l == null) return (1, 0);
         var e = l.Konce[Math.Clamp(s.Koniec ?? 0, 0, l.Konce.Count - 1)];
         // semafor wjazdowy działa dla jazdy ze szlaku do posterunku – szlak leży w drugą stronę
-        int dir = e.Semafor != null && ut.Devices.FirstOrDefault(d => d.Id == e.Semafor) is UtDevice sd ? -sd.Dir : e.AtStart ? -1 : 1;
+        // koniec w środku toru – na zewnątrz drogi szlaku
+        int dir = e.Semafor != null && ut.Devices.FirstOrDefault(d => d.Id == e.Semafor) is UtDevice sd ? -sd.Dir
+            : e.S != null ? -(Szlaki.WGlab(ut, l, Math.Clamp(s.Koniec ?? 0, 0, l.Konce.Count - 1)) ?? 1) : e.AtStart ? -1 : 1;
         return Kierunek(t, s.P, dir);
     }
 

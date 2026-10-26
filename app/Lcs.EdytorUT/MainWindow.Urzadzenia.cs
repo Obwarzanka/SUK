@@ -292,9 +292,9 @@ public partial class MainWindow
             cb.SelectedIndex = Array.FindIndex(UtDevice.Colors, c => c.Key == lamps[i].C);
             cb.SelectionChanged += (s, e) => { if (cb.SelectedIndex < 0) return; var l = lamps.ToList(); l[ii] = (UtDevice.Colors[cb.SelectedIndex].Key, l[ii].Pulse); SetLamps(l); };
             Put(cb, 1);
-            var pu = new ComboBox { Margin = new Thickness(0, 1, 4, 1), ToolTip = "Światło: stałe; stałe lub pulsujące (na planie 2 kreski); tylko pulsujące (4 kreski)" };
+            var pu = new ComboBox { Margin = new Thickness(0, 1, 4, 1), ToolTip = "Światło: stałe; stałe lub pulsujące (na planie 2 kreski); tylko pulsujące (4 kreski); nieczynna (kreskowana, nie świeci)" };
             foreach (var m in UtDevice.PulseModes) pu.Items.Add(m.Name);
-            pu.SelectedIndex = Math.Clamp(lamps[i].Pulse, 0, 2);
+            pu.SelectedIndex = Math.Clamp(lamps[i].Pulse, 0, UtDevice.PulseModes.Length - 1);
             pu.SelectionChanged += (s, e) => { if (pu.SelectedIndex < 0) return; var l = lamps.ToList(); l[ii] = (l[ii].C, pu.SelectedIndex); SetLamps(l); };
             Put(pu, 2);
             Put(SmallBtn("↑", () => { if (ii == 0) return; var l = lamps.ToList(); (l[ii - 1], l[ii]) = (l[ii], l[ii - 1]); SetLamps(l); }, "Komora bliżej masztu"), 3);
@@ -309,13 +309,13 @@ public partial class MainWindow
                 "Komory w odwrotnej kolejności – gdy wpisano je od góry (np. z planu, od belki bramki), a liczy się od dołu"));
         P.Children.Add(lrow);
 
-        P.Children.Add(Label("Komory tekstem (C Z P B N; * – stałe lub pulsujące, ** – tylko pulsujące)"));
-        var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B**PCZ* – od masztu: biała tylko pulsująca, pomarańczowa, czerwona, zielona stała lub pulsująca; Enter – zastosuj" };
+        P.Children.Add(Label("Komory tekstem (C Z P B N; * – stałe lub pulsujące, ** – tylko pulsujące, - – nieczynna)"));
+        var txt = new TextBox { Text = d.LightsOrDefault, Margin = new Thickness(0, 2, 0, 6), ToolTip = "Np. B**PCZ* – od masztu: biała tylko pulsująca, pomarańczowa, czerwona, zielona stała lub pulsująca; B-P-CP-Z- – czynna tylko czerwona; Enter – zastosuj" };
         txt.KeyDown += (s, e) =>
         {
             if (e.Key != Key.Enter) return;
             var t = txt.Text.Trim().ToUpperInvariant();
-            if (!UtDevice.ValidLights(t)) { Message("Komory: litery C Z P B N (od masztu), * po literze – pulsuje, 1–7 komór"); return; }
+            if (!UtDevice.ValidLights(t)) { Message("Komory: litery C Z P B N (od masztu), * po literze – pulsuje, - – nieczynna, 1–7 komór"); return; }
             SetLamps(UtDevice.ParseLights(t));
         };
         P.Children.Add(txt);

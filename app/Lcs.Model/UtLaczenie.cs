@@ -79,7 +79,7 @@ public static class Laczenie
         string id = t.Id;
         return !p.Turnouts.Any(z => z.Track == id || z.Branch == id) && !p.Crossings.Any(c => c.TrackA == id || c.TrackB == id)
             && !p.Devices.Any(x => x.Track == id) && !p.Sections.Any(x => x.Track == id) && !p.LevelCrossings.Any(x => x.Track == id)
-            && !p.KmPoints.Any(x => x.Track == id) && !p.Platforms.Any(x => x.Track == id || x.Track2 == id)
+            && !p.KmPoints.Any(x => x.Track == id) && !p.Platforms.Any(x => x.Track == id || x.Track2 == id) && !Obiekty.NaTorze(p, id).Any()
             && !p.Lines.Any(x => x.Konce.Any(e => e.Track == id)) && t.Profile.Count == 0 && t.Terrain.Count == 0;
     }
 
@@ -134,7 +134,8 @@ public static class Laczenie
         foreach (var x in p.LevelCrossings.Where(x => x.Track == ab)) { x.Track = id; x.S += off; }
         foreach (var x in p.KmPoints.Where(x => x.Track == ab)) { x.Track = id; x.S += off; }
         foreach (var x in p.Platforms) { if (x.Track == ab) { x.Track = id; x.S0 += off; x.S1 += off; } if (x.Track2 == ab) x.Track2 = id; }
-        foreach (var e in p.Lines.SelectMany(x => x.Konce).Where(e => e.Track == ab)) e.Track = id;
+        Obiekty.Przenies(p, ab, id, off);
+        foreach (var e in p.Lines.SelectMany(x => x.Konce).Where(e => e.Track == ab)) { e.Track = id; if (e.S != null) e.S += off; }
         kept.Profile.AddRange(abs.Profile.Select(q => new UtProfilePoint { S = q.S + off, Z = q.Z, Rv = q.Rv }));
         kept.Terrain.AddRange(abs.Terrain.Select(q => new UtProfilePoint { S = q.S + off, Z = q.Z, Rv = q.Rv }));
         kept.OpenEnd = abs.OpenEnd;

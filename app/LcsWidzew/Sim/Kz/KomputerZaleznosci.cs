@@ -155,6 +155,10 @@ public partial class KomputerZaleznosci
                         if (L.Boundaries.TryGetValue(nn, out var sz))
                         {
                             if (type == "P" && s.Type == "wyjazdowy") cands.Add((sz, "szlak", e2, r2, nn));
+                            // posterunek bez semaforów wyjazdowych (np. odgałęźny – same wjazdowe, decyzja właściciela 2026-10-27): przebieg
+                            // od wjazdowego przez posterunek prosto na następny szlak, gdy po drodze nie było semafora tego kierunku
+                            else if (type == "P" && s.Type == "wjazdowy" && sz != s.Szlak && L.Blocks[sz].Ends.Any(x => x.Boundary == nn && x.Outward == s.Dir))
+                                cands.Add((sz, "szlak", e2, r2, nn));
                             else if (type == "M")
                             {
                                 // przebieg manewrowy w kierunku szlaku: do semafora wjazdowego (granica przetaczania)

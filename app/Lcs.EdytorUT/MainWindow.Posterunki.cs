@@ -56,7 +56,7 @@ public partial class MainWindow
             b.Click += (s, e) => View.SelectObj(Kontrola.KSzlak, id);
             postList.Children.Add(b);
         }
-        postList.Children.Add(SmallBtn("+ szlak (B)", () => SetTool(UtTool.Szlak), "Narzędzie Szlak: najedź na tor szlaku – podgląd do semaforów wjazdowych albo granicy obszaru, klik – utwórz; Ctrl + klik – końce ręcznie (B)"));
+        postList.Children.Add(SmallBtn("+ szlak (B)", () => SetTool(UtTool.Szlak), "Narzędzie Szlak: klik OD (semafor, koniec toru albo miejsce na torze), klik DO – z podglądem drogi; Ctrl + klik na torze – końce same. Szlak z torów: zaznacz tory, w panelu „Należy do” – „+ nowy szlak” albo istniejący szlak (B)"));
         postList.Children.Add(new TextBlock { Text = "Tory posterunków i szlaki są podświetlone na planie, gdy ten pasek jest rozwinięty (tylko w edytorze, nie na wydruku).", Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
     }
 
@@ -85,7 +85,9 @@ public partial class MainWindow
         return post;
     }
 
-    void OnSzlakPlace(UtLineEnd a, UtLineEnd b)
+    /// <summary>Nowy szlak z końców; <paramref name="tory"/> – tory szlaku (z panelu toru) tracą posterunek.</summary>
+    void OnSzlakPlace(UtLineEnd a, UtLineEnd b) => OnSzlakPlace(a, b, null);
+    void OnSzlakPlace(UtLineEnd a, UtLineEnd b, List<string> tory)
     {
         int n = 1; while (Doc.P.Lines.Any(x => x.Numer == n.ToString())) n++;
         var num = AskName("Szlak", "Oznaczenie szlaku (np. 1A, 2ŁW)", n.ToString());
@@ -95,7 +97,7 @@ public partial class MainWindow
         // rodzaj blokady: jak na pozostałych szlakach obszaru; nazwy – z posterunków na końcach
         if (Doc.P.Lines.Count > 0) { l.Typ = Doc.P.Lines[^1].Typ; l.Stawnosc = Doc.P.Lines[^1].Stawnosc; }
         (l.Nazwa, l.NazwaSkr) = Szlaki.ProponujNazwy(Doc.P, l);
-        Doc.Change("Szlak", p => p.Lines.Add(l));
+        Doc.Change("Szlak", p => { p.Lines.Add(l); if (tory != null) foreach (var t in p.Tracks.Where(t => tory.Contains(t.Id))) t.Post = null; });
         View.SelectObj(Kontrola.KSzlak, l.Id);
         PostExpander.IsExpanded = true;
         var d = View.DrogiNow().GetValueOrDefault(l.Id);
@@ -103,28 +105,64 @@ public partial class MainWindow
                 + (a.Semafor == null || b.Semafor == null ? " – wpisz w panelu posterunek sąsiedni przy końcu na granicy obszaru (nazwa szlaku uzupełni się)" : ""));
     }
 
-    // ------------------------------------------------------------------ posterunek toru
-    /// <summary>Lista „Posterunek” dla toru albo kilku torów.</summary>
+    // ------------------------------------------------------------------ przynależność toru: posterunek albo szlak
+    /// <summary>
+    /// Lista „Należy do” dla toru albo kilku torów: posterunek, szlak (tory dochodzą do szlaku – końce przesuwają się na koniec ciągu,
+    /// <see cref="Szlaki.Rozszerz"/>), nowy posterunek, nowy szlak z zaznaczonych torów (<see cref="Szlaki.ZTorow"/>).
+    /// </summary>
     void PostCombo(StackPanel P, List<string> tracks, string label)
     {
         if (tracks.Count == 0) return;
         var p = Doc.P;
+        var drogi = View.DrogiNow();
         P.Children.Add(Label(label));
-        var cb = new ComboBox { Margin = new Thickness(0, 2, 0, 6), ToolTip = "Posterunek ruchu, do którego należy tor (rozjazdy i urządzenia na torze dziedziczą posterunek); brak – tor szlakowy albo poza posterunkami" };
-        cb.Items.Add("(brak – szlak / poza posterunkami)");
+        var cb = new ComboBox { Margin = new Thickness(0, 2, 0, 6), ToolTip = "Posterunek ruchu (rozjazdy i urządzenia na torze dziedziczą posterunek) albo szlak, do którego należy tor. Szlak: tory muszą łączyć się końcami z jego drogą – końce szlaku przesuną się na koniec ciągu (semafor do 30 m od końca toru albo koniec toru)." };
+        cb.Items.Add("(brak – poza posterunkami i szlakami)");
         foreach (var x in p.Posts) cb.Items.Add(PostName(x));
+        foreach (var l in p.Lines) cb.Items.Add($"szlak {(l.Numer.Length > 0 ? l.Numer : "?")}" + (l.NazwaSkr.Length > 0 ? $" {l.NazwaSkr}" : ""));
         cb.Items.Add("+ nowy posterunek…");
-        var cur = tracks.Select(id => p.Tracks.FirstOrDefault(t => t.Id == id)?.Post).Distinct().ToList();
-        cb.SelectedIndex = cur.Count == 1 ? (cur[0] == null ? 0 : p.Posts.FindIndex(x => x.Id == cur[0]) + 1) : -1;
+        cb.Items.Add("+ nowy szlak z " + (tracks.Count > 1 ? "tych torów…" : "tego toru…"));
+        int nP = p.Posts.Count, nL = p.Lines.Count;
+        // szlak toru: droga szlaku przechodzi przez tor (kawałek dłuższy niż 0,5 m)
+        UtLine SzlakToru(string id) => p.Lines.FirstOrDefault(l => drogi.TryGetValue(l.Id, out var d) && d.Kawalki.Any(k => k.Track == id && k.S1 - k.S0 > 0.5));
+        var cur = tracks.Select(id => p.Tracks.FirstOrDefault(t => t.Id == id)?.Post is string pid ? "P" + pid : SzlakToru(id) is UtLine sl ? "L" + sl.Id : "").Distinct().ToList();
+        cb.SelectedIndex = cur.Count != 1 ? -1 : cur[0] == "" ? 0 : cur[0][0] == 'P' ? p.Posts.FindIndex(x => x.Id == cur[0][1..]) + 1 : nP + 1 + p.Lines.FindIndex(x => x.Id == cur[0][1..]);
         int init = cb.SelectedIndex;
+        string nr = string.Join(", ", tracks.Select(TrNr));
         cb.SelectionChanged += (s, e) =>
         {
             int i = cb.SelectedIndex;
             if (i < 0 || i == init) return;
-            if (i == cb.Items.Count - 1) { NewPost(); return; }
+            if (i == nP + nL + 1) { NewPost(); return; }
+            if (i == nP + nL + 2)
+            {
+                var (kon, err) = Szlaki.ZTorow(Doc.P, tracks, View.TopoR, View.TopoStyki);
+                if (err != null) { Message("Nowy szlak: " + err); cb.SelectedIndex = init; return; }
+                OnSzlakPlace(kon[0].E, kon[1].E, tracks);
+                return;
+            }
+            if (i > nP)
+            {
+                var l = p.Lines[i - nP - 1];
+                var (konce, err) = Szlaki.Rozszerz(Doc.P, l, tracks, View.TopoR, View.TopoStyki);
+                if (err != null) { Message($"Szlak {l.Numer}: {err}"); cb.SelectedIndex = init; return; }
+                var lid = l.Id;
+                Doc.Change("Tory szlaku", q =>
+                {
+                    foreach (var t in q.Tracks.Where(t => tracks.Contains(t.Id))) t.Post = null;
+                    var ql = q.Lines.First(x => x.Id == lid);
+                    ql.Konce = konce.Select(k => new UtLineEnd { Semafor = k.Semafor, Track = k.Track, AtStart = k.AtStart, S = k.S, Sasiad = k.Sasiad, Oznaczenie = k.Oznaczenie }).ToList();
+                });
+                var d = View.DrogiNow().GetValueOrDefault(lid);
+                var nl = Doc.P.Lines.First(x => x.Id == lid);
+                Message($"Tory {nr} należą do szlaku {nl.Numer}: {Szlaki.Opis(Doc.P, nl.Konce[0])} – {Szlaki.Opis(Doc.P, nl.Konce[1])}" + (d?.Err != null ? $" – {d.Err}" : $", {UtView.Len(d?.Dlugosc ?? 0)}"));
+                return;
+            }
             string pid = i == 0 ? null : p.Posts[i - 1].Id;
             Doc.Change("Posterunek toru", q => { foreach (var t in q.Tracks.Where(t => tracks.Contains(t.Id))) t.Post = pid; });
-            Message(pid == null ? $"Tory {string.Join(", ", tracks.Select(TrNr))} bez posterunku" : $"Tory {string.Join(", ", tracks.Select(TrNr))} należą do posterunku {PostName(p.Posts[i - 1])}");
+            var wSzlaku = tracks.Select(SzlakToru).Where(x => x != null).Distinct().Select(x => x.Numer).ToList();
+            Message((pid == null ? $"Tory {nr} bez posterunku" : $"Tory {nr} należą do posterunku {PostName(p.Posts[i - 1])}")
+                + (wSzlaku.Count > 0 ? $" – droga szlaku {string.Join(", ", wSzlaku)} nadal przez nie przechodzi; zmień jego końce narzędziem Szlak (B)" : ""));
         };
         P.Children.Add(cb);
     }

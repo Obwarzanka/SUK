@@ -97,7 +97,8 @@ public static class Ciecie
         var vb = keepB ? (ab != null ? new List<UtVertex> { new(), new() } : Budowa.Trim(t.Vertices, k, sb, L)) : null;
         if ((va != null && va.Count < 2) || (vb != null && vb.Count < 2)) return new("za krótki kawałek po cięciu", null, false, null);
 
-        var nb = keepB ? new UtTrack { Number = keepA ? "" : t.Number, Cat = t.Cat, Elec = t.Elec, Vmax = t.Vmax, Vertices = vb, OpenEnd = t.OpenEnd, Align = ab } : null;
+        // część za cięciem zostaje w posterunku toru (bez tego wypadała z obrazów posterunku i z listy torów stacji)
+        var nb = keepB ? new UtTrack { Number = keepA ? "" : t.Number, Cat = t.Cat, Elec = t.Elec, Vmax = t.Vmax, Vertices = vb, OpenEnd = t.OpenEnd, Align = ab, Post = t.Post } : null;
         if (nb?.Align != null) TrasaElem.SyncEnds(nb);
         int removed = 0;
         if (!keepA)
@@ -133,6 +134,7 @@ public static class Ciecie
         foreach (var x in p.LevelCrossings.Where(x => x.Track == track && x.S >= from - E)) { x.Track = to; x.S -= from; }
         foreach (var x in p.KmPoints.Where(x => x.Track == track && x.S >= from - E)) { x.Track = to; x.S -= from; }
         foreach (var x in p.Platforms.Where(x => x.Track == track && Math.Min(x.S0, x.S1) >= from - E)) { x.Track = to; x.S0 -= from; x.S1 -= from; }
+        Obiekty.Ciecie(p, track, to, from, E);
     }
 
     /// <summary>Usunięcie obiektów toru w miejscach spełniających warunek (peron – przycięty do części, która zostaje).</summary>
@@ -143,6 +145,7 @@ public static class Ciecie
         n += p.LevelCrossings.RemoveAll(x => x.Track == track && gone(x.S));
         n += p.KmPoints.RemoveAll(x => x.Track == track && gone(x.S));
         n += p.Platforms.RemoveAll(x => x.Track == track && gone(Math.Min(x.S0, x.S1)) && gone(Math.Max(x.S0, x.S1)));
+        n += Obiekty.Usun(p, track, gone);
         foreach (var x in p.Platforms.Where(x => x.Track == track))
         {
             // peron częściowo w usuniętym kawałku – przycięty do części poza nim

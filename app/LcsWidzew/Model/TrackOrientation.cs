@@ -183,6 +183,9 @@ public static class TrackOrientation
             foreach (var (_, sv) in signals)
             {
                 if (sv is not JsonObject s || Sv(s["node"]) is not string n || !at.ContainsKey(n)) continue;
+                // tor przed / za sygnalizatorem zapisany przez „Do symulatora” – jednoznaczny także w styku torów o przeciwnym km
+                if (at[n].FirstOrDefault(e => Sv(e["id"]) == Sv(s["ahead"])) is { } ea) { sigAhead.Add((s, ea, false)); continue; }
+                if (at[n].FirstOrDefault(e => Sv(e["id"]) == Sv(s["behind"])) is { } eb) { sigAhead.Add((s, eb, true)); continue; }
                 int d = Math.Sign((int)D(s["dir"])); if (d == 0) continue;
                 var ah = at[n].FirstOrDefault(e => Sem(e, n) == d);
                 if (ah != null) sigAhead.Add((s, ah, false));
@@ -198,7 +201,8 @@ public static class TrackOrientation
                 {
                     int ow = Math.Sign((int)D(en["outward"]));
                     if (dd != 0 && ow == dd && idx < 0) idx = k;
-                    if (Sv(en["boundary"]) is string n && at.ContainsKey(n) && at[n].FirstOrDefault(e => Sem(e, n) == ow) is { } oe) endEdge.Add((en, oe));
+                    if (Sv(en["boundary"]) is string n && at.ContainsKey(n) &&
+                        (at[n].FirstOrDefault(e => Sv(e["id"]) == Sv(en["outEdge"])) ?? at[n].FirstOrDefault(e => Sem(e, n) == ow)) is { } oe) endEdge.Add((en, oe));
                     k++;
                 }
                 defEnd.Add((b, idx));

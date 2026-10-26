@@ -27,6 +27,9 @@ public partial class MainWindow
                 case Kontrola.KPrzejazd: if (p.LevelCrossings.FirstOrDefault(x => x.Id == id) is UtLevelCrossing c) c.S += d; break;
                 case Kontrola.KKm: if (p.KmPoints.FirstOrDefault(x => x.Id == id) is UtKmPoint k) k.S += d; break;
                 case Kontrola.KOdcinek: if (p.Sections.FirstOrDefault(x => x.Id == id) is UtSection s) s.S += d; break;
+                case Kontrola.KObiekt:
+                    if (p.Obiekty.FirstOrDefault(x => x.Id == id) is UtObiekt o) { o.S0 += d; o.S1 += d; foreach (var t in o.Tory ?? new()) { t.S0 += d; t.S1 += d; } }
+                    break;
             }
         });
         View.ObjMenu += (kind, id) =>
@@ -34,6 +37,7 @@ public partial class MainWindow
             var cm = new ContextMenu();
             var mi = new MenuItem { Header = "Usuń" }; mi.Click += (s, e) => DeleteObj();
             if (kind == Kontrola.KPeron) { var sw = new MenuItem { Header = "Zmień stronę" }; sw.Click += (s, e) => Doc.Change("Strona peronu", p => { var x = p.Platforms.First(q => q.Id == id); x.Side = -x.Side; }); cm.Items.Add(sw); }
+            if (kind == Kontrola.KObiekt) ObiektMenu(cm, id);
             if (kind == Kontrola.KKm) { var sw = new MenuItem { Header = "Odwróć kierunek kilometrażu" }; sw.Click += (s, e) => Doc.Change("Kierunek kilometrażu", p => { var x = p.KmPoints.First(q => q.Id == id); x.Dir = -x.Dir; }); cm.Items.Add(sw); }
             cm.Items.Add(mi);
             cm.PlacementTarget = View; cm.IsOpen = true;
@@ -108,13 +112,13 @@ public partial class MainWindow
         string what = kind switch
         {
             Kontrola.KPeron => "Usunięcie peronu", Kontrola.KPrzejazd => "Usunięcie przejazdu", Kontrola.KKm => "Usunięcie punktu km",
-            Kontrola.KPosterunek => "Usunięcie posterunku", Kontrola.KSzlak => "Usunięcie szlaku", _ => "Usunięcie odcinka",
+            Kontrola.KPosterunek => "Usunięcie posterunku", Kontrola.KSzlak => "Usunięcie szlaku", Kontrola.KObiekt => "Usunięcie obiektu", _ => "Usunięcie odcinka",
         };
         Doc.Change(what, p =>
         {
             p.Platforms.RemoveAll(x => x.Id == id); p.LevelCrossings.RemoveAll(x => x.Id == id);
             p.KmPoints.RemoveAll(x => x.Id == id); p.Sections.RemoveAll(x => x.Id == id);
-            p.Lines.RemoveAll(x => x.Id == id);
+            p.Lines.RemoveAll(x => x.Id == id); p.Obiekty.RemoveAll(x => x.Id == id);
             // posterunek: tory zostają, bez posterunku
             if (p.Posts.RemoveAll(x => x.Id == id) > 0) foreach (var t in p.Tracks.Where(t => t.Post == id)) t.Post = null;
         });
@@ -133,6 +137,7 @@ public partial class MainWindow
             case Kontrola.KPeron when p.Platforms.FirstOrDefault(x => x.Id == id) is UtPlatform pl: BuildPlatformPanel(pl); break;
             case Kontrola.KPrzejazd when p.LevelCrossings.FirstOrDefault(x => x.Id == id) is UtLevelCrossing c: BuildLevelCrossingPanel(c); break;
             case Kontrola.KKm when p.KmPoints.FirstOrDefault(x => x.Id == id) is UtKmPoint k: BuildKmPanel(k); break;
+            case Kontrola.KObiekt when p.Obiekty.FirstOrDefault(x => x.Id == id) is UtObiekt o: BuildObiektPanel(o); break;
             case Kontrola.KPosterunek when p.Posts.FirstOrDefault(x => x.Id == id) is UtPost po: BuildPostPanel(po); break;
             case Kontrola.KSzlak when p.Lines.FirstOrDefault(x => x.Id == id) is UtLine l: BuildLinePanel(l); break;
         }

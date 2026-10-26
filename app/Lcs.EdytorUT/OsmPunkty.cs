@@ -11,6 +11,8 @@ namespace Lcs.EdytorUT;
 public static class OsmPunkty
 {
     public const string Overpass = "https://overpass-api.de/api/interpreter";
+    /// <summary>Drugi serwer Overpass, gdy pierwszy jest przeciążony (502 / 504).</summary>
+    public const string OverpassZapas = "https://overpass.kumi.systems/api/interpreter";
     public const string Attribution = "Punkty: © współtwórcy OpenStreetMap (ODbL)";
 
     static string Query(XY a, XY b)
@@ -29,6 +31,18 @@ public static class OsmPunkty
         var q = Query(a, b);
         var data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3);
         return ParseSiec(data);
+    }
+
+    /// <summary>Słupki km (<c>railway=milestone</c>) w prostokącie PUWG 1992 z numerem linii z torów OSM obok (<see cref="KilometrazOsm"/>).</summary>
+    public static async Task<List<SlupekKm>> Slupki(XY a, XY b, CancellationToken ct)
+    {
+        var (la1, lo1) = Geo.ToWgs84(a); var (la2, lo2) = Geo.ToWgs84(b);
+        var bb = string.Format(CultureInfo.InvariantCulture, "({0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000})", Math.Min(la1, la2), Math.Min(lo1, lo2), Math.Max(la1, la2), Math.Max(lo1, lo2));
+        var q = $"[out:json][timeout:25];(node[\"railway\"=\"milestone\"]{bb};way[\"railway\"~\"^(rail|light_rail|narrow_gauge)$\"][\"ref\"]{bb};);out geom;";
+        byte[] data;
+        try { data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3); }
+        catch (Exception) when (!ct.IsCancellationRequested) { data = await Pobieranie.Retry(() => Pobieranie.Get(OverpassZapas + "?data=" + Uri.EscapeDataString(q), ct), ct, 2); }
+        return KilometrazOsm.Parse(data);
     }
 
     /// <summary>Węzły z odpowiedzi Overpass (JSON) – w PUWG 1992.</summary>

@@ -8,7 +8,7 @@ using Lcs.Model;
 namespace Lcs.EdytorUT;
 
 /// <summary>Narzędzia płótna.</summary>
-public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty, Szlak, Slad }
+public enum UtTool { Wskaz, Miarka, Obszar, Kalibracja, Przesun, Kafelki, Tor, Rozjazd, Rownolegly, Urzadzenie, LukOdDo, Odcinek, Peron, Przejazd, Km, LukPunkty, Szlak, Slad, Obiekt }
 
 /// <summary>
 /// Płótno edytora UT w metrach PUWG 1992. Widok Teren: północ (X) do góry, wschód (Y) w prawo, 1:1. Widok Schemat: oś stacji
@@ -57,7 +57,7 @@ public partial class UtView : FrameworkElement
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; gantryDrag = null; arcFrom = null; objFrom = null; objDrag = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; gantryDrag = null; arcFrom = null; objFrom = null; objDrag = null; obFrom = null; obPress = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -195,6 +195,7 @@ public partial class UtView : FrameworkElement
         if (tool == UtTool.Wskaz && PressMulti(p)) return true;
         if (tool == UtTool.Wskaz && (PressTrackMove(p) || PressVertex(p) || PressDevice(p) || PressGantry(p) || PressObj(p) || PressTurnout(p))) return true;
         if (tool is UtTool.Peron or UtTool.Przejazd or UtTool.Km && ObjToolPress(p)) return true;
+        if (tool == UtTool.Obiekt && ObPress(p)) return true;
         if (tool == UtTool.Urzadzenie && DevPress(p)) return true;
         if (tool == UtTool.Rozjazd && RzPress(p)) return true;
         if (tool == UtTool.Kafelki) { painting = true; Paint?.Invoke(ToWorld(p), true); InvalidateVisual(); }
@@ -218,6 +219,7 @@ public partial class UtView : FrameworkElement
         else if (hDrag != null && buttonDown) { DragHandle(p); }
         else if (rzFrom != null && buttonDown) { rzTo = hover.Value; InvalidateVisual(); }
         else if ((devFrom != null || objFrom != null) && buttonDown) { InvalidateVisual(); }
+        else if (obPress is var (_, _, opa) && buttonDown) { if ((p - opa).Length > ClickTol) dragging = true; InvalidateVisual(); }
         else if (objDrag != null && buttonDown) { if (downAt is Point d3 && (p - d3).Length > ClickTol) dragging = true; if (dragging) DragObj(p); }
         else if (devDrag != null && buttonDown) { if (downAt is Point d2 && (p - d2).Length > ClickTol) dragging = true; if (dragging) DragDevice(p); }
         else if (gantryDrag != null && buttonDown) { if (downAt is Point d4 && (p - d4).Length > ClickTol) dragging = true; if (dragging) DragGantry(p); }
@@ -256,6 +258,7 @@ public partial class UtView : FrameworkElement
             if (tool == UtTool.LukOdDo && arcFrom != null) { arcFrom = null; InvalidateVisual(); return true; }
             if (tool == UtTool.LukPunkty && fitArc != null) { if (!FitApply()) { fitArc = null; FitPts.Clear(); InvalidateVisual(); } return true; }
             if (tool == UtTool.Szlak && szlakFrom != null) { SzlakCancel(); return true; }
+            if (tool == UtTool.Obiekt && obFrom != null) { ObCancel(); return true; }
             if (tool == UtTool.Slad && SladPts.Count > 0) { if (SladPreview != null) SladAccept(); else _ = SladLicz(); return true; }
             return false;
         }
@@ -273,6 +276,7 @@ public partial class UtView : FrameworkElement
         if (devFrom != null) { downAt = null; DevRelease(p); return true; }
         if (objDrag != null) { downAt = null; EndObjDrag(); return true; }
         if (objFrom != null) { downAt = null; ObjToolRelease(p); return true; }
+        if (obPress != null) { downAt = null; ObRelease(p); return true; }
         if (downAt == null) return false;
         var w = ToWorld(p); downAt = null;
         if (areaFrom is XY a)
@@ -298,6 +302,7 @@ public partial class UtView : FrameworkElement
         else if (tool == UtTool.Slad) SladClick(p);
         else if (tool == UtTool.Odcinek) OdcClick(p);
         else if (tool == UtTool.Szlak) SzlakClick(p);
+        else if (tool == UtTool.Obiekt) DraftInfo?.Invoke($"{Obiekty.Info(ObKind).Name}: kliknij na torze");
         else if (tool == UtTool.Rozjazd) { if (Katalog.Find(RzType)?.IsCrossing == true) CrossingPlace?.Invoke(w); else DraftInfo?.Invoke("Rozjazd: wciśnij na torze w miejscu początku rozjazdu i przeciągnij w stronę odgałęzienia"); }
         else if (tool == UtTool.Wskaz) SelectAt(p);
         return true;
@@ -400,6 +405,7 @@ public partial class UtView : FrameworkElement
         DrawSections(dc, dpi);
         DrawPosts(dc, dpi);
         DrawTracks(dc, dpi);
+        DrawObiekty(dc, dpi);
         DrawTurnouts(dc, dpi);
         DrawDevices(dc, dpi);
         DrawKm(dc, dpi);
@@ -692,4 +698,22 @@ public partial class UtView : FrameworkElement
     static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
     static Pen FrozenPen(Color c, double t) { var p = new Pen(Frozen(c), t) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }; p.Freeze(); return p; }
     static Pen Dashed(Color c, double t) { var p = new Pen(Frozen(c), t) { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) }; p.Freeze(); return p; }
+
+    /// <summary>
+    /// Linia kreskowana przycięta do widoku (z marginesem): WPF dzieli kreskowaną linię na kreski na całej długości, więc punkt
+    /// daleko poza ekranem (np. przecięcie prawie równoległych prostych) zawieszał okno (2026-10-21).
+    /// </summary>
+    void DashLine(DrawingContext dc, Pen pen, Point a, Point b)
+    {
+        if (double.IsNaN(a.X + a.Y + b.X + b.Y) || double.IsInfinity(a.X + a.Y + b.X + b.Y)) return;
+        double x0 = -50, y0 = -50, x1 = ActualWidth + 50, y1 = ActualHeight + 50, t0 = 0, t1 = 1, dx = b.X - a.X, dy = b.Y - a.Y;
+        foreach (var (pp, q) in new[] { (-dx, a.X - x0), (dx, x1 - a.X), (-dy, a.Y - y0), (dy, y1 - a.Y) })
+        {
+            if (Math.Abs(pp) < 1e-12) { if (q < 0) return; continue; }
+            double r = q / pp;
+            if (pp < 0) { if (r > t1) return; if (r > t0) t0 = r; }
+            else { if (r < t0) return; if (r < t1) t1 = r; }
+        }
+        dc.DrawLine(pen, new Point(a.X + t0 * dx, a.Y + t0 * dy), new Point(a.X + t1 * dx, a.Y + t1 * dy));
+    }
 }

@@ -58,9 +58,11 @@ public partial class MainWindow : Window
         InitBg();
         InitTory();
         InitSlad();
+        InitKmOsm();
         InitRozjazdy();
         InitUrzadzenia();
         InitWyposazenie();
+        InitObiekty();
         InitKontrola();
         InitPosterunki();
         Closing += OnClosing;
@@ -134,6 +136,8 @@ public partial class MainWindow : Window
         tb.Items.Add(ToolBtn(UtTool.Odcinek, "▭ Odcinek", "Odcinek kontroli niezajętości: klik na torze w kawałku między granicami (licznikami osi, złączami izolowanymi) – nazwa odcinka (O)"));
         tb.Items.Add(ToolBtn(UtTool.Peron, "▤ Peron", "Peron (Ig-10 s. 52): wciśnij na torze w miejscu początku krawędzi i przeciągnij wzdłuż toru do jej końca, po stronie peronu"));
         tb.Items.Add(ToolBtn(UtTool.Przejazd, "╪ Przejazd", "Przejazd kolejowo-drogowy: klik na torze – droga prostopadle; przeciągnięcie – wzdłuż osi drogi (kąt i długość)"));
+        tb.Items.Add(ToolBtn(UtTool.Obiekt, "⌓ Obiekt", "Obiekt inżynieryjny (Ig-10 zał. 8): most, wiadukt, tunel – klik OD i klik DO na torze; przepust, tunel pod linią, przejście, wiadukt drogowy – klik albo przeciągnięcie wzdłuż osi przeszkody; Ctrl + klik – dołóż tor do zaznaczonego obiektu (I)"));
+        tb.Items.Add(ObKindBox);
         tb.Items.Add(ToolBtn(UtTool.Km, "km", "Kilometraż linii: wciśnij na torze w znanym miejscu i przeciągnij w stronę rosnącego km linii; numer linii i km z okna"));
         tb.Items.Add(ToolBtn(UtTool.Szlak, "⇄ Szlak", "Szlak z blokadą liniową. Narzędzie Szlak: najedź na tor szlaku – podgląd do semaforów wjazdowych albo granicy obszaru, klik – utwórz; Ctrl + klik – końce ręcznie (B)"));
         tb.Items.Add(new Separator());
@@ -178,6 +182,9 @@ public partial class MainWindow : Window
             UtTool.Odcinek => "Odcinek: kliknij na torze – nazwa odcinka kontroli niezajętości dla całego kawałka między granicami (liczniki osi, złącza izolowane, końce torów); kolor = odcinek, czerwone kreski – kawałek bez odcinka",
             UtTool.Peron => "Peron: wciśnij na torze w miejscu początku krawędzi peronowej i przeciągnij wzdłuż toru do jej końca, po stronie peronu",
             UtTool.Przejazd => "Przejazd: kliknij na torze w osi drogi (droga prostopadle) albo przeciągnij wzdłuż osi drogi – kąt i długość drogi na planie",
+            UtTool.Obiekt => Obiekty.Info(View.ObKind) is var oi && oi.Pol == Obiekty.Pol.Poprzeczny
+                ? $"{oi.Name} ({oi.Ig10}): kliknij na torze w osi przeszkody (prostopadle) albo przeciągnij wzdłuż jej osi – kąt i zasięg na planie"
+                : $"{oi.Name} ({oi.Ig10}): kliknij na torze w miejscu początku (OD), potem w miejscu końca (DO) albo przeciągnij wzdłuż toru" + (oi.Pol == Obiekty.Pol.ZBoku ? " – po stronie ściany" : "; Ctrl + klik na innym torze – dołóż tor do zaznaczonego obiektu") + "; PPM / Esc – od nowa",
             UtTool.Km => "Kilometraż: wciśnij na torze w miejscu o znanym km linii i przeciągnij w stronę rosnącego km; w oknie numer linii i km (np. 17 25.452). Drugi punkt na tym samym torze – kilometr skrócony / wydłużony",
             UtTool.Szlak => "Szlak: najedź na tor szlaku – program sam znajdzie końce (semafory wjazdowe albo granicę obszaru) i pokaże drogę, klik – utwórz; klik na istniejącym szlaku – zaznacz; Ctrl + klik – końce ręcznie; PPM / Esc – od nowa",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",
@@ -198,6 +205,7 @@ public partial class MainWindow : Window
     {
         var root = new StackPanel { Margin = new Thickness(10) };
         root.Children.Add(SladPanel);
+        root.Children.Add(KmOsmPanel);
         root.Children.Add(TrackPanel);
         root.Children.Add(CheckExpander);
         root.Children.Add(RepairExpander);
@@ -457,10 +465,13 @@ public partial class MainWindow : Window
     public void Message(string m) { stMsg.Text = m; MessageShown?.Invoke(m); }
     public string LastMessage => stMsg.Text;
 
+    /// <summary>Test: klawisz z testu (nie do pola tekstowego, nawet gdy okno nie jest aktywne i fokus został w polu).</summary>
+    internal static bool KeyFromTest;
+
     void OnKey(object s, KeyEventArgs e)
     {
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control), shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-        bool inText = Keyboard.FocusedElement is TextBox;
+        bool inText = !KeyFromTest && Keyboard.FocusedElement is TextBox;
         if (!inText && !ctrl && View.TorKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.ParKey(e.Key)) { e.Handled = true; return; }
         if (!inText && !ctrl && View.ArcKey(e.Key)) { e.Handled = true; return; }
@@ -477,6 +488,7 @@ public partial class MainWindow : Window
         {
             if (View.Tool == UtTool.Kalibracja && View.CalPending != null) { View.CalPending = null; View.InvalidateVisual(); }
             else if (View.Tool == UtTool.Szlak && View.SzlakFrom != null) View.SzlakCancel();
+            else if (View.Tool == UtTool.Obiekt && View.ObFrom != null) View.ObCancel();
             else SetTool(UtTool.Wskaz);
             e.Handled = true;
         }
@@ -490,6 +502,7 @@ public partial class MainWindow : Window
         else if (!inText && !ctrl && e.Key == Key.F) { SetTool(UtTool.Slad); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.O) { SetTool(UtTool.Odcinek); e.Handled = true; }
         else if (!inText && !ctrl && e.Key == Key.B) { SetTool(UtTool.Szlak); e.Handled = true; }
+        else if (!inText && !ctrl && e.Key == Key.I) { SetTool(UtTool.Obiekt); e.Handled = true; }
         else if (!inText && e.Key == Key.F7) { RunCheck(true); e.Handled = true; }
         else if (!inText && e.Key == Key.Delete && !View.Busy && DeleteSelection()) e.Handled = true;
         else if (!inText && !ctrl && e.Key is Key.Left or Key.Right or Key.Up or Key.Down && View.NudgeKey(e.Key, shift)) e.Handled = true;

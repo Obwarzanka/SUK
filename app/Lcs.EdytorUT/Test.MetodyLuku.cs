@@ -67,6 +67,37 @@ public static partial class Test
         w.View.SetView(ts, 0.3); w.View.Select(t.Id); w.View.SimDrag(S(ts), S(ts2));
         t = d.P.Tracks.First(x => x.Id == t.Id); r = w.View.Geometry(t);
         Ok(Math.Abs(r.Tangent[1] / k - (T0 - 20)) < 0.2 && r.Ok && d.UndoName == "Początek / koniec łuku", $"(D) początek łuku przesunięty o 20 m do wierzchołka: styczna {T0:0.0} → {r.Tangent[1] / k:0.0} m, R {t.Vertices[1].R} m");
+        // (D) załamanie bez łuku na jednej prostej (jak po połączeniu torów w „Nowy obszar”): przesunięcie prostej obok niego – przecięcie
+        // z prawie równoległą prostą leżało setki tysięcy km dalej, a kreskowany wielobok zawieszał okno (2026-10-21)
+        var c0 = Go(o, lineAz + 90, 600); var c1 = Go(c0, lineAz, 100); var c2 = Go(c1, lineAz + 0.05, 100); var c3 = Go(c2, lineAz + 15, 300);
+        var tr8 = new UtTrack { Number = "8", Vertices = new() { new() { X = c0.X, Y = c0.Y }, new() { X = c1.X, Y = c1.Y }, new() { X = c2.X, Y = c2.Y, R = 500 }, new() { X = c3.X, Y = c3.Y } } };
+        d.Change("Tor 8", p => p.Tracks.Add(tr8));
+        var r8 = w.View.Geometry(tr8); var st8 = r8.Elements.First(e => e.Kind == ElKind.Prosta && e.Vertex == 2); var mid8 = st8.At(st8.Len / 2).P;
+        w.View.SetView(mid8, 0.09); w.View.Select(tr8.Id);
+        var przed8 = tr8.Vertices.Select(q => q.P).ToList(); int und8 = d.UndoCount;
+        var sw8 = System.Diagnostics.Stopwatch.StartNew();
+        w.View.SimDrag(S(mid8), S(mid8 + Element.Right(st8.Az0) * (3 * k))); await Settle(w);
+        var t8 = d.P.Tracks.First(x => x.Id == tr8.Id);
+        double daleko = t8.Vertices.Zip(przed8).Max(q => XY.Dist(q.First.P, q.Second)) / k;
+        Ok(sw8.ElapsedMilliseconds < 5000 && daleko > 2.5 && daleko < 20 && d.UndoCount > und8, $"(D) prosta obok załamania na jednej prostej przesunięta o 3 m: wierzchołki najdalej {daleko:0.00} m od miejsca, {sw8.ElapsedMilliseconds} ms (cofanie {und8} → {d.UndoCount}: {d.UndoName}; {w.LastMessage})");
+        for (int i = 0; i < 6 && d.UndoCount > und8 - 1; i++) w.DoUndo();
+        // (D) rozjazd za końcem toru: na styku tor dalej na wprost – bez uwagi; tor dalej pod kątem 3° – uwaga z kątem (rozjazd 79, 2026-10-21)
+        {
+            var e0 = Go(o, lineAz - 90, 600); var e1 = Go(e0, lineAz, 100); var e2 = Go(e1, lineAz, 100); var e3 = Go(e1, lineAz + 3, 100);
+            UtProject Pr(XY dalej) => new()
+            {
+                Tracks = new() { new UtTrack { Id = "ta", Vertices = new() { new() { X = e0.X, Y = e0.Y }, new() { X = e1.X, Y = e1.Y } } },
+                                 new UtTrack { Id = "tb", Vertices = new() { new() { X = e1.X, Y = e1.Y }, new() { X = dalej.X, Y = dalej.Y } } } },
+                Turnouts = new() { new UtTurnout { Number = "X", Type = "Rz 60E1-300-1:9", Track = "ta", S = 90, Dir = 1 } },
+            };
+            var pw = Pr(e2); var pk = Pr(e3);
+            var uw1 = Rozjazdy.Check(pw, pw.Turnouts[0]); var uw2 = Rozjazdy.Check(pk, pk.Turnouts[0]);
+            Ok(!uw1.Any(x => x.Contains("wychodzi")) && uw2.Any(x => x.Contains("wychodzi") && x.Contains("kątem 3°")),
+                $"(D) rozjazd 23 m za końcem toru: tor dalej na wprost – bez uwagi; pod kątem 3° – „{uw2.FirstOrDefault(x => x.Contains("wychodzi"))}”");
+            // „Sprawdź”: załamanie na styku dwóch torów bez łuku
+            var kw = Kontrola.Run(pw).Where(x => x.Text.Contains("na styku torów")).ToList(); var kk = Kontrola.Run(pk).Where(x => x.Text.Contains("na styku torów")).ToList();
+            Ok(kw.Count == 0 && kk.Count == 1 && kk[0].Text.StartsWith("załamanie 3° na styku"), $"(D) „Sprawdź”: styk na wprost – bez uwagi; pod kątem 3° – „{kk.FirstOrDefault()?.Text}”");
+        }
 
         // --- (E) uwagi łuków: tor główny 100 km/h – za krótkie przejściowe; łuki odwrotne z krótką prostą
         var uw = Kontrola.Run(d.P).Where(u => u.Id == t.Id).Select(u => u.Text).ToList();

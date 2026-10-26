@@ -74,26 +74,32 @@ public class UtDevice
     /// <summary>Kolory komór: litera i nazwa.</summary>
     public static readonly (char Key, string Name)[] Colors = { ('C', "czerwona"), ('Z', "zielona"), ('P', "pomarańczowa"), ('B', "biała"), ('N', "niebieska") };
 
-    /// <summary>Światło komory: stałe, stałe lub pulsujące (na planie 2 kreski), tylko pulsujące (4 kreski) – uwaga właściciela 2026-10-17.</summary>
-    public const int Stale = 0, StaleLubPulsujace = 1, TylkoPulsujace = 2;
-    public static readonly (int Key, string Name)[] PulseModes = { (Stale, "stałe"), (StaleLubPulsujace, "stałe lub pulsujące"), (TylkoPulsujace, "tylko pulsujące") };
+    /// <summary>
+    /// Światło komory: stałe, stałe lub pulsujące (na planie 2 kreski), tylko pulsujące (4 kreski) – uwaga właściciela 2026-10-17;
+    /// komora nieczynna (na planie kreskowana, nie świeci – kolor zostaje w zapisie) – uwaga właściciela 2026-10-22 (plan, semafor E7).
+    /// </summary>
+    public const int Stale = 0, StaleLubPulsujace = 1, TylkoPulsujace = 2, Nieczynna = 3;
+    public static readonly (int Key, string Name)[] PulseModes = { (Stale, "stałe"), (StaleLubPulsujace, "stałe lub pulsujące"), (TylkoPulsujace, "tylko pulsujące"), (Nieczynna, "nieczynna") };
+    /// <summary>Komory czynne (bez nieczynnych) – do symulatora i zobrazowania.</summary>
+    public static List<(char C, int Pulse)> Czynne(string s) => ParseLights(s).Where(x => x.Pulse != Nieczynna).ToList();
 
     /// <summary>
     /// Komory: litera koloru i rodzaj światła (<see cref="Stale"/>, <see cref="StaleLubPulsujace"/> – „*” po literze,
-    /// <see cref="TylkoPulsujace"/> – „**”), np. „B*PCZ**”.
+    /// <see cref="TylkoPulsujace"/> – „**”, <see cref="Nieczynna"/> – „-”), np. „B*PCZ**”, „B-P-CP-Z-”.
     /// </summary>
     public static List<(char C, int Pulse)> ParseLights(string s)
     {
         var res = new List<(char, int)>();
         foreach (var ch in s ?? "")
         {
-            if (ch == '*' && res.Count > 0) res[^1] = (res[^1].Item1, Math.Min(TylkoPulsujace, res[^1].Item2 + 1));
+            if (ch == '*' && res.Count > 0 && res[^1].Item2 != Nieczynna) res[^1] = (res[^1].Item1, Math.Min(TylkoPulsujace, res[^1].Item2 + 1));
+            else if (ch == '-' && res.Count > 0) res[^1] = (res[^1].Item1, Nieczynna);
             else if ("CZPBN".Contains(ch)) res.Add((ch, Stale));
         }
         return res;
     }
-    public static string FormatLights(IEnumerable<(char C, int Pulse)> l) => string.Concat(l.Select(x => x.C + new string('*', Math.Clamp(x.Pulse, 0, 2))));
-    public static bool ValidLights(string s) => !string.IsNullOrEmpty(s) && s.All(c => "CZPBN*".Contains(c)) && ParseLights(s).Count is >= 1 and <= 7;
+    public static string FormatLights(IEnumerable<(char C, int Pulse)> l) => string.Concat(l.Select(x => x.C + (x.Pulse == Nieczynna ? "-" : new string('*', Math.Clamp(x.Pulse, 0, 2)))));
+    public static bool ValidLights(string s) => !string.IsNullOrEmpty(s) && s.All(c => "CZPBN*-".Contains(c)) && ParseLights(s).Count is >= 1 and <= 7;
 
     /// <summary>Układy gotowe (BSK ss3–ss9): nazwa, komory, świeci zasadniczo, maszt, W24, pasy świetlne (pomarańczowy i zielony).</summary>
     public static readonly (string Name, string Lights, char Lit, string Mast, bool W24, bool Stripes)[] Presets =

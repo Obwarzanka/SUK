@@ -50,6 +50,11 @@ public class ZobObraz
     public List<ZobSymbol> Przejazdy { get; set; } = new();
     public List<ZobSymbol> Szlaki { get; set; } = new();
     public List<ZobNapis> Napisy { get; set; } = new();
+    /// <summary>
+    /// Okna numeru pociągu dla szlaku (nowy edytor, etap E6; stary edytor ich nie rysuje): <see cref="ZobSymbol.Ut"/> – szlak UT, <see cref="ZobSymbol.P"/> –
+    /// lewy górny róg, <see cref="ZobSymbol.Zasieg"/> – szerokość i wysokość [j.]; null – brak (plik starego edytora bez zmian).
+    /// </summary>
+    public List<ZobSymbol> PolaPip { get; set; }
 
     /// <summary>
     /// Kopia obrazu z całą treścią (narysowaną przez człowieka) – nowe <c>Id</c> obrazu, torów obrazu i napisów; przypięcia do UT bez zmian.
@@ -103,6 +108,8 @@ public class ZobSymbol
     public int? Koniec { get; set; }
     /// <summary>Przejazd: zasięg linii przejazdu od punktu na torze [j.] – w górę i w dół; null – 28 / 28.</summary>
     public int[] Zasieg { get; set; }
+    /// <summary>Semafor wjazdowy bez trójkąta końca przebiegu wyjazdowego (nowy edytor, odmiana semafora); null – zwykły.</summary>
+    public bool? BezKonca { get; set; }
 }
 
 /// <summary>Peron – prostokąt [x, y, szer, wys] w j. (jak na pulpicie: podwójna ramka z numerem).</summary>
