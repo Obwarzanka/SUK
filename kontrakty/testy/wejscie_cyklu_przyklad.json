@@ -1,0 +1,237 @@
+{
+  "opis": "Przykład S02A.02: tabela rozsyłania dwóch KZ i wejścia trzech partii (KARTY, RUCH z dwoma statusami tego samego odcinka niejednoznacznego, ROZKAZ ONN). Sprawdza sprawdz_kontrakty.py.",
+  "trasa": {
+    "schemaVersion": 1,
+    "kontrakt": "kz.trasa_wejsc",
+    "skrotMapy": "0000000000000000000000000000000000000000000000000000000000000001",
+    "kz": [
+      "KZ-A",
+      "KZ-B"
+    ],
+    "wpisy": [
+      {
+        "rodzaj": "odcinek",
+        "id": "A:1",
+        "powod": "WLASCICIEL",
+        "odbiorcy": [
+          "KZ-A"
+        ]
+      },
+      {
+        "rodzaj": "odcinek",
+        "id": "S1-1",
+        "powod": "NIEJEDNOZNACZNY_KANDYDACI",
+        "odbiorcy": [
+          "KZ-A",
+          "KZ-B"
+        ]
+      },
+      {
+        "rodzaj": "sygnalizator",
+        "id": "B:S",
+        "powod": "WLASCICIEL",
+        "odbiorcy": [
+          "KZ-A",
+          "KZ-B"
+        ]
+      },
+      {
+        "rodzaj": "wykolejnica",
+        "id": "B:Wk1",
+        "powod": "WLASCICIEL",
+        "odbiorcy": [
+          "KZ-B"
+        ]
+      },
+      {
+        "rodzaj": "zasilanie",
+        "id": "zasilanie",
+        "powod": "NIEZNANY_ODBIORCY_MAPY",
+        "odbiorcy": [
+          "KZ-A",
+          "KZ-B"
+        ]
+      },
+      {
+        "rodzaj": "zwrotnica",
+        "id": "A:1",
+        "powod": "WLASCICIEL",
+        "odbiorcy": [
+          "KZ-A"
+        ]
+      }
+    ]
+  },
+  "wejscia": [
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-A",
+      "nrWejscia": 1,
+      "nrPartii": 1,
+      "cykl": 1,
+      "faza": "KARTY",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "sygnalizator",
+          "id": "B:S",
+          "wyswietlany": "S1",
+          "uszkodzenieZezwalajacego": false,
+          "brakLacznosci": false
+        },
+        {
+          "rodzaj": "zasilanie",
+          "id": "zasilanie",
+          "siec": true,
+          "ups": true,
+          "agregat": false,
+          "napiecieNastawcze": true,
+          "agregatNieRuszyl": false
+        },
+        {
+          "rodzaj": "zwrotnica",
+          "id": "A:1",
+          "polozenie": "+",
+          "przekladanie": false,
+          "przekroczonyCzas": false
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-B",
+      "nrWejscia": 1,
+      "nrPartii": 1,
+      "cykl": 1,
+      "faza": "KARTY",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "sygnalizator",
+          "id": "B:S",
+          "wyswietlany": "S1",
+          "uszkodzenieZezwalajacego": false,
+          "brakLacznosci": false
+        },
+        {
+          "rodzaj": "wykolejnica",
+          "id": "B:Wk1",
+          "zalozona": true
+        },
+        {
+          "rodzaj": "zasilanie",
+          "id": "zasilanie",
+          "siec": true,
+          "ups": true,
+          "agregat": false,
+          "napiecieNastawcze": true,
+          "agregatNieRuszyl": false
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-A",
+      "nrWejscia": 2,
+      "nrPartii": 2,
+      "cykl": 1,
+      "faza": "RUCH",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "odcinek",
+          "id": "A:1",
+          "pojazd": false,
+          "stan": null
+        },
+        {
+          "rodzaj": "odcinek",
+          "id": "S1-1",
+          "pojazd": true,
+          "stan": null
+        },
+        {
+          "rodzaj": "odcinek",
+          "id": "S1-1",
+          "pojazd": true,
+          "stan": "reset"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-B",
+      "nrWejscia": 2,
+      "nrPartii": 2,
+      "cykl": 1,
+      "faza": "RUCH",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "odcinek",
+          "id": "S1-1",
+          "pojazd": true,
+          "stan": null
+        },
+        {
+          "rodzaj": "odcinek",
+          "id": "S1-1",
+          "pojazd": true,
+          "stan": "reset"
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-A",
+      "nrWejscia": 3,
+      "nrPartii": 3,
+      "cykl": 1,
+      "faza": "ROZKAZ",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "zasilanie",
+          "id": "zasilanie",
+          "siec": true,
+          "ups": true,
+          "agregat": false,
+          "napiecieNastawcze": false,
+          "agregatNieRuszyl": false
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "kontrakt": "kz.wejscie_cyklu",
+      "kzId": "KZ-B",
+      "nrWejscia": 3,
+      "nrPartii": 3,
+      "cykl": 1,
+      "faza": "ROZKAZ",
+      "czasSymulacjiMs": 250,
+      "skrotTrasy": "476daec8332329ad53a54307e0b6ec4c1b9809d50b3b0257e8710aa8dccc8a76",
+      "statusy": [
+        {
+          "rodzaj": "zasilanie",
+          "id": "zasilanie",
+          "siec": true,
+          "ups": true,
+          "agregat": false,
+          "napiecieNastawcze": false,
+          "agregatNieRuszyl": false
+        }
+      ]
+    }
+  ]
+}

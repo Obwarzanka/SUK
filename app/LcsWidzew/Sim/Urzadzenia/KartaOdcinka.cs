@@ -2,8 +2,9 @@ namespace LcsWidzew.Sim;
 
 /// <summary>
 /// Karta kontroli niezajętości odcinka (Zrodla/EBILock_komputerownia.md 4.5): obwód torowy albo licznik osi.
-/// Teren: osie pojazdów na odcinku (zgłasza ruch pociągów). Karta wylicza stan i melduje go komputerowi zależności
-/// (<see cref="Publikuj"/> → <see cref="SecState"/>). Przyjmuje rozkaz zerowania licznika osi (ZeroLO).
+/// Teren: osie pojazdów na odcinku (zgłasza ruch pociągów). Karta wylicza stan i zgłasza go rejestrowi wejść cyklu
+/// (<see cref="Publikuj"/> → <see cref="StatusOdcinka"/>, S02A.02); komputer zależności dostaje go zamrożony na granicy fazy.
+/// Przyjmuje rozkaz zerowania licznika osi (ZeroLO).
 /// </summary>
 public class KartaOdcinka
 {
@@ -31,11 +32,16 @@ public class KartaOdcinka
         LicznikOsi = s.L.Sections.TryGetValue(id, out var d) && d.AxleCounter;
     }
 
-    /// <summary>Status dla komputera zależności: zajętość przez pojazd i stan urządzenia.</summary>
+    StatusOdcinka ostatni;
+    /// <summary>
+    /// Status dla komputera zależności (przez rejestr wejść cyklu): zajętość przez pojazd i stan urządzenia. Rekord jest wartością –
+    /// gdy stan się nie zmienił, karta zgłasza ponownie ten sam niezmienny rekord (bez nowej alokacji w każdym cyklu).
+    /// </summary>
     public void Publikuj()
     {
-        var k = S.Secs[Id]; k.TrainOcc = Pojazd; k.Fault = Stan;
-        S.Urzadzenia?.LogStatus("odcinek", Id, (Pojazd || Stan != null ? "zajęty" : "wolny") + Stan switch { "occ" => " (bez pojazdu)", "reset" => ", wymaga zerowania", "await" => ", czeka na 1. przejazd", _ => "" });
+        if (ostatni == null || ostatni.Pojazd != Pojazd || !string.Equals(ostatni.Stan, Stan, StringComparison.Ordinal))
+            ostatni = new StatusOdcinka { Obiekt = Id, Pojazd = Pojazd, Stan = Stan };
+        S.Wejscia.Zglos(ostatni);
     }
 
     /// <summary>Koniec przejazdu przy błędzie zliczenia: liczba osi się nie zgadza – odcinek zostaje zajęty, wymagane ZeroLO.</summary>

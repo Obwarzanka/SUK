@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK — zamrożone wejście cyklu KZ (CycleInput) i tabela rozsyłania statusów, v1 (S02A.02)",
+  "description": "Dokument to jedno wejście cyklu (kontrakt kz.wejscie_cyklu, linia JSONL) albo tabela rozsyłania (kz.trasa_wejsc).",
+  "oneOf": [
+    { "$ref": "#/definitions/wejscie" },
+    { "$ref": "#/definitions/trasa" }
+  ],
+  "x-suk-zasady": [
+    "Statusy kart trafiają do KZ wyłącznie przez rejestr wejść świata (Sim/Kz/RejestrWejsc.cs): karta zgłasza niezmienny status, rejestr zamraża zgłoszenia na jawnej granicy fazy i tworzy numerowane wejście każdego KZ. Wejście zawiera tylko wartości – bez referencji do kart, terenu, pociągów, prywatnego stanu KZ i bez wywołań zwrotnych.",
+    "Fazy (bazowa kolejność Simulator.Tick, 19 §6): regularne KARTY (cykl kart przed KZ) i RUCH (zajętość wszystkich odcinków po ruchu pociągów) – zgłoszenia zamrażane na końcu fazy; natychmiastowe – każde zgłoszenie doręczane od razu, przed alarmem/wpisem karty (jak dawne bezpośrednie wywołanie KZ): ROZKAZ (status szafy zasilania po NN/ONN/AGR, karty odcinka po ZeroLO), USTERKA (status po usterce instruktora), ZDARZENIE_KARTY (karta odcinka po zamrożeniu RUCH: koniec przejazdu z błędem zliczenia, pierwszy przejazd po zerowaniu); POZA_FAZA – błąd integracji (log KZ.CYCLE_INPUT_PHASE_VIOLATION), status nie ginie.",
+    "nrWejscia (inputSeq) to kolejny numer wejścia danego KZ w świecie, od 1, bez luk; nrPartii – numer granicy fazy wspólny dla wejść wszystkich KZ tej partii; cykl (cycleId) – numer cyklu świata (0 przed pierwszym cyklem). Faza regularna daje wejście każdemu KZ (także puste – postęp czasu), natychmiastowa tylko KZ, do którego trafił status.",
+    "Rozsyłanie wyłącznie z mapy własności (kz.mapa_wlasnosci): obiekt przypisany – właściciel i zadeklarowani odbiorcy mapy (KZ korzystający z obiektu); NIEJEDNOZNACZNY – odbiorcy i wszyscy kandydaci; NIEZNANY – odbiorcy mapy, a bez nich wszystkie KZ. Wejście jest ostrożne (status nie ginie); polecenie dla obiektu nieprzypisanego jest odrzucane (inny kontrakt).",
+    "Porządek statusów w wejściu jest kanoniczny: pozycja obiektu w tabeli (rodzaj, id – porządek ordinal), kolejne statusy tego samego obiektu w kolejności zgłoszenia. Kolejność słowników układu i kart nie zmienia treści wejścia. SHA-256 wejścia liczony z bajtów UTF-8 jednej linii JSON; skrotTrasy = SHA-256 bajtów tabeli rozsyłania.",
+    "Postać kanoniczna (bajty do SHA-256): wejście – jedna linia, separatory ',' i ':', pola w kolejności tego schematu; tabela – każdy element w osobnej linii z wcięciem 2 spacji, separator klucza ': ', LF i LF na końcu (jak json.dumps(indent=2, ensure_ascii=False)); pusta lista – []. Ciągi według RFC 8785 §3.2.2.2 (jak JSON.stringify i Python json.dumps(ensure_ascii=False)): ucieczka tylko cudzysłowu, ukośnika wstecznego i U+0000–U+001F (\\b \\t \\n \\f \\r, pozostałe \\u00xx małymi literami), reszta dosłownie w UTF-8. Wektory zgodności: kontrakty/testy/wejscie_cyklu_kanon.json.",
+    "Wszyscy odbiorcy jednego KZ (testowi, w przyszłości grupy i kanały S02B) dostają ten sam obiekt wejścia. v1 nie zawiera jeszcze znormalizowanych intencji poleceń ani komunikatów KZ–KZ (S02A.03, S02A1, decyzja D03) – dodanie ich jest nową wersją kontraktu."
+  ],
+  "definitions": {
+    "kzId": {
+      "type": "string",
+      "pattern": "^KZ-[0-9A-Za-z_À-ÖØ-öø-ɏ]{1,32}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[^\u0000-\u001f]{1,1024}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nieujemna": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rodzajObiektu": {
+      "enum": ["odcinek", "zwrotnica", "sygnalizator", "wykolejnica", "zasilanie"]
+    },
+    "statusOdcinka": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rodzaj", "id", "pojazd", "stan"],
+      "properties": {
+        "rodzaj": { "const": "odcinek" },
+        "id": { "$ref": "#/definitions/id" },
+        "pojazd": { "type": "boolean", "description": "Teren: osie pojazdu na odcinku." },
+        "stan": { "enum": [null, "occ", "reset", "await"], "description": "Stan urządzenia kontroli niezajętości: null – sprawne; occ – zajętość bez pojazdu; reset – wymaga zerowania; await – po zerowaniu czeka na pierwszy przejazd." }
+      }
+    },
+    "statusZwrotnicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rodzaj", "id", "polozenie", "przekladanie", "przekroczonyCzas"],
+      "properties": {
+        "rodzaj": { "const": "zwrotnica" },
+        "id": { "$ref": "#/definitions/id" },
+        "polozenie": { "enum": [null, "+", "-"], "description": "Położenie z kontrolą; null – brak kontroli." },
+        "przekladanie": { "type": "boolean" },
+        "przekroczonyCzas": { "type": "boolean" }
+      }
+    },
+    "statusWykolejnicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rodzaj", "id", "zalozona"],
+      "properties": {
+        "rodzaj": { "const": "wykolejnica" },
+        "id": { "$ref": "#/definitions/id" },
+        "zalozona": { "type": ["boolean", "null"], "description": "null – przekładanie." }
+      }
+    },
+    "statusSygnalizatora": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rodzaj", "id", "wyswietlany", "uszkodzenieZezwalajacego", "brakLacznosci"],
+      "properties": {
+        "rodzaj": { "const": "sygnalizator" },
+        "id": { "$ref": "#/definitions/id" },
+        "wyswietlany": { "type": ["string", "null"], "maxLength": 16, "description": "Kod sygnału Ie-1 wyświetlany w terenie; pusty – ciemny." },
+        "uszkodzenieZezwalajacego": { "type": "boolean" },
+        "brakLacznosci": { "type": "boolean" }
+      }
+    },
+    "statusZasilania": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rodzaj", "id", "siec", "ups", "agregat", "napiecieNastawcze", "agregatNieRuszyl"],
+      "properties": {
+        "rodzaj": { "const": "zasilanie" },
+        "id": { "$ref": "#/definitions/id" },
+        "siec": { "type": "boolean" },
+        "ups": { "type": "boolean" },
+        "agregat": { "type": "boolean" },
+        "napiecieNastawcze": { "type": "boolean" },
+        "agregatNieRuszyl": { "type": "boolean" }
+      }
+    },
+    "status": {
+      "oneOf": [
+        { "$ref": "#/definitions/statusOdcinka" },
+        { "$ref": "#/definitions/statusZwrotnicy" },
+        { "$ref": "#/definitions/statusWykolejnicy" },
+        { "$ref": "#/definitions/statusSygnalizatora" },
+        { "$ref": "#/definitions/statusZasilania" }
+      ]
+    },
+    "wejscie": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kontrakt", "kzId", "nrWejscia", "nrPartii", "cykl", "faza", "czasSymulacjiMs", "skrotTrasy", "statusy"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kontrakt": { "const": "kz.wejscie_cyklu" },
+        "kzId": { "$ref": "#/definitions/kzId" },
+        "nrWejscia": { "type": "integer", "minimum": 1 },
+        "nrPartii": { "type": "integer", "minimum": 1 },
+        "cykl": { "$ref": "#/definitions/nieujemna" },
+        "faza": { "enum": ["KARTY", "RUCH", "ROZKAZ", "USTERKA", "ZDARZENIE_KARTY", "POZA_FAZA"] },
+        "czasSymulacjiMs": { "$ref": "#/definitions/nieujemna" },
+        "skrotTrasy": { "$ref": "#/definitions/sha256" },
+        "statusy": { "type": "array", "items": { "$ref": "#/definitions/status" } }
+      }
+    },
+    "trasa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kontrakt", "skrotMapy", "kz", "wpisy"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kontrakt": { "const": "kz.trasa_wejsc" },
+        "skrotMapy": { "$ref": "#/definitions/sha256" },
+        "kz": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/kzId" } },
+        "wpisy": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rodzaj", "id", "powod", "odbiorcy"],
+            "properties": {
+              "rodzaj": { "$ref": "#/definitions/rodzajObiektu" },
+              "id": { "$ref": "#/definitions/id" },
+              "powod": { "enum": ["WLASCICIEL", "NIEJEDNOZNACZNY_KANDYDACI", "NIEZNANY_ODBIORCY_MAPY", "NIEZNANY_WSZYSTKIE_KZ"] },
+              "odbiorcy": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/kzId" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

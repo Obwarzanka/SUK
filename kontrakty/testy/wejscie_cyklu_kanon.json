@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "kontrakt": "kz.wejscie_cyklu.wektory",
+  "opis": "Wektory zgodności postaci kanonicznej kz.wejscie_cyklu v1 (S02A.02): 'kanoniczny' to bajty UTF-8 jednej linii (WejscieCyklu.Kanoniczny() w C#, json.dumps(ensure_ascii=False, separators=(',', ':')) w Pythonie), 'sha256' – ich skrót. Sprawdzane przez sprawdz_kontrakty.py i WejscieCykluTests (C#). Dla niezależnych implementacji (S02A1/Ada).",
+  "wektory": [
+    {
+      "opis": "znaki specjalne w identyfikatorze i w sygnale (RFC 8785: ucieczki tylko \" \\ i U+0000–U+001F)",
+      "wejscie": {
+        "schemaVersion": 1,
+        "kontrakt": "kz.wejscie_cyklu",
+        "kzId": "KZ-ŁW",
+        "nrWejscia": 7,
+        "nrPartii": 12,
+        "cykl": 3,
+        "faza": "USTERKA",
+        "czasSymulacjiMs": 750,
+        "skrotTrasy": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "statusy": [
+          {
+            "rodzaj": "odcinek",
+            "id": "Ł   ﻿😀+<>&'`/\"\\",
+            "pojazd": false,
+            "stan": "occ"
+          },
+          {
+            "rodzaj": "sygnalizator",
+            "id": "LW:C1",
+            "wyswietlany": "\b\f\n\r\t\u0001\u001f\"\\/",
+            "uszkodzenieZezwalajacego": true,
+            "brakLacznosci": false
+          }
+        ]
+      },
+      "kanoniczny": "{\"schemaVersion\":1,\"kontrakt\":\"kz.wejscie_cyklu\",\"kzId\":\"KZ-ŁW\",\"nrWejscia\":7,\"nrPartii\":12,\"cykl\":3,\"faza\":\"USTERKA\",\"czasSymulacjiMs\":750,\"skrotTrasy\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"statusy\":[{\"rodzaj\":\"odcinek\",\"id\":\"Ł   ﻿😀+<>&'`/\\\"\\\\\",\"pojazd\":false,\"stan\":\"occ\"},{\"rodzaj\":\"sygnalizator\",\"id\":\"LW:C1\",\"wyswietlany\":\"\\b\\f\\n\\r\\t\\u0001\\u001f\\\"\\\\/\",\"uszkodzenieZezwalajacego\":true,\"brakLacznosci\":false}]}",
+      "sha256": "012035e1ddebba41ed4da7158cf80923a191187023288f72348ae3ca634158aa"
+    },
+    {
+      "opis": "faza KARTY – wszystkie rodzaje statusów i wartości null",
+      "wejscie": {
+        "schemaVersion": 1,
+        "kontrakt": "kz.wejscie_cyklu",
+        "kzId": "KZ-LF",
+        "nrWejscia": 1,
+        "nrPartii": 1,
+        "cykl": 1,
+        "faza": "KARTY",
+        "czasSymulacjiMs": 250,
+        "skrotTrasy": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "statusy": [
+          {
+            "rodzaj": "odcinek",
+            "id": "LF:1",
+            "pojazd": true,
+            "stan": null
+          },
+          {
+            "rodzaj": "sygnalizator",
+            "id": "LF:A",
+            "wyswietlany": "",
+            "uszkodzenieZezwalajacego": false,
+            "brakLacznosci": true
+          },
+          {
+            "rodzaj": "wykolejnica",
+            "id": "LF:Wk1",
+            "zalozona": null
+          },
+          {
+            "rodzaj": "zasilanie",
+            "id": "zasilanie",
+            "siec": false,
+            "ups": true,
+            "agregat": false,
+            "napiecieNastawcze": true,
+            "agregatNieRuszyl": true
+          },
+          {
+            "rodzaj": "zwrotnica",
+            "id": "LF:3",
+            "polozenie": null,
+            "przekladanie": true,
+            "przekroczonyCzas": false
+          }
+        ]
+      },
+      "kanoniczny": "{\"schemaVersion\":1,\"kontrakt\":\"kz.wejscie_cyklu\",\"kzId\":\"KZ-LF\",\"nrWejscia\":1,\"nrPartii\":1,\"cykl\":1,\"faza\":\"KARTY\",\"czasSymulacjiMs\":250,\"skrotTrasy\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"statusy\":[{\"rodzaj\":\"odcinek\",\"id\":\"LF:1\",\"pojazd\":true,\"stan\":null},{\"rodzaj\":\"sygnalizator\",\"id\":\"LF:A\",\"wyswietlany\":\"\",\"uszkodzenieZezwalajacego\":false,\"brakLacznosci\":true},{\"rodzaj\":\"wykolejnica\",\"id\":\"LF:Wk1\",\"zalozona\":null},{\"rodzaj\":\"zasilanie\",\"id\":\"zasilanie\",\"siec\":false,\"ups\":true,\"agregat\":false,\"napiecieNastawcze\":true,\"agregatNieRuszyl\":true},{\"rodzaj\":\"zwrotnica\",\"id\":\"LF:3\",\"polozenie\":null,\"przekladanie\":true,\"przekroczonyCzas\":false}]}",
+      "sha256": "6d8250c00b479436f7ff8ae9999091ce2da0a9444ffa25ec3c5c102ebf3c3477"
+    },
+    {
+      "opis": "faza ZDARZENIE_KARTY – status karty odcinka po błędzie zliczenia osi",
+      "wejscie": {
+        "schemaVersion": 1,
+        "kontrakt": "kz.wejscie_cyklu",
+        "kzId": "KZ-LW",
+        "nrWejscia": 9,
+        "nrPartii": 20,
+        "cykl": 5,
+        "faza": "ZDARZENIE_KARTY",
+        "czasSymulacjiMs": 1250,
+        "skrotTrasy": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "statusy": [
+          {
+            "rodzaj": "odcinek",
+            "id": "LW:1C-1",
+            "pojazd": false,
+            "stan": "reset"
+          }
+        ]
+      },
+      "kanoniczny": "{\"schemaVersion\":1,\"kontrakt\":\"kz.wejscie_cyklu\",\"kzId\":\"KZ-LW\",\"nrWejscia\":9,\"nrPartii\":20,\"cykl\":5,\"faza\":\"ZDARZENIE_KARTY\",\"czasSymulacjiMs\":1250,\"skrotTrasy\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"statusy\":[{\"rodzaj\":\"odcinek\",\"id\":\"LW:1C-1\",\"pojazd\":false,\"stan\":\"reset\"}]}",
+      "sha256": "26e54a8a3f50717f44a63d131727e7fac39580fc37809275e4e4501065a6bba7"
+    },
+    {
+      "opis": "pusta faza RUCH",
+      "wejscie": {
+        "schemaVersion": 1,
+        "kontrakt": "kz.wejscie_cyklu",
+        "kzId": "KZ-LW",
+        "nrWejscia": 8,
+        "nrPartii": 19,
+        "cykl": 5,
+        "faza": "RUCH",
+        "czasSymulacjiMs": 1250,
+        "skrotTrasy": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "statusy": []
+      },
+      "kanoniczny": "{\"schemaVersion\":1,\"kontrakt\":\"kz.wejscie_cyklu\",\"kzId\":\"KZ-LW\",\"nrWejscia\":8,\"nrPartii\":19,\"cykl\":5,\"faza\":\"RUCH\",\"czasSymulacjiMs\":1250,\"skrotTrasy\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"statusy\":[]}",
+      "sha256": "eb5d429ef21678e5e7f3ce0b6b68b5fd98e71530245f262410b1828e9dbbe736"
+    }
+  ]
+}

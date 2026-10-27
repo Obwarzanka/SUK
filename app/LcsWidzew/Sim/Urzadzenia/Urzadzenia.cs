@@ -31,22 +31,44 @@ public partial class Urzadzenia
         foreach (var d in s.L.Signals.Values) if (MaKarte(d)) Sygnalizatory[d.Name] = new KartaSygnalizatora(s, d.Name);
     }
 
-    /// <summary>Cykl kart (przed komputerem zależności): wykonanie rozkazów z poprzedniego cyklu, przekładanie, statusy do KZ.</summary>
+    /// <summary>
+    /// Cykl kart (przed komputerem zależności): wykonanie rozkazów z poprzedniego cyklu, przekładanie, statusy do KZ – faza
+    /// <see cref="FazaWejscia.Karty"/> rejestru wejść (KZ dostaje zamrożone statusy po cyklu wszystkich kart, w kolejności zgłoszeń).
+    /// </summary>
     public void Tick()
     {
-        Zasilanie.Tick(); Zasilanie.Publikuj();
-        foreach (var k in Zwrotnice.Values) { k.Tick(); k.Publikuj(); }
-        foreach (var k in Wykolejnice.Values) { k.Tick(); k.Publikuj(); }
-        foreach (var k in Sygnalizatory.Values) { k.Tick(); k.Publikuj(); }
+        var faza = S.Wejscia.Faza(FazaWejscia.Karty);
+        try
+        {
+            Zasilanie.Tick(); Zasilanie.Publikuj();
+            foreach (var k in Zwrotnice.Values) { k.Tick(); k.Publikuj(); }
+            foreach (var k in Wykolejnice.Values) { k.Tick(); k.Publikuj(); }
+            foreach (var k in Sygnalizatory.Values) { k.Tick(); k.Publikuj(); }
+        }
+        catch (Exception ex) { RejestrWejscCyklu.ZamknijPoBledzie(faza, ex); throw; }
+        faza.Dispose();
     }
 
     // ------------------------------------------------------------------ teren ← ruch pociągów
-    /// <summary>Ruch pociągów zgłasza odcinki, na których w tym cyklu są osie pojazdów; karty liczą stan i meldują go KZ.</summary>
+    /// <summary>
+    /// Ruch pociągów zgłasza odcinki, na których w tym cyklu są osie pojazdów; karty liczą stan i meldują go KZ. Zajętość wszystkich
+    /// odcinków – faza <see cref="FazaWejscia.Ruch"/> (KZ dostaje ją razem, zanim karta wykryje koniec przejazdu); kontrola zliczenia
+    /// i pierwszy przejazd – natychmiastowa faza <see cref="FazaWejscia.ZdarzenieKarty"/> (status przed alarmem/wpisem karty, jak dawniej).
+    /// </summary>
     public void Osie(IReadOnlySet<string> zajete)
     {
-        foreach (var k in Odcinki.Values) { k.Pojazd = zajete.Contains(k.Id); k.Publikuj(); }
-        foreach (var k in Odcinki.Values) k.KontrolaZliczenia();
-        foreach (var k in Odcinki.Values) k.PierwszyPrzejazd();
+        var faza = S.Wejscia.Faza(FazaWejscia.Ruch);
+        try { foreach (var k in Odcinki.Values) { k.Pojazd = zajete.Contains(k.Id); k.Publikuj(); } }
+        catch (Exception ex) { RejestrWejscCyklu.ZamknijPoBledzie(faza, ex); throw; }
+        faza.Dispose();
+        faza = S.Wejscia.Faza(FazaWejscia.ZdarzenieKarty);
+        try
+        {
+            foreach (var k in Odcinki.Values) k.KontrolaZliczenia();
+            foreach (var k in Odcinki.Values) k.PierwszyPrzejazd();
+        }
+        catch (Exception ex) { RejestrWejscCyklu.ZamknijPoBledzie(faza, ex); throw; }
+        faza.Dispose();
     }
 
     /// <summary>Teren: czy na odcinku są osie pojazdu (niezależnie od stanu urządzenia kontroli niezajętości).</summary>
@@ -62,7 +84,7 @@ public partial class Urzadzenia
 
     // ------------------------------------------------------------------ rozkazy komputera zależności
     /// <summary>Zerowanie licznika osi (ZeroLO po potwierdzeniu dyżurnego).</summary>
-    public void Zeruj(string sec) { LogRozkaz("odcinek", sec, "zerowanie licznika osi"); Odcinki[sec].Zeruj(); }
+    public void Zeruj(string sec) => S.Wejscia.WFazie(FazaWejscia.Rozkaz, () => { LogRozkaz("odcinek", sec, "zerowanie licznika osi"); Odcinki[sec].Zeruj(); return 0; });
     /// <summary>Przestawienie zwrotnicy do położenia „+” / „-”.</summary>
     public void Przestaw(string sw, string pol) { LogRozkaz("zwrotnica", sw, $"przestaw do „{pol}”"); Zwrotnice[sw].Rozkaz(pol); }
     /// <summary>Założenie (true) / zdjęcie (false) wykolejnicy.</summary>
@@ -70,7 +92,7 @@ public partial class Urzadzenia
     /// <summary>Sygnał do wyświetlenia (kod Ie-1).</summary>
     public void Sygnal(string sig, string kod) { if (!Sygnalizatory.TryGetValue(sig, out var k)) return; LogRozkaz("sygnalizator", sig, kod == "" ? "wygaś" : "sygnał " + kod); k.Rozkaz(kod); }
     /// <summary>Napięcie nastawcze: załącz (NN) / odłącz (ONN).</summary>
-    public void NapiecieNastawcze(bool zal) { LogRozkaz("zasilanie", Zasilanie.Id, zal ? "załącz napięcie nastawcze" : "odłącz napięcie nastawcze"); Zasilanie.RozkazNN(zal); }
+    public void NapiecieNastawcze(bool zal) => S.Wejscia.WFazie(FazaWejscia.Rozkaz, () => { LogRozkaz("zasilanie", Zasilanie.Id, zal ? "załącz napięcie nastawcze" : "odłącz napięcie nastawcze"); Zasilanie.RozkazNN(zal); return 0; });
     /// <summary>Uruchomienie agregatu (AGR).</summary>
-    public void UruchomAgregat() { LogRozkaz("zasilanie", Zasilanie.Id, "uruchom agregat"); Zasilanie.RozkazAgregat(); }
+    public void UruchomAgregat() => S.Wejscia.WFazie(FazaWejscia.Rozkaz, () => { LogRozkaz("zasilanie", Zasilanie.Id, "uruchom agregat"); Zasilanie.RozkazAgregat(); return 0; });
 }

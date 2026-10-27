@@ -301,7 +301,7 @@ public partial class KomputerZaleznosci
     /// Status zasilania (karta <see cref="Zasilanie"/>): sieć, UPS, agregat, napięcie nastawcze. KZ trzyma kopię w <see cref="Power"/>,
     /// przy zaniku sieci – alarm (Ie-20 § 23), przy powrocie – zdarzenie.
     /// </summary>
-    public void StatusZasilania(bool siec, bool ups, bool agregat, bool nn, bool agregatNieRuszyl)
+    void StatusZasilania(bool siec, bool ups, bool agregat, bool nn, bool agregatNieRuszyl)
     {
         Urzadzenia.LogStatus("zasilanie", Zasilanie.Id, (siec ? "sieć" : "BRAK SIECI") + (ups ? ", UPS" : ", UPS niesprawny") + (agregat ? ", agregat pracuje" : agregatNieRuszyl ? ", agregat nie ruszył" : "") + (nn ? ", NN załączone" : ", NN odłączone"));
         var p = Power;
@@ -316,7 +316,7 @@ public partial class KomputerZaleznosci
     /// Brak kontroli bez przekładania: przy zajętym odcinku zwrotnicowym – rozprucie, przy wolnym – brak kontroli
     /// (decyzja właściciela 2026-10-16, PODZIAL_MODULOW.md § 7 pkt 1).
     /// </summary>
-    public void StatusZwrotnicy(string num, string pol, bool przekladanie, bool przekroczonyCzas)
+    void StatusZwrotnicy(string num, string pol, bool przekladanie, bool przekroczonyCzas)
     {
         Urzadzenia.LogStatus("zwrotnica", num, pol != null ? $"kontrola „{pol}”" : przekladanie ? "przekładanie" + (przekroczonyCzas ? ", przekroczony czas" : "") : "brak kontroli");
         var w = Sws[num];
@@ -345,7 +345,7 @@ public partial class KomputerZaleznosci
     }
 
     /// <summary>Status karty wykolejnicy: założona / zdjęta (null – przekładanie).</summary>
-    public void StatusWykolejnicy(string name, bool? zalozona)
+    void StatusWykolejnicy(string name, bool? zalozona)
     {
         Urzadzenia.LogStatus("wykolejnica", name, zalozona is bool zz ? (zz ? "założona" : "zdjęta") : "przekładanie");
         if (zalozona is not bool z) return;
@@ -516,7 +516,7 @@ public partial class KomputerZaleznosci
     }
 
     /// <summary>Status karty sygnalizatora: sygnał wyświetlany, uszkodzenie światła zezwalającego, brak łączności.</summary>
-    public void StatusSygnalizatora(string sig, string wyswietlany, bool uszkZezwalajacego, bool brakDanych)
+    void StatusSygnalizatora(string sig, string wyswietlany, bool uszkZezwalajacego, bool brakDanych)
     {
         Urzadzenia.LogStatus("sygnalizator", sig, "wyświetla " + (wyswietlany == "" ? "– (ciemny)" : wyswietlany) + (uszkZezwalajacego ? ", uszkodzone światło zezwalające" : "") + (brakDanych ? ", brak łączności" : ""));
         var s = Sigs[sig];

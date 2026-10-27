@@ -2,7 +2,7 @@ namespace LcsWidzew.Sim;
 
 /// <summary>
 /// Karta sygnalizatora (Zrodla/EBILock_komputerownia.md 4.4, PODZIAL_MODULOW.md krok 6): rozkaz KZ z konkretnym sygnałem wg Ie-1
-/// (S1…S13a, Sz, Ms1, Ms2), wykonanie w następnym cyklu, zapalenie komór, status do KZ (sygnał wyświetlany, uszkodzenie światła
+/// (S1…S13a, Sz, Ms1, Ms2), wykonanie w następnym cyklu, zapalenie komór, status do KZ przez rejestr wejść cyklu (sygnał wyświetlany, uszkodzenie światła
 /// zezwalającego, brak łączności). Bez modelu włókien rezerwowych i sygnału niższego (decyzja właściciela, PODZIAL_MODULOW.md § 7 pkt 2):
 /// przy uszkodzeniu światła zezwalającego sygnalizator zostaje na sygnale „Stój”.
 /// </summary>
@@ -45,7 +45,14 @@ public class KartaSygnalizatora
         Wyswietlany = NieZapalil ? Stoj : cel;
     }
 
-    public void Publikuj() => S.Kz.StatusSygnalizatora(Id, Wyswietlany, UszkZezwalajacego, BrakLacznosci);
+    StatusSygnalizatora ostatni;
+    /// <summary>Status przez rejestr wejść cyklu; niezmieniony stan – ten sam niezmienny rekord co poprzednio.</summary>
+    public void Publikuj()
+    {
+        if (ostatni == null || !string.Equals(ostatni.Wyswietlany, Wyswietlany, StringComparison.Ordinal) || ostatni.UszkodzenieZezwalajacego != UszkZezwalajacego || ostatni.BrakLacznosci != BrakLacznosci)
+            ostatni = new StatusSygnalizatora { Obiekt = Id, Wyswietlany = Wyswietlany, UszkodzenieZezwalajacego = UszkZezwalajacego, BrakLacznosci = this.BrakLacznosci };
+        S.Wejscia.Zglos(ostatni);
+    }
 
     /// <summary>Usterki instruktora: „sigLamp” – nie wyświetla sygnału zezwalającego, „sigNodata” – brak komunikacji z obiektem.</summary>
     public bool Usterka(string rodzaj, bool usun)

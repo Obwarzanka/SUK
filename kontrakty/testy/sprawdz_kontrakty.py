@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Sprawdzenie kontraktów SUK (S00.03).
 
-Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt] [--jsonl ścieżka ...] [--mapa plik.json ...]
+Uruchomienie z katalogu repo:  python3 kontrakty/testy/sprawdz_kontrakty.py [--wynik plik.txt] [--jsonl ścieżka ...] [--mapa plik.json ...] [--wejscia katalog ...]
 --jsonl (S01.01): dodatkowo sprawdza pliki JSONL zapisane przez programy (plik albo katalog – rekurencyjnie *.jsonl):
 każda linia = jeden obiekt JSON zgodny ze schematem v1 i katalogiem zdarzeń, ≤ 8 KiB, bez znacznika testowego sekretu
 „SEKRET_TESTOWY”, recordSeq bez powtórzeń w obrębie processRunId.
 --mapa (S02A.01): dodatkowo sprawdza mapy własności KZ zapisane przez program (Lcs.Core.TestHost --mapa-wlasnosci):
 schemat kz/mapa_wlasnosci_v1, reguła kzId, spójność odwołań, liczników i kanonicznej kolejności.
+--wejscia (S02A.02): dodatkowo sprawdza katalogi zapisane przez Lcs.Core.TestHost --wejscia-cyklu: tabela rozsyłania
+i początki strumieni wejść KZ (schemat kz/wejscie_cyklu_v1, postać kanoniczna bajt w bajt, skrót tabeli, numeracja bez luk,
+odbiorcy zgodni z tabelą, porządek kanoniczny, raport.json zgodne=true). Zawsze: wektory postaci kanonicznej
+kontrakty/testy/wejscie_cyklu_kanon.json (bajty i SHA-256 jak w C#, ciągi wg RFC 8785).
 Wymaga: Python >= 3.8, pakiet jsonschema >= 3.2 (walidator Draft-07). Skrypt tylko czyta pliki repo;
 nie łączy się z siecią i niczego nie zapisuje poza opcjonalnym plikiem --wynik.
 Kod wyjścia 0 = brak błędów, 1 = co najmniej jeden błąd, 2 = brak wymaganego pakietu.
@@ -340,6 +344,192 @@ if "--mapa" in sys.argv:
             blad(f"mapa: {sc.as_posix()}: odrzucona: {pw}")
         else:
             ok(f"mapa: {sc.as_posix()}: zgodna ze schematem kz/mapa_wlasnosci_v1 i regułami krzyżowymi")
+
+# ------------------------------------------------------------------ 5b. wejścia cyklu KZ (S02A.02)
+schemat_wejsc = wczytaj(K / "kz" / "wejscie_cyklu_v1.schema.json")
+try:
+    Draft7Validator.check_schema(schemat_wejsc)
+    ok("schemat kz/wejscie_cyklu_v1 zgodny z metaschematem Draft-07")
+except jsonschema.exceptions.SchemaError as e:
+    blad(f"schemat kz/wejscie_cyklu_v1 niezgodny z Draft-07: {e.message}")
+_defs = dict(schemat_wejsc, oneOf=None)
+walidator_wejscia = Draft7Validator({"$ref": "#/definitions/wejscie", "definitions": schemat_wejsc["definitions"]})
+walidator_trasy = Draft7Validator({"$ref": "#/definitions/trasa", "definitions": schemat_wejsc["definitions"]})
+
+
+def kanon_trasy(t):
+    """Postać kanoniczna tabeli: JSON z wcięciem 2, LF, minimalne ucieczki, znak nowej linii na końcu (bajty do SHA-256)."""
+    return (json.dumps(t, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
+def kanon_wejscia(w):
+    """Postać kanoniczna wejścia: jedna linia, separatory bez spacji, ciągi wg RFC 8785 (jak KanonJson w C#)."""
+    return json.dumps(w, ensure_ascii=False, separators=(",", ":"))
+
+
+def samotny_surogat(t):
+    """Identyfikator z samotnym surogatem UTF-16 nie ma postaci UTF-8 – kontrakt go odrzuca."""
+    return isinstance(t, str) and any(0xD800 <= ord(c) <= 0xDFFF for c in t)
+
+
+def oceń_wejscia(trasa, wejscia, skrot_trasy=None, pelne=True):
+    """Błędy tabeli i strumieni wejść (lista komunikatów, pusta = poprawne). wejscia: lista dokumentów (dowolne KZ, w kolejności)."""
+    e = [f"trasa: {x.message[:160]}" for x in list(walidator_trasy.iter_errors(trasa))[:5]]
+    if e:
+        return e
+    def u16(t):
+        return t.encode("utf-16-be")
+    klucze = [(u16(w["rodzaj"]), u16(w["id"])) for w in trasa["wpisy"]]
+    if klucze != sorted(klucze) or len(set(klucze)) != len(klucze):
+        e.append("trasa: wpisy w kolejności niekanonicznej albo powtórzone")
+    if [u16(k) for k in trasa["kz"]] != sorted(u16(k) for k in trasa["kz"]):
+        e.append("trasa: kz w kolejności niekanonicznej")
+    kz = set(trasa["kz"])
+    poz = {}
+    for i, w in enumerate(trasa["wpisy"]):
+        poz[(w["rodzaj"], w["id"])] = (i, set(w["odbiorcy"]))
+        if samotny_surogat(w["id"]):
+            e.append(f"trasa: {w['rodzaj']}: identyfikator z samotnym surogatem")
+        if not set(w["odbiorcy"]) <= kz:
+            e.append(f"trasa: {w['rodzaj']} {w['id']}: odbiorca spoza kz")
+        if [u16(k) for k in w["odbiorcy"]] != sorted(u16(k) for k in w["odbiorcy"]):
+            e.append(f"trasa: {w['rodzaj']} {w['id']}: odbiorcy w kolejności niekanonicznej")
+        if w["powod"] == "NIEZNANY_WSZYSTKIE_KZ" and set(w["odbiorcy"]) != kz:
+            e.append(f"trasa: {w['rodzaj']} {w['id']}: NIEZNANY_WSZYSTKIE_KZ bez wszystkich KZ")
+    sk = skrot_trasy or hashlib.sha256(kanon_trasy(trasa)).hexdigest()
+    ostatni = {}
+    for w in wejscia:
+        we = [x.message[:160] for x in list(walidator_wejscia.iter_errors(w))[:3]]
+        if we:
+            e.append(f"wejście {w.get('kzId')}#{w.get('nrWejscia')}: {we}")
+            continue
+        opis = f"wejście {w['kzId']}#{w['nrWejscia']}"
+        if w["kzId"] not in kz:
+            e.append(f"{opis}: kzId spoza tabeli")
+        if w["skrotTrasy"] != sk:
+            e.append(f"{opis}: skrotTrasy niezgodny z tabelą")
+        p = ostatni.get(w["kzId"])
+        if p is None and pelne and w["nrWejscia"] != 1:
+            e.append(f"{opis}: strumień nie zaczyna się od 1")
+        if p is not None:
+            if w["nrWejscia"] != p["nrWejscia"] + 1:
+                e.append(f"{opis}: luka w numeracji po {p['nrWejscia']}")
+            if w["nrPartii"] <= p["nrPartii"] or w["cykl"] < p["cykl"] or w["czasSymulacjiMs"] < p["czasSymulacjiMs"]:
+                e.append(f"{opis}: partia/cykl/czas nie rosną")
+        ostatni[w["kzId"]] = w
+        if w["faza"] in ("ROZKAZ", "USTERKA", "ZDARZENIE_KARTY", "POZA_FAZA") and not w["statusy"]:
+            e.append(f"{opis}: faza natychmiastowa bez statusów")
+        pp = -1
+        for st in w["statusy"]:
+            if samotny_surogat(st["id"]):
+                e.append(f"{opis}: {st['rodzaj']}: identyfikator z samotnym surogatem")
+            q = poz.get((st["rodzaj"], st["id"]))
+            if q is None:
+                e.append(f"{opis}: {st['rodzaj']} {st['id']} spoza tabeli")
+                continue
+            if w["kzId"] not in q[1]:
+                e.append(f"{opis}: {st['rodzaj']} {st['id']} – KZ nie jest odbiorcą w tabeli")
+            if q[0] < pp:
+                e.append(f"{opis}: porządek statusów niekanoniczny")
+            pp = q[0]
+    # ta sama partia: status obiektu u wszystkich odbiorców z tabeli (gdy partia jest w całości w danych)
+    partie = {}
+    for w in wejscia:
+        partie.setdefault(w.get("nrPartii"), []).append(w)
+    for nr, ws in partie.items():
+        if len({(w.get("faza"), w.get("cykl"), w.get("czasSymulacjiMs")) for w in ws}) != 1:
+            e.append(f"partia {nr}: różne fazy/cykle/czasy w wejściach")
+        obecne = {w.get("kzId") for w in ws}
+        for w in ws:
+            for st in w.get("statusy", []):
+                q = poz.get((st.get("rodzaj"), st.get("id")))
+                if q is not None and q[1] <= obecne:
+                    for k in q[1]:
+                        inne = next(x for x in ws if x["kzId"] == k)
+                        if sum(1 for y in inne["statusy"] if y == st) != sum(1 for y in w["statusy"] if y == st):
+                            e.append(f"partia {nr}: {st['rodzaj']} {st['id']} nie dotarł jednakowo do {k}")
+    return e
+
+
+przyklad_w = wczytaj(K / "testy" / "wejscie_cyklu_przyklad.json")
+pw = oceń_wejscia(przyklad_w["trasa"], przyklad_w["wejscia"])
+if pw:
+    blad(f"wejscie_cyklu_przyklad.json: odrzucony: {pw}")
+else:
+    ok("wejscie_cyklu_przyklad.json: zgodny ze schematem i regułami krzyżowymi")
+def _mutacja_w(opis, f):
+    m = _copy.deepcopy(przyklad_w)
+    f(m)
+    if oceń_wejscia(m["trasa"], m["wejscia"]):
+        ok(f"wejścia – przypadek błędny odrzucony: {opis}")
+    else:
+        blad(f"wejścia – przypadek błędny PRZYJĘTY: {opis}")
+_mutacja_w("luka w numeracji KZ", lambda m: m["wejscia"][2].update(nrWejscia=5))
+_mutacja_w("status u KZ spoza odbiorców", lambda m: m["wejscia"][3]["statusy"].insert(0, {"rodzaj": "odcinek", "id": "A:1", "pojazd": False, "stan": None}))
+_mutacja_w("status pominięty u jednego z odbiorców", lambda m: m["wejscia"][3]["statusy"].pop())
+_mutacja_w("porządek niekanoniczny", lambda m: m["wejscia"][0]["statusy"].reverse())
+_mutacja_w("referencja/pole spoza kontraktu (wywołanie zwrotne)", lambda m: m["wejscia"][0].update(odbiorcaKz="callback"))
+_mutacja_w("nieznany stan odcinka", lambda m: m["wejscia"][2]["statusy"][0].update(stan="cokolwiek"))
+_mutacja_w("faza natychmiastowa bez statusów", lambda m: m["wejscia"][4].update(statusy=[]))
+_mutacja_w("skrót trasy niezgodny", lambda m: m["wejscia"][1].update(skrotTrasy="f" * 64))
+_mutacja_w("zmiana tabeli bez zmiany skrótu w wejściach", lambda m: m["trasa"]["wpisy"][3].update(odbiorcy=["KZ-A", "KZ-B"]))
+_mutacja_w("obiekt bez odbiorców w tabeli", lambda m: m["trasa"]["wpisy"][0].update(odbiorcy=[]))
+_mutacja_w("tabela bez KZ", lambda m: m["trasa"].update(kz=[]))
+_mutacja_w("samotny surogat w identyfikatorze", lambda m: m["wejscia"][0]["statusy"][0].update(id="A\ud800"))
+
+# wektory postaci kanonicznej (S02A.02): te same bajty i SHA-256 co WejscieCyklu.Kanoniczny() w C# (test WejscieCykluTests)
+kanon = wczytaj(K / "testy" / "wejscie_cyklu_kanon.json")
+for v in kanon["wektory"]:
+    bl = [x.message[:120] for x in list(walidator_wejscia.iter_errors(v["wejscie"]))[:3]]
+    linia = kanon_wejscia(v["wejscie"])
+    if linia != v["kanoniczny"]:
+        bl.append("postać kanoniczna różna od wektora")
+    if hashlib.sha256(linia.encode("utf-8")).hexdigest() != v["sha256"]:
+        bl.append("SHA-256 różny od wektora")
+    if bl:
+        blad(f"wektor kanoniczny {v['opis']}: {bl}")
+    else:
+        ok(f"wektor kanoniczny {v['opis']}: zgodny ze schematem, bajty i SHA-256 jak w C#")
+if "--wejscia" in sys.argv:
+    i = sys.argv.index("--wejscia") + 1
+    while i < len(sys.argv) and not sys.argv[i].startswith("--"):
+        kat = Path(sys.argv[i])
+        i += 1
+        pw = []
+        try:
+            surowa = (kat / "trasa.json").read_bytes()
+            trasa = json.loads(surowa.decode("utf-8"))
+            bt = [x.message[:160] for x in list(walidator_trasy.iter_errors(trasa))[:3]]
+            if bt:
+                raise ValueError(f"trasa.json niezgodna ze schematem: {bt}")   # nazwy plików z trasa["kz"] dopiero po walidacji
+            if any(not re.fullmatch(r"KZ-[0-9A-Za-z_À-ÖØ-öø-ɏ]{1,32}", k) for k in trasa["kz"]):   # „$” wzorca przepuszcza końcowe LF
+                raise ValueError("trasa.json: kzId spoza wzorca")
+            if kanon_trasy(trasa) != surowa:
+                pw.append("trasa.json: postać niekanoniczna")
+            sk = hashlib.sha256(surowa).hexdigest()
+            raport = wczytaj(kat / "raport.json")
+            if raport.get("skrotTrasy") != sk or raport.get("zgodne") is not True:
+                pw.append("raport.json: skrotTrasy niezgodny albo zgodne != true")
+            wej = []
+            for kz in trasa["kz"]:
+                tekst = (kat / f"wejscia-{kz}.jsonl").read_text(encoding="utf-8")
+                # tylko LF dzieli rekordy (splitlines dzieliłby też U+2028/U+0085 w treści)
+                for nr, linia in enumerate(tekst.split("\n")[:-1] if tekst.endswith("\n") else tekst.split("\n"), 1):
+                    d = json.loads(linia)
+                    if kanon_wejscia(d) != linia:
+                        pw.append(f"wejscia-{kz}.jsonl:{nr}: postać niekanoniczna")
+                    if d.get("kzId") != kz:
+                        pw.append(f"wejscia-{kz}.jsonl:{nr}: kzId {d.get('kzId')}")
+                    wej.append(d)
+            wej.sort(key=lambda d: (d.get("nrPartii", 0), d.get("kzId", "")))
+            pw += oceń_wejscia(trasa, wej, sk, pelne=True)
+            # próbka obejmuje pierwsze wejścia każdego KZ – partie spoza wspólnego zakresu pomijamy w porównaniu partii
+        except Exception as ex:  # noqa: BLE001
+            pw.append(f"nie można wczytać: {ex}")
+        if pw:
+            blad(f"wejścia: {kat.as_posix()}: odrzucone: {pw[:5]}")
+        else:
+            ok(f"wejścia: {kat.as_posix()}: zgodne ze schematem kz/wejscie_cyklu_v1, postacią kanoniczną i tabelą rozsyłania ({len(wej)} wejść)")
 
 # ------------------------------------------------------------------ 6. budżety a schemat
 ids = [b["id"] for b in budzety["budzety"]]

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Lcs.WorldHost;
 
 /// <summary>Przejściowy adapter obecnego rdzenia. Jeden Simulator/Trains; podział KZ i Ada należą do S02A–S02D.</summary>
-public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true, ILogger? ownership = null) : IWorldRuntime
+public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true, ILogger? ownership = null, ILogger? cycleInputs = null) : IWorldRuntime
 {
     Simulator? sim;
     Desk? desk;
@@ -22,13 +22,15 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     {
         if (!Rozklad.Scenarios.Any(s => s.Key == scenario)) throw new ArgumentException("Nieznany scenariusz.");
         var station = Station.Load(stationPath);
-        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder, MapaWlasnosciLogger = ownership });
+        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder, MapaWlasnosciLogger = ownership, WejscieCykluLogger = cycleInputs });
         var trains = new Trains(sim);
         _ = Sygnaly.Tab;
         _ = trains.Tabor;
         trains.Load(scenario);
         // S02A.01: mapa własności postId/kzId (tylko odczyt i log KZ.OWNERSHIP_*); jeszcze bez konsumenta w cyklu.
         if (ownership != null) sim.OpublikujWlasnosc();
+        // S02A.02: tabela rozsyłania zamrożonych wejść KZ przy starcie świata (log KZ.CYCLE_INPUT_ROUTING_READY); brak mapy – log 4113.
+        if (cycleInputs != null) _ = sim.Wejscia.Trasa;
         // Stanowisko lokalne jest zaufanym adapterem, nie kontem ani wejściem publicznego serwera.
         desk = sim.AddDesk("HOST", "Lokalne stanowisko hosta", true); desk.Page = sim.Page;
         // Ograniczony manifest znanych wejść i ich braku. Ścieżki i treść nie trafiają do diagnostyki.
@@ -62,6 +64,8 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     };
     public void Dispose()
     {
+        // S02A.02: podsumowanie naruszeń wejść KZ bez własnego rekordu (4116), jeśli były.
+        sim?.Wejscia.PodsumujNaKoniec();
         // Kopia powstaje na właścicielu po ostatnim kroku. Zapis do pliku należy do procesu po zakończeniu cyklu.
         if (exportEvents && sim != null) FinalEvents = string.Join('\n', sim.Events.Select(e =>
             $"{e.Id}|{e.T.ToString("R", CultureInfo.InvariantCulture)}|{e.Czas}|{e.Kategoria}|{e.Zdarzenie}|{e.Obiekt}")) + "\n";

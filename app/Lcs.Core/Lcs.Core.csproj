@@ -20,6 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- S02A.02: testy hosta sprawdzają wewnętrzne granice rejestru wejść cyklu (fazy, zgłoszenia statusów kart). -->
+    <InternalsVisibleTo Include="Lcs.WorldHost.Testy" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Tabor i fizyka jazdy (PLAN_EDYTOR_TABORU.md, B2) – warstwa świata, bez WPF. -->
     <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
   </ItemGroup>

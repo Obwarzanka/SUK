@@ -13,4 +13,7 @@ public sealed class SimulatorOptions
 
     /// <summary>Logger mapy własności KZ (S02A.01, KZ.OWNERSHIP_* 4101–4103); brak – mapa bez logów.</summary>
     public ILogger MapaWlasnosciLogger { get; init; }
+
+    /// <summary>Logger rejestru wejść cyklu KZ (S02A.02, KZ.CYCLE_INPUT_* 4111–4116); brak – rejestr bez logów.</summary>
+    public ILogger WejscieCykluLogger { get; init; }
 }

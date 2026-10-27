@@ -52,16 +52,19 @@ public class Instruktor
 
     public void ApplyFault(string type, string target, bool clear)
     {
+        S.Wejscia.PozaOdbiorca();
+        // usterka w karcie – natychmiastowa faza Usterka: każdy status karty trafia do KZ od razu (przed alarmem karty i wpisem instruktora; S02A.02)
+        bool Karta(Func<bool> usterka) => S.Wejscia.WFazie(FazaWejscia.Usterka, usterka);
         switch (type)
         {
             case "secOcc":
             case "loMiscount":
-                if (!S.Urzadzenia.Odcinki[target].Usterka(type, clear)) return;
+                if (!Karta(() => S.Urzadzenia.Odcinki[target].Usterka(type, clear))) return;
                 break;
             case "swNoCtrl":
             case "swFrozen":
             case "swRozpr":
-                S.Urzadzenia.Zwrotnice[target].Usterka(type, clear);
+                Karta(() => S.Urzadzenia.Zwrotnice[target].Usterka(type, clear));
                 break;
             case "kzLink":
                 S.LinkDown = !clear;
@@ -71,11 +74,11 @@ public class Instruktor
             case "sigLamp":
             case "sigNodata":
                 if (!S.Urzadzenia.Sygnalizatory.TryGetValue(target, out var ks)) { S.Log("Instruktor", $"Sygnalizator {target} nie ma karty (sygnalizator bez sterowania KZ)", "Semafor", target); return; }
-                ks.Usterka(type, clear);
+                Karta(() => ks.Usterka(type, clear));
                 break;
             case "mains":
             case "mainsGenFail":
-                S.Urzadzenia.Zasilanie.Usterka(type, clear); target = null;
+                Karta(() => S.Urzadzenia.Zasilanie.Usterka(type, clear)); target = null;
                 break;
             case "nbrSilent": S.Blocks[target].NbrSilent = !clear; break;
         }

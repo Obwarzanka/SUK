@@ -3,9 +3,9 @@ namespace LcsWidzew.Sim;
 /// <summary>
 /// Zasilanie urządzeń srk jako urządzenie (Ie-20 § 6 ust. 7, § 23, zał. pkt 21; PODZIAL_MODULOW.md krok 7):
 /// sieć, UPS, agregat prądotwórczy (samoczynny rozruch po zaniku sieci) i napięcie nastawcze napędów zwrotnic i wykolejnic.
-/// Teren: to, co jest naprawdę w szafie zasilającej. Komputer zależności dostaje status (<see cref="Publikuj"/> →
-/// <see cref="Simulator.StatusZasilania"/>) i trzyma jego kopię w <see cref="Simulator.Power"/>.
-/// Rozkazy (NN, ONN, AGR) i zmiany zasilania zgłaszane są od razu, bez czekania na cykl (przełączenie w szafie, nie sterownik w pętli).
+/// Teren: to, co jest naprawdę w szafie zasilającej. Komputer zależności dostaje status (<see cref="Publikuj"/> → rejestr wejść
+/// cyklu, S02A.02) i trzyma jego kopię w <see cref="Simulator.Power"/>. Rozkazy (NN, ONN, AGR) i zmiany zasilania z usterki
+/// zgłaszane są od razu – w natychmiastowej fazie Rozkaz/Usterka, bez czekania na cykl (przełączenie w szafie, nie sterownik w pętli).
 /// </summary>
 public class Zasilanie
 {
@@ -41,7 +41,15 @@ public class Zasilanie
         }
     }
 
-    public void Publikuj() => S.Kz.StatusZasilania(Siec, Ups, Agregat, NN, !Siec && !Agregat && AgregatUszkodzony);
+    StatusZasilania ostatni;
+    /// <summary>Status przez rejestr wejść cyklu; niezmieniony stan – ten sam niezmienny rekord co poprzednio.</summary>
+    public void Publikuj()
+    {
+        bool nieRuszyl = !this.Siec && !this.Agregat && AgregatUszkodzony;
+        if (ostatni == null || ostatni.Siec != Siec || ostatni.Ups != Ups || ostatni.Agregat != Agregat || ostatni.NapiecieNastawcze != NN || ostatni.AgregatNieRuszyl != nieRuszyl)
+            ostatni = new StatusZasilania { Obiekt = Id, Siec = this.Siec, Ups = this.Ups, Agregat = this.Agregat, NapiecieNastawcze = NN, AgregatNieRuszyl = nieRuszyl };
+        S.Wejscia.Zglos(ostatni);
+    }
 
     /// <summary>Rozkaz KZ: załącz (true) / odłącz (false) napięcie nastawcze.</summary>
     public void RozkazNN(bool zal) { OstRozkaz = zal ? "załącz napięcie nastawcze" : "odłącz napięcie nastawcze"; OstRozkazT = S.T; NN = zal; Publikuj(); }

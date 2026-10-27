@@ -117,6 +117,8 @@ public sealed class SingleplayerHost : IDisposable
             var trains = new Trains(sim); _ = Sygnaly.Tab; _ = trains.Tabor; trains.Load(scenario);
             // S02A.01: mapa własności postId/kzId (tylko odczyt, log KZ.OWNERSHIP_* gdy pulpit podał logger); bez konsumenta w cyklu.
             if (options?.MapaWlasnosciLogger != null) sim.OpublikujWlasnosc();
+            // S02A.02: tabela rozsyłania wejść KZ (log KZ.CYCLE_INPUT_ROUTING_READY, gdy pulpit podał logger).
+            if (options?.WejscieCykluLogger != null) _ = sim.Wejscia.Trasa;
             var desk = sim.AddDesk("PC", deskName, true); desk.Page = sim.Page; desk.User = user; sim.User = user;
             Session = new LocalSession(sim, desk);
         }
@@ -129,7 +131,8 @@ public sealed class SingleplayerHost : IDisposable
             return new(input.RequestId, result.Ok ? InputOutcome.Executed : InputOutcome.Rejected, tick, result.Msg ?? "");
         }
         public WorldObservation Observe() { var s = Session!.Sim; return new(s.T, s.Trains.List.Count, s.Routes.Count, s.Events.Count); }
-        public void Dispose() { }
+        // S02A.02: podsumowanie naruszeń wejść KZ bez własnego rekordu (4116), jeśli były.
+        public void Dispose() => Session?.Sim.Wejscia.PodsumujNaKoniec();
     }
 
     sealed class HostedSession(SingleplayerHost host, LocalSession session) : ILcsSession

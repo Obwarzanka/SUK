@@ -13,11 +13,14 @@ public partial class App
             KontraktLogu.Strumien.Domenowy, CoreLogging.PolaZdarzeniaRejestratora.ToArray()));
         foreach (var (id, kod, pola) in MapaWlasnosciLog.Definicje)
             KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
+        foreach (var (id, kod, pola) in WejscieCykluLog.Definicje)
+            KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
         return new SimulatorOptions
         {
             DataDirectory = Path.GetDirectoryName(Path.GetFullPath(StationPath)),
             RejestratorLogger = Diagnostyka.Modul(CoreLogging.Modul, CoreLogging.Wersja),
             MapaWlasnosciLogger = Diagnostyka.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja),
+            WejscieCykluLogger = Diagnostyka.Modul(WejscieCykluLog.Modul, WejscieCykluLog.Wersja),
         };
     }
 }

@@ -76,12 +76,16 @@ internal static class Program
             foreach (var (mapId, mapCode, mapFields) in MapaWlasnosciLog.Definicje)
                 if (!KatalogZdarzen.Zarejestruj(new(mapId, mapCode, KontraktLogu.Strumien.Diagnostyka, mapFields)))
                     throw new InvalidOperationException("Niezgodny katalog mapy własności.");
+            foreach (var (inputId, inputCode, inputFields) in WejscieCykluLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new(inputId, inputCode, KontraktLogu.Strumien.Diagnostyka, inputFields)))
+                    throw new InvalidOperationException("Niezgodny katalog wejść cyklu.");
             logs = SilnikLogow.Uruchom(new OpcjeLogow { Aplikacja = "Lcs.WorldHost", Profil = ProfilLogow.Serwer, Katalog = values.GetValueOrDefault("--logi") });
             logger = logs.Modul(WorldLog.Module, WorldLog.Version);
             var recorder = logs.Modul(CoreLogging.Modul, CoreLogging.Wersja);
             var ownership = logs.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja);
+            var cycleInputs = logs.Modul(WejscieCykluLog.Modul, WejscieCykluLog.Wersja);
             ZdarzeniaProcesu.Uruchomiono(logger, "world");
-            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership), options, logger: logger);
+            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership, cycleInputs), options, logger: logger);
             var serviceLogger = logs.Modul(ServiceLog.Module, WorldLog.Version);
             if (profile != null)
             {

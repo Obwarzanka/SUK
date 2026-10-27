@@ -67,8 +67,9 @@ public partial class Simulator
     /// <summary>Przeliczenie tablicy przebiegów po zmianie zależności specjalnych – tylko bez nastawionych przebiegów (null – przeliczona).</summary>
     public string PrzeliczTablice()
     {
+        Wejscia.PozaOdbiorca();
         if (Routes.Count > 0) return "Są nastawione przebiegi – zwolnij je i naciśnij „Przelicz tablicę” (albo uruchom symulację ponownie).";
-        Kz.RouteTable.Clear(); Kz.BuildRouteTable(); wlasnosc = null;
+        Kz.RouteTable.Clear(); Kz.BuildRouteTable(); wlasnosc = null; Wejscia.UniewaznijTrase();
         return null;
     }
     public List<string> SignalConditions(Route r) => Kz.SignalConditions(r);

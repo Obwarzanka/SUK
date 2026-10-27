@@ -82,6 +82,22 @@ python3 kontrakty/testy/sprawdz_kontrakty.py --mapa wynik/mapa.json
 
 Wynik jest kanonicznym plikiem JSON zgodnym z `kontrakty/kz/mapa_wlasnosci_v1.schema.json`, ze skrótem SHA-256 do porównań. Program nie nadpisze istniejącego pliku, układu ani jego zależności specjalnych. Host świata i pulpit budują mapę przy starcie świata i zapisują w logach technicznych `KZ.OWNERSHIP_MAP_BUILT` (4101) ze skrótem i licznikami, `KZ.OWNERSHIP_UNRESOLVED` (4102, najwyżej 16 na start) dla problemów przypisania oraz `KZ.OWNERSHIP_MAP_FAILED` (4103). Szczegóły i decyzje do podjęcia: [S02A.01](SUK_plan_multiplayer/raporty/S02A.01.md).
 
+### Zamrożone wejście cyklu KZ (S02A.02)
+
+Karty sterowników nie wywołują już komputera zależności i nie zapisują jego stanu. Każda karta zgłasza swój status (odcinek, zwrotnica, wykolejnica, sygnalizator, zasilanie) do **rejestru wejść cyklu** świata. Rejestr zbiera zgłoszenia w jawnych **fazach** i tworzy z nich numerowane **wejścia cyklu** każdego KZ (`KZ-LW`, `KZ-LF`, `KZ-LN`):
+
+- **KARTY** i **RUCH** (fazy regularne) – cykl kart przed KZ oraz zajętość wszystkich odcinków po ruchu pociągów; zgłoszenia są zamrażane na końcu fazy, a każdy KZ dostaje wejście w każdym cyklu (także puste),
+- **ROZKAZ**, **USTERKA**, **ZDARZENIE_KARTY** (fazy natychmiastowe) – status po NN/oNN/AGR lub ZeroLO, po usterce instruktora oraz po końcu przejazdu z błędem zliczenia i po pierwszym przejeździe; każdy status trafia do KZ od razu, zanim karta wpisze alarm lub zdarzenie.
+
+Moment działania KZ jest taki jak dotąd: dziennik, alarmy, dziennik KZ↔karty i stan KZ są w każdym cyklu identyczne z bazą, także w chwili, gdy program reaguje na alarm. Status trafia do KZ właściciela i do KZ, które z obiektu korzystają według mapy własności. Odstępy `1ŁF-1` i `2ŁW-1` bez jednoznacznego właściciela trafiają do obu KZ, a szafa zasilania do wszystkich. Wejście zawiera wyłącznie wartości: numer wejścia KZ bez luk, numer partii, cykl, fazę, czas i statusy w porządku kanonicznym. Nie zawiera odwołań do kart, terenu, pociągów ani do KZ. Wszyscy odbiorcy jednego KZ dostają ten sam obiekt. Odbiorca nie może zgłosić statusu, wprowadzić usterki, wykonać cyklu ani polecenia, ani przeliczyć tablicy przebiegów; taka próba albo jego błąd wyłącza go bez wpływu na symulację. Dziś wejścia przyjmuje przejściowy jeden KZ całego układu; osobne KZ i grupy dojdą w kolejnych etapach.
+
+```powershell
+app\Lcs.Core.TestHost\bin\Release\net10.0\Lcs.Core.TestHost.exe --station kopia\station_test.json --wejscia-cyklu wynik\wejscia podstawowy 600
+python3 kontrakty/testy/sprawdz_kontrakty.py --wejscia wynik/wejscia
+```
+
+Program uruchamia scenariusz dwa razy, bez odbiorców i z dwoma testowymi odbiorcami każdego KZ, z usterkami i poleceniami oNN/NN. Katalog wyników musi być nowy (powstaje przed próbą). Czas próby to 1 s – 24 h; odbiorcy liczą strumieniowo, więc pamięć nie rośnie z długością próby. Program zapisuje tabelę rozsyłania `trasa.json`, początek strumieni `wejscia-KZ-*.jsonl` i `raport.json` z łańcuchem skrótów. Kod 0 oznacza: odbiorcy zgodni, numeracja bez luk, brak naruszeń faz, dziennik jak bez odbiorców. Kontrakt: `kontrakty/kz/wejscie_cyklu_v1.schema.json`. Postać kanoniczna (ciągi wg RFC 8785) ma wektory zgodności C#/Python w `kontrakty/testy/wejscie_cyklu_kanon.json`. Logi techniczne: `KZ.CYCLE_INPUT_ROUTING_READY` (4111, raz na start), `KZ.CYCLE_INPUT_ROUTING_FALLBACK` (4112, najwyżej 16), `KZ.CYCLE_INPUT_ROUTING_UNAVAILABLE` (4113), `KZ.CYCLE_INPUT_PHASE_VIOLATION` (4114, najwyżej 16 na kod), `KZ.CYCLE_INPUT_RECEIVER_FAILED` (4115) i `KZ.CYCLE_INPUT_VIOLATIONS_SUMMARY` (4116, podsumowanie ponad limity – także przy zatrzymaniu i na końcu świata). Szczegóły: [S02A.02](SUK_plan_multiplayer/raporty/S02A.02.md).
+
 ### Gra jednoosobowa (S02.02)
 
 Uruchom pulpit jak dotychczas przez `uruchom.bat`. Lokalna gra korzysta z plików układu i scenariusza; nie wymaga konta serwera ani Internetu. Dotychczasowe logowanie dyżurnego służy lokalnej sesji symulatora. Pauza i przyciski tempa działają na wspólnym cyklu o kroku 0,1 s. Polecenia w pauzie, również tuż po uruchomieniu przy czasie 0, otrzymują wynik bez przesuwania czasu.
