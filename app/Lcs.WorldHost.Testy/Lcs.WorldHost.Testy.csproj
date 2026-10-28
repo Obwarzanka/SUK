@@ -12,6 +12,7 @@
     <PackageReference Include="xunit.v3" />
     <ProjectReference Include="..\Lcs.WorldHost\Lcs.WorldHost.csproj" />
     <None Include="..\LcsWidzew\Testy\station_test.json" Link="TestData\station_test.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\kontrakty\testy\wejscie_cyklu_kanon.json" Link="TestData\wejscie_cyklu_kanon.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\LcsWidzew\Data\sygnaly_ie1.json" Link="Data\sygnaly_ie1.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

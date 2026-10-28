@@ -35,6 +35,14 @@ public partial class Simulator
     public event Action<string> SpecialExecuted;
     public event Action PendingExpired;
 
+    /// <summary>
+    /// Rejestr wejść cyklu (S02A.02, Sim/Kz/RejestrWejsc.cs): jedyna droga statusów kart do KZ – jawne fazy, zamrożone numerowane
+    /// <see cref="WejscieCyklu"/> każdego KZ według mapy własności, ta sama treść dla wszystkich odbiorców.
+    /// </summary>
+    public readonly RejestrWejscCyklu Wejscia;
+    /// <summary>Numer cyklu świata (cycleId wejść KZ): rośnie o 1 na początku każdego <see cref="Tick"/>; 0 – przed pierwszym cyklem.</summary>
+    public long NrCyklu { get; private set; }
+
     public Simulator(Station st, bool routes = true, SimulatorOptions options = null)
     {
         L = st;
@@ -46,6 +54,7 @@ public partial class Simulator
         Rozklad = new Rozklad(this);
         Otoczenie = new Otoczenie(this);
         Kz = new KomputerZaleznosci(this);
+        Wejscia = new RejestrWejscCyklu(this, Kz, options?.WejscieCykluLogger);
         Urzadzenia = new Urzadzenia(this);
         Edr = new Edr(this);
         if (routes) Kz.BuildRouteTable();
@@ -128,7 +137,8 @@ public partial class Simulator
 
     public void Tick(double dt)
     {
-        T += dt;
+        Wejscia.PozaOdbiorca();
+        T += dt; NrCyklu++;
         Nadrzedny.Tick();
         Urzadzenia.Tick(); Kz.UpdateBlocks();
         if (Trains != null) { Rozklad.Tick(); Instruktor.Tick(); }

@@ -55,17 +55,18 @@
         "S02.01",
         "S02A1.02",
         "S02.03",
-        "S02A.01"
+        "S02A.01",
+        "S02A.02"
       ],
       "rozdzialy": [
         "25 §3",
         "25 §8"
       ],
-      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B. Zamrożony w S01.01 (18.10.2026): struktura i nadane kody stałe; nowe kody dopisuje zadanie tworzące moduł (zgodnie z zasadami pliku); S01.01 dodało podzakres 3600–3699 REJ i 13 kodów.",
+      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B. Zamrożony w S01.01 (18.10.2026): struktura i nadane kody stałe; nowe kody dopisuje zadanie tworzące moduł (zgodnie z zasadami pliku); S01.01 dodało podzakres 3600–3699 REJ i 13 kodów. S02A.02 dodało kody 4111–4116 (rejestr wejść cyklu KZ).",
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "25e4e6b4fadf6b84f3ca2f8eda2fc724eb89003e095e1578808cd0ef3f431cd4"
+          "sha256_lf": "14af7be4792e6bd5477abfe124eaa64ab21ad46a2634a9545e1e6c5941b6e969"
         }
       ]
     },
@@ -727,12 +728,40 @@
           "sha256_lf": "908bf56bf541bda9feeb6526d3139b7294fd3fe4dafa92a26cc7f45f46b0a7b8"
         }
       ]
+    },
+    {
+      "id": "kz.wejscie_cyklu",
+      "nazwa": "Zamrożone wejście cyklu KZ (CycleInput) i tabela rozsyłania statusów",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S02A.02",
+      "zamraza": "S02A1.01",
+      "konsumenci": [
+        "S02A.03",
+        "S02A.04",
+        "S02A1.01",
+        "S02A1.02",
+        "S02B.01"
+      ],
+      "rozdzialy": [
+        "18",
+        "19 §7 pkt 2",
+        "16",
+        "25"
+      ],
+      "opis": "Numerowane wejście jednego KZ z rejestru wejść świata: kzId, nrWejscia (inputSeq, bez luk), nrPartii, cykl (cycleId), faza (regularne KARTY, RUCH; natychmiastowe ROZKAZ, USTERKA, ZDARZENIE_KARTY; POZA_FAZA), czas symulacji, skrót tabeli rozsyłania i statusy kart w porządku kanonicznym – tylko wartości, bez referencji i wywołań zwrotnych; odbiorca nie może zgłaszać statusów ani otwierać faz. Tabela rozsyłania (kz.trasa_wejsc) wynika wyłącznie z mapy własności: właściciel i zadeklarowani odbiorcy; obiekt bez jednoznacznego właściciela – ostrożnie do kandydatów/wszystkich KZ; bez posterunków – brak tabeli (fail-closed). Postać kanoniczna: JSON z ciągami wg RFC 8785 (jedna linia dla wejścia, wcięcie 2 dla tabeli), SHA-256 bajtów UTF-8; wektory zgodności C#/Python w kontrakty/testy/wejscie_cyklu_kanon.json. v1 bez intencji poleceń i komunikatów KZ–KZ. Generuje Lcs.Core.TestHost --wejscia-cyklu.",
+      "pliki": [
+        {
+          "plik": "kontrakty/kz/wejscie_cyklu_v1.schema.json",
+          "sha256_lf": "986276da65c897866f8e9f38da89b2afc92589932ccbe667d852594a7d8ea71d"
+        }
+      ]
     }
   ],
   "narzedzia": [
     {
       "plik": "kontrakty/testy/sprawdz_kontrakty.py",
-      "sha256_lf": "32bdf15aaff068be7368beba4353430ed5bbac55c71b3837eb33bfb2e0d5b1ba"
+      "sha256_lf": "0221e4ceace9fcdff7c912ad6f965b34ab669f41c260f84459dd8875d3110f40"
     },
     {
       "plik": "kontrakty/testy/rekordy_poprawne.jsonl",
@@ -745,6 +774,14 @@
     {
       "plik": "kontrakty/testy/mapa_wlasnosci_przyklad.json",
       "sha256_lf": "1318a94408ef4b73aabb34cbcc3ae7a29f10dbf3d7a243f746b5703ab47a7ecc"
+    },
+    {
+      "plik": "kontrakty/testy/wejscie_cyklu_przyklad.json",
+      "sha256_lf": "0d0fccda1b2b2fee3bc6c73fc35961558ebae212596567f50739dd5658aa5146"
+    },
+    {
+      "plik": "kontrakty/testy/wejscie_cyklu_kanon.json",
+      "sha256_lf": "ac39383c18e22201c160cd4f7c8a0f64f15b72395fe21c4d375fcfa098373300"
     }
   ]
 }

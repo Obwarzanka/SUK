@@ -14,7 +14,8 @@
     "DiagnosticCandidate (obliczenie kanału) i EffectCommitted (jeden logiczny skutek OutputGate) mają różne kody (25 §5).",
     "S01.01 (18.10.2026): przydzielono podzakres 3600–3699 REJ (kopia dziennika pulpitu – Rejestrator) i kody fundamentu logów; adapter przyjmuje kod bez definicji, jeśli jest zgodny z podzakresem, a pola ponad pola kontekstu schematu tylko z listy 'pola' definicji.",
     "Pole 'pola' wymienia pola kontekstu schematu i pola dodatkowe zdarzenia; inne pola adapter odrzuca i liczy w counters.rejectedFields. Rekord spoza katalogu dostaje LOG.EVENT_UNCATALOGUED z originalEventId i zachowanym poziomem.",
-    "S02A.01 (21.10.2026): w podzakresie 4100–4199 KZ przydzielono 4101–4103 mapie własności postId/kzId (moduł LcsWidzew.MapaWlasnosci, strona hosta); bez zmian schematu rekordu."
+    "S02A.01 (21.10.2026): w podzakresie 4100–4199 KZ przydzielono 4101–4103 mapie własności postId/kzId (moduł LcsWidzew.MapaWlasnosci, strona hosta); bez zmian schematu rekordu.",
+    "S02A.02 (21.10.2026): podzakres 4100–4199 KZ – kody 4111–4116 rejestru wejść cyklu (LcsWidzew.WejscieCyklu); zmiana addytywna, schemat rekordu bez zmian."
   ],
   "obszary": [
     {
@@ -972,6 +973,122 @@
       "status": "wdrozony",
       "zrodlo": "S02A.01; 16; 25 F24",
       "uwaga": "Nie zbudowano mapy (dane niezgodne z modelem); wyjątek redaguje adapter. Konsument mapy musi wtedy odmówić (fail-closed)."
+    },
+    {
+      "eventId": 4111,
+      "eventCode": "KZ.CYCLE_INPUT_ROUTING_READY",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "contentHash",
+        "mapHash",
+        "counters",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 18; 19 §7 pkt 2; 25 F24",
+      "uwaga": "Zbudowano tabelę rozsyłania statusów kart do wejść KZ (z mapy własności): contentHash = SHA-256 tabeli (kz.trasa_wejsc), mapHash = SHA-256 mapy; liczniki kz, objects, owner, candidates, declaredReceivers, allKz, multiReceiver, fallbackLogged, fallbackSuppressed. outcome Accepted albo Degraded (są obiekty bez jednoznacznego właściciela). Raz na budowę (start świata, przeliczenie tablicy)."
+    },
+    {
+      "eventId": 4112,
+      "eventCode": "KZ.CYCLE_INPUT_ROUTING_FALLBACK",
+      "severity": "Warning",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "typObiektu",
+        "targetId",
+        "reasonCode",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 16; 25 F24",
+      "uwaga": "Obiekt bez jednoznacznego właściciela rozsyłany ostrożnie: OWNER_AMBIGUOUS_CANDIDATES (odbiorcy i kandydaci), OWNER_UNKNOWN_DECLARED_RECEIVERS (odbiorcy mapy), OWNER_UNKNOWN_ALL_KZ (wszystkie KZ); counters.receivers. Najwyżej 16 rekordów na budowę tabeli, reszta w licznikach 4111. targetId tylko gdy jest poprawnym identyfikatorem SUK."
+    },
+    {
+      "eventId": 4113,
+      "eventCode": "KZ.CYCLE_INPUT_ROUTING_UNAVAILABLE",
+      "severity": "Error",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode",
+        "outcome"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 25 F24",
+      "uwaga": "Brak tabeli rozsyłania: OWNERSHIP_MAP_UNAVAILABLE (mapy własności nie zbudowano), NO_VALID_POSTS (mapa bez posterunków z poprawnym kzId), ROUTING_BUILD_FAILED (błąd budowy tabeli). Wejścia KZ nie są tworzone, odbiorcy nie dostają danych (fail-closed); przejściowy KZ obszaru nadal dostaje partie statusów. outcome Degraded."
+    },
+    {
+      "eventId": 4114,
+      "eventCode": "KZ.CYCLE_INPUT_PHASE_VIOLATION",
+      "severity": "Warning",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "typObiektu",
+        "targetId",
+        "reasonCode",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 19 §7 pkt 4; 25 F24",
+      "uwaga": "Naruszenie granicy faz statusów (błąd integracji): STATUS_OUTSIDE_PHASE, REENTRANT_STATUS, NESTED_PHASE, REENTRANT_PHASE (faza otwarta z wnętrza doręczania – zdarzenie KZ), PHASE_CLOSE_ORDER, UNKNOWN_OBJECT, DELIVERY_DEPTH (zagnieżdżenie ponad limit – partia po bieżącej), DELIVERY_LIMIT (pętla doręczeń – rejestr zatrzymany, fail-stop). Status nie ginie (doręczany od razu lub do wszystkich KZ). counters.violations = liczba naruszeń w świecie. Najwyżej 16 rekordów na kod w świecie (DELIVERY_LIMIT zawsze), nieopisane – w podsumowaniu 4116."
+    },
+    {
+      "eventId": 4115,
+      "eventCode": "KZ.CYCLE_INPUT_RECEIVER_FAILED",
+      "severity": "Error",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "kzId",
+        "reasonCode",
+        "outcome",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 18; 25 F24",
+      "uwaga": "Odbiorca wejść KZ zgłosił wyjątek (RECEIVER_EXCEPTION, także próba zgłoszenia statusu, otwarcia fazy, wprowadzenia usterki, wykonania cyklu, polecenia albo przeliczenia tablicy z odbiorcy) i został wyłączony – strumień z luką nie może być dalej liczony; świat i pozostali odbiorcy działają dalej. counters.inputSeq = numer wejścia. Wyjątek redaguje adapter. Najwyżej 16 rekordów na świat, dalej podsumowanie 4116."
+    },
+    {
+      "eventId": 4116,
+      "eventCode": "KZ.CYCLE_INPUT_VIOLATIONS_SUMMARY",
+      "severity": "Warning",
+      "moduleId": "LcsWidzew.WejscieCyklu",
+      "stream": "diagnostic",
+      "pola": [
+        "worldId",
+        "worldRunId",
+        "serverTick",
+        "simulationTimeMs",
+        "reasonCode",
+        "counters"
+      ],
+      "status": "wdrozony",
+      "zrodlo": "S02A.02; 25 §5 F24",
+      "uwaga": "Podsumowanie (LOG_LIMIT_SUMMARY) po wyczerpaniu limitów rekordów 4114/4115, tylko gdy przybyły nieopisane naruszenia lub błędy odbiorców: na granicy fazy KARTY (pierwsze od razu, potem najwyżej raz na 3000 cykli świata), przy zatrzymaniu rejestru (DELIVERY_LIMIT) i na końcu świata (zamknięcie hosta). counters (11): violations, violationsSuppressed, receiverFailures, receiverFailuresSuppressed (nieopisane narastająco), outsidePhase, nestedPhases, reentrantPhases, phaseCloseOrder, unknownObjects, deferredDeliveries, stopped."
     }
   ]
 }

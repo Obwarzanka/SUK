@@ -4,7 +4,7 @@ namespace LcsWidzew.Sim;
 /// Karta zwrotnicy – sterownik zwrotnicowy z napędem (Zrodla/EBILock_komputerownia.md 4.3, PODZIAL_MODULOW.md krok 5).
 /// Teren: położenie iglic (<see cref="Iglice"/>), przekładanie napędem, zamarznięcie, uszkodzenie po rozpruciu.
 /// Przyjmuje rozkaz przestawienia od komputera zależności (<see cref="Rozkaz"/>), wykonuje go w następnym cyklu
-/// i melduje status (<see cref="Publikuj"/> → <see cref="SwState"/>): położenie z kontrolą albo brak kontroli,
+/// i melduje status (<see cref="Publikuj"/> → rejestr wejść cyklu, S02A.02): położenie z kontrolą albo brak kontroli,
 /// przekładanie, przekroczony czas przekładania. Rozprucie rozstrzyga komputer zależności (brak kontroli przy zajętym odcinku).
 /// </summary>
 public class KartaZwrotnicy
@@ -70,8 +70,16 @@ public class KartaZwrotnicy
         if (S.T >= Ruch.Until) { Iglice = Ruch.Target; Ruch = null; }
     }
 
-    /// <summary>Status dla komputera zależności (kopia w <see cref="SwState"/>).</summary>
-    public void Publikuj() => S.Kz.StatusZwrotnicy(Id, Kontrola ? Iglice : null, Ruch != null || rozkaz != null, PrzekroczonyCzas);
+    StatusZwrotnicy ostatni;
+    /// <summary>Status dla komputera zależności przez rejestr wejść cyklu (KZ trzyma kopię w <see cref="SwState"/>); niezmieniony stan –
+    /// ten sam niezmienny rekord co poprzednio.</summary>
+    public void Publikuj()
+    {
+        string pol = Kontrola ? Iglice : null; bool przekl = Ruch != null || rozkaz != null;
+        if (ostatni == null || !string.Equals(ostatni.Polozenie, pol, StringComparison.Ordinal) || ostatni.Przekladanie != przekl || ostatni.PrzekroczonyCzas != PrzekroczonyCzas)
+            ostatni = new StatusZwrotnicy { Obiekt = Id, Polozenie = pol, Przekladanie = przekl, PrzekroczonyCzas = this.PrzekroczonyCzas };
+        S.Wejscia.Zglos(ostatni);
+    }
 
     /// <summary>
     /// Teren: pojazd najeżdża zwrotnicę od strony gałęzi <paramref name="pol"/>. Iglice w innym położeniu albo w ruchu – rozprucie:
@@ -99,7 +107,7 @@ public class KartaZwrotnicy
 
 /// <summary>
 /// Karta wykolejnicy (sterownik z napędem wykolejnicy). Rozkaz założenia / zdjęcia od KZ, przekładanie w czasie
-/// <see cref="Simulator.Cfg.SwTime"/>, status do <see cref="DerState"/>. Teren: wykolejnica na szynie (<see cref="Zalozona"/>).
+/// <see cref="Simulator.Cfg.SwTime"/>, status przez rejestr wejść cyklu (kopia w <see cref="DerState"/>). Teren: wykolejnica na szynie (<see cref="Zalozona"/>).
 /// </summary>
 public class KartaWykolejnicy
 {
@@ -128,5 +136,12 @@ public class KartaWykolejnicy
         if (Cel is bool c && S.T >= Until) { Zalozona = c; Cel = null; }
     }
 
-    public void Publikuj() => S.Kz.StatusWykolejnicy(Id, Cel == null && rozkaz == null ? Zalozona : null);
+    StatusWykolejnicy ostatni;
+    /// <summary>Status przez rejestr wejść cyklu; niezmieniony stan – ten sam niezmienny rekord co poprzednio.</summary>
+    public void Publikuj()
+    {
+        bool? z = Cel == null && rozkaz == null ? this.Zalozona : null;
+        if (ostatni == null || ostatni.Zalozona != z) ostatni = new StatusWykolejnicy { Obiekt = Id, Zalozona = z };
+        S.Wejscia.Zglos(ostatni);
+    }
 }

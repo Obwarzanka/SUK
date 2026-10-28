@@ -28,6 +28,7 @@ internal static class Program
                     "--boundary wynik.txt\n" +
                     "--station kopia.json --test wynik.txt\n" +
                     "--station kopia.json --mapa-wlasnosci mapa.json (mapa własności postId/kzId, S02A.01)\n" +
+                    "--station kopia.json --wejscia-cyklu nowy_katalog [scenariusz [sekundy]] (rozsyłanie zamrożonych wejść KZ, S02A.02)\n" +
                     "--compare baza.txt wynik.txt [raport.txt] [--require-events]\n" +
                     "Opcje logów: --logi katalog --logi-raport plik --logi-proba\n" +
                     "Porównanie zachowuje kolejność i czasy domenowe; normalizuje wyłącznie końce linii.");
@@ -52,6 +53,9 @@ internal static class Program
             foreach (var (id, kod, pola) in MapaWlasnosciLog.Definicje)
                 if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
                     throw new InvalidOperationException("Nie można zarejestrować kontraktu mapy własności.");
+            foreach (var (id, kod, pola) in WejscieCykluLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
+                    throw new InvalidOperationException("Nie można zarejestrować kontraktu wejść cyklu.");
 
             string stationPath = Remove(args, "--station");
             if (args.Count == 0) throw new ArgumentException("Brak polecenia hosta testowego.");
@@ -78,6 +82,13 @@ internal static class Program
                 Console.WriteLine($"Mapa własności: {map.Posterunki.Count} KZ, {map.Obiekty.Count} obiektów, {map.Granice.Count} granic, " +
                     $"{map.Problemy.Count} problemów; sha256 {map.Sha256}");
                 return 0;
+            }
+            if (args[0] == "--wejscia-cyklu" && args.Count is >= 2 and <= 4)
+            {
+                if (string.IsNullOrWhiteSpace(stationPath)) throw new ArgumentException("--wejscia-cyklu wymaga jawnego --station z kopią układu.");
+                double seconds = args.Count == 4 ? double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture) : 600;
+                return CycleInputs.Run(Path.GetFullPath(stationPath), Path.GetFullPath(args[1]), args.Count >= 3 ? args[2] : "podstawowy", seconds,
+                    Diagnostyka.Modul(WejscieCykluLog.Modul, WejscieCykluLog.Wersja));
             }
             if (args[0] == "--compare")
             {

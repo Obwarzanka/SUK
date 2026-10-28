@@ -318,6 +318,7 @@ public class SystemNadrzedny
     // ------------------------------------------------------------------ wykonanie
     public CmdResult Exec(string line, bool confirm = false)
     {
+        S.Wejscia.PozaOdbiorca();
         line = string.Join(' ', (line ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
         if (line == "") return new(false, "");
         if (S.LinkDown) return new(false, "Brak łączności z komputerem zależności – polecenie nie zostało przyjęte");
@@ -403,6 +404,7 @@ public class SystemNadrzedny
 
     public CmdResult ConfirmPending(string typed)
     {
+        S.Wejscia.PozaOdbiorca();
         var p = Pending; if (p == null) return new(false, "Brak polecenia do potwierdzenia");
         if (T > p.Until) { Pending = null; return Reject(p.Line, "Upłynął czas na potwierdzenie"); }
         if (T < p.NotBefore) return new(false, $"Potwierdzenie możliwe po upływie 5 s od zainicjowania (Ie-104 § 11 ust. 13) – jeszcze {p.NotBefore - T:0} s");
@@ -452,7 +454,7 @@ public class SystemNadrzedny
         return null;
     }
 
-    public void CancelPending() { if (Pending != null) { S.Log("Polecenie", "Wycofano polecenie specjalne: " + Pending.Line, "Polecenie", Pending.Arg, "PC"); Pending = null; } }
+    public void CancelPending() { S.Wejscia.PozaOdbiorca(); if (Pending != null) { S.Log("Polecenie", "Wycofano polecenie specjalne: " + Pending.Line, "Polecenie", Pending.Arg, "PC"); Pending = null; } }
 
     /// <summary>Polecenie specjalne – pierwszy etap: adres (system nadrzędny) i warunki wstępne (komputer zależności).</summary>
     (string Err, string Target, List<string> Targets) SpecialPrecheck(string code, List<string> args)
@@ -553,6 +555,7 @@ public class SystemNadrzedny
     /// <summary>Polecenie z określonego stanowiska: kontekst użytkownika, obrazu i obszaru sterowania.</summary>
     public CmdResult ExecAs(Desk d, string line, bool confirm = false)
     {
+        S.Wejscia.PozaOdbiorca();
         Trace($"→ {d.Name}: polecenie „{line}”");
         var r = As(d, () => Exec(line, confirm));
         Trace($"← {d.Name}: {(r.Ok ? "przyjęte" : "odrzucone")}{(r.Msg != "" ? " – " + r.Msg : "")}");
