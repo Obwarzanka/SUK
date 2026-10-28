@@ -1,0 +1,31 @@
+{
+  "local": true,
+  "status": {
+    "State": 2,
+    "Ready": true,
+    "WorldId": "local",
+    "WorldRunId": "8c187696-f59b-4506-9681-ae68a1596a51",
+    "ServerTick": 121,
+    "SimulationTimeMs": 12100,
+    "Publications": 61,
+    "Queued": 0,
+    "QueuedBytes": 0,
+    "Accepted": 1,
+    "Rejected": 0,
+    "Expired": 0,
+    "Completed": 1,
+    "Cancelled": 0,
+    "MaxTickUs": 6546,
+    "MaxLatenessUs": 0,
+    "BudgetStops": 1,
+    "Observation": {
+      "SimulationSeconds": 11.999999999999973,
+      "Trains": 1,
+      "Routes": 0,
+      "Events": 8
+    },
+    "FailureCode": null,
+    "LastStepTimestamp": 468198854983
+  },
+  "remote": false
+}

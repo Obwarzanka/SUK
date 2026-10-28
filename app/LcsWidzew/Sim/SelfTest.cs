@@ -163,6 +163,58 @@ public static class SelfTest
             }
             sb.AppendLine($"OCHRONA BOCZNA: przebiegi z ochroną {withFlank} z {all.Count}; kontrola {fOk} z {fTot}");
         }
+        // pierwszy odstęp za stacją (Dz.U. 2015 poz. 360): zezwolenie na wyjazd sprawdza wszystkie jego odcinki – do pierwszego semafora odstępowego
+        {
+            var os = new Simulator(st, options: options) { User = sim.User }; int oOk = 0, oTot = 0;
+            void O(bool c, string m) { oTot++; if (c) oOk++; else sb.AppendLine($"pierwszy odstęp: BŁĄD {m}"); }
+            foreach (var b in st.Blocks.Values.Where(x => !x.NoBlock && x.SecsWE.Count > 0))
+                for (int e = 0; e < b.Ends.Count; e++)
+                {
+                    int dir = b.Ends[e].Outward; var po = os.Kz.PierwszyOdstep(b, e);
+                    var dalsze = st.Signals.Values.Where(s => s.Szlak == b.Id && s.Type == "odstepowy" && s.Dir == dir).SelectMany(s => os.Kz.OdstepSecs(s.Name)).ToHashSet();
+                    O(po.Count > 0 && !po.Any(dalsze.Contains), $"szlak {b.Id} koniec {b.Ends[e].Label}: odcinki {string.Join(",", po)} – nie zachodzą na odstępy semaforów odstępowych");
+                    var bs = os.Blocks[b.Id]; int dawny = bs.Dir; bs.Dir = dir;
+                    if (os.BlockAllowsExit(b.Id, dir))
+                    {
+                        var sc = os.Secs[po[^1]]; sc.Fault = "occ";
+                        O(!os.BlockAllowsExit(b.Id, dir), $"szlak {b.Id} koniec {b.Ends[e].Label}: zajęty {po[^1]} (ostatni odcinek pierwszego odstępu) – wyjazd zabroniony");
+                        sc.Fault = null;
+                    }
+                    bs.Dir = dawny;
+                }
+            sb.AppendLine($"PIERWSZY ODSTĘP: kontrola {oOk} z {oTot}");
+        }
+        // manewr na szlak: do W5 (granica przetaczania), bez W5 – tylko do semafora wjazdowego (granica posterunku)
+        {
+            int wOk = 0, wTot = 0;
+            void Wc(bool c, string m) { wTot++; if (c) wOk++; sb.AppendLine($"manewr na szlak: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            List<RouteDef> Trasy(Simulator s) => s.RouteTable.Values.SelectMany(v => v).ToList();
+            var bezW5 = st.Blocks.Values.SelectMany(b => b.Ends).Where(en => sim.Kz.DoW5(en.Boundary, en.Outward) == null).Select(en => en.Boundary).ToHashSet();
+            Wc(!Trasy(sim).Any(r => r.EndKind == "szlakM" && bezW5.Contains(r.EndNode)), "bez W5 za semaforem wjazdowym – brak przebiegów manewrowych na szlak");
+            // W5 na próbę: pierwszy węzeł za semaforem wjazdowym, przy końcu szlaku z manewrem do semafora wjazdowego
+            var pr = Trasy(sim).Where(r => r.Type == "M" && r.EndKind == "gr").Select(r => (R: r, B: st.Blocks.Values.FirstOrDefault(b => b.Ends.Any(x => x.EntrySig == r.End))))
+                .Where(x => x.B != null).Select(x => (x.R, x.B, En: x.B.Ends.First(e => e.EntrySig == x.R.End)))
+                .Select(x => (x.R, x.B, x.En, Nx: sim.Forward(x.En.Boundary, x.En.Outward, null)))
+                .FirstOrDefault(x => x.Nx.Count == 1 && st.Other(x.Nx[0].Edge, x.En.Boundary) is var nw && st.Nodes[nw].Signals.Count == 0 && st.Nodes[nw].Switch == null && !st.Boundaries.ContainsKey(nw) && !st.FarEnds.ContainsKey(nw));
+            if (pr.R != null)
+            {
+                var e1 = pr.Nx[0].Edge; var nW5 = st.Other(e1, pr.En.Boundary);
+                st.W5[nW5] = (pr.En.Outward, "W5test");
+                var ws = new Simulator(st, options: options) { User = sim.User };
+                var rm = Trasy(ws).FirstOrDefault(r => r.EndKind == "szlakM" && r.End == pr.B.Id && r.EndNode == pr.En.Boundary);
+                Wc(rm != null && rm.Edges[^1] == e1 && rm.Secs.Contains(st.Edges[e1].Sec), $"W5 na próbę za {Station.Lbl(pr.En.EntrySig)}: przebieg {rm?.Id ?? "brak"} kończy się przy W5 (tor {e1})");
+                var pow = Trasy(ws).FirstOrDefault(r => r.Type == "M" && r.Start == pr.En.EntrySig);
+                if (pow != null)
+                {
+                    Wc(ws.WhyNot(pow).Any(x => x.Contains("tylko dla powrotu")), $"powrót {pow.Id}: tor do W5 wolny – odrzucony");
+                    var sc = ws.Secs[st.Edges[e1].Sec]; sc.Fault = "occ";
+                    Wc(!ws.WhyNot(pow).Any(x => x.Contains("tylko dla powrotu")), $"powrót {pow.Id}: tabor między semaforem wjazdowym a W5 – dozwolony");
+                    sc.Fault = null;
+                }
+                st.W5.Remove(nW5);
+            }
+            sb.AppendLine($"MANEWR NA SZLAK: kontrola {wOk} z {wTot}");
+        }
         // zależności specjalne (<układ>.zaleznosci.json) – wpisy testowe w pamięci, dobrane z tablicy przebiegów (bez nazw stacji)
         {
             var zalOrig = st.Zal;

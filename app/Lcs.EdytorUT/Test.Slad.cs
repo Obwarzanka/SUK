@@ -63,7 +63,7 @@ public static partial class Test
         await WaitFor(() => !w.View.SladBusy, 60000);
         var pv = w.View.SladPreview;
         var arcs = pv?.A?.Els.Where(e => e.Luk).ToList() ?? new();
-        Ok(pv?.A != null && arcs.Count == 2 && Math.Abs(arcs[0].R0 - 600) < 50 && Math.Abs(arcs[1].R0 + 1200) < 100 && pv.Rms < 0.5 && pv.Pominiete.Count >= 1 && w.View.SladPreviewInfo().Contains("Łukiem z punktów"),
+        Ok(pv?.A != null && arcs.Count == 2 && Math.Abs(arcs[0].R0 - 600) < 50 && Math.Abs(arcs[1].R0 + 1200) < 100 && pv.Rms < 0.5 && pv.Pominiete.Count >= 1 && (pv.Przeskoki?.Count ?? 0) == 0 && w.View.SladPreviewInfo().Contains("Łukiem z punktów"),
             $"Enter – tor po śladzie z OSM (węzły co 12 m, ±0,4 m – R do kilku %, przejściowych z takich danych nie widać: sama prawdziwa trasa odbiega od węzłów średnio o ok. 25 cm): {w.View.SladPreviewInfo()}");
         if (shotRails != null) { w.UpdateKrzyw(); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_slad_osm.png")); }
         int nt = d.P.Tracks.Count;
@@ -210,7 +210,86 @@ public static partial class Test
         w.CompareArcPlan(tv.Id, 1, null);
         Ok(w.LastMessage.Contains("kąt zwrotu: plan 30") && w.LastMessage.Contains("różnica"), $"kąt z planu inny niż na rysunku – różnica: {w.LastMessage}");
         SladLinia(o, k);
-        await Task.CompletedTask;
+        SladDwaLuki(o, k);
+        await SladPrzeskok(w, o, k);
+    }
+
+    /// <summary>
+    /// Dwa łuki w tę samą stronę z krótką prostą między nimi (zgłoszenie 2026-10-27, Andrzejów: tor rozjeżdżał się ze śladem do 4 m,
+    /// ciąg „pominiętych” punktów i ostrzeżenie „przeskok”). Prawdziwe ślady po liniach OSM (tory wchodzące łukiem do stacji Łódź
+    /// Andrzejów, węzły © współtwórcy OpenStreetMap, ODbL): łuk R ~900 m, prosta ok. 90 m, łuk R ~430 m; baza dobrana z rozrzutu (55–61 m)
+    /// zlewała oba łuki w jeden (odchyłka średnia ok. 70 cm). Teraz oba łuki, tor przy śladzie, bez pominiętych punktów i ostrzeżeń.
+    /// </summary>
+    static void SladDwaLuki(XY o, double k)
+    {
+        var slady = new (string Nazwa, XY P0, double[] D)[] {
+            ("tor 1,35 km", new XY(431512.44, 541463.15), new double[] {
+            0.00, 0.00, -43.49, 56.59, -56.05, 73.16, -65.02, 85.00, -81.35, 106.76, -86.58, 113.74, -107.90, 142.39, -129.08, 171.26,
+            -152.62, 203.35, -385.10, 520.78, -395.75, 535.02, -406.37, 549.11, -414.21, 559.17, -421.98, 569.02, -431.78, 581.07, -440.71, 591.50,
+            -449.55, 601.61, -458.38, 611.55, -481.00, 636.54, -487.25, 643.36, -509.47, 667.64, -526.43, 686.17, -549.62, 711.08, -565.46, 727.42,
+            -570.47, 732.33, -577.52, 739.14, -591.02, 751.44, -604.09, 762.39, -616.78, 771.86, -630.75, 781.76, -642.98, 789.73, -659.18, 799.27,
+            -672.86, 806.68, -691.63, 815.68, -700.80, 819.76, -710.21, 823.67, -715.31, 825.71, -719.23, 827.17, -727.17, 830.14, -732.12, 831.82,
+            -741.52, 834.82, -751.10, 837.70, -760.75, 840.34, -770.46, 842.78, -780.23, 845.00, -790.04, 846.94, -796.28, 848.04, -798.07, 848.35,
+            -807.95, 849.95, -813.37, 850.63, -817.17, 851.10, -822.43, 851.67, -825.82, 852.03, -834.23, 852.77, -847.22, 853.53, -858.71, 853.97,
+            -871.15, 854.13, -894.42, 854.01, -921.25, 853.51, -933.79, 853.27, -936.54, 853.21, -942.30, 853.07, -948.76, 852.90,
+            }),
+            ("tor 0,7 km", new XY(431130.27, 541986.63), new double[] {
+            0.00, 0.00, -12.23, 16.52, -24.46, 32.72, -33.97, 44.78, -43.47, 56.46, -55.60, 70.82, -64.46, 80.94, -73.28, 90.82,
+            -95.98, 115.85, -102.23, 122.67, -141.65, 165.69, -164.76, 190.48, -180.25, 206.59, -185.46, 211.70, -192.94, 218.96, -211.39, 235.30,
+            -224.56, 245.89, -237.92, 255.93, -250.94, 264.90, -267.60, 275.17, -283.19, 283.85, -296.59, 290.74, -307.98, 295.87, -317.72, 300.18,
+            -324.65, 303.11, -331.35, 305.75, -335.56, 307.29, -343.85, 310.30, -348.75, 311.96, -358.20, 314.98, -367.88, 317.88, -377.61, 320.55,
+            -387.40, 323.01, -397.26, 325.25, -407.13, 327.20, -413.51, 328.37, -414.65, 328.58, -422.19, 329.90, -427.97, 330.71, -432.06, 331.28,
+            -439.98, 332.25, -450.94, 333.34, -465.24, 334.34, -478.94, 334.91, -493.87, 335.14, -512.81, 335.08, -538.59, 334.55, -541.00, 334.50,
+            -555.57, 334.20,
+            }) };
+        foreach (var (nazwa, p0, dd) in slady)
+        {
+            var pts = new List<XY>(); for (int i = 0; i + 1 < dd.Length; i += 2) pts.Add(p0 + new XY(dd[i], dd[i + 1]));
+            double kk = Geo.ScaleFactor(p0);
+            var st = Slad.TorPoSladzie(pts, kk);
+            var arcs = st.A?.Els.Where(e => e.Luk && Math.Abs(e.R0) < 3000).ToList() ?? new();
+            Ok(st.A != null && arcs.Count == 2 && arcs[0].R0 > 600 && arcs[0].R0 < 1300 && Math.Abs(arcs[1].R0 - 430) < 30 && st.Rms < 0.2 && st.Max < 0.5 && st.Pominiete.Count == 0 && (st.Przeskoki?.Count ?? 0) == 0,
+                $"Andrzejów, {nazwa} z OSM – dwa łuki z prostą ok. 90 m (baza dobrana {Slad.BazaAuto(pts, kk):0} m): " +
+                (st.A == null ? st.Error : $"łuki R {string.Join(" / ", arcs.Select(e => e.R0.ToString("0")))}, baza {st.Baza:0} m, odchyłka {st.Rms * 100:0} / {st.Max * 100:0} cm, pominięte {st.Pominiete.Count}, ostrzeżenia {st.Przeskoki?.Count ?? 0}"));
+        }
+    }
+
+    /// <summary>
+    /// Przeskok śladu na sąsiedni tor (zgłoszenie 2026-10-27: ślad po liniach OSM poszedł przez połączenie torów na równoległy tor
+    /// 4,5 m obok i z powrotem, a tor po śladzie po cichu pominął ten odcinek – kilka „pominięty 4xx cm”). Dwa tory proste z dwoma
+    /// połączeniami, klik na torze 1, na torze 2 między połączeniami i znów na torze 1: ostrzeżenie o przeskoku zamiast samych pominięć.
+    /// </summary>
+    static async Task SladPrzeskok(MainWindow w, XY o0, double k)
+    {
+        var o = o0 + new XY(-3000, 2000); double az = 0.7;
+        var dir = Element.Dir(az); var right = Element.Right(az);
+        XY P(double s, double off) => o + dir * (s * k) + right * (off * k);
+        var net = new OsmSiec(); long id = 1; var t1 = new List<long>(); var t2 = new List<long>(); var n1 = new Dictionary<int, long>(); var n2 = new Dictionary<int, long>();
+        for (int s = 0; s <= 600; s += 10) { net.Nodes[id] = P(s, 0); n1[s] = id; t1.Add(id++); net.Nodes[id] = P(s, 4.5); n2[s] = id; t2.Add(id++); }
+        net.Ways.Add(t1.ToArray()); net.Ways.Add(t2.ToArray());
+        net.Ways.Add(new[] { n1[200], n2[230] }); net.Ways.Add(new[] { n2[330], n1[360] });
+        net.Areas.Add((o + new XY(-3000, -3000), o + new XY(3000, 3000)));
+        w.View.Osm = net;
+        w.SetTool(UtTool.Slad); w.View.SladClear();
+        w.View.FitPoints(new[] { P(0, 0), P(600, 0) }); await Settle(w);
+        Point S(XY p) => w.View.ToScreen(p);
+        w.View.SimClick(S(P(5, 0))); w.View.SimClick(S(P(280, 4.5))); w.View.SimClick(S(P(595, 0)));
+        int na = w.View.SladPts.Count(q => Math.Abs((q - o).X * right.X + (q - o).Y * right.Y) / k > 3);
+        KeyPress(w, Key.Enter);
+        await WaitFor(() => !w.View.SladBusy, 60000);
+        var pv = w.View.SladPreview; var pr = pv?.Przeskoki ?? new();
+        Ok(na >= 5 && pv?.A != null && pr.Count == 1 && pr[0].S0 > 150 && pr[0].S1 < 420 && pr[0].Max > 3.5 && w.View.SladPreviewInfo().StartsWith("UWAGA: ślad przeskakuje na sąsiedni tor"),
+            $"ślad przez połączenie na tor 4,5 m obok ({na} pkt) – ostrzeżenie o przeskoku: {(pv == null ? "brak propozycji" : w.View.SladPreviewInfo())}");
+        if (shotRails != null) { await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_slad_przeskok.png")); }
+        KeyPress(w, Key.Escape); KeyPress(w, Key.Escape);
+        // ślad po jednym torze – bez ostrzeżenia
+        w.View.SimClick(S(P(5, 0))); w.View.SimClick(S(P(595, 0)));
+        KeyPress(w, Key.Enter);
+        await WaitFor(() => !w.View.SladBusy, 60000);
+        pv = w.View.SladPreview;
+        Ok(pv?.A != null && (pv.Przeskoki?.Count ?? 0) == 0 && !w.View.SladPreviewInfo().Contains("UWAGA"), $"ślad po jednym torze – bez ostrzeżenia: {w.View.SladPreviewInfo()}");
+        KeyPress(w, Key.Escape); KeyPress(w, Key.Escape);
+        w.View.Osm = null; w.SetTool(UtTool.Wskaz);
     }
 
     /// <summary>

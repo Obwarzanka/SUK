@@ -59,6 +59,7 @@ public partial class MainWindow : Window
         InitTory();
         InitSlad();
         InitKmOsm();
+        InitUrzOsm();
         InitRozjazdy();
         InitUrzadzenia();
         InitWyposazenie();
@@ -206,6 +207,7 @@ public partial class MainWindow : Window
         var root = new StackPanel { Margin = new Thickness(10) };
         root.Children.Add(SladPanel);
         root.Children.Add(KmOsmPanel);
+        root.Children.Add(UrzOsmPanel);
         root.Children.Add(TrackPanel);
         root.Children.Add(CheckExpander);
         root.Children.Add(RepairExpander);

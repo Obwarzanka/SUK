@@ -60,6 +60,7 @@ public static partial class Test
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "komory") { log.AppendLine("== komora nieczynna (tylko ta część)"); await RunKomory(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "obiekty") { log.AppendLine("== obiekty inżynieryjne (tylko ta część)"); await RunObiekty(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "urzosm") { log.AppendLine("== podpowiedzi z OSM (tylko ta część)"); await RunUrzOsm(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "kmosm") { log.AppendLine("== kilometraż ze słupków OSM (tylko ta część)"); await RunKmOsm(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }
@@ -87,6 +88,7 @@ public static partial class Test
                 log.AppendLine("== usuwanie kawałka toru, zaznaczanie kilku"); await RunZaznaczenie(w);
                 log.AppendLine("== etap 5 cz. 2, 6, 7: odcinki, W4 / W5, perony, przejazdy, kilometraż, profil, kontrola, warstwy, wydruk"); await RunWyposazenie(w, shot);
                 log.AppendLine("== kilometraż ze słupków OSM: osie wg linii, propozycje do zatwierdzenia"); await RunKmOsm(w, shot);
+                log.AppendLine("== podpowiedzi z OSM: sygnalizatory, numery zwrotnic i torów"); await RunUrzOsm(w, shot);
                 log.AppendLine("== etap Z0: posterunki, szlaki, funkcja semafora"); await RunPosterunki(w, shot);
                 log.AppendLine("== obiekty inżynieryjne: mosty, wiadukty, tunele, przepusty, przejścia, mury (§ 5m)"); await RunObiekty(w, shot);
                 log.AppendLine("== komora nieczynna semafora (uwaga właściciela 2026-10-22)"); await RunKomory(w, shot);

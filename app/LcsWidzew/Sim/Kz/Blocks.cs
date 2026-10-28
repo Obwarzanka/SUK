@@ -60,7 +60,49 @@ public partial class KomputerZaleznosci
         if (e < 0) return false;
         if (b.NoBlock) return !bs.StopEnd[e] && !b.SecsWE.Any(SecOcc);                  // telefoniczne zapowiadanie – szlak wolny (zapowiedź telefoniczna)
         if (bs.AwaitEnd != null) return false;                                          // półsamoczynna – brak bloku końcowego
-        return bs.Dir == dir && !bs.Busy && !bs.StopEnd[e] && !(b.Internal ? bs.StopEnd[1 - e] : bs.NbrStop) && !SecOcc(b.FirstSec(dir));
+        return bs.Dir == dir && !bs.Busy && !bs.StopEnd[e] && !(b.Internal ? bs.StopEnd[1 - e] : bs.NbrStop) && !PierwszyOdstep(b, e).Any(SecOcc);
+    }
+
+    /// <summary>
+    /// Tory od granicy posterunku (semafora wjazdowego w węźle <paramref name="node"/>) w kierunku <paramref name="dir"/> do wskaźnika W5
+    /// tego kierunku – zasięg manewru na szlak. Granica przetaczania to W5, a bez niego semafor wjazdowy (wtedy null – manewru na szlak nie ma).
+    /// Przed W5 nie może stać semafor tego kierunku ani rozjazd.
+    /// </summary>
+    public List<string> DoW5(string node, int dir)
+    {
+        var res = new List<string>(); string from = null;
+        for (int k = 0; k < 200; k++)
+        {
+            var nx = Forward(node, dir, from); if (nx.Count != 1 || L.Nodes[node].Switch != null) return null;
+            res.Add(nx[0].Edge); node = L.Other(nx[0].Edge, node); from = nx[0].Edge;
+            if (L.W5.TryGetValue(node, out var w) && w.Dir == dir) return res;
+            if (L.Nodes[node].Signals.Any(x => L.Signals[x].Dir == dir) || L.FarEnds.ContainsKey(node) || L.Boundaries.ContainsKey(node)) return null;
+        }
+        return null;
+    }
+
+    readonly Dictionary<(string, int), List<string>> pierwszyOdstepCache = new();
+    /// <summary>
+    /// Odcinki pierwszego odstępu za końcem szlaku e (Dz.U. 2015 poz. 360: od posterunku zapowiadawczego do najbliższego semafora
+    /// blokady samoczynnej tego kierunku): od granicy posterunku do pierwszego semafora odstępowego albo wjazdowego w kierunku wyjazdu,
+    /// a bez nich – do granicy obszaru (cały szlak jest jednym odstępem). Odstęp może mieć kilka odcinków.
+    /// </summary>
+    public List<string> PierwszyOdstep(BlockDef b, int e)
+    {
+        if (pierwszyOdstepCache.TryGetValue((b.Id, e), out var c)) return c;
+        var en = b.Ends[e]; int dir = en.Outward; var res = new List<string>();
+        string node = en.Boundary, from = null;
+        for (int k = 0; k < 500 && node != null; k++)
+        {
+            var nx = Forward(node, dir, from).FirstOrDefault(); if (nx == null) break;
+            var sec = L.Edges[nx.Edge].Sec;
+            if (!b.SecsWE.Contains(sec)) break;                     // koniec torów szlaku
+            if (!res.Contains(sec)) res.Add(sec);
+            node = L.Other(nx.Edge, node); from = nx.Edge;
+            if (L.Nodes[node].Signals.Any(x => L.Signals[x].Dir == dir && L.Signals[x].Type is "odstepowy" or "wjazdowy")) break;
+        }
+        if (res.Count == 0 && b.SecsWE.Count > 0) res.Add(b.FirstSec(dir));
+        return pierwszyOdstepCache[(b.Id, e)] = res;
     }
 
     public string DirText(BlockDef b, int dir, int endIdx)

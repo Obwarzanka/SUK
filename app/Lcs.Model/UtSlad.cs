@@ -12,8 +12,19 @@ public record SladLuk(double S0, double S1, double R, double L1, double L2, doub
     public double Lc => Math.Max(0, S1 - S0 - L1 - L2);
 }
 
-/// <summary>Tor po śladzie: trasa z elementów, odchyłki punktów [m w terenie] (pominięte – osobno), błąd.</summary>
-public record SladTor(UtAlign A, double Rms, double Max, List<double> Dev, HashSet<int> Pominiete, string Error);
+/// <summary>Tor po śladzie: trasa z elementów, odchyłki punktów [m w terenie] (pominięte – osobno), błąd, przeskoki śladu na sąsiedni tor.</summary>
+public record SladTor(UtAlign A, double Rms, double Max, List<double> Dev, HashSet<int> Pominiete, string Error, List<SladPrzeskok> Przeskoki = null)
+{
+    /// <summary>Baza krzywizny, z którą wyszła propozycja [m].</summary>
+    public double Baza { get; init; }
+}
+
+/// <summary>
+/// Ciągły odcinek, na którym tor i ślad się rozchodzą: punkty od–do (indeksy śladu), km śladu od–do [m w terenie], największa
+/// odchyłka [m]; <paramref name="Es"/> – tor skręca tam esem w bok (przejście przez połączenie torów – prawie na pewno przeskok śladu
+/// na sąsiedni tor), inaczej punkty śladu daleko od toru (przeskok albo łuk, którego dopasowanie nie złapało).
+/// </summary>
+public record SladPrzeskok(int I0, int I1, double S0, double S1, double Max, bool Es = false);
 
 /// <summary>
 /// Ślad osi toru: łamana punktów z OpenStreetMap (OpenRailwayMap) albo kliknięta / namalowana na zdjęciu. Z niego: krzywizna wzdłuż
@@ -298,13 +309,38 @@ public static class Slad
     /// <summary>Do dopasowania najwyżej tyle punktów (równo przerzedzone) – czas obliczeń.</summary>
     public const int MaxPkt = 200;
 
+    /// <summary>Mniejsze bazy krzywizny próbowane, gdy z dobraną tor nie trzyma się śladu [m] (nie mniej niż połowa dobranej – mniejsza
+    /// robi łuki z szumu, a dopasowanie wielu elementów trwa minutami).</summary>
+    static readonly double[] BazyProby = { 40, 30 };
+
     /// <summary>
     /// Tor po śladzie: krzywizna → łuki → szkic → dopasowanie; punkty odstające pominięte i dopasowanie powtórzone; przejściowe krótsze
-    /// niż 3 m usunięte; baza 0 – dobrana do śladu (<see cref="BazaAuto"/>). Wynik to propozycja trasy z elementów.
+    /// niż 3 m usunięte. Wynik to propozycja trasy z elementów. Baza 0 – dobrana do śladu (<see cref="BazaAuto"/>); gdy z nią tor
+    /// wyraźnie nie trzyma się śladu (brak wyniku, odchyłka ponad 3 rozrzuty punktów, ciąg odległych punktów), także mniejsze
+    /// (<see cref="BazyProby"/>): dobrana z rozrzutu potrafi rozmyć krótką prostą między dwoma łukami w jeden łuk (zgłoszenie 2026-10-27,
+    /// Andrzejów: R 900 i R 430 z prostą 90 m przy bazie 58 m – tor do 4 m obok śladu). Bierze się wynik z najmniejszą odchyłką
+    /// (z karą za pominięte punkty i ostrzeżenia), a przy prawie równych – z największą bazą.
     /// </summary>
     public static SladTor TorPoSladzie(IReadOnlyList<XY> pts, double k, double baza = 0)
     {
-        if (baza <= 0) baza = pts.Count >= 3 ? BazaAuto(pts, k) : Baza;
+        if (baza > 0 || pts.Count < 3) return TorPoSladzie1(pts, k, baza > 0 ? baza : Baza);
+        double auto = BazaAuto(pts, k);
+        var first = TorPoSladzie1(pts, k, auto);
+        double sigma = Rozrzut(pts, k).Sigma;
+        bool zle = first.A == null || first.Rms > Math.Max(0.15, 3 * sigma) || (first.Przeskoki?.Any(p => !p.Es) ?? false);
+        var bazy = BazyProby.Where(b => b < auto - 5 && b >= auto / 2).ToArray();
+        if (!zle || bazy.Length == 0) return first;
+        var wyn = new SladTor[bazy.Length];
+        Parallel.For(0, bazy.Length, i => wyn[i] = TorPoSladzie1(pts, k, bazy[i]));
+        var ok = new[] { first }.Concat(wyn).Where(w => w.A != null).ToList();
+        if (ok.Count == 0) return first;
+        double Ocena(SladTor w) => w.Rms + 0.5 * w.Pominiete.Count / Math.Max(1, pts.Count) + 0.3 * (w.Przeskoki?.Count ?? 0);
+        double best = ok.Min(Ocena);
+        return ok.First(w => Ocena(w) <= best * 1.15 + 0.02);
+    }
+
+    static SladTor TorPoSladzie1(IReadOnlyList<XY> pts, double k, double baza)
+    {
         if (pts.Count < 3 || Length(pts) / k < 2 * baza + 5) return new SladTor(null, 0, 0, null, new(), $"ślad za krótki (co najmniej {2 * baza + 5:0} m)");
         var luki = Doprecyzuj(pts, k, Luki(Krzywizna(pts, k, baza), baza));
         var a = Szkic(pts, k, luki);
@@ -350,8 +386,95 @@ public static class Slad
         double sig = Rozrzut(pts, k).Sigma;
         if (away > Math.Max(10, 20 * sig) || rms > Math.Max(2, 6 * sig) || Math.Abs(rr.Length - lt) > KmTol(lt))
             return new SladTor(null, 0, 0, null, new(), $"dopasowanie odbiega od śladu ({away:0.#} m, długość {rr.Length:0} m przy śladzie {lt:0} m) – podziel ślad na krótsze kawałki albo zmień bazę krzywizny");
-        return new SladTor(f.A, rms, used.Count > 0 ? used.Max() : 0, all, outl, null);
+        var prz = Przeskoki(pts, k, all, outl).Concat(Esy(f.A, rr, pts, k)).OrderBy(p => p.I0).ToList();
+        for (int i = prz.Count - 1; i > 0; i--)
+            if (prz[i].I0 <= prz[i - 1].I1) { prz[i - 1] = prz[i - 1] with { I1 = Math.Max(prz[i - 1].I1, prz[i].I1), S1 = Math.Max(prz[i - 1].S1, prz[i].S1), Max = Math.Max(prz[i - 1].Max, prz[i].Max), Es = prz[i - 1].Es || prz[i].Es }; prz.RemoveAt(i); }
+        return new SladTor(f.A, rms, used.Count > 0 ? used.Max() : 0, all, outl, null, prz) { Baza = baza };
     }
+
+    /// <summary>Es przeskoku: para przeciwnych łuków nie łagodniejszych niż R <see cref="EsR"/>, z kątami znoszącymi się, na długości
+    /// do <see cref="EsLen"/> m, przesuwająca tor w bok o <see cref="EsOff"/> – jak połączenie torów (dwa rozjazdy).</summary>
+    public const double EsR = 500, EsLen = 150; public static readonly (double Min, double Max) EsOff = (2.5, 7);
+
+    /// <summary>
+    /// Przeskoki, które dopasowanie poprowadziło za śladem: trasa skręca esem na sąsiedni tor (połączenie torów), a nie pomija punktów.
+    /// Dwa esy w przeciwne strony – tam i z powrotem – to jeden przeskok od pierwszego do drugiego. Km i punkty – na śladzie.
+    /// </summary>
+    public static List<SladPrzeskok> Esy(UtAlign a, TrasaResult rr, IReadOnlyList<XY> pts, double k)
+    {
+        // zwroty: kolejne krzywe (łuki, przejściowe) w jedną stronę – km od–do na trasie [m w terenie], kąt [rad], najmniejszy R
+        var zw = new List<(double S0, double S1, double Kat, double MinR, int Sign)>();
+        double s = 0; bool prevCurve = false;
+        foreach (var e in a.Els)
+        {
+            if (e.Prosta) { s += e.Len; prevCurve = false; continue; }
+            int sg = Math.Sign(e.R0 != 0 ? e.R0 : e.R1);
+            double kat = e.Len * (UtAlignEl.K(e.R0) + UtAlignEl.K(e.R1)) / 2;
+            double r = new[] { e.R0, e.R1 }.Where(x => x != 0).Min(Math.Abs);
+            if (prevCurve && zw[^1].Sign == sg) { var z = zw[^1]; zw[^1] = z with { S1 = s + e.Len, Kat = z.Kat + kat, MinR = Math.Min(z.MinR, r) }; }
+            else zw.Add((s, s + e.Len, kat, r, sg));
+            s += e.Len; prevCurve = true;
+        }
+        var esy = new List<(double S0, double S1, double Off)>();
+        for (int i = 0; i + 1 < zw.Count; i++)
+        {
+            var (z1, z2) = (zw[i], zw[i + 1]);
+            double m = Math.Max(Math.Abs(z1.Kat), Math.Abs(z2.Kat));
+            if (z1.Sign == z2.Sign || Math.Min(z1.MinR, z2.MinR) > EsR || m < Math.PI / 180 || Math.Abs(z1.Kat + z2.Kat) > 0.35 * m || z2.S1 - z1.S0 > EsLen) continue;
+            var (p0, az0) = rr.At(z1.S0); var d = rr.At(z2.S1).P - p0; var dz = Element.Dir(az0);
+            double off = (d.X * dz.Y - d.Y * dz.X) / k;
+            if (Math.Abs(off) < EsOff.Min || Math.Abs(off) > EsOff.Max) continue;
+            esy.Add((z1.S0, z2.S1, off)); i++;
+        }
+        var res = new List<SladPrzeskok>(); if (esy.Count == 0) return res;
+        // km na trasie → punkty i km na śladzie
+        var sp = pts.Select(q => rr.Nearest(q).S).ToList();
+        var st = new double[pts.Count]; for (int i = 1; i < pts.Count; i++) st[i] = st[i - 1] + XY.Dist(pts[i - 1], pts[i]) / k;
+        for (int i = 0; i < esy.Count; i++)
+        {
+            var (a0, a1, off) = esy[i]; double mx = Math.Abs(off);
+            if (i + 1 < esy.Count && Math.Sign(esy[i + 1].Off) != Math.Sign(off)) { a1 = esy[i + 1].S1; mx = Math.Max(mx, Math.Abs(esy[i + 1].Off)); i++; }
+            int i0 = sp.FindIndex(x => x >= a0), i1 = sp.FindLastIndex(x => x <= a1);
+            if (i0 < 0 || i1 < i0) continue;
+            res.Add(new SladPrzeskok(i0, i1, st[i0], st[i1], mx, true));
+        }
+        return res;
+    }
+
+    /// <summary>Odchyłka, od której punkt śladu leży raczej na sąsiednim torze niż na tym [m] (rozstaw torów 3,5–5 m).</summary>
+    public const double PrzeskokDev = 2;
+    /// <summary>Przeskok: co najmniej tyle punktów po kolei i tyle metrów śladu – pojedynczy węzeł obok (błąd mapowania, pomyłka
+    /// kliknięcia) to nie przeskok.</summary>
+    public const int PrzeskokPkt = 3; public const double PrzeskokLen = 10;
+
+    /// <summary>
+    /// Ciągłe odcinki śladu daleko od trasy (punkty odstające albo dalej niż <see cref="PrzeskokDev"/>): ślad biegnie tam po sąsiednim
+    /// torze. Odcinek poszerzony o sąsiednie punkty dalej niż 1 m (zjazd przez rozjazd).
+    /// </summary>
+    public static List<SladPrzeskok> Przeskoki(IReadOnlyList<XY> pts, double k, IReadOnlyList<double> dev, ICollection<int> outl)
+    {
+        var res = new List<SladPrzeskok>(); int n = Math.Min(pts.Count, dev.Count);
+        var s = new double[n]; for (int i = 1; i < n; i++) s[i] = s[i - 1] + XY.Dist(pts[i - 1], pts[i]) / k;
+        bool Far(int i) => outl.Contains(i) || Math.Abs(dev[i]) > PrzeskokDev;
+        for (int i = 0; i < n; i++)
+        {
+            if (!Far(i)) continue;
+            int j = i; while (j + 1 < n && Far(j + 1)) j++;
+            int a = i, b = j;
+            while (a > 0 && Math.Abs(dev[a - 1]) > 1) a--;
+            while (b + 1 < n && Math.Abs(dev[b + 1]) > 1) b++;
+            if (j - i + 1 >= PrzeskokPkt && s[b] - s[a] >= PrzeskokLen)
+            {
+                if (res.Count > 0 && a <= res[^1].I1) { var p = res[^1]; res[^1] = p with { I1 = b, S1 = s[b], Max = Math.Max(p.Max, Enumerable.Range(a, b - a + 1).Max(q => Math.Abs(dev[q]))) }; }
+                else res.Add(new SladPrzeskok(a, b, s[a], s[b], Enumerable.Range(a, b - a + 1).Max(q => Math.Abs(dev[q]))));
+            }
+            i = j;
+        }
+        return res;
+    }
+
+    /// <summary>Opis przeskoku do komunikatu.</summary>
+    public static string Opis(SladPrzeskok p) => $"km śladu {p.S0:0}–{p.S1:0} m ({(p.Es ? "es w bok o" : "do")} {p.Max:0.0} m{(p.Es ? "" : " od toru")})";
 
     /// <summary>Sąsiednie proste razem (po usunięciu łuku albo zwinięciu elementu do zera).</summary>
     static void Scal(UtAlign a)

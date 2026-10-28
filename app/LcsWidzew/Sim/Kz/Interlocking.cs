@@ -104,10 +104,11 @@ public partial class KomputerZaleznosci
         if (forSetting && rt.EndKind == "szlak" && PwlBlocks(rt.End, L.Signals[rt.Start].Dir)) why.Add($"blokada półsamoczynna {rt.End}: przeciwwtórność liniowa (Pwl) – sygnał zezwalający już był podany, najpierw blok początkowy ({rt.End} Po)");
         if (rt.Type == "M" && L.Signals[rt.Start].Type == "wjazdowy" && !rt.Passed)
         {
-            // powrót taboru manewrowego ze szlaku – na sygnał zastępczy, tylko gdy tabor stoi w pierwszym odstępie za semaforem wjazdowym
-            var sd = L.Signals[rt.Start]; var bl = L.Blocks[sd.Szlak];
-            var fs = bl.FirstSec(-sd.Dir);
-            if (!SecOcc(fs)) why.Add($"przebieg manewrowy od semafora wjazdowego {Station.Lbl(rt.Start)} tylko dla powrotu taboru ze szlaku – odstęp {Station.Lbl(fs)} wolny");
+            // powrót taboru manewrowego ze szlaku – na sygnał zastępczy, tylko gdy tabor stoi za semaforem wjazdowym: do W5 (granica
+            // przetaczania), a bez W5 – w odcinku tuż za semaforem
+            var sd = L.Signals[rt.Start];
+            var zaW = (DoW5(sd.Node, -sd.Dir) ?? Forward(sd.Node, -sd.Dir, null).Take(1).Select(f => f.Edge).ToList()).Select(e => L.Edges[e].Sec).Distinct().ToList();
+            if (!zaW.Any(SecOcc)) why.Add($"przebieg manewrowy od semafora wjazdowego {Station.Lbl(rt.Start)} tylko dla powrotu taboru ze szlaku – {string.Join(", ", zaW.Select(Station.Lbl))} wolny");
         }
         return why;
     }

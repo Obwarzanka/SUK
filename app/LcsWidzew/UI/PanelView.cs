@@ -237,7 +237,7 @@ public class PanelView : FrameworkElement
             case "sw":
             {
                 var w = S.Sws[id];
-                return $"Zwrotnica {L.Switches[id].Label} (na bok {L.Switches[id].VBok:0} km/h{(L.Switches[id].VProsto > 0 ? $", na wprost {L.Switches[id].VProsto:0} km/h" : "")}): „{w.Pos}”{(w.Moving != null ? ", przestawianie" : "")}{(w.Lock != null ? ", utwierdzona" : "")}{(w.Stopped ? ", ZASTOPOWANA" : "")}{(w.Rozpr ? ", ROZPRUCIE" : "")}{(w.NoCtrl ? ", BRAK KONTROLI" : "")}   ·  LPM: polecenia w panelu, przy wybranym początku – punkt pośredni";
+                return $"Zwrotnica {L.Switches[id].Label} (na bok {L.Switches[id].VBok:0} km/h{(L.Switches[id].VProsto > 0 ? $", na wprost {L.Switches[id].VProsto:0} km/h" : "")}): „{w.Pos}”{(w.Moving != null ? ", przestawianie" : "")}{(w.Lock != null ? ", utwierdzona" : "")}{(w.Flank ? ", zamknięta w ochronie bocznej" : "")}{(w.Stopped ? ", ZASTOPOWANA" : "")}{(w.Rozpr ? ", ROZPRUCIE" : "")}{(w.NoCtrl ? ", BRAK KONTROLI" : "")}   ·  LPM: polecenia w panelu, przy wybranym początku – punkt pośredni";
             }
             case "sec":
             {
@@ -565,6 +565,13 @@ public class PanelView : FrameworkElement
             else if (w.NoCtrl || (w.Moving != null && w.Frozen && S.T - w.Moving.Started > Simulator.Cfg.SwTimeout)) mark = BlinkOn ? White : Red;
             else if (w.Stopped) mark = Magenta;
             else if (w.Local) mark = Cyan;
+            if (w.Flank && w.Lock == null && w.Moving == null && !w.NoCtrl && !w.NoData)
+            {
+                // zamknięta w ochronie bocznej (film ISDR 2026-10-27): krótka żółta kreska na torze – iglica i ułożona gałąź przy zwrotnicy
+                var act = w.Pos == "+" ? sw.Plus : sw.Minus;
+                var fp = Along(L, sw.Tip, sw.Node, 7); fp.Reverse(); fp.AddRange(Along(L, act, sw.Node, 7).Skip(1));
+                DrawPoly(dc, new Pen(Yellow, 4.6) { LineJoin = PenLineJoin.Round }, fp);
+            }
             bool minusDown = L.Edges[sw.Minus].Pts.Any(p => p.Y > n.Y + 1);
             double ly = minusDown ? n.Y - 12 : n.Y + 13, lx = n.X + (sw.TipDir < 0 ? 8 : -8);
             if (pend.Contains(sw.Num)) dc.DrawRectangle(Orange, null, new Rect(lx - 14, ly - 7, 28, 14));
@@ -581,16 +588,17 @@ public class PanelView : FrameworkElement
             }
             else if (SelSwitch == sw.Num)
             {
-                // zaznaczona zwrotnica – ramka wokół jej zobrazowania na torze (iglica i początki obu odgałęzień)
+                // zaznaczona zwrotnica – ramka wokół jej zobrazowania na torze (iglica i początki obu odgałęzień);
+                // turkusowa, po wybraniu polecenia (do „Wyślij”) zielona – jak na filmie ISDR
                 double fx = n.X - sw.TipDir * 6;
-                dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(fx - 15, n.Y - 9 + (minusDown ? 3 : -3), 30, 18), 3, 3);
+                dc.DrawRoundedRectangle(null, new Pen(FrameBrush, 2), new Rect(fx - 15, n.Y - 9 + (minusDown ? 3 : -3), 30, 18), 3, 3);
             }
         }
         foreach (var d in L.Derailers.Values)
         {
             var n = L.Nodes[d.Node]; if (!OnPage(n.X) || L.HiddenSyms.Contains(d.Name)) continue;
             var st = S.Ders[d.Name];
-            var c = st.MovingTo != null ? (BlinkOn ? White : Grey) : st.Lock != null ? Yellow : st.On ? Grey : Dim;
+            var c = st.MovingTo != null ? (BlinkOn ? White : Grey) : st.Lock != null || st.Flank ? Yellow : st.On ? Grey : Dim;
             PulpitSymbole.Wykolejnica(dc, n.X, n.Y, c);
             Text(dc, d.Label, n.X, n.Y + 17, 9, SwLabel, true, dpi, Mono);
         }
@@ -778,6 +786,22 @@ public class PanelView : FrameworkElement
         if (a > 0) { var v = pts[1] - pts[0]; if (v.Length > a + 1) pts[0] = pts[0] + v / v.Length * a; }
         if (b > 0) { var v = pts[^2] - pts[^1]; if (v.Length > b + 1) pts[^1] = pts[^1] + v / v.Length * b; }
     }
+    /// <summary>Punkty toru od węzła <paramref name="node"/> wzdłuż toru na długości <paramref name="len"/> (pierwszy – węzeł).</summary>
+    static List<Point> Along(Station L, string edge, string node, double len)
+    {
+        var e = L.Edges[edge];
+        var pts = e.Pts.Select(p => new Point(p.X, p.Y)).ToList();
+        if (e.B == node) pts.Reverse();
+        var res = new List<Point> { pts[0] };
+        for (int i = 1; i < pts.Count && len > 0; i++)
+        {
+            var v = pts[i] - pts[i - 1]; if (v.Length < 1e-6) continue;
+            if (v.Length >= len) { res.Add(pts[i - 1] + v / v.Length * len); break; }
+            res.Add(pts[i]); len -= v.Length;
+        }
+        return res;
+    }
+
     static void DrawPoly(DrawingContext dc, Pen pen, List<Point> pts)
     {
         var g = new StreamGeometry();
@@ -865,6 +889,7 @@ public class PanelView : FrameworkElement
         else if (st.LampFault && st.FailAlarm) c = BlinkOn ? Red : Dim;
         else if (st.Route != null || st.RouteEnd != null) c = Red;
         else if (st.Closed) c = Magenta;
+        else if (st.Flank) c = Red;                 // „Stój” w ochronie bocznej nastawionego przebiegu – czerwony (film ISDR 2026-10-27)
         else c = Grey;
         if (c == Grey && Targets.Contains(s.Name) && !Targets.Contains("blk:" + s.Node)) c = TargetSym;      // symbol na turkusowym polu – ciemny
         double tipX = PulpitSymbole.Ostrze(cx, d);

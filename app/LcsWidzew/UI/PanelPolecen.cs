@@ -121,7 +121,7 @@ public class PanelPolecen : Grid
         var sig = obiekty + "|" + string.Join(";", lista.Select(x => x.Label + x.Line + x.Enabled + x.Init));
         if (sig == podpis) return;
         podpis = sig; Obiekty = obiekty; Wybrane = null; Przyciski = lista;
-        naglowek.Text = obiekty ?? ""; naglowek.ToolTip = opis;
+        naglowek.Text = obiekty ?? ""; naglowek.ToolTip = opis; naglowek.Foreground = Brushes.White;
         przyciski.Children.Clear();
         foreach (var p in lista) przyciski.Children.Add(Przycisk(p.Label, p.Enabled, p.Init, p.Tip, () => Wybierz(p)));
     }
@@ -140,8 +140,19 @@ public class PanelPolecen : Grid
     public void Wyczysc()
     {
         podpis = null; Obiekty = null; Wybrane = null; Przyciski = Array.Empty<PolecenieBtn>();
-        naglowek.Text = ""; naglowek.ToolTip = null; przyciski.Children.Clear();
+        naglowek.Text = ""; naglowek.ToolTip = null; naglowek.Foreground = Brushes.White; przyciski.Children.Clear();
     }
+
+    /// <summary>Po „Wyślij” (film ISDR 2026-10-27): „MINUS 22 - Odebrane - przyjęte” zielono (odrzucone – czerwono), do następnego wyboru obiektu.</summary>
+    public void Potwierdz(string polecenie, bool ok, string opis = null)
+    {
+        Wyczysc();
+        naglowek.Text = $"{polecenie} - Odebrane - {(ok ? "przyjęte" : "odrzucone")}";
+        naglowek.Foreground = ok ? B(0x5c, 0xf0, 0x5c) : B(0xff, 0x6a, 0x6a); naglowek.ToolTip = opis;
+    }
+
+    /// <summary>Napis potwierdzenia ostatniego polecenia (test zrzutem).</summary>
+    public string Naglowek => naglowek.Text;
 
     static Border Przycisk(string t, bool on, bool init, string tip, Action klik, double minW = 0)
     {

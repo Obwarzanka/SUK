@@ -45,6 +45,22 @@ public static class OsmPunkty
         return KilometrazOsm.Parse(data);
     }
 
+    /// <summary>
+    /// Sygnalizatory, zwrotnice, wykolejnice i kozły (<c>railway=signal|switch|derail|buffer_stop</c>) w prostokącie PUWG 1992 z drogami,
+    /// na których leżą (kierunek „forward”), i tory z numerem (<c>railway:track_ref</c>) – <see cref="UrzadzeniaOsm"/>.
+    /// </summary>
+    public static async Task<OsmUrzadzenia> Urzadzenia(XY a, XY b, CancellationToken ct)
+    {
+        var (la1, lo1) = Geo.ToWgs84(a); var (la2, lo2) = Geo.ToWgs84(b);
+        var bb = string.Format(CultureInfo.InvariantCulture, "({0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000})", Math.Min(la1, la2), Math.Min(lo1, lo2), Math.Max(la1, la2), Math.Max(lo1, lo2));
+        const string rail = "[\"railway\"~\"^(rail|light_rail|narrow_gauge)$\"]";
+        var q = $"[out:json][timeout:25];node[\"railway\"~\"^(signal|switch|derail|buffer_stop)$\"]{bb}->.n;.n out;(way(bn.n){rail};way{rail}[\"railway:track_ref\"]{bb};);out geom;";
+        byte[] data;
+        try { data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3); }
+        catch (Exception) when (!ct.IsCancellationRequested) { data = await Pobieranie.Retry(() => Pobieranie.Get(OverpassZapas + "?data=" + Uri.EscapeDataString(q), ct), ct, 2); }
+        return UrzadzeniaOsm.Parse(data);
+    }
+
     /// <summary>Węzły z odpowiedzi Overpass (JSON) – w PUWG 1992.</summary>
     public static List<XY> Parse(byte[] json) => ParseSiec(json).Nodes.Values.ToList();
 

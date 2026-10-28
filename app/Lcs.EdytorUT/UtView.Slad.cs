@@ -142,7 +142,14 @@ public partial class UtView
     {
         if (SladPreview?.A is not UtAlign a) return "";
         var luki = a.Els.Where(e => !e.Prosta).Select(e => e.Luk ? $"R {Math.Abs(e.R0):0}" : $"L {e.Len:0}");
-        return $"Tor po śladzie (propozycja): {a.Els.Count} elementów ({string.Join(" | ", luki)}), odchyłka średnia {SladPreview.Rms * 100:0.#} cm, największa {SladPreview.Max * 100:0.#} cm" +
+        var prz = SladPreview.Przeskoki ?? new();
+        var es = prz.Where(p => p.Es).ToList(); var odj = prz.Where(p => !p.Es).ToList();
+        return (es.Count > 0 ? $"UWAGA: ślad przeskakuje na sąsiedni tor – tor skręca esem jak przez połączenie torów: {string.Join("; ", es.Select(Slad.Opis))}. " +
+                               "Cofnij ślad (Backspace) do miejsca przed przeskokiem i klikaj gęściej po jednym torze albo z Ctrl na osi toru. " : "") +
+               (odj.Count > 0 ? $"UWAGA: tor odchodzi od śladu – {string.Join("; ", odj.Select(Slad.Opis))}: ślad przeskakuje tam na sąsiedni tor albo łuk nie został rozpoznany. " +
+                                "Sprawdź na zdjęciu; przy łuku wpisz mniejszą bazę krzywizny albo podziel ślad na krótsze kawałki. " : "") +
+               $"Tor po śladzie (propozycja): {a.Els.Count} elementów ({string.Join(" | ", luki)}), odchyłka średnia {SladPreview.Rms * 100:0.#} cm, największa {SladPreview.Max * 100:0.#} cm" +
+               (SladPreview.Baza > 0 && Math.Abs(SladPreview.Baza - SladBazaUzyta) > 0.5 ? $", łuki rozpoznane przy bazie {SladPreview.Baza:0} m (lepiej pasuje niż {SladBazaUzyta:0} m)" : "") +
                (SladPreview.Pominiete.Count > 0 ? $", pominięte odstające punkty: {SladPreview.Pominiete.Count}" : "") +
                (SladPreview.Rms > 0.1 ? " – ślad mało dokładny (np. OSM): R przybliżony, krzywych przejściowych z niego nie widać; po utworzeniu popraw łuki Łukiem z punktów na zdjęciu (J, malowanie)" : "");
     }
@@ -269,17 +276,29 @@ public partial class UtView
             // granice elementów
             foreach (var e in r.Elements.Skip(1)) { var p = ToScreen(e.Start); dc.DrawEllipse(Brushes.White, new Pen(Blue, 1.5), p, 3.5, 3.5); }
             var red = new Pen(Red, 1.6);
+            var prz = SladPreview.Przeskoki ?? new();
+            bool InPrz(int i) => prz.Any(p => i >= p.I0 && i <= p.I1);
+            // tor i ślad się rozchodzą (przeskok na sąsiedni tor, nierozpoznany łuk) – cały odcinek śladu na czerwono, jeden opis
+            var thick = new Pen(Red, 5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            foreach (var p in prz)
+            {
+                if (p.I1 >= SladPts.Count) continue;
+                var g = new StreamGeometry();
+                using (var c = g.Open()) { c.BeginFigure(ToScreen(SladPts[p.I0]), false, false); for (int i = p.I0 + 1; i <= p.I1; i++) c.LineTo(ToScreen(SladPts[i]), true, false); }
+                g.Freeze(); dc.DrawGeometry(null, thick, g);
+                Label(dc, p.Es ? $"przeskok na sąsiedni tor? {p.S1 - p.S0:0} m, es w bok o {p.Max:0.0} m" : $"tor odchodzi od śladu: {p.S1 - p.S0:0} m, do {p.Max:0.0} m", ToScreen(SladPts[(p.I0 + p.I1) / 2]) + new Vector(9, -18), Red, dpi);
+            }
             foreach (var i in SladPreview.Pominiete)
             {
                 if (i >= SladPts.Count) continue; var q = ToScreen(SladPts[i]);
                 dc.DrawLine(red, q + new Vector(-5, -5), q + new Vector(5, 5)); dc.DrawLine(red, q + new Vector(-5, 5), q + new Vector(5, -5));
-                Label(dc, $"pominięty {SladPreview.Dev[i] * 100:0} cm", q + new Vector(7, -16), Red, dpi);
+                if (!InPrz(i)) Label(dc, $"pominięty {SladPreview.Dev[i] * 100:0} cm", q + new Vector(7, -16), Red, dpi);
             }
         }
         if (tool == UtTool.Slad && hover is XY hv)
         {
             if (!Mods.HasFlag(ModifierKeys.Control) && NetAt(ToScreen(hv)) is var (q, _, _)) dc.DrawEllipse(null, SnapPen, ToScreen(q), 6, 6);
-            Label(dc, SladBusy ? "liczę…" : SladPreview != null ? "Enter – utwórz tor" : SladPts.Count == 0 ? "klik przy linii OSM albo na osi toru" : $"{SladPts.Count} pkt, {Len(SladLen)}", ToScreen(hv) + new Vector(12, 8), DraftInk, dpi);
+            Label(dc, SladBusy ? "liczę…" : SladPreview?.Przeskoki?.Count > 0 ? "tor i ślad się rozchodzą – sprawdź; Enter – utwórz mimo to, Esc – odrzuć" : SladPreview != null ? "Enter – utwórz tor" : SladPts.Count == 0 ? "klik przy linii OSM albo na osi toru" : $"{SladPts.Count} pkt, {Len(SladLen)}", ToScreen(hv) + new Vector(12, 8), DraftInk, dpi);
         }
     }
 }

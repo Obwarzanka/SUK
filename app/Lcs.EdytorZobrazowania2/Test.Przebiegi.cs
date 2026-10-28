@@ -129,7 +129,7 @@ public static partial class Test
         cbs = All<CheckBox>(w.PrzebiegiPanel).ToList();
         cbs[0].IsChecked = true; Click(cbs[0]); await Settle(w);
         Ok(w.Doc.P.Przebiegi.Count == przed, "ponowne ✓ – przebieg w tablicy");
-        var vBox = All<ComboBox>(w.PrzebiegiPanel).First();
+        var vBox = All<ComboBox>(w.PrzebiegiPanel).First(c => (c.ToolTip as string)?.StartsWith("Prędkość") == true);
         vBox.SelectedIndex = Array.IndexOf(LcsWidzew.Model.Zaleznosci.Predkosci, 60) + 1; await Settle(w);
         var pV = w.Doc.P.Przebiegi.FirstOrDefault(p => p.Od == sigA && p.Typ == "P" && p.V == 60);
         Ok(pV != null, $"V w panelu: {(pV == null ? "–" : TablicaPrzebiegow.Opis(pV))} – 60 km/h");

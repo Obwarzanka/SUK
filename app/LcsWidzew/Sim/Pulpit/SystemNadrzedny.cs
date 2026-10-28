@@ -362,14 +362,41 @@ public class SystemNadrzedny
         }
         S.Stats.Cmds++;
         var (p, adrErr) = Adresy(code, args);
+        var (typ, obj) = ObiektPolecenia(code, args);
+        var nazwa = NazwaPolecenia(code);
+        if (adrErr == null) S.Log("Polecenie", "Polecenie wysłane : " + nazwa, typ, obj, "PC");
         var r = adrErr != null ? new CmdResult(false, adrErr) : S.Kz.Wykonaj(p);
         if (r.Ok)
         {
-            S.Log("Polecenie", line + (r.Msg != "" ? " – " + r.Msg : ""), "Polecenie", args.FirstOrDefault() ?? "", "PC");
+            S.Log("Polecenie", "Polecenie ruchowe zostało przyjęte : " + nazwa, typ, obj, "PC");
+            S.Log("Polecenie", "Polecenie poprawne : " + nazwa + (r.Msg != "" ? " – " + r.Msg : ""), typ, obj, "PC");
             if (info.Special) { S.Stats.Special++; BookDrafts.Add(new Pending { Code = code, Arg = Pending?.Arg ?? args.FirstOrDefault(), Line = line, Until = T, Desc = info.Desc, Desk = CurDesk?.Id }); S.ZglosWykonanieSpecjalnego(line); }
         }
         else { S.Stats.Rejected++; S.Log("Odrzucone", line + " – " + r.Msg, "Polecenie", "", "PC"); }
         return r;
+    }
+
+    /// <summary>Nazwa polecenia w ZDARZENIACH jak w ISDR: „MINUS”, „POCIĄG”, „MINUSBZ”.</summary>
+    static string NazwaPolecenia(string code) => code == "MINBZ" ? "MINUSBZ" : Codes[code].Code.ToUpperInvariant();
+
+    /// <summary>Typ obiektu i obiekt wpisu polecenia w ZDARZENIACH jak w ISDR (przebieg „W|L|F”, zwrotnica, semafor, blokada).</summary>
+    (string Typ, string Obiekt) ObiektPolecenia(string code, List<string> args)
+    {
+        var a = args.FirstOrDefault();
+        if (a == null) return ("Polecenie", "");
+        if (code is "POCIAG" or "MANEWR" && args.Count > 1) return ("Przebieg", string.Join("|", args.Select(x => Resolve(x, "sig", "end", "sec") ?? x)));
+        if (BlockCodes.Contains(code)) return ("Blokada liniowa", Resolve(a, "blk") ?? a);
+        string[] kinds = code switch
+        {
+            "PLUS" or "MINUS" or "PLUSBZ" or "MINBZ" or "KSR" => new[] { "sw", "der" },
+            "ZMK" or "OZMK" or "ZEROLO" => new[] { "sec", "sw" },
+            "STOP" or "OSTOP" => new[] { "sig", "sw", "der" },
+            _ => new[] { "sig" }
+        };
+        foreach (var k in kinds)
+            if (Resolve(a, k) is string key)
+                return (k switch { "sw" => "Zwrotnica", "der" => "Wykolejnica", "sec" => "Odcinek", _ => "Semafor" }, key);
+        return ("Polecenie", a);
     }
 
     CmdResult Reject(string line, string msg) { S.Stats.Rejected++; S.Log("Odrzucone", line + " – " + msg, "Polecenie", "", "PC"); return new(false, msg); }

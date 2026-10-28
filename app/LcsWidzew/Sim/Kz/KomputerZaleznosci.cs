@@ -161,13 +161,13 @@ public partial class KomputerZaleznosci
                                 cands.Add((sz, "szlak", e2, r2, nn));
                             else if (type == "M")
                             {
-                                // przebieg manewrowy w kierunku szlaku: do semafora wjazdowego (granica przetaczania)
-                                // albo wyjazd manewrowy na szlak – do końca pierwszego odstępu blokady
+                                // przebieg manewrowy w kierunku szlaku: do semafora wjazdowego (granica posterunku)
+                                // albo wyjazd manewrowy na szlak – do wskaźnika W5 (granica przetaczania), gdy stoi za semaforem wjazdowym
                                 var be = L.Blocks[sz].Ends.FirstOrDefault(x => x.Boundary == nn);
                                 if (be != null && be.Outward == s.Dir && s.Type != "wjazdowy")
                                 {
                                     if (L.Signals.ContainsKey(be.EntrySig)) cands.Add((be.EntrySig, "gr", e2, r2, nn));
-                                    cands.Add((sz, "szlakM", e2, r2, nn));
+                                    if (DoW5(nn, s.Dir) is not null) cands.Add((sz, "szlakM", e2, r2, nn));
                                 }
                             }
                             continue;
@@ -195,7 +195,8 @@ public partial class KomputerZaleznosci
                         rd.Id = (type == "P" ? "P " : "M ") + Station.Lbl(s.Name) + "→" + Station.Lbl(c.End) + (type == "M" && s.Type == "wjazdowy" ? " (powrót ze szlaku)" : "") + c.Kind switch { "gr" => " (do semafora wjazdowego)", "szlakM" => " (na szlak)", _ => "" } + (rd.Variant > 0 ? $" (wariant {rd.Variant})" : "");
                         rd.Edges.AddRange(c.Edges);
                         foreach (var eid in c.Edges) { var sc = L.Edges[eid].Sec; if (rd.Secs.Count == 0 || rd.Secs[^1] != sc) rd.Secs.Add(sc); }
-                        if (c.Kind == "szlakM") { var fs = L.Blocks[c.End].FirstSec(s.Dir); rd.Secs.Add(fs); rd.Edges.AddRange(L.Sections[fs].Edges); }
+                        if (c.Kind == "szlakM")
+                            foreach (var eid in DoW5(c.EndNode, s.Dir)) { rd.Edges.Add(eid); var sc = L.Edges[eid].Sec; if (rd.Secs[^1] != sc) rd.Secs.Add(sc); }
                         rd.Sw.AddRange(c.Reqs);
                         rd.Ders.AddRange(L.Derailers.Values.Where(d => rd.Secs.Contains(d.Sec)).Select(d => d.Name));
                         rd.Flank.AddRange(FlankFor(rd));
@@ -387,7 +388,7 @@ public partial class KomputerZaleznosci
     /// za semaforem – przy czujniku kilkanaście metrów za semaforem (rozmieszczenie rozproszone, § 51 ust. 17) kawałek między
     /// semaforem a czujnikiem należy do odstępu poprzedniego. Odstęp może mieć kilka odcinków.
     /// </summary>
-    internal List<string> OdstepSecs(string sig)
+    public List<string> OdstepSecs(string sig)
     {
         if (odstepCache.TryGetValue(sig, out var c)) return c;
         var d = L.Signals[sig]; var res = new List<string>();

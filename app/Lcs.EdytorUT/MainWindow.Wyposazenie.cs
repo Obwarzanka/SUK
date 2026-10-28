@@ -55,7 +55,7 @@ public partial class MainWindow
             Message($"Ten kawałek należy już do odcinka {ex.Name} ({F(o.Length(comp))} m) – nazwę zmienisz w panelu; nowy odcinek wymaga granicy (licznik osi / złącze izolowane)");
             return;
         }
-        var name = AskName("Odcinek kontroli niezajętości", "Nazwa odcinka (np. 1, z5/7, 2-3)", Odcinki.Suggest(Doc.P, o, comp));
+        var name = AskName("Odcinek kontroli niezajętości", "Nazwa odcinka (np. It1, Iz5/7, It2-3)", Odcinki.Suggest(Doc.P, o, comp));
         if (string.IsNullOrEmpty(name)) return;
         if (Doc.P.Sections.Any(x => x.Name == name)) { Message($"Nazwa odcinka {name} jest już zajęta"); return; }
         // rodzaj kontroli: jak u sąsiada (najczęstszy w projekcie), domyślnie liczniki osi
