@@ -1,4 +1,4 @@
-EDR: kontrola 117 z 117
+EDR: kontrola 122 z 122
 Dzienniki ruchu: 9
    LW: Łódź Chojny L. 540 (typ sbl, tory 1,2, szlaki 1C,2C)
    LW: Łódź Andrzejów L. 17 (typ sbl, tory 1,2, szlaki 2A,1A)
@@ -28,7 +28,7 @@ OK   wpisu o dyżurze nie da się zmienić
 OK   po północy nowa strona 29-10-2026, poprzednia doba zachowana
 OK   dziennik posterunku LF sterowanego z innego stanowiska – odrzucone
 OK   drugie stanowisko widzi tylko swoje dzienniki, wpis o objęciu dyżuru przez Adama Nowaka
-OK   dane EDR po serializacji zgodne (17066 B)
+OK   dane EDR po serializacji zgodne (17496 B)
 --- E2
 OK   kierunek parzysty szlaku 1C,2C → dziennik Łódź Chojny L. 540: wyprawiane parzyste
 OK   wyprawienie 12345 → 12344 (parzysty kierunek): Wyprawienie pociągu 12344 zapisane w dzienniku Łódź Chojny L. 540 (numer dostosowany do kierunku szlaku: 12345 → 12344)
@@ -55,13 +55,13 @@ OK   po wpisie przyjęcia w dzienniku Łódź Chojny L. 540 – w wykazie „P�
    ruch T4|LW: 46021 przyjazd 06:06:45 z 2O, tor 3, odjazd –
 OK   wjazd pociągu z szlaku zarejestrowany w cyklu symulacji (przebiegi wjazdowe: 6)
 OK   po 10 min ruchu: zarejestrowane przyjazdy / odjazdy 4, pociągów 6
-OK   wykaz po serializacji zgodny (31481 B)
+OK   wykaz po serializacji zgodny (31977 B)
 --- E3
 OK   Łódź Andrzejów L. 17: bez ustawień kierunek zasadniczy nieustalony, tor lewy 1, prawy 2, oba wolne
 OK   szlak jednotorowy dwukierunkowy Łódź Widzew L. 458: kierunek zasadniczy nieustalony (↕)
 OK   ustawienia: dwa tory lewe – odrzucone
 OK   ustawienia: tor jednokierunkowy bez kierunku zasadniczego – odrzucone
-OK   ustawienia zasadnicze zapisane (Zapisano ustawienia dziennika Łódź Andrzejów L. 17): tor lewy – Z posterunku sąsiedniego, prawy – DO posterunku sąsiedniego, plik edrtest_31204.edr.json
+OK   ustawienia zasadnicze zapisane (Zapisano ustawienia dziennika Łódź Andrzejów L. 17): tor lewy – Z posterunku sąsiedniego, prawy – DO posterunku sąsiedniego, plik edrtest_40368.edr.json
 OK   ustawienia wczytane z pliku w nowym symulatorze
 OK   przyjęcie bez godziny odjazdu – tor szlakowy wolny
 OK   „odjechał” wpisany – tor lewy zajęty, jazda do nas, pociąg 46021
@@ -146,3 +146,9 @@ OK   wzór 21a: przed przyjazdem 19501 tor Otwarty, po przyjeździe Zamknięty
 OK   wzór 16: prowadzenie ruchu „Telefoniczne zapowiadanie pociągów”, droga wolna wymagana; wzór 17: z powrotem zasadnicze („Samoczynna blokada liniowa”)
 OK   wzór 23: ruch dwukierunkowy; wzór 25: rodzaj ruchu jak w ustawieniach (Jednokierunkowy, Jednokierunkowy)
 OK   wzory: bez powodu – Wzór 21: Wypełnij pole „Powód / cel”; tor 77 – Wzór 22: Tor szlakowy nr: tor 77 nie należy do szlaku (tory: 1, 2); nieznany wzór – Nie ma wzoru telefonogramu 99; z dziennika telefonicznego: „Nie wyprawiać pociągów od 16:05 aż do odwołania.”; 28 odebrany: „Posterunek Łódź Chojny otwarty o godzinie 16 minut 10.”
+--- Tory stacyjne
+OK   tor 1: przyjęcie z torem – rezerwacja, po „przyjechał” 08:05 – zajęty przez 19601
+OK   postawienie 70001 na torze 2: Pociąg 70001 na torze 2; ponownie – Pociąg 70001 jest już na torze 2; tor spoza posterunku – Tor ZZ9 nie jest torem stacyjnym posterunku Łódź Widzew; bez numeru – Podaj numer pociągu
+OK   przesunięcie: Pociąg 70001 przesunięty z toru 2 na tor 3; pociąg z wpisu – Pociąg 19601 przesunięty z toru 1 na tor 2
+OK   odjazd zwalnia tor pociągu postawionego ręcznie (także „odjechał” wpisane później w istniejącym wierszu)
+OK   usunięcie z toru: Pociąg 19601 usunięty z toru 2; drugi raz – Na torach stacyjnych nie ma takiego pociągu

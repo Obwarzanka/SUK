@@ -214,7 +214,7 @@ public partial class MainWindow : Window
             if (c == "#edrszlaki") { edrSzlaki = true; continue; }
             if (c.StartsWith("#edrust=")) { edrUst = int.Parse(c[8..]); continue; }
             if (c.StartsWith("#edrtel=")) { EdrTelShot(c[8..]); continue; }
-            if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=") || c.StartsWith("#edrwykresl=")) { EdrE5Shot(c); continue; }
+            if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=") || c.StartsWith("#edrwykresl=") || c.StartsWith("#edrtorst=")) { EdrE5Shot(c); continue; }
             if (c.StartsWith("#edrdrokno=")) { edrDrOkno = int.Parse(c[11..]); continue; }
             if (c.StartsWith("#edrsprust=")) { edrSprUst = c[11..]; continue; }
             if (c.StartsWith("#edrwyciag=")) { edrWyciag.Add(c[11..]); continue; }
@@ -424,7 +424,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Tryb zrzutu E5: „#edrdr=i|ozn:km:j|ozn:km:d” – dróżnicy w ustawieniach dziennika i (j – godzina, d – ukośnik), „#edrpowrot=i:nr:tor:km” – jazda do km i z powrotem,
-    /// „#edrwpis=i|treść” – wpis dowolny, „#edrspr=POST|nazwa|minuty” – wymagane sprawdzenie posterunku; E8d: „#edrwykresl=i|przyczyna” – wykreślenie ostatniego wiersza pociągu dziennika i.
+    /// „#edrwpis=i|treść” – wpis dowolny, „#edrspr=POST|nazwa|minuty” – wymagane sprawdzenie posterunku; E8d: „#edrwykresl=i|przyczyna” – wykreślenie ostatniego wiersza pociągu dziennika i; „#edrtorst=KOD|tor|nr” – pociąg postawiony na torze stacyjnym.
     /// </summary>
     void EdrE5Shot(string c)
     {
@@ -440,6 +440,11 @@ public partial class MainWindow : Window
         {
             var a = arg.Split(':'); var d = dane.Dzienniki[int.Parse(a[0])];
             r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "wypr", Pole = "powrot", Wartosc = a[3], Dane = new EdrWersja { Nr = a[1], Tor = a[2], Dw = dane.Zegar[..5], Odj = dane.Zegar[..5] } });
+        }
+        else if (c.StartsWith("#edrtorst="))
+        {
+            // „#edrtorst=KOD|tor|nr” – pociąg postawiony na torze stacyjnym z kontrolki
+            var a = arg.Split('|'); r = ses.EdrCmd(new EdrPolecenie { Rodzaj = "torst", Post = a[0], Pole = "dodaj", Wartosc = a[1], Dane = new EdrWersja { Nr = a[2] } });
         }
         else if (c.StartsWith("#edrwykresl="))
         {

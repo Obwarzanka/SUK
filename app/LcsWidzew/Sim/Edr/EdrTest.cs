@@ -640,6 +640,48 @@ public static class EdrTest
                 $"wzory: bez powodu – {bw1.Msg}; tor 77 – {bw2.Msg}; nieznany wzór – {bw3.Msg}; z dziennika telefonicznego: „{telF?.Tresc}”; 28 odebrany: „{t28?.Tresc}”");
         }
 
+        // ---------------- kontrolka torów stacyjnych (jak w EDR.exe): rezerwacja, pociąg postawiony ręcznie, przesunięcie, usunięcie
+        sb.AppendLine("--- Tory stacyjne");
+        {
+            var s14 = new Simulator(st, options: options) { User = user };
+            var k14 = s14.AddDesk("PC", "Stanowisko 1", true); k14.User = user;
+            var e14 = s14.Edr; e14.PlikUstawien = null; s14.Tick(0.25);
+            var d14 = e14.Dzienniki.First(d => e14.ToryStacyjne.GetValueOrDefault(d.Post)?.Count >= 3);
+            var post14 = d14.Post; var ts = e14.ToryStacyjne[post14];
+            string tA = ts[0], tB = ts[1], tC = ts[2];
+            CmdResult W14(EdrPolecenie p) => e14.Wykonaj(k14, p);
+            CmdResult Tor14(string pole, string tor = null, string klucz = null, string nr = null) => W14(new EdrPolecenie { Rodzaj = "torst", Post = post14, Pole = pole, Wartosc = tor, Klucz = klucz, Dane = nr == null ? null : new EdrWersja { Nr = nr } });
+            EdrTorStacyjny T(string tor) => e14.ZajetoscTorowStacyjnych(post14).First(x => x.Tor == tor);
+
+            W14(new EdrPolecenie { Dziennik = d14.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = "19601", Tor = tA, Odj = "08:00" } });
+            var wr = d14.Strony[^1].Wiersze[^1];
+            bool rez = T(tA).Zarezerwowany && !T(tA).Zajety;
+            W14(new EdrPolecenie { Dziennik = d14.Id, Rodzaj = "pole", Wiersz = wr.Id, Pole = "Prz", Wartosc = "08:05" });
+            K(rez && T(tA).Zajety && T(tA).Pociag == "19601" && T(tA).Od == "08:05", $"tor {tA}: przyjęcie z torem – rezerwacja, po „przyjechał” 08:05 – zajęty przez 19601");
+
+            var rd = Tor14("dodaj", tB, nr: "70001");
+            var bd1 = Tor14("dodaj", tB, nr: "70001"); var bd2 = Tor14("dodaj", "ZZ9", nr: "70003"); var bd3 = Tor14("dodaj", tC, nr: " ");
+            var na = T(tB).Pociagi.FirstOrDefault();
+            K(rd.Ok && na?.Recznie == true && na.Nr == "70001" && T(tB).Zajety && !bd1.Ok && !bd2.Ok && !bd3.Ok,
+                $"postawienie 70001 na torze {tB}: {rd.Msg}; ponownie – {bd1.Msg}; tor spoza posterunku – {bd2.Msg}; bez numeru – {bd3.Msg}");
+
+            var rp = Tor14("przesun", tC, na?.Klucz);
+            var rpw = Tor14("przesun", tB, "w:" + wr.Id);
+            K(rp.Ok && T(tC).Pociagi.Any(x => x.Nr == "70001") && rpw.Ok && T(tB).Pociag == "19601" && !T(tA).Zajety, $"przesunięcie: {rp.Msg}; pociąg z wpisu – {rpw.Msg}");
+
+            // odjazd zwalnia tor: wyprawienie wpisane po postawieniu; wiersz wyprawienia sprzed postawienia z „odjechał” wpisanym później
+            W14(new EdrPolecenie { Dziennik = d14.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "70001", Tor = tC, Odj = "08:20" } });
+            bool wolnyC = !T(tC).Pociagi.Any(x => x.Nr == "70001");
+            W14(new EdrPolecenie { Dziennik = d14.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "70005", Tor = tA } });
+            var ww = d14.Strony[^1].Wiersze[^1];
+            Tor14("dodaj", tA, nr: "70005"); bool stoi = T(tA).Pociagi.Any(x => x.Nr == "70005");
+            W14(new EdrPolecenie { Dziennik = d14.Id, Rodzaj = "pole", Wiersz = ww.Id, Pole = "Odj", Wartosc = "08:30" });
+            K(wolnyC && stoi && !T(tA).Pociagi.Any(x => x.Nr == "70005"), "odjazd zwalnia tor pociągu postawionego ręcznie (także „odjechał” wpisane później w istniejącym wierszu)");
+
+            var rus = Tor14("usun", klucz: "w:" + wr.Id); var rus2 = Tor14("usun", klucz: "w:" + wr.Id);
+            K(rus.Ok && !T(tB).Zajety && !rus2.Ok, $"usunięcie z toru: {rus.Msg}; drugi raz – {rus2.Msg}");
+        }
+
         try { Directory.Delete(kat, true); } catch { }
         sb.Insert(0, $"EDR: kontrola {ok} z {tot}{Environment.NewLine}");
         File.WriteAllText(outPath, sb.ToString());

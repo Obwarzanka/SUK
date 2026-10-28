@@ -108,6 +108,21 @@ public class OknoWpisu : OknoEdr
     }
 }
 
+/// <summary>Postawienie pociągu na torze stacyjnym z kontrolki (jak w EDR.exe): tor zajęty do odjazdu tego pociągu wpisanego w dzienniku.</summary>
+public class OknoNaTor : OknoEdr
+{
+    public OknoNaTor(EdrWindow okno, string post, string tor) : base($"Tor stacyjny {tor}", 360)
+    {
+        Sp.Children.Add(new TextBlock { Text = $"{okno.Dane?.Posterunki.GetValueOrDefault(post, post) ?? post} – tor {tor}", FontWeight = FontWeights.Bold, FontSize = 13 });
+        Sp.Children.Add(Et("Numer pociągu:"));
+        var nr = new TextBox();
+        Sp.Children.Add(nr);
+        Sp.Children.Add(Et("Tor będzie zajęty do wpisania „odjechał” w wyprawieniu tego pociągu (albo do usunięcia z kontrolki)."));
+        Loaded += (a, e) => nr.Focus();
+        Przyciski("Postaw", () => okno.Wyslij(new EdrPolecenie { Rodzaj = "torst", Post = post, Pole = "dodaj", Wartosc = tor, Dane = new EdrWersja { Nr = nr.Text } }));
+    }
+}
+
 /// <summary>Wykreślenie wpisu z dziennika ruchu (E8d, jak w EDR.exe): przyczyna obowiązkowa, wpis zostaje przekreślony z przyczyną.</summary>
 public class OknoWykreslenia : OknoEdr
 {

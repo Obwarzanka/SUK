@@ -148,10 +148,13 @@ public class EdrWindow : Window
         foreach (var w in widoki) w.Pokaz(d.Dzienniki.First(x => x.Id == w.Id));
     }
 
-    /// <summary>Kwadraty z numerami torów stacyjnych: zielony – wolny, czerwony – zajęty (wg wpisów w dziennikach).</summary>
+    /// <summary>
+    /// Kwadraty z numerami torów stacyjnych (jak w EDR.exe): zielony – wolny, pomarańczowy – rezerwacja (przyjęcie z torem bez „przyjechał”),
+    /// czerwony – zajęty (wg wpisów w dziennikach i pociągów postawionych ręcznie). PPM – postawienie, przesunięcie i usunięcie pociągu.
+    /// </summary>
     void Kontrolka(EdrData d)
     {
-        var podpis = wykazPanel.Posterunek + ";" + string.Join(";", d.ZajetoscTorow.Select(x => x.Key + ":" + string.Join(",", x.Value.Select(t => t.Tor + "=" + t.Pociag))));
+        var podpis = wykazPanel.Posterunek + ";" + string.Join(";", d.ZajetoscTorow.Select(x => x.Key + ":" + string.Join(",", x.Value.Select(t => t.Tor + "=" + string.Join("+", t.Pociagi.Select(p => p.Klucz + p.Nr + p.Zarezerwowany + p.Od))))));
         if (podpis == kontrolkaPodpis) return;
         kontrolkaPodpis = podpis;
         kontrolka.Children.Clear();
@@ -160,14 +163,40 @@ public class EdrWindow : Window
         {
             if (posty.Count > 1) kontrolka.Children.Add(new TextBlock { Text = d.Posterunki.GetValueOrDefault(post, post) + ":", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 4, 0), Foreground = Brushes.DimGray });
             foreach (var t in tory)
-                kontrolka.Children.Add(new Border
+            {
+                string Opis(EdrNaTorze x) => x.Zarezerwowany ? $"{x.Nr} – rezerwacja (przyjęcie bez „przyjechał”)" : x.Recznie ? $"{x.Nr} – postawiony ręcznie o {x.Od}" : $"{x.Nr} – przyjechał {x.Od}";
+                var b = new Border
                 {
-                    Background = t.Zajety ? TorZajety : TorWolny, BorderBrush = Pedzel(0x55, 0x55, 0x55), BorderThickness = new Thickness(0.5), MinWidth = 30, Height = 22,
+                    Background = t.Zajety ? TorZajety : t.Zarezerwowany ? TorRezerwacja : TorWolny, BorderBrush = Pedzel(0x55, 0x55, 0x55), BorderThickness = new Thickness(0.5), MinWidth = 30, Height = 22,
                     Child = new TextBlock { Text = t.Tor, Foreground = Brushes.White, FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 3, 0) },
-                    ToolTip = t.Zajety ? $"Tor {t.Tor} zajęty – pociąg {t.Pociag}, przyjechał {t.Od} (wg dziennika ruchu)" : $"Tor {t.Tor} wolny (wg dziennika ruchu)"
-                });
+                    ToolTip = (t.Pociagi.Count == 0 ? $"Tor {t.Tor} wolny" : $"Tor {t.Tor} {(t.Zajety ? "zajęty" : "zarezerwowany")}:{(char)10}" + string.Join($"{(char)10}", t.Pociagi.Select(Opis)))
+                        + $"{(char)10}(wg dziennika ruchu; PPM – postaw, przesuń albo usuń pociąg)"
+                };
+                // menu kontrolki (jak w EDR.exe): postawienie pociągu na torze, przesunięcie na inny tor, usunięcie z toru
+                var menu = new ContextMenu(); var (pk, tor) = (post, t.Tor);
+                var dodaj = new MenuItem { Header = $"Postaw pociąg na torze {tor}…" }; dodaj.Click += (a, e) => new OknoNaTor(this, pk, tor) { Owner = this }.ShowDialog(); menu.Items.Add(dodaj);
+                foreach (var x in t.Pociagi)
+                {
+                    var mp = new MenuItem { Header = $"Pociąg {x.Nr}{(x.Zarezerwowany ? " (rezerwacja)" : "")}" };
+                    var przes = new MenuItem { Header = "Przesuń na tor" };
+                    foreach (var inny in tory.Where(y => y.Tor != tor))
+                    {
+                        var (kl, cel) = (x.Klucz, inny.Tor);
+                        var mi = new MenuItem { Header = cel + (inny.Pociagi.Count > 0 ? $" ({string.Join(", ", inny.Pociagi.Select(z => z.Nr))})" : "") };
+                        mi.Click += (a, e) => Wyslij(new EdrPolecenie { Rodzaj = "torst", Post = pk, Pole = "przesun", Klucz = kl, Wartosc = cel });
+                        przes.Items.Add(mi);
+                    }
+                    var usun = new MenuItem { Header = "Usuń z toru" }; var k2 = x.Klucz;
+                    usun.Click += (a, e) => Wyslij(new EdrPolecenie { Rodzaj = "torst", Post = pk, Pole = "usun", Klucz = k2 });
+                    mp.Items.Add(przes); mp.Items.Add(usun); menu.Items.Add(mp);
+                }
+                b.ContextMenu = menu;
+                kontrolka.Children.Add(b);
+            }
         }
     }
+
+    internal static readonly Brush TorRezerwacja = Pedzel(255, 165, 0);
 
     void Sprawdzenia(EdrData d)
     {

@@ -178,8 +178,30 @@ public class EdrTorSzlakowy
     public bool Zajety => Pociagi.Count > 0;
 }
 
-/// <summary>Tor stacyjny w kontrolce zajętości: zajęty od przyjazdu pociągu na ten tor (wpis przyjęcia) do jego odjazdu (wpis wyprawienia).</summary>
-public class EdrTorStacyjny { public string Tor, Pociag, Od; public bool Zajety => Pociag != null; }
+/// <summary>Pociąg na torze stacyjnym (kontrolka): klucz („w:id” – z wpisu przyjęcia, „r:id” – postawiony ręcznie), numer, od której godziny, rezerwacja.</summary>
+public class EdrNaTorze { public string Klucz, Nr, Od; public bool Zarezerwowany, Recznie; }
+
+/// <summary>
+/// Tor stacyjny w kontrolce zajętości (jak w EDR.exe): zajęty od przyjazdu pociągu na ten tor (wpis przyjęcia z „przyjechał”) albo od ręcznego
+/// postawienia pociągu przez dyżurnego do odjazdu (wpis wyprawienia z „odjechał”); zarezerwowany – przyjęcie z torem, jeszcze bez „przyjechał”.
+/// Na torze może stać kilka pociągów.
+/// </summary>
+public class EdrTorStacyjny
+{
+    public string Tor;
+    /// <summary>Pierwszy pociąg zajmujący tor i godzina (zgodność z wcześniejszym zapisem).</summary>
+    public string Pociag, Od;
+    public List<EdrNaTorze> Pociagi = new();
+    public bool Zajety => Pociagi.Any(p => !p.Zarezerwowany);
+    public bool Zarezerwowany => Pociagi.Count > 0 && !Zajety;
+}
+
+/// <summary>
+/// Ręczna zmiana zajętości toru stacyjnego (kontrolka, jak w EDR.exe): pociąg postawiony na torze (WierszId 0) albo przesunięcie / usunięcie
+/// pociągu z wpisu przyjęcia (WierszId). Postawiony zwalnia tor przy odjeździe tego pociągu, którego nie było przy postawieniu (Znane – wiersze
+/// wyprawienia z „odjechał” w chwili postawienia, jak KnownDepartures w EDR.exe). Tylko bieżąca sesja.
+/// </summary>
+public class EdrZajetoscReczna { public int Id, WierszId; public string Post, Tor, Nr, Dodano, Kto; public bool Usuniety; public List<int> Znane = new(); }
 
 /// <summary>Wiersz wykazu pociągów posterunku (plan z rozkładu jazdy i wykonanie z ruchu pociągów).</summary>
 public class EdrPociag
@@ -962,24 +984,94 @@ public partial class Edr
         }
     }
 
-    /// <summary>Zajętość torów stacyjnych posterunku z wpisów wszystkich jego dzienników, w kolejności wpisów.</summary>
+    /// <summary>Ręczne zmiany zajętości torów stacyjnych (kontrolka) – bieżąca sesja.</summary>
+    public readonly List<EdrZajetoscReczna> ZajetosciReczne = new();
+    int nastepnaReczna = 1;
+
+    /// <summary>
+    /// Zajętość torów stacyjnych posterunku z wpisów jego dzienników i ręcznych zmian dyżurnego, w kolejności zdarzeń (jak w EDR.exe):
+    /// przyjęcie z torem – rezerwacja, z „przyjechał” – zajęcie; pociąg postawiony ręcznie – zajęcie (do nowego odjazdu tego pociągu); wyprawienie
+    /// z „odjechał” – zwolnienie toru przez ten pociąg (także rezerwacji) i przez pociągi z wpisów na torze wyprawienia.
+    /// </summary>
     public List<EdrTorStacyjny> ZajetoscTorowStacyjnych(string post)
     {
         var tory = (ToryStacyjne.GetValueOrDefault(post) ?? new()).Select(t => new EdrTorStacyjny { Tor = t }).ToList();
-        var wiersze = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr" or "powrot" && Biezacy(w)).OrderBy(w => w.Id);
-        foreach (var w in wiersze)
+        EdrTorStacyjny Tor(string nr) { var t = tory.FirstOrDefault(x => x.Tor == nr); if (t == null) tory.Add(t = new EdrTorStacyjny { Tor = nr }); return t; }
+        var reczne = ZajetosciReczne.Where(x => x.Post == post).ToList();
+        var zdarzenia = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr" or "powrot" && Biezacy(w))
+            .Select(w => (Klucz: (double)w.Id, W: w, R: (EdrZajetoscReczna)null))
+            .Concat(reczne.Where(x => x.WierszId == 0 && !x.Usuniety).Select(x => (Klucz: double.MinValue, W: (EdrWiersz)null, R: x)))
+            .OrderBy(x => x.Klucz);
+        foreach (var (_, w, r) in zdarzenia)
         {
+            if (r != null) { Tor(r.Tor).Pociagi.Add(new EdrNaTorze { Klucz = "r:" + r.Id, Nr = r.Nr, Od = r.Dodano, Recznie = true }); continue; }
             var v = w.W;
-            if (w.Rodzaj is "przyj" or "powrot" && Jest(v.Prz) && v.Tor != "")
+            if (w.Rodzaj is "przyj" or "powrot" && v.Tor != "" && v.Prz != "---")
             {
-                var t = tory.FirstOrDefault(x => x.Tor == v.Tor);
-                if (t == null) tory.Add(t = new EdrTorStacyjny { Tor = v.Tor });
-                t.Pociag = v.Nr; t.Od = v.Prz;
+                var zm = reczne.LastOrDefault(x => x.WierszId == w.Id);
+                if (zm?.Usuniety == true) continue;
+                Tor(zm?.Tor ?? v.Tor).Pociagi.Add(new EdrNaTorze { Klucz = "w:" + w.Id, Nr = v.Nr, Od = Jest(v.Prz) ? v.Prz : "", Zarezerwowany = !Jest(v.Prz) });
             }
             else if (w.Rodzaj == "wypr" && Jest(v.Odj))
-                foreach (var t in tory.Where(x => x.Pociag != null && (TenSam(x.Pociag, v.Nr) || v.Tor != "" && x.Tor == v.Tor))) { t.Pociag = null; t.Od = null; }
+                foreach (var t in tory)
+                    t.Pociagi.RemoveAll(x => x.Recznie ? TenSam(x.Nr, v.Nr) && !reczne.First(z => "r:" + z.Id == x.Klucz).Znane.Contains(w.Id)
+                        : TenSam(x.Nr, v.Nr) || v.Tor != "" && t.Tor == v.Tor && !x.Zarezerwowany);
         }
+        foreach (var t in tory) { var z = t.Pociagi.FirstOrDefault(x => !x.Zarezerwowany); t.Pociag = z?.Nr; t.Od = z?.Od; }
         return tory.OrderBy(x => x.Tor, Comparer<string>.Create(PorownajTory)).ToList();
+    }
+
+    /// <summary>
+    /// Ręczna zmiana zajętości toru stacyjnego (polecenie „torst”, kontrolka jak w EDR.exe): „dodaj” – pociąg <c>Dane.Nr</c> na tor <c>Wartosc</c>,
+    /// „przesun” – pociąg <c>Klucz</c> na tor <c>Wartosc</c>, „usun” – pociąg <c>Klucz</c> z toru.
+    /// </summary>
+    CmdResult TorStacyjny(Desk k, EdrPolecenie p)
+    {
+        var post = p.Post;
+        if (!JestPost(post)) return new(false, "Nie ma takiego posterunku");
+        if (!MojPost(post, k)) return new(false, $"Posterunek {NazwaPosterunku(post)} prowadzi inne stanowisko");
+        var user = k?.User?.Name ?? S.User?.Name;
+        if (user == null) return new(false, "Brak zalogowanego użytkownika");
+        var tory = ZajetoscTorowStacyjnych(post);
+        var cel = (p.Wartosc ?? "").Trim();
+        var naz = NazwaPosterunku(post);
+        if (p.Pole is "dodaj" or "przesun" && !(ToryStacyjne.GetValueOrDefault(post) ?? new()).Contains(cel)) return new(false, $"Tor {cel} nie jest torem stacyjnym posterunku {naz}");
+        if (p.Pole == "dodaj")
+        {
+            var nr = (p.Dane?.Nr ?? "").Trim();
+            if (nr == "") return new(false, "Podaj numer pociągu");
+            if (nr.Length > 40) return new(false, "Numer pociągu może mieć do 40 znaków");
+            if (tory.First(t => t.Tor == cel).Pociagi.Any(x => TenSam(x.Nr, nr))) return new(false, $"Pociąg {nr} jest już na torze {cel}");
+            var znane = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj == "wypr" && Biezacy(w) && TenSam(w.W.Nr, nr) && Jest(w.W.Odj)).Select(w => w.Id).ToList();
+            ZajetosciReczne.Add(new EdrZajetoscReczna { Id = nastepnaReczna++, Post = post, Tor = cel, Nr = nr, Znane = znane, Dodano = Teraz(), Kto = user });
+            Wersja++;
+            S.Log("Zdarzenie", $"EDR {naz}: pociąg {nr} postawiony na torze {cel} ({user})", "EDR", naz);
+            return new(true, $"Pociąg {nr} na torze {cel}");
+        }
+        var (tz, na) = tory.SelectMany(t => t.Pociagi.Select(x => (t, x))).FirstOrDefault(x => x.x.Klucz == p.Klucz);
+        if (na == null) return new(false, "Na torach stacyjnych nie ma takiego pociągu");
+        int id = int.Parse(na.Klucz[2..]);
+        EdrZajetoscReczna Zmiana()
+        {
+            if (na.Recznie) return ZajetosciReczne.First(x => x.Id == id);
+            var z = ZajetosciReczne.LastOrDefault(x => x.WierszId == id);
+            if (z == null) ZajetosciReczne.Add(z = new EdrZajetoscReczna { Id = nastepnaReczna++, Post = post, WierszId = id, Tor = tz.Tor, Nr = na.Nr, Kto = user });
+            return z;
+        }
+        if (p.Pole == "przesun")
+        {
+            if (cel == tz.Tor) return new(false, $"Pociąg {na.Nr} już jest na torze {cel}");
+            Zmiana().Tor = cel; Wersja++;
+            S.Log("Zdarzenie", $"EDR {naz}: pociąg {na.Nr} przesunięty z toru {tz.Tor} na tor {cel} ({user})", "EDR", naz);
+            return new(true, $"Pociąg {na.Nr} przesunięty z toru {tz.Tor} na tor {cel}");
+        }
+        if (p.Pole == "usun")
+        {
+            Zmiana().Usuniety = true; Wersja++;
+            S.Log("Zdarzenie", $"EDR {naz}: pociąg {na.Nr} usunięty z toru {tz.Tor} ({user})", "EDR", naz);
+            return new(true, $"Pociąg {na.Nr} usunięty z toru {tz.Tor}");
+        }
+        return new(false, "Nieznana zmiana toru stacyjnego");
     }
 
     public EdrData DlaStanowiska(Desk k)
@@ -1016,6 +1108,7 @@ public partial class Edr
     CmdResult WykonajPolecenie(Desk k, EdrPolecenie p)
     {
         if (p?.Rodzaj == "telefonogram") return Telefonogram(k, p);
+        if (p?.Rodzaj == "torst") return TorStacyjny(k, p);
         if (p != null && Konfiguracja(k, p) is CmdResult kr) return kr;
         if (p?.Rodzaj is "sprawdzenia" or "sprawdzenie")
         {
