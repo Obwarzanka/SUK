@@ -214,7 +214,7 @@ public partial class MainWindow : Window
             if (c == "#edrszlaki") { edrSzlaki = true; continue; }
             if (c.StartsWith("#edrust=")) { edrUst = int.Parse(c[8..]); continue; }
             if (c.StartsWith("#edrtel=")) { EdrTelShot(c[8..]); continue; }
-            if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=")) { EdrE5Shot(c); continue; }
+            if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=") || c.StartsWith("#edrwykresl=")) { EdrE5Shot(c); continue; }
             if (c.StartsWith("#edrdrokno=")) { edrDrOkno = int.Parse(c[11..]); continue; }
             if (c.StartsWith("#edrsprust=")) { edrSprUst = c[11..]; continue; }
             if (c.StartsWith("#edrwyciag=")) { edrWyciag.Add(c[11..]); continue; }
@@ -234,7 +234,7 @@ public partial class MainWindow : Window
                 }
                 continue;
             }
-            if (c.StartsWith("#edrtelokno=")) { edrTelOkno = int.Parse(c[12..]); continue; }
+            if (c.StartsWith("#edrtelokno=")) { var a = c[12..].Split('|'); edrTelOkno = int.Parse(a[0]); edrTelWzor = a.Length > 1 ? a[1] : null; continue; }
             if (c == "#edrtelefoniczny") { edrTelefoniczny = true; continue; }
             if (c.StartsWith("#edr")) { edrShot = c.Length > 5 ? int.Parse(c[5..]) : 0; continue; }
             if (c.StartsWith("#sw=")) { Panel.SelSwitch = station.Switches.Values.First(x => x.Label == c[4..] && Panel.Page.Posts.Contains(x.Post)).Num; continue; }
@@ -353,7 +353,9 @@ public partial class MainWindow : Window
                     if (edrSprUst != null) { var sw2 = ew.SprawdzeniaUstOkno(edrSprUst); Okno(sw2, ".edr_sprawdzenia.png"); sw2.Close(); }
                     if (edrTelOkno >= 0 && ew.Dane?.Dzienniki.Count > edrTelOkno)
                     {
-                        var dz = ew.Dane.Dzienniki[edrTelOkno]; var tw = ew.TelefonogramOkno(dz.Post, dz, false); Okno(tw, ".edr_telefonogram.png"); tw.Close();
+                        var dz = ew.Dane.Dzienniki[edrTelOkno]; var tw = ew.TelefonogramOkno(dz.Post, dz, false);
+                        if (edrTelWzor != null && tw is UI.OknoTelefonogramu ot) ot.WybierzWzor(edrTelWzor);
+                        Okno(tw, ".edr_telefonogram.png"); tw.Close();
                     }
                     if (edrTelefoniczny)
                     {
@@ -408,8 +410,10 @@ public partial class MainWindow : Window
     bool edrSzlaki;
     /// <summary>Tryb zrzutu: „#edrust=i” – zrzut okna ustawień zasadniczych dziennika i (−1 – bez).</summary>
     int edrUst = -1;
-    /// <summary>Tryb zrzutu: „#edrtelokno=i” – okno telefonogramu dziennika i, „#edrtelefoniczny” – zakładka dziennika telefonicznego.</summary>
+    /// <summary>Tryb zrzutu: „#edrtelokno=i” (albo „i|nr wzoru”) – okno telefonogramu dziennika i, „#edrtelefoniczny” – zakładka dziennika telefonicznego.</summary>
     int edrTelOkno = -1;
+    /// <summary>„#edrtelokno=i|nr” – wzór telefonogramu wybrany w oknie (E8e).</summary>
+    string edrTelWzor;
     /// <summary>Tryb zrzutu E5: „#edrdrokno=i” – okno powiadomienia dróżników dziennika i, „#edrsprust=POST” – konfiguracja sprawdzeń posterunku.</summary>
     int edrDrOkno = -1;
     string edrSprUst;
@@ -420,7 +424,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Tryb zrzutu E5: „#edrdr=i|ozn:km:j|ozn:km:d” – dróżnicy w ustawieniach dziennika i (j – godzina, d – ukośnik), „#edrpowrot=i:nr:tor:km” – jazda do km i z powrotem,
-    /// „#edrwpis=i|treść” – wpis dowolny, „#edrspr=POST|nazwa|minuty” – wymagane sprawdzenie posterunku.
+    /// „#edrwpis=i|treść” – wpis dowolny, „#edrspr=POST|nazwa|minuty” – wymagane sprawdzenie posterunku; E8d: „#edrwykresl=i|przyczyna” – wykreślenie ostatniego wiersza pociągu dziennika i.
     /// </summary>
     void EdrE5Shot(string c)
     {
@@ -436,6 +440,12 @@ public partial class MainWindow : Window
         {
             var a = arg.Split(':'); var d = dane.Dzienniki[int.Parse(a[0])];
             r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "wypr", Pole = "powrot", Wartosc = a[3], Dane = new EdrWersja { Nr = a[1], Tor = a[2], Dw = dane.Zegar[..5], Odj = dane.Zegar[..5] } });
+        }
+        else if (c.StartsWith("#edrwykresl="))
+        {
+            var a = arg.Split('|', 2); var d = dane.Dzienniki[int.Parse(a[0])];
+            var w = d.Strony[^1].Wiersze.LastOrDefault(x => x.Rodzaj is "przyj" or "wypr" or "wpis");
+            r = w == null ? new CmdResult(false, "brak wiersza do wykreślenia") : ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "wykresl", Wiersz = w.Id, Wartosc = a[1] });
         }
         else if (c.StartsWith("#edrwpis="))
         {

@@ -1,0 +1,42 @@
+{
+  "zrodlo": "Wzory telefonogramów wg Ir-1 – przepisane z EDR.exe (analiza 2026-10-28, Zrodla/EDR_EXE_analiza.md § 4), decyzja właściciela 2026-10-28 (E8e).",
+  "uwagi": "tresc: {pole} – wartość pola wzoru, { pole} – ze spacją przed, gdy pole nie jest puste. Pola wbudowane: {godz} (HH:mm), {godz_h}, {godz_m}, {od}, {do} – posterunek nadający i odbierający (nadaję: od nas do sąsiada, odbieram: od sąsiada do nas), {od_do} – „od … do …”. rodzaj pola: godzina, tor (tor szlakowy dziennika), pociag (numer pociągu), tekst, wybor (opcje). skutek – zmiana stanu bieżącego toru szlakowego wskazanego w polu „tor” (wszystkieTory – każdego toru): status, rodzaj ruchu, podstawa („telefoniczne” – telefoniczne zapowiadanie), „*” – przywrócenie zasadniczego z ustawień dziennika; poPrzejezdzie – zmiana dopiero po przyjeździe pociągu z pola „pociag”.",
+  "pola": {
+    "godz": { "etykieta": "Godzina (od której obowiązuje)", "rodzaj": "godzina" },
+    "tor": { "etykieta": "Tor szlakowy nr", "rodzaj": "tor" },
+    "pociag": { "etykieta": "Numer pociągu", "rodzaj": "pociag" },
+    "pociag_pierwszy": { "etykieta": "Pociąg z pierwszeństwem", "rodzaj": "pociag" },
+    "powod": { "etykieta": "Powód / cel", "rodzaj": "tekst" },
+    "powod_slowo": { "etykieta": "Z powodu czy celem", "rodzaj": "wybor", "opcje": [ "z powodu", "celem" ] },
+    "tryb": { "etykieta": "Tryb zamknięcia", "rodzaj": "wybor", "opcje": [ "", "planowo", "awaryjnie" ], "wymagane": false },
+    "odjechal": { "etykieta": "Ostatni pociąg odjechał o", "rodzaj": "godzina" },
+    "ograniczenia": { "etykieta": "Ograniczenia prędkości", "rodzaj": "tekst" },
+    "kierownik": { "etykieta": "Kierownik robót (imię i nazwisko)", "rodzaj": "tekst" },
+    "stanowisko": { "etykieta": "Stanowisko kierownika robót", "rodzaj": "tekst" },
+    "przejechal": { "etykieta": "Pociąg", "rodzaj": "wybor", "opcje": [ "przyjechał", "przejechał" ] }
+  },
+  "wzory": [
+    { "nr": "9", "tytul": "[9] Żądanie wstrzymania wyprawiania pociągów.", "tresc": "Nie wyprawiać pociągów od {godz} aż do odwołania.", "pola": [ "godz" ] },
+    { "nr": "10", "tytul": "[10] Odwołanie wstrzymania wyprawiania pociągów.", "tresc": "Wstrzymanie wyprawienia pociągów odwołuję o {godz}.", "pola": [ "godz" ] },
+    { "nr": "11", "tytul": "[11] Żądanie wstrzymania wyprawienia pociągu do czasu przejazdu pociągu z pierwszeństwem.", "tresc": "Nie wyprawiać pociągu {pociag} do czasu przejazdu pociągu {pociag_pierwszy}.", "pola": [ "pociag", "pociag_pierwszy" ] },
+    { "nr": "12", "tytul": "[12] Żądanie wstrzymania wyprawienia wszystkich pociągów do czasu przejazdu pociągu z pierwszeństwem.", "tresc": "Nie wyprawiać żadnego pociągu do czasu przejazdu pociągu {pociag_pierwszy}.", "pola": [ "pociag_pierwszy" ] },
+    { "nr": "16", "tytul": "[16] Wprowadzenie telefonicznego zapowiadania pociągów dla toru szlakowego.", "tresc": "O {godz} wprowadzam telefoniczne zapowiadanie pociągów po torze numer {tor} {od_do} z powodu {powod}.", "pola": [ "godz", "tor", "powod" ], "skutek": { "podstawa": "telefoniczne" } },
+    { "nr": "16a", "tytul": "[16a] Wprowadzenie radiotelefonicznego zapowiadania pociągów dla toru szlakowego.", "tresc": "O {godz} wprowadzam radiotelefoniczne zapowiadanie pociągów po torze numer {tor} {od_do} z powodu {powod}.", "pola": [ "godz", "tor", "powod" ], "skutek": { "podstawa": "telefoniczne" } },
+    { "nr": "17", "tytul": "[17] Odwołanie telefonicznego zapowiadania pociągów dla toru szlakowego.", "tresc": "O {godz} odwołuję telefoniczne zapowiadanie pociągów po torze numer {tor} {od_do}.", "pola": [ "godz", "tor" ], "skutek": { "podstawa": "*" } },
+    { "nr": "17a", "tytul": "[17a] Odwołanie radiotelefonicznego zapowiadania pociągów dla toru szlakowego.", "tresc": "O {godz} odwołuję radiotelefoniczne zapowiadanie pociągów po torze numer {tor} {od_do}.", "pola": [ "godz", "tor" ], "skutek": { "podstawa": "*" } },
+    { "nr": "21", "tytul": "[21] Zamknięcie toru szlakowego.", "tresc": "Tor numer {tor} {od_do} zamknięty{ tryb} od {godz} {powod_slowo} {powod}.", "pola": [ "tor", "tryb", "godz", "powod_slowo", "powod" ], "skutek": { "status": "Zamknięty" } },
+    { "nr": "21a", "tytul": "[21a] Zamknięcie toru szlakowego po przejeździe pociągu.", "tresc": "Tor numer {tor} {od_do} zamknięty{ tryb} po przejeździe pociągu numer {pociag} {powod_slowo} {powod}.", "pola": [ "tor", "tryb", "pociag", "powod_slowo", "powod" ], "skutek": { "status": "Zamknięty", "poPrzejezdzie": true } },
+    { "nr": "022", "tytul": "[022] Zakończenie robót na torze szlakowym.", "tresc": "Roboty na torze {tor} szlaku {od} – {do} zostały ukończone o godzinie {godz_h} minut {godz_m}. Tor ten jest zdatny i nie ma przeszkód do ruchu pociągów.\nOgraniczenia prędkości: {ograniczenia}\n{kierownik}, {stanowisko}.", "pola": [ "tor", "godz", "ograniczenia", "kierownik", "stanowisko" ] },
+    { "nr": "22", "tytul": "[22] Otwarcie toru szlakowego.", "tresc": "Tor numer {tor} {od_do} otwarty o {godz}.", "pola": [ "tor", "godz" ], "skutek": { "status": "Otwarty" } },
+    { "nr": "23", "tytul": "[23] Wprowadzenie ruchu jednotorowego dwukierunkowego.", "tresc": "Od {od} do {do} wprowadzam ruch jednotorowy dwukierunkowy po torze numer {tor}, po którym ostatni pociąg {pociag} odjechał o {odjechal}.", "pola": [ "tor", "pociag", "odjechal" ], "skutek": { "rodzaj": "Dwukierunkowy" } },
+    { "nr": "24", "tytul": "[24] Żądanie wprowadzenia ruchu jednotorowego dwukierunkowego.", "tresc": "Wprowadzić ruch jednotorowy dwukierunkowy {od_do} po torze numer {tor}.", "pola": [ "tor" ], "skutek": { "rodzaj": "Dwukierunkowy" } },
+    { "nr": "25", "tytul": "[25] Przywrócenie ruchu dwutorowego.", "tresc": "Przywracam ruch dwutorowy {od_do} o {godz}.", "pola": [ "godz" ], "skutek": { "rodzaj": "*", "wszystkieTory": true } },
+    { "nr": "26", "tytul": "[26] Wprowadzenie ruchu dwukierunkowego po torze szlakowym przy czynnych obu torach szlakowych.", "tresc": "Przy czynnych obu torach wprowadzam {od_do} ruch dwukierunkowy po torze numer {tor}, po którym ostatni pociąg {pociag} odjechał o {odjechal}.", "pola": [ "tor", "pociag", "odjechal" ], "skutek": { "rodzaj": "Dwukierunkowy" } },
+    { "nr": "27", "tytul": "[27] Przywrócenie ruchu jednokierunkowego po torze szlakowym.", "tresc": "Przywracam ruch jednokierunkowy po torze numer {tor} {od_do} o {godz}.", "pola": [ "tor", "godz" ], "skutek": { "rodzaj": "*" } },
+    { "nr": "28", "tytul": "[28] Otwarcie posterunku.", "tresc": "Posterunek {od} otwarty o godzinie {godz_h} minut {godz_m}.", "pola": [ "godz" ] },
+    { "nr": "29", "tytul": "[29] Zamknięcie posterunku.", "tresc": "Posterunek {od} zamknięty o godzinie {godz_h} minut {godz_m}.", "pola": [ "godz" ] },
+    { "nr": "30", "tytul": "[30] Żądanie zatrzymania pociągów - przyjechał pociąg bez sygnału końca pociągu.", "tresc": "Zatrzymać pociągi, pociąg {pociag} {przejechal} bez sygnału końca pociągu.", "pola": [ "pociag", "przejechal" ] },
+    { "nr": "31", "tytul": "[31] Wstrzymanie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Tor numer {tor} {od_do} od godziny {godz_h} minut {godz_m} nieprzejezdny dla pociągów z trakcją elektryczną.", "pola": [ "tor", "godz" ] },
+    { "nr": "32", "tytul": "[32] Przywrócenie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Po torze numer {tor} {od_do} od godziny {godz_h} minut {godz_m} przywracam ruch trakcją elektryczną.", "pola": [ "tor", "godz" ] }
+  ]
+}

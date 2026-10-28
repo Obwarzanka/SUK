@@ -16,19 +16,22 @@ namespace LcsWidzew.UI;
 public class WykazPociagow : DockPanel
 {
     public const string Format = "edr-pociag";
-    // kolory wg filmu i zrzutu EDR: tło oliwkowe, ciemne nagłówki, kolumny numerów i kierunków w kolorach
-    internal static readonly Brush Tlo = EdrWindow.Pedzel(0xEE, 0xEE, 0xD2), Linie = EdrWindow.Pedzel(0xCF, 0xCF, 0xB4),
-        NagCiemny = EdrWindow.Pedzel(0x55, 0x5F, 0x6E), NagBordo = EdrWindow.Pedzel(0x7E, 0x3B, 0x3B), NagNr1 = EdrWindow.Pedzel(0x2A, 0x9C, 0xA8), NagZ = EdrWindow.Pedzel(0x4E, 0x96, 0xC8),
-        NagNr2 = EdrWindow.Pedzel(0x3C, 0x96, 0x46), NagW = EdrWindow.Pedzel(0x2E, 0x7E, 0x6A), NagTor = EdrWindow.Pedzel(0x8A, 0x8A, 0x8A), NagNrL = EdrWindow.Pedzel(0xD9, 0x8B, 0x2B),
-        NagPost = EdrWindow.Pedzel(0xB0, 0x8A, 0x5A), NagPT = EdrWindow.Pedzel(0x3D, 0x7E, 0xBF), NagStacja = EdrWindow.Pedzel(0x3A, 0x3F, 0x8C),
-        KolZ = EdrWindow.Pedzel(0xCF, 0xE0, 0xEE), KolW = EdrWindow.Pedzel(0xF3, 0xE3, 0xDB),
-        KolTor = EdrWindow.Pedzel(0xA9, 0xA9, 0xA9), KolNrL = EdrWindow.Pedzel(0xF4, 0xE1, 0xC6), KolPT = EdrWindow.Pedzel(0x9D, 0xC2, 0xE6), KolStacja = EdrWindow.Pedzel(0xF7, 0xF7, 0xE6),
-        // numer pociągu: turkusowy – nieparzysty, zielony – parzysty (uwaga właściciela 2026-10-28)
-        NrNieparzysty = EdrWindow.Pedzel(0x9E, 0xE4, 0xEC), NrParzysty = EdrWindow.Pedzel(0x93, 0xC9, 0x8F),
-        // legenda: wstęga i potwierdzenie czasu („Rodz.”): zielony – człowiek, czerwony – automatycznie (urządzenie), szary – dyspozytor
-        WstPrzyjazd = EdrWindow.Pedzel(0xE6, 0x5C, 0xE6), WstOdjazd = EdrWindow.Pedzel(0x44, 0xE0, 0x44), WstPrzejazd = EdrWindow.Pedzel(0x44, 0xE0, 0xE0),
-        RodzUrzadzenie = EdrWindow.Pedzel(0xC0, 0x28, 0x28), RodzCzlowiek = EdrWindow.Pedzel(0x2E, 0x8B, 0x3E), RodzDyspozytor = EdrWindow.Pedzel(0x8A, 0x8A, 0x8A),
-        Opoznienie = EdrWindow.Pedzel(0x7E, 0x3B, 0x3B), Zaznaczony = EdrWindow.Pedzel(0x33, 0x99, 0xFF), Link = EdrWindow.Pedzel(0x1A, 0x4F, 0xC4);
+    // kolory wg EDR.exe (analiza 2026-10-28, `Zrodla/EDR_EXE_analiza.md` § 5.2): nagłówki w kolorach grup kolumn, kremowe komórki godzin,
+    // kierunki jasnoniebieskie (przyjazd) i łososiowe (odjazd), postój pomarańczowy, bez postoju szary
+    internal static readonly Brush Tlo = EdrWindow.Pedzel(0xEE, 0xEE, 0xD2), Linie = EdrWindow.Pedzel(0xD7, 0xD7, 0xD7),
+        NagFiolet = EdrWindow.Pedzel(75, 0, 75), NagOliwka = EdrWindow.Pedzel(75, 75, 0), NagBordo = EdrWindow.Pedzel(75, 0, 0),
+        NagTurkus = EdrWindow.Pedzel(0, 200, 200), NagZielony = EdrWindow.Pedzel(0, 75, 0), NagTor = EdrWindow.Pedzel(192, 192, 192), NagNrL = EdrWindow.Pedzel(200, 200, 0),
+        NagPost = EdrWindow.Pedzel(153, 153, 153), NagPT = EdrWindow.Pedzel(0, 77, 150), NagStacja = EdrWindow.Pedzel(0, 0, 75),
+        Krem = EdrWindow.Pedzel(255, 255, 225), KolZ = EdrWindow.Pedzel(215, 228, 242), KolW = EdrWindow.Pedzel(255, 243, 232),
+        KolTor = EdrWindow.Pedzel(192, 192, 192), KolPT = EdrWindow.Pedzel(166, 202, 240),
+        Postoj = EdrWindow.Pedzel(255, 211, 168), BezPostoju = EdrWindow.Pedzel(227, 227, 227), TypPostoju = EdrWindow.Pedzel(240, 251, 255),
+        // numer pociągu: turkusowy – nieparzysty (uwaga właściciela 2026-10-28), zielony – parzysty (EDR.exe)
+        NrNieparzysty = EdrWindow.Pedzel(0x9E, 0xE4, 0xEC), NrParzysty = EdrWindow.Pedzel(192, 220, 192),
+        // wstęga wg EDR.exe: przyjazd (kończy bieg) – magenta, odjazd (rozpoczyna bieg) – limonka, przejazd bez zatrzymania – cyjan, z postojem – niebieski
+        WstPrzyjazd = EdrWindow.Pedzel(255, 0, 255), WstOdjazd = EdrWindow.Pedzel(0, 255, 0), WstPrzejazd = EdrWindow.Pedzel(0, 255, 255),
+        // „Rodz.” – czas potwierdzony: zielony – człowiek, bordowy – automatycznie (urządzenie), srebrny – dyspozytor
+        RodzUrzadzenie = EdrWindow.Pedzel(128, 0, 0), RodzCzlowiek = EdrWindow.Pedzel(0, 128, 0), RodzDyspozytor = EdrWindow.Pedzel(192, 192, 192),
+        Opoznienie = EdrWindow.Pedzel(128, 0, 0), Zaznaczony = EdrWindow.Pedzel(51, 153, 255), Link = EdrWindow.Pedzel(0x1A, 0x4F, 0xC4);
     readonly EdrWindow okno;
     readonly ComboBox posterunek = new() { Width = 380, Margin = new Thickness(0, 0, 12, 4), FontWeight = FontWeights.Bold, FontSize = 14 };
     readonly TextBox filtr = new() { Width = 90, Margin = new Thickness(4, 0, 0, 0), Background = Brushes.White }, czestotliwosc = new() { Width = 34, Text = "3", Background = Brushes.White, Margin = new Thickness(4, 0, 12, 0) },
@@ -75,9 +78,10 @@ public class WykazPociagow : DockPanel
         lewa.Children.Add(r1);
         var r2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
         r2.Children.Add(E("Nr pociągu:")); r2.Children.Add(filtr);
-        var szukaj = new Button { Content = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11 }, Width = 24, Margin = new Thickness(2, 0, 16, 0), ToolTip = "Szukaj pociągu o numerze" };
-        szukaj.Click += (a, e) => { var p = lista.FirstOrDefault(x => x.Nr.Contains(filtr.Text.Trim()) || x.NrWyj.Contains(filtr.Text.Trim())); if (p != null) { grid.SelectedItem = p; grid.ScrollIntoView(p); } };
-        r2.Children.Add(szukaj);
+        // jak w EDR.exe: gumka obok numeru czyści wpisany numer (filtr wykazu odświeża się sam)
+        var gumka = new Button { Content = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11 }, Width = 24, Margin = new Thickness(2, 0, 16, 0), ToolTip = "Wyczyść numer pociągu" };
+        gumka.Click += (a, e) => { filtr.Clear(); filtr.Focus(); };
+        r2.Children.Add(gumka);
         Link2(r2, potwLink, () => { potwFiltr = (potwFiltr + 1) % 3; potwLink.Inlines.Clear(); potwLink.Inlines.Add("Potwierdzenie: " + Potwierdzenia[potwFiltr]); }, "Potwierdzenie: wszystkie", "Klik – filtr wg potwierdzenia czasu przejazdu: wszystkie / potwierdzone / niepotwierdzone");
         Link2(r2, pocLink, () => { pocFiltr = (pocFiltr + 1) % 3; pocLink.Inlines.Clear(); pocLink.Inlines.Add("Pociągi: " + Pociagi[pocFiltr]); }, "Pociągi: wszystkie", "Klik – filtr: wszystkie / kursujące (K) / niekursujące (NK)");
         r2.Children.Add(daty);
@@ -123,28 +127,28 @@ public class WykazPociagow : DockPanel
             GridLinesVisibility = DataGridGridLinesVisibility.All, FontSize = 13, RowHeight = 25, BorderThickness = new Thickness(1), BorderBrush = Brushes.Gray,
             HorizontalGridLinesBrush = Linie, VerticalGridLinesBrush = Linie, Background = Tlo, RowBackground = Brushes.White, AlternatingRowBackground = EdrWindow.Pedzel(0xFB, 0xFB, 0xEC)
         };
-        Kolumna("K", nameof(EdrPociag.Kursuje), NagCiemny, null, "K – kursuje (zaznacza dyspozytor)", znak: true);
-        Kolumna("NK", nameof(EdrPociag.NieKursuje), NagCiemny, null, "NK – nie kursuje (zaznacza dyspozytor)", znak: true);
-        godziny.Add(Kolumna("Przyjazd plan.", nameof(EdrPociag.PrzPlanD), NagBordo, null));
-        Kolumna("+/-", nameof(EdrPociag.PrzOdch), NagBordo, null, "Odchylenie przyjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
-        godziny.Add(Kolumna("Przyjazd rzecz.", nameof(EdrPociag.PrzRzeczD), NagBordo, null));
-        Kolumna("Rodz.", nameof(EdrPociag.Rodz), NagCiemny, null, "Kategoria pociągu wg Ir-11; tło – czas przejazdu potwierdzony: zielone – przez człowieka, czerwone – automatycznie, szare – przez dyspozytora", rodz: true, wysrodkuj: true);
-        Kolumna("Nr poc.", nameof(EdrPociag.NrNieparzysty), NagNr1, NrNieparzysty, "Numer pociągu nieparzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
-        Kolumna("Z kierunku post.", nameof(EdrPociag.ZKierunku), NagZ, KolZ, wysrodkuj: true);
-        Kolumna("Nr poc.", nameof(EdrPociag.NrParzysty), NagNr2, NrParzysty, "Numer pociągu parzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
-        Kolumna("W kierunku post.", nameof(EdrPociag.WKierunku), NagW, KolW, wysrodkuj: true);
+        Kolumna("K", nameof(EdrPociag.Kursuje), NagFiolet, Krem, "K – kursuje (zaznacza dyspozytor)", znak: true);
+        Kolumna("NK", nameof(EdrPociag.NieKursuje), NagFiolet, Krem, "NK – nie kursuje (zaznacza dyspozytor)", znak: true);
+        godziny.Add(Kolumna("Przyjazd plan.", nameof(EdrPociag.PrzPlanD), NagOliwka, Krem));
+        Kolumna("+/-", nameof(EdrPociag.PrzOdch), NagBordo, Krem, "Odchylenie przyjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
+        godziny.Add(Kolumna("Przyjazd rzecz.", nameof(EdrPociag.PrzRzeczD), NagOliwka, Krem));
+        Kolumna("Rodz.", nameof(EdrPociag.Rodz), NagBordo, Krem, "Kategoria pociągu wg Ir-11; tło – czas przejazdu potwierdzony: zielone – przez człowieka, czerwone – automatycznie, szare – przez dyspozytora", rodz: true, wysrodkuj: true);
+        Kolumna("Nr poc.", nameof(EdrPociag.NrNieparzysty), NagTurkus, NrNieparzysty, "Numer pociągu nieparzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
+        Kolumna("Z kierunku post.", nameof(EdrPociag.ZKierunku), NagTurkus, KolZ, "Z kierunku posterunku; szary pasek z prawej – przyjęcie wpisane do dziennika", wysrodkuj: true, wpisany: nameof(EdrPociag.Przyjety));
+        Kolumna("Nr poc.", nameof(EdrPociag.NrParzysty), NagZielony, NrParzysty, "Numer pociągu parzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
+        Kolumna("W kierunku post.", nameof(EdrPociag.WKierunku), NagZielony, KolW, "W kierunku posterunku; szary pasek z lewej – wyprawienie wpisane do dziennika", wysrodkuj: true, wpisany: nameof(EdrPociag.Wyprawiony), zLewej: true);
         Kolumna("Tor", nameof(EdrPociag.TorRzecz), NagTor, KolTor, "Tor, na który pociąg wjechał", wysrodkuj: true);
-        Kolumna("Nr L.", nameof(EdrPociag.Linia), NagNrL, KolNrL, "Numer linii kolejowej", wysrodkuj: true);
-        Kolumna("P. zam.", nameof(EdrPociag.PZam), NagPost, KolNrL, "Postój zamówiony wg rozkładu [min]", wysrodkuj: true);
-        Kolumna("P. obl.", nameof(EdrPociag.PObl), NagPost, KolNrL, "Postój obliczony z wykonania [min]", wysrodkuj: true);
-        Kolumna("Typ p.", nameof(EdrPociag.Postoj), NagCiemny, null, "Typ postoju: ph – postój handlowy", gruby: true, wysrodkuj: true);
-        Kolumna("P T", nameof(EdrPociag.Tor), NagPT, KolPT, "Tor stacyjny wg rozkładu", wysrodkuj: true);
-        godziny.Add(Kolumna("Odjazd plan.", nameof(EdrPociag.OdjPlanD), NagBordo, null));
-        Kolumna("+/-", nameof(EdrPociag.OdjOdch), NagBordo, null, "Odchylenie odjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
-        godziny.Add(Kolumna("Odjazd rzecz.", nameof(EdrPociag.OdjRzeczD), NagBordo, null));
-        Kolumna("Stacja początkowa", nameof(EdrPociag.StacjaPocz), NagStacja, KolStacja, wysrodkuj: true);
-        Kolumna("Stacja końcowa", nameof(EdrPociag.StacjaKonc), NagStacja, KolStacja, wysrodkuj: true);
-        Kolumna("Przewoźnik", nameof(EdrPociag.Przewoznik), NagStacja, KolStacja, wysrodkuj: true, szer: 1);
+        Kolumna("Nr L.", nameof(EdrPociag.Linia), NagNrL, KolW, "Numer linii kolejowej", wysrodkuj: true);
+        Kolumna("P. zam.", nameof(EdrPociag.PZam), NagPost, BezPostoju, "Postój zamówiony wg rozkładu [min]", postoj: Postoj, wysrodkuj: true);
+        Kolumna("P. obl.", nameof(EdrPociag.PObl), NagPost, BezPostoju, "Postój obliczony z wykonania [min]", postoj: Postoj, wysrodkuj: true);
+        Kolumna("Typ p.", nameof(EdrPociag.Postoj), NagPost, BezPostoju, "Typ postoju: ph – postój handlowy", postoj: TypPostoju, gruby: true, wysrodkuj: true);
+        Kolumna("P T", nameof(EdrPociag.PT), NagPT, KolPT, "Peron (cyfry rzymskie) i tor stacyjny (cyfry arabskie) wg rozkładu", wysrodkuj: true);
+        godziny.Add(Kolumna("Odjazd plan.", nameof(EdrPociag.OdjPlanD), NagOliwka, Krem));
+        Kolumna("+/-", nameof(EdrPociag.OdjOdch), NagBordo, Krem, "Odchylenie odjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
+        godziny.Add(Kolumna("Odjazd rzecz.", nameof(EdrPociag.OdjRzeczD), NagOliwka, Krem));
+        Kolumna("Stacja początkowa", nameof(EdrPociag.StacjaPocz), NagStacja, Krem, wysrodkuj: true);
+        Kolumna("Stacja końcowa", nameof(EdrPociag.StacjaKonc), NagStacja, Krem, wysrodkuj: true);
+        Kolumna("Przewoźnik", nameof(EdrPociag.Przewoznik), NagStacja, Krem, wysrodkuj: true, szer: 1);
         grid.LoadingRow += (a, e) => { if (e.Row.Item is EdrPociag p) e.Row.ToolTip = $"{p.Nr}{(p.NrWyj != p.Nr ? " / " + p.NrWyj : "")}{(p.Nazwa != "" ? " " + p.Nazwa : "")} – {p.Stan}"; };
 
         var menu = new ContextMenu();
@@ -243,7 +247,7 @@ public class WykazPociagow : DockPanel
     /// Kolumna wykazu: kolorowy nagłówek z białym napisem, tło komórek kolumny; wstęga (przyjazd / odjazd / przejazd wg legendy)
     /// przykrywa tło całego wiersza, zaznaczenie – niebieskie.
     /// </summary>
-    DataGridTextColumn Kolumna(string naglowek, string pole, Brush nag, Brush tlo, string opis = null, bool znak = false, bool gruby = false, bool wysrodkuj = false, bool opozn = false, bool rodz = false, bool nr = false, double szer = 0)
+    DataGridTextColumn Kolumna(string naglowek, string pole, Brush nag, Brush tlo, string opis = null, bool znak = false, bool gruby = false, bool wysrodkuj = false, bool opozn = false, bool rodz = false, bool nr = false, double szer = 0, Brush postoj = null, string wpisany = null, bool zLewej = false)
     {
         var hs = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
         hs.Setters.Add(new Setter(Control.BackgroundProperty, new LinearGradientBrush(Rozjasnij(nag), ((SolidColorBrush)nag).Color, 90)));
@@ -260,6 +264,9 @@ public class WykazPociagow : DockPanel
         cs.Setters.Add(new Setter(Control.BackgroundProperty, tlo ?? Brushes.Transparent));
         cs.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.Black));
         cs.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
+        // znacznik wpisu do dziennika jak w EDR.exe: szary pasek przy krawędzi komórki kierunku (Z kierunku – z prawej, W kierunku – z lewej)
+        if (wpisany != null) cs.Triggers.Add(new DataTrigger { Binding = new Binding(wpisany), Value = true, Setters = { new Setter(Control.BorderBrushProperty, Brushes.Gray), new Setter(Control.BorderThicknessProperty, zLewej ? new Thickness(6, 0, 0, 0) : new Thickness(0, 0, 6, 0)) } });
+        if (postoj != null) cs.Triggers.Add(new DataTrigger { Binding = new Binding(nameof(EdrPociag.Postoj)), Value = "ph", Setters = { new Setter(Control.BackgroundProperty, postoj) } });
         if (opozn) cs.Triggers.Add(new DataTrigger { Binding = new Binding(pole) { Converter = new Opozniony() }, Value = true, Setters = { new Setter(Control.BackgroundProperty, Opoznienie), new Setter(Control.ForegroundProperty, Brushes.White) } });
         if (rodz)
             foreach (var (w, b) in new[] { ("czlowiek", RodzCzlowiek), ("auto", RodzUrzadzenie), ("dyspozytor", RodzDyspozytor) })
@@ -350,7 +357,7 @@ public class WykazPociagow : DockPanel
             .Where(x => f == "" || x.Nr.Contains(f) || x.NrWyj.Contains(f))
             .Where(x => potwFiltr == 0 || x.Potwierdzony == (potwFiltr == 1))
             .Where(x => pocFiltr == 0 || x.Kursuje == (pocFiltr == 1)).ToList();
-        var nowy = string.Join("\n", l.Select(p => string.Join("|", p.Klucz, p.Nr, p.NrWyj, p.ZKierunku, p.WKierunku, p.Tor, p.TorRzecz, p.PrzPlan, p.PrzRzecz, p.OdjPlan, p.OdjRzecz, p.Stan, p.Wstega, p.Potw, p.Kursuje, p.UwagiEksp, p.UwagiPrzew, p.UwagiWlasne)));
+        var nowy = string.Join("\n", l.Select(p => string.Join("|", p.Klucz, p.Nr, p.NrWyj, p.ZKierunku, p.WKierunku, p.Tor, p.TorRzecz, p.PrzPlan, p.PrzRzecz, p.OdjPlan, p.OdjRzecz, p.Stan, p.Wstega, p.Potw, p.Kursuje, p.UwagiEksp, p.UwagiPrzew, p.UwagiWlasne, p.Przyjety, p.Wyprawiony)));
         info.Text = $"Pociągów: {l.Count}, na stacji: {l.Count(x => x.NaStacji)}, odjechało: {l.Count(x => x.Stan == "odjechał")}. Dwuklik w numer pociągu – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku, PPM – polecenia.";
         if (nowy == podpis) return;
         podpis = nowy;

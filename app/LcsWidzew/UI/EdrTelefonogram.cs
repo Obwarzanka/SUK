@@ -8,11 +8,14 @@ namespace LcsWidzew.UI;
 /// <summary>
 /// Okno telefonogramu (film ISDR: „Telefonogram do Dziennika Telefonicznego”, podręcznik EDR Rys. 38 – „Rejestracja telegramu w Dzienniku ruchu”)
 /// i innych okoliczności. Z dziennika ruchu – także zmiana stanu bieżącego torów szlakowych (zamknięcie toru, ruch dwukierunkowy,
-/// zapowiadanie telefoniczne); wzory telefonogramów zrobią to same, na razie – ręcznie.
+/// zapowiadanie telefoniczne): ze wzoru telefonogramu (E8e – Data/telefonogramy.json) albo, „[bez szablonu]”, ręcznie.
 /// </summary>
 public class OknoTelefonogramu : Window
 {
     static readonly string[] Kierunki = { "bez zmian", "Nieustalony", "Z posterunku sąsiedniego", "DO posterunku sąsiedniego" };
+    ComboBox wzorWybor;
+    /// <summary>Wybór wzoru telefonogramu po numerze (zrzut „#edrtelokno=i|nr”).</summary>
+    public void WybierzWzor(string nr) { foreach (ComboBoxItem x in wzorWybor.Items) if (x.Tag as string == nr) wzorWybor.SelectedItem = x; }
 
     public OknoTelefonogramu(EdrWindow okno, string post, EdrDziennik d, bool okolicznosc)
     {
@@ -62,15 +65,23 @@ public class OknoTelefonogramu : Window
         sp.Children.Add(g);
 
         sp.Children.Add(Et("Wzór telefonogramu:"));
-        var wzor = new ComboBox { IsEnabled = false, ToolTip = "Wzory telefonogramów – później (treść i numery poda właściciel)" };
-        wzor.Items.Add("[bez szablonu]"); wzor.SelectedIndex = 0; ToolTipService.SetShowOnDisabled(wzor, true);
-        if (!okolicznosc) sp.Children.Add(wzor);
+        // wzory wg Ir-1 (E8e): treść powstaje z pól wzoru, zmiana stanu szlaku – ze skutku wzoru
+        var wzor = new ComboBox { ToolTip = EdrWzory.Blad ?? "Wzór telefonogramu wg Ir-1 – treść z pól wzoru; „[bez szablonu]” – treść i zmiana stanu szlaku ręcznie" };
+        wzor.Items.Add(new ComboBoxItem { Content = "[bez szablonu]", Tag = "" });
+        foreach (var w in EdrWzory.Lista) wzor.Items.Add(new ComboBoxItem { Content = w.Tytul, Tag = w.Nr });
+        wzor.SelectedIndex = 0; wzorWybor = wzor;
+        var polaWz = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+        polaWz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) }); polaWz.ColumnDefinitions.Add(new ColumnDefinition());
+        var wartosciWz = new Dictionary<string, Func<string>>();
+        if (!okolicznosc) { sp.Children.Add(wzor); sp.Children.Add(polaWz); }
         sp.Children.Add(Et(okolicznosc ? "Treść (inne okoliczności):" : "Adres i treść rozmowy lub telefonogramu:"));
         var tresc = new TextBox { Height = 90, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Background = EdrWindow.Pedzel(0xFB, 0xF4, 0xC8), VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         sp.Children.Add(tresc);
 
         // zmiana stanu bieżącego szlaku – tylko telefonogram z dziennika ruchu
         var zmiany = new List<(string Szlak, ComboBox Status, ComboBox Rodzaj, ComboBox Kier, ComboBox Pod)>();
+        GroupBox grupaZmian = null;
+        var skutekWz = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = EdrWindow.Zegar, Margin = new Thickness(0, 4, 0, 0), Visibility = Visibility.Collapsed };
         if (d != null && !okolicznosc)
         {
             var gz = new Grid { Margin = new Thickness(4) };
@@ -90,8 +101,60 @@ public class OknoTelefonogramu : Window
                 Kom(1, st); Kom(2, ro); Kom(3, ki); Kom(4, po);
                 zmiany.Add((t.Szlak, st, ro, ki, po));
             }
-            sp.Children.Add(new GroupBox { Header = "Zmiana stanu bieżącego szlaku (wzory telefonogramów zrobią to same – na razie ręcznie)", Content = gz, Margin = new Thickness(0, 8, 0, 0) });
+            sp.Children.Add(grupaZmian = new GroupBox { Header = "Zmiana stanu bieżącego szlaku (telefonogram bez szablonu – ręcznie; wzór – sam)", Content = gz, Margin = new Thickness(0, 8, 0, 0) });
         }
+        if (!okolicznosc) sp.Children.Add(skutekWz);
+
+        // pola wybranego wzoru i podgląd treści (od – posterunek nadający, do – odbierający, jak w rdzeniu)
+        EdrWzor Wybrany() => EdrWzory.Wzor((wzor.SelectedItem as ComboBoxItem)?.Tag as string);
+        Dictionary<string, string> Wartosci() => wartosciWz.ToDictionary(x => x.Key, x => x.Value());
+        void Podglad()
+        {
+            var w = Wybrany();
+            if (w == null) return;
+            string tu = nazwaPost, tam = d?.Sasiad ?? drugi.Text;
+            bool n = nadaje.IsChecked == true;
+            tresc.Text = EdrWzory.Tresc(w, Wartosci(), n ? tu : tam, n ? tam : tu, null, podglad: true).Tresc;
+        }
+        void Buduj()
+        {
+            polaWz.Children.Clear(); polaWz.RowDefinitions.Clear(); wartosciWz.Clear();
+            var w = Wybrany();
+            tresc.IsReadOnly = w != null; tresc.Background = w != null ? EdrWindow.Pedzel(0xF2, 0xEE, 0xD8) : EdrWindow.Pedzel(0xFB, 0xF4, 0xC8);
+            if (grupaZmian != null) grupaZmian.IsEnabled = w == null;
+            skutekWz.Visibility = w != null ? Visibility.Visible : Visibility.Collapsed;
+            skutekWz.Text = w == null ? "" : EdrWzory.OpisSkutku(w) + (d == null && w.Skutek != null ? " (tylko z dziennika ruchu – z dziennika telefonicznego stan szlaku się nie zmienia)" : "");
+            if (w == null) { tresc.Text = ""; return; }
+            int r = 0;
+            foreach (var id in w.Pola)
+            {
+                var p = EdrWzory.Pola[id];
+                polaWz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var et = new TextBlock { Text = p.Etykieta + ":", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 6, 2) };
+                Grid.SetRow(et, r); polaWz.Children.Add(et);
+                FrameworkElement el;
+                if (p.Rodzaj == "wybor" || p.Rodzaj == "tor" && d != null)
+                {
+                    var cb = new ComboBox { Margin = new Thickness(0, 2, 0, 2) };
+                    foreach (var o in p.Rodzaj == "tor" ? d.Biezace.Tory.Select(t => t.Tor) : p.Opcje) cb.Items.Add(o);
+                    cb.SelectedIndex = cb.Items.Count > 0 ? 0 : -1;
+                    cb.SelectionChanged += (a, e) => Podglad();
+                    wartosciWz[id] = () => cb.SelectedItem as string ?? ""; el = cb;
+                }
+                else
+                {
+                    var tb = p.Rodzaj == "godzina" ? Godz(id == "godz" ? okno.Teraz : "") : Pole();
+                    tb.Margin = new Thickness(0, 2, 0, 2);
+                    tb.TextChanged += (a, e) => Podglad();
+                    wartosciWz[id] = () => tb.Text; el = tb;
+                }
+                Grid.SetRow(el, r); Grid.SetColumn(el, 1); polaWz.Children.Add(el);
+                r++;
+            }
+            Podglad();
+        }
+        wzor.SelectionChanged += (a, e) => Buduj();
+        nadaje.Checked += (a, e) => Podglad(); odbiera.Checked += (a, e) => Podglad(); drugi.TextChanged += (a, e) => Podglad();
 
         sp.Children.Add(Et("Dodatkowa notatka:"));
         var notatka = new TextBox { Height = 50, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
@@ -107,6 +170,7 @@ public class OknoTelefonogramu : Window
             {
                 Rodzaj = okolicznosc ? "okolicznosc" : "telefonogram", Nadaje = n, NrOdbiorcy = nrOdb.Text, Data = data.Text, Godz = godz.Text, CzasZak = zak.Text,
                 Nadal = nadal.Text, Odebral = odebral.Text, NadalPost = n ? "" : drugi.Text, OdebralPost = n ? drugi.Text : "", Tresc = tresc.Text, Notatka = notatka.Text,
+                Wzor = Wybrany()?.Nr ?? "[bez szablonu]", Pola = Wybrany() != null ? Wartosci() : new(),
                 Zmiany = zmiany.Select(z => new EdrZmianaToru
                 {
                     Szlak = z.Szlak, Status = z.Status.SelectedIndex > 0 ? z.Status.SelectedItem as string : null, Rodzaj = z.Rodzaj.SelectedIndex > 0 ? z.Rodzaj.SelectedItem as string : null,

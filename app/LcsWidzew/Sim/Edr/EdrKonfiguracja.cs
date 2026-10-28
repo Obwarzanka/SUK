@@ -34,7 +34,47 @@ public class EdrSzlakUkladu { public string Id, Tor, Linia, Sasiad, Typ; public 
 public class EdrBezWypadku { public string Tekst = "Czas bez wypadku spow. przez pracownika PLK", Od; }
 
 /// <summary>Trasa pociągu (zakładka „Trasa pociągu”): posterunek, przyjazd i odjazd wg rozkładu, tor.</summary>
-public class EdrTrasa { public string Posterunek { get; set; } public string Przyjazd { get; set; } public string Odjazd { get; set; } public string Tor { get; set; } public string Postoj { get; set; } }
+/// <summary>
+/// Wiersz zakładki „Trasa pociągu” – kolumny jak w EDR.exe (E8c): przyjazd plan. / rzecz. (data, godz.), +/-, potwierdzenie (Z), Lp., stacja,
+/// postój zamówiony / obliczony, typ postoju, P T, odjazd plan. / rzecz., +/-, rodzaj, numer; gotowość do odjazdu i skład – bez danych w rozkładzie.
+/// </summary>
+public class EdrTrasa
+{
+    public string Posterunek { get; set; }
+    /// <summary>Przyjazd i odjazd planowy „dd-MM HH:mm” (zgodność z wcześniejszym zapisem).</summary>
+    public string Przyjazd { get; set; }
+    public string Odjazd { get; set; }
+    public string Tor { get; set; }
+    public string Postoj { get; set; }
+    public string PrzPlanData { get; set; } = "";
+    public string PrzPlanGodz { get; set; } = "";
+    public string PrzRzeczData { get; set; } = "";
+    public string PrzRzeczGodz { get; set; } = "";
+    public string PrzOdch { get; set; } = "";
+    /// <summary>„✓” – czas przejazdu przez posterunek zarejestrowany w ruchu.</summary>
+    public string Z { get; set; } = "";
+    public string Lp { get; set; } = "";
+    public string PZam { get; set; } = "";
+    public string PObl { get; set; } = "";
+    public string Gwiazdka { get; set; } = "";
+    public string PT { get; set; } = "";
+    public string OdjPlanData { get; set; } = "";
+    public string OdjPlanGodz { get; set; } = "";
+    public string OdjRzeczData { get; set; } = "";
+    public string OdjRzeczGodz { get; set; } = "";
+    public string OdjOdch { get; set; } = "";
+    public string Rodz { get; set; } = "";
+    public string Nr { get; set; } = "";
+    public string Gotowosc { get; set; } = "";
+    public string CzasWpisu { get; set; } = "";
+    public string Maszynista { get; set; } = "";
+    public string SeriaPl { get; set; } = "";
+    public string DlPl { get; set; } = "";
+    public string BruttoPl { get; set; } = "";
+    public string SeriaRz { get; set; } = "";
+    public string DlRz { get; set; } = "";
+    public string BruttoRz { get; set; } = "";
+}
 
 public partial class Edr
 {

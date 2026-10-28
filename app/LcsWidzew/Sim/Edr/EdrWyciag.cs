@@ -9,6 +9,8 @@ public class WyciagWiersz
     public string Rodzaj;
     /// <summary>Wcześniejsza postać wiersza (wyciąg z historią – szara, pod bieżącą).</summary>
     public bool Historyczny;
+    /// <summary>Wpis wykreślony (przyczyna w uwagach / pod treścią) – E8d.</summary>
+    public bool Wykreslony;
     public string Np = "", P = "", Tor = "", Dw = "", Odj = "", Prz = "", Uwagi = "", Tekst = "", Podpis = "";
     /// <summary>Kolumna 9 – data i godzina zmiany (wyciąg z historią).</summary>
     public string Zmiana = "";
@@ -65,13 +67,13 @@ public static class EdrWyciag
             for (int i = 0; i < wersje.Count; i++)
             {
                 var v = wersje[i];
-                var x = new WyciagWiersz { Historyczny = i > 0, Zmiana = historia ? Kol9(v.Zmiana) : "" };
+                var x = new WyciagWiersz { Historyczny = i > 0, Zmiana = historia ? Kol9(v.Zmiana) : "", Wykreslony = v.Wykreslono != null };
                 switch (r.Rodzaj)
                 {
                     case "telefonogram":
                         x.Rodzaj = "tel"; x.Tekst = r.Tel.Tresc + (r.Tel.Notatka != "" ? " " + r.Tel.Notatka : ""); x.Podpis = Edr.Podpis(r.Tel); break;
                     case "wpis":
-                        x.Rodzaj = "wpis"; x.Tekst = r.Tekst; x.Podpis = $"Wpisał {v.Kto} godz. {v.Uwagi}"; break;
+                        x.Rodzaj = "wpis"; x.Tekst = r.Tekst + (v.Wykreslono != null ? $" – Wykreślono: {v.Wykreslono}" : ""); x.Podpis = $"Wpisał {v.Kto} godz. {v.Uwagi}"; break;
                     case "tekst":
                         x.Rodzaj = "tekst"; x.Tekst = r.Tekst; break;
                     default:
@@ -79,6 +81,7 @@ public static class EdrWyciag
                         if (Edr.KolumnaNumeru(v.Nr) == 1) x.Np = v.Nr; else x.P = v.Nr;
                         x.Tor = v.Tor; x.Dw = v.Dw; x.Odj = v.Odj; x.Prz = v.Prz;
                         x.Uwagi = (v.Lewy ? "Po torze lewym" + (v.Uwagi != "" ? "; " : "") : "") + v.Uwagi;
+                        if (v.Wykreslono != null) x.Uwagi += (x.Uwagi != "" ? "; " : "") + "Wykreślono: " + v.Wykreslono;
                         x.Dr = dr.Select(z => Edr.Wartosc(v, "Dr:" + z.Id)).ToList();
                         x.Klamra = r.Para == 0 ? 0 : r.Pierwszy ? 1 : 2;
                         break;

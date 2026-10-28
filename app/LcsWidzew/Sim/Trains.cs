@@ -60,6 +60,8 @@ public class TimetableEntry
     /// <summary>Plan na posterunkach (wykaz pociągów EDR): przyjazd i odjazd [s od początku symulacji], tor – z rozkładu rzeczywistego.</summary>
     public Dictionary<string, double> PlanPrz, PlanOdj;
     public Dictionary<string, string> PlanTor;
+    /// <summary>Peron na posterunku z rozkładu rzeczywistego (pole <c>platform</c>: „2” albo „II”).</summary>
+    public Dictionary<string, string> PlanPeron;
     /// <summary>EDR: stacja początkowa i końcowa biegu, przewoźnik, kategoria wg Ir-11, uwagi dyspozytora, nie kursuje (zaznacza dyspozytor).</summary>
     public string Origin, Destination, Przewoznik, KatIr11, UwagiEksp, UwagiPrzew;
     public bool NieKursuje;
@@ -67,7 +69,7 @@ public class TimetableEntry
     public List<PlanPunkt> Przebieg;
 }
 
-public class PlanPunkt { public string Post, Track, Num; public double Arr, Dep; }
+public class PlanPunkt { public string Post, Track, Num, Peron; public double Arr, Dep; }
 
 public class CatDef { public double Len, VMax, Dwell; public RgbColor Color; }
 

@@ -89,6 +89,8 @@ public partial class App : Application
         bool logiProba = Zdejmij(args, "--logi-proba", false) != null;
         string tryb = args.Contains("--selftest") ? "selftest" : args.Contains("--trasy") ? "trasy" : args.Contains("--screenshot") ? "zrzut" : "pulpit";
         StartLogow(logiKatalog, tryb, logiProba);
+        // EDR: dzienniki zapisywane do pliku obok układu tylko w pracy na pulpicie (selftest, zrzuty i testy nie zostawiają plików obok układu)
+        Sim.Edr.ZapisDziennikow = tryb == "pulpit" && !args.Contains("--edrtest");
         int si = args.IndexOf("--station");
         if (si >= 0 && si + 1 < args.Count) { StationPath = Path.GetFullPath(args[si + 1]); args.RemoveRange(si, 2); }
         var A = args.ToArray();

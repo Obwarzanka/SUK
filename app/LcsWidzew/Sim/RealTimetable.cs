@@ -113,16 +113,17 @@ public partial class Rozklad
                 q.T = Math.Max(1, f.Arr - 600 - t0); q.Dep = f.Dep - t0;
             }
             // plan na posterunkach dla wykazu pociągów EDR (przyjazd / odjazd albo przejazd, tor)
-            q.PlanPrz = new(); q.PlanOdj = new(); q.PlanTor = new(); q.Przebieg = new();
+            q.PlanPrz = new(); q.PlanOdj = new(); q.PlanTor = new(); q.PlanPeron = new(); q.Przebieg = new();
             for (int i = 0; i < stops.Count; i++)
                 if (stops[i].Post != null)
-                    q.Przebieg.Add(new PlanPunkt { Post = stops[i].Post, Arr = stops[i].Arr - t0, Dep = stops[i].Dep - t0, Track = stops[i].Track,
+                    q.Przebieg.Add(new PlanPunkt { Post = stops[i].Post, Arr = stops[i].Arr - t0, Dep = stops[i].Dep - t0, Track = stops[i].Track, Peron = stops[i].Pl,
                         Num = numsAt.Where(x => x.Key < i).OrderBy(x => x.Key).Select(x => x.Value).LastOrDefault() ?? num });
             foreach (var s in stops)
             {
                 if (s.Post == null) continue;
                 q.PlanPrz.TryAdd(s.Post, s.Arr - t0); q.PlanOdj[s.Post] = s.Dep - t0;
                 if (s.Track != null) q.PlanTor.TryAdd(s.Post, s.Track);
+                if (!string.IsNullOrWhiteSpace(s.Pl)) q.PlanPeron.TryAdd(s.Post, s.Pl.Trim());
             }
             res.Add(q);
 

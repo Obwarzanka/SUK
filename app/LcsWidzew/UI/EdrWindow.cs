@@ -17,7 +17,7 @@ public class EdrWindow : Window
 {
     // kolory wg filmu ze stanowiska ISDR: szare tło okna, ciemne nagłówki dziennika, pomarańczowy wiersz niekompletny, granatowy zegar
     internal static readonly Brush Tlo = Pedzel(0xE6, 0xE6, 0xE6), Naglowek = Pedzel(0x3A, 0x3A, 0x3A), Linia = Pedzel(0xC4, 0xC4, 0xC4),
-        Niekompletny = Pedzel(0xF6, 0xC5, 0x90), Brak = Pedzel(0xA9, 0xC4, 0xE4), Kompletny = Brushes.White, Tekstowy = Pedzel(0xF1, 0xF1, 0xF1),
+        Niekompletny = Pedzel(0xF6, 0xC5, 0x90), Brak = Pedzel(151, 186, 205), Kompletny = Brushes.White, Tekstowy = Pedzel(0xF1, 0xF1, 0xF1),
         Wykaz = Pedzel(0xEE, 0xEE, 0xD2), Zegar = Pedzel(0x22, 0x41, 0x8C), PoleDziennika = Pedzel(0xEB, 0xEB, 0xEB);
     internal static Brush Pedzel(byte r, byte g, byte b) { var x = new SolidColorBrush(Color.FromRgb(r, g, b)); x.Freeze(); return x; }
 
@@ -32,7 +32,9 @@ public class EdrWindow : Window
     readonly List<DziennikWidok> widoki = new();
     readonly WykazPociagow wykazPanel;
     /// <summary>Zakładki nad wykazem: „Opis pociągu”, „Trasa pociągu”, „Przewoźnik” – zaznaczony pociąg (szkielet, uwaga właściciela 2026-10-28).</summary>
-    readonly StackPanel opisPociagu = new() { Margin = new Thickness(12) }, przewoznik = new() { Margin = new Thickness(12) };
+    readonly StackPanel przewoznik = new() { Margin = new Thickness(12) };
+    /// <summary>„Opis pociągu” w układzie EDR.exe (E8b): pola po lewej, uwagi po prawej, pola wyboru TN / TWR / nadzwyczajne.</summary>
+    readonly Grid opisPociagu = new() { Margin = new Thickness(8, 5, 8, 5), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
     readonly DataGrid trasaPociagu = new() { AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column, FontSize = 13, RowHeight = 24, Margin = new Thickness(6), Background = Pedzel(0xEE, 0xEE, 0xD2) };
     TabControl zakladkiPociagu;
     TelefonicznyWidok telefoniczny;
@@ -93,12 +95,11 @@ public class EdrWindow : Window
         // wykaz pociągów posterunku (etap E2)
         var wykaz = new TabControl { Background = Tlo, FontSize = 11 };
         wykaz.Items.Add(new TabItem { Header = "Wykaz pociągów", Content = wykazPanel = new WykazPociagow(this) });
-        wykaz.Items.Add(new TabItem { Header = "Opis pociągu", Content = opisPociagu });
+        wykaz.Items.Add(new TabItem { Header = "Opis pociągu", Content = new ScrollViewer { Content = opisPociagu, Background = Brushes.White, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
         wykaz.Items.Add(new TabItem { Header = "Trasa pociągu", Content = trasaPociagu });
         wykaz.Items.Add(new TabItem { Header = "Przewoźnik", Content = przewoznik });
         zakladkiPociagu = wykaz;
-        foreach (var (h, pl) in new[] { ("Posterunek", "Posterunek"), ("Przyjazd plan.", "Przyjazd"), ("Odjazd plan.", "Odjazd"), ("Tor", "Tor"), ("Typ p.", "Postoj") })
-            trasaPociagu.Columns.Add(new DataGridTextColumn { Header = h, Binding = new System.Windows.Data.Binding(pl), MinWidth = 140 });
+        KolumnyTrasy();
         wykazPanel.Wybrano += OpisPociagu;
         Grid.SetRow(wykaz, 1); g.Children.Add(wykaz);
         var spl = new GridSplitter { HorizontalAlignment = HorizontalAlignment.Stretch, Background = Linia }; Grid.SetRow(spl, 2); g.Children.Add(spl);
@@ -127,6 +128,7 @@ public class EdrWindow : Window
     {
         var d = ses.GetEdr();
         if (d == null) { komunikat.Text = "Brak danych EDR z serwera"; return; }
+        if (d.BladDziennikow != null && Dane?.BladDziennikow == null) { komunikat.Text = "EDR: " + d.BladDziennikow; komunikat.Foreground = Brushes.Firebrick; }
         Dane = d;
         zegar.Text = d.Zegar; data.Text = d.Data;
         bezWypTekst.Text = d.BezWypadku?.Tekst ?? ""; bezWypCzas.Text = d.BezWypadkuCzas ?? "";
@@ -252,7 +254,7 @@ public class EdrWindow : Window
     /// <summary>Zakładki „Opis pociągu”, „Trasa pociągu”, „Przewoźnik” – zaznaczony pociąg.</summary>
     void OpisPociagu(EdrPociag p)
     {
-        opisPociagu.Children.Clear(); przewoznik.Children.Clear();
+        opisPociagu.Children.Clear(); opisPociagu.RowDefinitions.Clear(); opisPociagu.ColumnDefinitions.Clear(); przewoznik.Children.Clear();
         void W(Panel pn, string l, string v)
         {
             var r = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -261,21 +263,138 @@ public class EdrWindow : Window
             pn.Children.Add(r);
         }
         if (p == null) { opisPociagu.Children.Add(new TextBlock { Text = "Zaznacz pociąg w wykazie.", Foreground = Brushes.DimGray }); trasaPociagu.ItemsSource = null; return; }
-        W(opisPociagu, "Numer pociągu:", p.Nr + (p.NrWyj != p.Nr ? $" (przy odjeździe {p.NrWyj})" : ""));
-        W(opisPociagu, "Nazwa pociągu:", p.Nazwa);
-        W(opisPociagu, "Kategoria (Ir-11):", p.Rodz);
-        W(opisPociagu, "Rodzaj w rozkładzie:", p.Kod);
-        W(opisPociagu, "Relacja:", $"{p.StacjaPocz} – {p.StacjaKonc}".Trim(' ', '–'));
-        W(opisPociagu, "Przewoźnik:", p.Przewoznik);
-        W(opisPociagu, "Pojazd / długość:", string.Join(", ", new[] { p.Pojazd, p.Dlugosc }.Where(x => !string.IsNullOrEmpty(x))));
-        W(opisPociagu, "Kursuje:", p.Kursuje ? "tak (K)" : "nie (NK)");
-        W(opisPociagu, "Uwagi eksploatacyjne:", p.UwagiEksp);
-        W(opisPociagu, "Stan:", p.Stan);
+        OpisJakEdr(p);
         trasaPociagu.ItemsSource = p.Trasa;
         W(przewoznik, "Przewoźnik:", p.Przewoznik);
         W(przewoznik, "Uwagi przewoźnika:", p.UwagiPrzew);
         przewoznik.Children.Add(new TextBlock { Text = "Dane przewoźnika (kontakt, skład pociągu) – w kolejnych etapach.", Foreground = Brushes.DimGray, Margin = new Thickness(0, 8, 0, 0) });
     }
+
+    // kolory i czcionka opisu wg EDR.exe: granatowe pogrubione etykiety, kremowe pola tylko do odczytu, Tahoma 9 pt
+    static readonly Brush OpisEtykieta = Pedzel(0, 0, 128), OpisPole = Pedzel(255, 255, 225), OpisRezygnacja = Pedzel(242, 212, 181), OpisRamka = Pedzel(0x7A, 0x7A, 0x7A);
+    static readonly FontFamily OpisCzcionka = new("Tahoma");
+
+    /// <summary>
+    /// „Opis pociągu” w układzie EDR.exe (E8b): po lewej pola opisu (numer, nazwa, rodzaj, przewoźnik, typ, stacje, rozkład, wniosek, rezygnacja),
+    /// po prawej pola wielowierszowe (informacje dodatkowe, ładunek, uwagi) i pola wyboru. Pola, których rozkład nie ma, zostają puste. Tylko do odczytu.
+    /// </summary>
+    void OpisJakEdr(EdrPociag p)
+    {
+        var g = opisPociagu;
+        foreach (var w in new[] { 174.0, 250, 24, 520 }) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        TextBlock Etykieta(string t) => new() { Text = t, FontFamily = OpisCzcionka, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = OpisEtykieta, VerticalAlignment = VerticalAlignment.Center };
+        TextBox Pole(string v, double h, double szer = double.NaN, Brush tlo = null) => new()
+        {
+            Text = v ?? "", IsReadOnly = true, Height = h, Width = szer, HorizontalAlignment = double.IsNaN(szer) ? HorizontalAlignment.Stretch : HorizontalAlignment.Left,
+            FontFamily = OpisCzcionka, FontSize = 12, Background = tlo ?? OpisPole, BorderBrush = OpisRamka, BorderThickness = new Thickness(1), Padding = new Thickness(1, 0, 1, 0),
+            TextWrapping = h > 22 ? TextWrapping.Wrap : TextWrapping.NoWrap, VerticalContentAlignment = h > 22 ? VerticalAlignment.Top : VerticalAlignment.Center
+        };
+        void Wstaw(FrameworkElement e, int r, int c)
+        {
+            while (g.RowDefinitions.Count <= r) g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            e.Margin = new Thickness(0, 1, 4, 2);
+            Grid.SetRow(e, r); Grid.SetColumn(e, c); g.Children.Add(e);
+        }
+
+        // lewa strona: pola jednowierszowe (krótkie – numery i rodzaj, jak w EDR.exe)
+        var lewe = new (string Etykieta, string Wartosc, bool Krotkie)[]
+        {
+            ("Numer pociągu:", p.Nr + (p.NrWyj != p.Nr ? " / " + p.NrWyj : ""), true), ("Numer międzynarodowy:", "", true), ("Nazwa pociągu:", p.Nazwa, false),
+            ("Numer zamówienia:", "", true), ("Rodzaj pociągu:", p.Rodz, true), ("Przewoźnik:", p.Przewoznik, false), ("Typ pociągu:", p.Kod == p.Przewoznik ? "" : p.Kod, false),
+            ("Stacja początkowa:", p.StacjaPocz, false), ("Stacja końcowa:", p.StacjaKonc, false), ("Rodzaj rozkładu jazdy:", "", false),
+            ("Nr wniosku:", "", false), ("Data wniosku:", "", false),
+        };
+        for (int i = 0; i < lewe.Length; i++)
+        {
+            Wstaw(Etykieta(lewe[i].Etykieta), i, 0);
+            Wstaw(Pole(lewe[i].Wartosc, 20, lewe[i].Krotkie ? 160 : 246), i, 1);
+        }
+
+        // prawa strona: pola wielowierszowe (etykieta nad polem) i pola wyboru
+        var info = string.Join("; ", new[] { p.Pojazd, p.Dlugosc, p.Kursuje ? "" : "nie kursuje (NK)", string.IsNullOrEmpty(p.Stan) ? "" : "stan: " + p.Stan }.Where(x => !string.IsNullOrEmpty(x)));
+        var prawe = new StackPanel();
+        foreach (var (e, v) in new[] { ("Informacje dodatkowe:", info), ("Ładunek:", ""), ("Uwagi przewoźnika:", p.UwagiPrzew), ("Uwagi eksploatacyjne:", p.UwagiEksp), ("Uwagi własne:", p.UwagiWlasne) })
+        {
+            prawe.Children.Add(Etykieta(e));
+            var pole = Pole(v, 32); pole.Margin = new Thickness(0, 0, 0, 3); prawe.Children.Add(pole);
+        }
+        // pola wyboru jak w EDR.exe – rozkład ich nie podaje, więc są puste (tylko do odczytu)
+        var flagi = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var w in new[] { 300.0, 133, 87 }) flagi.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+        foreach (var (t, r, c) in new[] { ("Przekroczona skrajnia", 0, 0), ("Przekroczony nacisk", 1, 0), ("Inne nadzwyczajne", 2, 0), ("TWR", 0, 1), ("TN", 0, 2), ("Zamknięciowy", 3, 0), ("Śledzony", 3, 1) })
+        {
+            while (flagi.RowDefinitions.Count <= r) flagi.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var cb = new CheckBox { Content = t, IsChecked = false, IsHitTestVisible = false, Focusable = false, FontFamily = OpisCzcionka, FontSize = 12, Foreground = OpisEtykieta, Margin = new Thickness(0, r == 3 ? 8 : 1, 0, 1) };
+            Grid.SetRow(cb, r); Grid.SetColumn(cb, c); flagi.Children.Add(cb);
+        }
+        prawe.Children.Add(flagi);
+        Wstaw(prawe, 0, 3); Grid.SetRowSpan(prawe, lewe.Length + 2);
+
+        // pod spodem: wnioskodawca, rezygnacja i data rezygnacji (łososiowe tło jak w EDR.exe)
+        int rz = lewe.Length;
+        Wstaw(Etykieta("Wnioskodawca:"), rz, 0); Wstaw(Pole("", 20, 246), rz, 1);
+        var rez = new StackPanel { Orientation = Orientation.Horizontal };
+        rez.Children.Add(Pole("", 20, 40, OpisRezygnacja));
+        var dr = Etykieta("Data rezygnacji:"); dr.Margin = new Thickness(18, 0, 6, 0); rez.Children.Add(dr);
+        rez.Children.Add(Pole("", 20, 108, OpisRezygnacja));
+        Wstaw(Etykieta("Rezygnacja:"), rz + 1, 0); Wstaw(rez, rz + 1, 1);
+    }
+
+    /// <summary>
+    /// Kolumny „Trasy pociągu” jak w EDR.exe (E8c): 29 kolumn, nagłówek – gradient od białego do koloru grupy (godziny – oliwkowy, postój – szary,
+    /// gotowość – zielony, skład rzeczywisty – morski, pozostałe – granatowy), kremowe komórki, zaznaczenie niebieskie.
+    /// </summary>
+    void KolumnyTrasy()
+    {
+        var kol = new (string Naglowek, string Pole, double Szer)[]
+        {
+            ("Przyjazd plan.", nameof(EdrTrasa.PrzPlanData), 51), ("Godz.", nameof(EdrTrasa.PrzPlanGodz), 35), ("Przyjazd rzecz.", nameof(EdrTrasa.PrzRzeczData), 51), ("Godz.", nameof(EdrTrasa.PrzRzeczGodz), 35),
+            ("+/-", nameof(EdrTrasa.PrzOdch), 29), ("Z", nameof(EdrTrasa.Z), 23), ("Lp.", nameof(EdrTrasa.Lp), 25), ("Stacja", nameof(EdrTrasa.Posterunek), 138),
+            ("Post. zam.", nameof(EdrTrasa.PZam), 39), ("P. obl.", nameof(EdrTrasa.PObl), 39), ("Typ postoju", nameof(EdrTrasa.Postoj), 55), ("*", nameof(EdrTrasa.Gwiazdka), 18),
+            ("P T", nameof(EdrTrasa.PT), 30), ("Odjazd plan.", nameof(EdrTrasa.OdjPlanData), 51), ("Godz.", nameof(EdrTrasa.OdjPlanGodz), 35), ("Odjazd rzecz.", nameof(EdrTrasa.OdjRzeczData), 51),
+            ("Godz.", nameof(EdrTrasa.OdjRzeczGodz), 35), ("+/-", nameof(EdrTrasa.OdjOdch), 29), ("Rodz.", nameof(EdrTrasa.Rodz), 36), ("Nr poc.", nameof(EdrTrasa.Nr), 48),
+            ("Got. do odj.", nameof(EdrTrasa.Gotowosc), 68), ("Czas wpisu", nameof(EdrTrasa.CzasWpisu), 68), ("Maszynista", nameof(EdrTrasa.Maszynista), 90),
+            ("Seria pl.", nameof(EdrTrasa.SeriaPl), 65), ("Dł. pl.", nameof(EdrTrasa.DlPl), 45), ("Brutto pl.", nameof(EdrTrasa.BruttoPl), 52),
+            ("Seria rz.", nameof(EdrTrasa.SeriaRz), 82), ("Dł. rz.", nameof(EdrTrasa.DlRz), 45), ("Brutto rz.", nameof(EdrTrasa.BruttoRz), 52),
+        };
+        // kolor nagłówka i napisu wg numeru kolumny (EDR.exe, RouteAppearance)
+        Color Kolor(int n) => n is >= 20 and <= 22 ? Color.FromRgb(0, 130, 0) : n is 1 or 3 or 14 or 16 or 23 or 24 or 25 ? Color.FromRgb(105, 105, 45)
+            : n is >= 8 and <= 11 ? Color.FromRgb(128, 128, 128) : n is >= 26 and <= 28 ? Color.FromRgb(0, 80, 85) : Color.FromRgb(0, 0, 75);
+        bool Czarny(int n) => n is >= 20 and <= 22 or 3 or 14 or 16 or 8 or 9 or 10;
+        trasaPociagu.Background = Brushes.White;
+        trasaPociagu.FontFamily = new FontFamily("Tahoma"); trasaPociagu.FontSize = 12; trasaPociagu.RowHeight = 22;
+        trasaPociagu.RowBackground = TrasaKrem; trasaPociagu.AlternatingRowBackground = TrasaKrem;
+        trasaPociagu.HorizontalGridLinesBrush = TrasaLinia; trasaPociagu.VerticalGridLinesBrush = TrasaLinia;
+        trasaPociagu.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        for (int n = 0; n < kol.Length; n++)
+        {
+            var hs = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            hs.Setters.Add(new Setter(Control.BackgroundProperty, new LinearGradientBrush(Colors.White, Kolor(n), 90)));
+            hs.Setters.Add(new Setter(Control.ForegroundProperty, Czarny(n) ? Brushes.Black : Brushes.White));
+            hs.Setters.Add(new Setter(Control.BorderBrushProperty, TrasaRamka));
+            hs.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+            hs.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(0, 2, 0, 2)));
+            hs.Setters.Add(new Setter(Control.FontSizeProperty, 11.0));
+            hs.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Bold));
+            hs.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            hs.Setters.Add(new Setter(ToolTipService.ToolTipProperty, kol[n].Naglowek + (n is 0 or 2 or 13 or 15 ? " – data" : "")));
+            var cs = new Style(typeof(DataGridCell));
+            cs.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
+            cs.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.Black));
+            cs.Triggers.Add(new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true, Setters = { new Setter(Control.BackgroundProperty, WykazPociagow.Zaznaczony), new Setter(Control.ForegroundProperty, Brushes.White) } });
+            var es = new Style(typeof(TextBlock));
+            es.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(3, 0, 3, 0)));
+            es.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            es.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, n == 7 ? HorizontalAlignment.Left : HorizontalAlignment.Center));
+            trasaPociagu.Columns.Add(new DataGridTextColumn
+            {
+                Header = new TextBlock { Text = kol[n].Naglowek, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center }, Binding = new System.Windows.Data.Binding(kol[n].Pole), HeaderStyle = hs, CellStyle = cs, ElementStyle = es,
+                // jak w EDR.exe (FitRouteColumns): kolumny w proporcjach EDR.exe dopasowane do szerokości okna
+                Width = new DataGridLength(kol[n].Szer, DataGridLengthUnitType.Star), MinWidth = 18
+            });
+        }
+    }
+    static readonly Brush TrasaKrem = Pedzel(255, 255, 225), TrasaLinia = Pedzel(215, 215, 215), TrasaRamka = Pedzel(190, 190, 190);
 
     /// <summary>Zrzut: zakładka nad wykazem (0 – wykaz, 1 – opis, 2 – trasa, 3 – przewoźnik).</summary>
     public void PokazZakladkePociagu(int i) => zakladkiPociagu.SelectedIndex = i;
@@ -624,9 +743,11 @@ class DziennikWidok
         {
             // wpis o dowolnej treści: tekst od lewej, kto i kiedy
             var sw = new StackPanel { Margin = new Thickness(60, 3, 8, 3) };
-            sw.Children.Add(new TextBlock { Text = w.Tekst, TextWrapping = TextWrapping.Wrap });
+            sw.Children.Add(new TextBlock { Text = w.Tekst, TextWrapping = TextWrapping.Wrap, TextDecorations = w.Wykreslony ? TextDecorations.Strikethrough : null, Foreground = w.Wykreslony ? Wykreslony : Brushes.Black });
             sw.Children.Add(new TextBlock { Text = $"Wpisał {w.W.Kto} godz. {w.W.Uwagi}", Foreground = EdrWindow.Pedzel(0x55, 0x55, 0x55), FontSize = 11 });
-            var bw = new Border { Background = Brushes.White, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 0, 1), Child = sw, ToolTip = "Wpis o dowolnej treści" };
+            if (w.Wykreslony) sw.Children.Add(PodpisWykreslenia(w));
+            var bw = new Border { Background = Brushes.White, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 0, 1), Child = sw, ToolTip = "Wpis o dowolnej treści" + (w.Wykreslony ? "" : "; PPM – wykreślenie") };
+            if (!w.Wykreslony) { var mw = new ContextMenu(); mw.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w))); bw.ContextMenu = mw; }
             Grid.SetColumnSpan(bw, Kol); g.Children.Add(bw);
             return g;
         }
@@ -637,7 +758,8 @@ class DziennikWidok
             var pole = PoleKolumny[c];
             string tekst = c is 0 or 1 ? (c == kn ? v.Nr : "") : Edr.Wartosc(v, pole);
             if (c == 6 && v.Lewy) tekst = "Po torze lewym" + (tekst != "" ? "; " + tekst : "");
-            bool brak = (c is 0 or 1 ? c == kn : true) && w.Wymagane.Contains(pole) && Edr.Wartosc(v, pole) == "";
+            if (c == 6 && w.Wykreslony) tekst += (tekst != "" ? "; " : "") + "Wykreślono: " + v.Wykreslono;
+            bool brak = !w.Wykreslony && (c is 0 or 1 ? c == kn : true) && w.Wymagane.Contains(pole) && Edr.Wartosc(v, pole) == "";
             g.Children.Add(Komorka(w, c, pole, tekst, brak ? EdrWindow.Brak : tlo));
         }
         // kolumna 8: dróżnicy przejazdowi – godzina (jak na linii jednotorowej) albo ukośnik (dwu- i więcej torowej); szare – nie dotyczy kierunku
@@ -645,12 +767,12 @@ class DziennikWidok
         {
             var x = dr[i]; var pole = "Dr:" + x.Id; var wart = Edr.Wartosc(v, pole);
             bool dotyczy = w.Rodzaj != "powrot" && x.Dotyczy(w.Rodzaj);
-            var tl = !dotyczy ? NieDotyczy : w.Wymagane.Contains(pole) && wart == "" ? EdrWindow.Brak : tlo;
+            var tl = !dotyczy ? NieDotyczy : !w.Wykreslony && w.Wymagane.Contains(pole) && wart == "" ? EdrWindow.Brak : tlo;
             if (!dotyczy) { var bn = new Border { Background = tl, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), ToolTip = $"Dróżnik {x.Oznaczenie}: nie dotyczy pociągów w tym kierunku" }; Grid.SetColumn(bn, 7 + i); g.Children.Add(bn); continue; }
             if (x.Godzina) { var kb = Komorka(w, 7 + i, pole, wart, tl, true); kb.ToolTip = $"Dróżnik {x.Oznaczenie} (km {x.Km}) – godzina powiadomienia. " + kb.ToolTip; g.Children.Add(kb); continue; }
             var bu = new Border { Background = tl, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), ToolTip = $"Dróżnik {x.Oznaczenie} (km {x.Km}) – klik: ukośnik „\\” (powiadomiono)",
                 Child = new TextBlock { Text = wart, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(2, 3, 2, 3), FontWeight = FontWeights.Bold } };
-            bu.MouseLeftButtonDown += (a, e) => { e.Handled = true; Ustaw(w, pole, wart == "" ? "\\" : ""); };
+            bu.MouseLeftButtonDown += (a, e) => { e.Handled = true; if (!w.Wykreslony) Ustaw(w, pole, wart == "" ? "\\" : ""); };
             Grid.SetColumn(bu, 7 + i); g.Children.Add(bu);
         }
         // jazda do km i z powrotem: klamra spina wiersz wyjazdu i wiersz powrotu (podręcznik EDR, Rys. 48)
@@ -661,9 +783,18 @@ class DziennikWidok
             Grid.SetColumn(kl, 0); g.Children.Add(kl);
         }
         if (w.Wersje.Count > 1)
-            g.ToolTip = "Historia zmian:\n" + string.Join("\n", w.Wersje.Select(x => $"{x.Zmiana}  {x.Kto} – " + (x.Pole == null ? $"zapis: {x.Nr}" : $"{Edr.NazwaPola(x.Pole)}: {(Edr.Wartosc(x, x.Pole) == "" ? "(puste)" : Edr.Wartosc(x, x.Pole))}")));
+            g.ToolTip = "Historia zmian:\n" + string.Join("\n", w.Wersje.Select(x => $"{x.Zmiana}  {x.Kto} – " + (x.Pole == null ? $"zapis: {x.Nr}" : x.Pole == "Wykreślenie" ? $"wykreślono: {x.Wykreslono}"
+                : $"{Edr.NazwaPola(x.Pole)}: {(Edr.Wartosc(x, x.Pole) == "" ? "(puste)" : Edr.Wartosc(x, x.Pole))}")));
+        if (w.Wczytany) g.ToolTip = (g.ToolTip is string tt ? tt + "\n" : "") + "Wpis z wcześniejszego uruchomienia (plik dzienników) – nie liczy się do stanu torów i wykazu.";
         return g;
     }
+
+    static readonly Brush Wykreslony = EdrWindow.Pedzel(0x80, 0x80, 0x80);
+
+    TextBlock PodpisWykreslenia(EdrWiersz w) => new() { Text = $"Wykreślono: {w.W.Wykreslono} ({w.W.Kto}, {w.W.Zmiana})", Foreground = Brushes.Firebrick, FontSize = 11, TextWrapping = TextWrapping.Wrap };
+
+    /// <summary>Wykreślenie wpisu (E8d): okno z przyczyną; wpis zostaje w dzienniku przekreślony.</summary>
+    void Wykresl(EdrWiersz w) => new OknoWykreslenia(okno, d, w) { Owner = okno }.ShowDialog();
 
     Border Komorka(EdrWiersz w, int c, string pole, string tekst, Brush tlo, bool? godzina = null)
     {
@@ -671,6 +802,13 @@ class DziennikWidok
         var tb = new TextBlock { Text = tekst, Margin = new Thickness(4, 3, 4, 3), HorizontalAlignment = c < 6 || godzina != null ? HorizontalAlignment.Center : HorizontalAlignment.Left, TextTrimming = TextTrimming.CharacterEllipsis };
         var b = new Border { Background = tlo, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), Child = tb };
         Grid.SetColumn(b, c);
+        if (w.Wykreslony)
+        {
+            // wpis wykreślony: przekreślony, szary, bez edycji; przyczyna w uwagach i w podpowiedzi
+            tb.TextDecorations = TextDecorations.Strikethrough; tb.Foreground = c == 6 ? Brushes.Firebrick : Wykreslony;
+            b.ToolTip = $"Wpis wykreślony: {w.W.Wykreslono} ({w.W.Kto}, {w.W.Zmiana})";
+            return b;
+        }
         b.MouseLeftButtonDown += (a, e) =>
         {
             if (godz) { if (!Edycja) { e.Handled = true; EdytujGodzine(b, w, pole); } return; }
@@ -685,9 +823,15 @@ class DziennikWidok
             menu.Items.Add(Pozycja("Bieżąca godzina", () => Ustaw(w, pole, okno.Teraz)));
             menu.Items.Add(Pozycja("Nie dotyczy (---)", () => Ustaw(w, pole, "---")));
             menu.Items.Add(Pozycja("Wyczyść", () => Ustaw(w, pole, "")));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w)));
             b.ContextMenu = menu;
         }
-        else b.ToolTip = "Dwuklik – zmiana wpisu";
+        else
+        {
+            b.ToolTip = "Dwuklik – zmiana wpisu; PPM – wykreślenie wpisu";
+            var menu = new ContextMenu(); menu.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w))); b.ContextMenu = menu;
+        }
         return b;
     }
 
@@ -695,8 +839,10 @@ class DziennikWidok
 
     static string OpisZmiany(EdrZmianaToru z) => $"szlak {z.Szlak}: " + string.Join(", ", new[]
     {
-        z.Status != null ? "tor " + z.Status.ToLowerInvariant() : null, z.Rodzaj != null ? "ruch " + z.Rodzaj.ToLowerInvariant() : null,
-        z.Zasadniczy is int k ? "kierunek zasadniczy " + (k < 0 ? "Z posterunku sąsiedniego" : k > 0 ? "DO posterunku sąsiedniego" : "nieustalony") : null, z.Podstawa != null ? "jak dla: " + z.Podstawa : null
+        z.Status != null ? "tor " + z.Status.ToLowerInvariant() + (string.IsNullOrEmpty(z.PoPociagu) ? "" : $" po przyjeździe pociągu {z.PoPociagu}") : null,
+        z.Rodzaj != null ? (z.Rodzaj == "*" ? "ruch zasadniczy" : "ruch " + z.Rodzaj.ToLowerInvariant()) : null,
+        z.Zasadniczy is int k ? "kierunek zasadniczy " + (k < 0 ? "Z posterunku sąsiedniego" : k > 0 ? "DO posterunku sąsiedniego" : "nieustalony") : null,
+        z.Podstawa != null ? (z.Podstawa == "*" ? "prowadzenie ruchu zasadnicze" : "jak dla: " + z.Podstawa) : null
     }.Where(x => x != null));
 
     static MenuItem Pozycja(string t, Action a) { var m = new MenuItem { Header = t }; m.Click += (s, e) => a(); return m; }
@@ -770,7 +916,7 @@ class OknoPociagu : Window
         Title = przyj ? "Przyjęcie pociągu" : "Wyprawienie pociągu";
         Width = 380; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = EdrWindow.Tlo; FontFamily = new FontFamily("Segoe UI"); ShowInTaskbar = false;
-        var wym = Edr.WymaganeDla(d.Typ);
+        var wym = Edr.Wymagane(d.Biezace, d.Ustawienia);
         var sp = new StackPanel { Margin = new Thickness(14) };
         sp.Children.Add(new TextBlock { Text = $"Pociąg {(przyj ? "Z" : "DO")}  {d.Sasiad.ToUpperInvariant()}", FontWeight = FontWeights.Bold, FontSize = 13, Foreground = EdrWindow.Zegar, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) });
         var g = new Grid();

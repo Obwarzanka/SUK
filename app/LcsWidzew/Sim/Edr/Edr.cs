@@ -17,6 +17,8 @@ public class EdrWersja
     public Dictionary<string, string> Dr = new();
     /// <summary>Godzina wprowadzenia do EDR każdej wpisanej godziny (pole → HH:mm); komórka pokazuje „godzina / godzina wprowadzenia” (film ISDR).</summary>
     public Dictionary<string, string> Wpis = new();
+    /// <summary>Wykreślenie wpisu (E8d): przyczyna; null – wpis ważny. Wpisu się nie kasuje – wykreślenie to nowa wersja.</summary>
+    public string Wykreslono;
     public EdrWersja Kopia() { var w = (EdrWersja)MemberwiseClone(); w.Dr = new(Dr ?? new()); w.Wpis = new(Wpis ?? new()); return w; }
 }
 
@@ -36,7 +38,11 @@ public class EdrWiersz
     /// <summary>Pola wymagane do uznania zapisu za kompletny (niebieskie tło, dopóki puste).</summary>
     public List<string> Wymagane = new();
     [System.Text.Json.Serialization.JsonIgnore] public EdrWersja W => Wersje.Count > 0 ? Wersje[^1] : null;
-    public bool Kompletny => Rodzaj is "tekst" or "telefonogram" or "wpis" || Wymagane.All(p => Edr.Wartosc(W, p) != "");
+    /// <summary>Wpis wykreślony (z przyczyną) – zostaje w dzienniku, nie liczy się do stanu torów ani wykazu.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public bool Wykreslony => W?.Wykreslono != null;
+    /// <summary>Wiersz wczytany z pliku dzienników (wcześniejsze uruchomienie) – historia, bez wpływu na bieżący ruch.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public bool Wczytany;
+    public bool Kompletny => Wykreslony || Rodzaj is "tekst" or "telefonogram" or "wpis" || Wymagane.All(p => Edr.Wartosc(W, p) != "");
 }
 
 /// <summary>
@@ -63,10 +69,14 @@ public class EdrTelefonogram
     public string Kto, Zapisano;
     /// <summary>Godzina wprowadzenia do EDR (w podpisie „Nadał …, odebrał … godz. …”; godzina nadania – osobno).</summary>
     public string Wprowadzono = "";
+    /// <summary>Wzór (E8e): numer wzoru z Data/telefonogramy.json (puste – „[bez szablonu]”) i wartości jego pól.</summary>
+    public string WzorNr = "";
+    public Dictionary<string, string> Pola = new();
 }
 
 /// <summary>Zmiana stanu bieżącego toru szlakowego telefonogramem (null – bez zmiany): status, rodzaj ruchu, kierunek zasadniczy, prowadzenie ruchu jak dla.</summary>
-public class EdrZmianaToru { public string Szlak, Status, Rodzaj, Podstawa; public int? Zasadniczy; }
+/// <summary>„*” w rodzaju ruchu i podstawie – przywrócenie zasadniczego z ustawień dziennika; PoPociagu – zmiana dopiero po przyjeździe tego pociągu (wzór 21a).</summary>
+public class EdrZmianaToru { public string Szlak, Status, Rodzaj, Podstawa, PoPociagu; public int? Zasadniczy; }
 
 /// <summary>Strona dziennika – jedna doba.</summary>
 public class EdrStrona { public int Doba; public string Data; public List<EdrWiersz> Wiersze = new(); }
@@ -197,6 +207,8 @@ public class EdrPociag
     public string OdjRzecz { get; set; }
     /// <summary>„ph” – postój handlowy wg rozkładu; puste – przejazd.</summary>
     public string Postoj { get; set; }
+    /// <summary>Kolumna „P T”: peron cyframi rzymskimi i tor cyframi arabskimi, np. „II 5” (uwaga właściciela 2026-10-28).</summary>
+    public string PT { get; set; } = "";
     public string Stan { get; set; }
     public bool Przyjety { get; set; }
     public bool Wyprawiony { get; set; }
@@ -269,6 +281,8 @@ public class EdrData
     public List<EdrSzlakUkladu> SzlakiUkladu = new();
     public EdrBezWypadku BezWypadku = new();
     public string BezWypadkuCzas = "", BladKonfiguracji;
+    /// <summary>Błąd odczytu pliku dzienników (zapis wyłączony) – komunikat w oknie EDR.</summary>
+    public string BladDziennikow;
     public int Doba;
     /// <summary>Czas symulacji [s] (zakres wykazu -/+ godz.).</summary>
     public double T;
@@ -299,6 +313,17 @@ public partial class Edr
     public readonly Dictionary<string, EdrRuch> Ruch = new();
     /// <summary>Plik ustawień zasadniczych dzienników obok pliku układu (null – bez zapisu).</summary>
     public string PlikUstawien;
+    /// <summary>
+    /// Zapis dzienników ruchu i telefonicznych do pliku &lt;układ&gt;.edr_dzienniki.json (E8d, decyzja właściciela 2026-10-28: ciągła historia –
+    /// każde uruchomienie dopisuje do tych samych dzienników). Włączany tylko w pracy na pulpicie (nie w selftestach i zrzutach).
+    /// </summary>
+    public static bool ZapisDziennikow;
+    public string PlikDziennikow;
+    /// <summary>Błąd odczytu pliku dzienników – zapis wyłączony, żeby nie zastąpić pliku (null – bez błędu).</summary>
+    public string BladDziennikow;
+    bool brudne;
+    /// <summary>Dzienniki z pliku, których nie ma w obecnej konfiguracji – zapisywane dalej bez zmian.</summary>
+    List<PlikDzDziennik> obceDzienniki = new();
     /// <summary>Dziennik telefoniczny posterunków (wszystkie doby) – telefonogramy i inne okoliczności zapisane w nim (bez telefonogramów z dzienników ruchu).</summary>
     public readonly Dictionary<string, List<EdrTelefonogram>> Telefoniczny = new();
     /// <summary>Numeracja telefonogramów posterunku: „dobowa” (domyślnie), „miesieczna” albo „roczna” – plik ustawień.</summary>
@@ -317,7 +342,82 @@ public partial class Edr
     {
         S = s;
         PlikUstawien = S.L.SourcePath == null ? null : Path.Combine(Path.GetDirectoryName(S.L.SourcePath) ?? "", Path.GetFileNameWithoutExtension(S.L.SourcePath) + ".edr.json");
+        PlikDziennikow = S.L.SourcePath == null ? null : Path.Combine(Path.GetDirectoryName(S.L.SourcePath) ?? "", Path.GetFileNameWithoutExtension(S.L.SourcePath) + ".edr_dzienniki.json");
         WczytajUstawienia();
+        if (ZapisDziennikow) WczytajDzienniki();
+    }
+
+    // ------------------------------------------------------------------ zapis dzienników (plik <układ>.edr_dzienniki.json)
+    public class PlikDzDziennik { public string Id, Post, Nazwa, Prowadzi; public List<EdrStrona> Strony = new(); }
+    class PlikDz { public int Wersja = 1; public List<PlikDzDziennik> Dzienniki = new(); public Dictionary<string, List<EdrTelefonogram>> Telefoniczny = new(); }
+
+    int DobaDaty(string data, int domyslna) =>
+        DateTime.TryParseExact((data ?? "").Length >= 10 ? data[..10] : data ?? "", "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt) ? (int)(dt.Date - Dzien0.Date).TotalDays : domyslna;
+
+    /// <summary>
+    /// Wczytuje dzienniki z pliku: strony dzienników o tym samym id (doba z daty strony względem dnia startu), dziennik telefoniczny, prowadzący.
+    /// Wiersze z pliku są historią (<see cref="EdrWiersz.Wczytany"/>) – nie zajmują torów i nie liczą się w wykazie. Błędny plik – bez zapisu.
+    /// </summary>
+    public void WczytajDzienniki()
+    {
+        if (PlikDziennikow == null || !File.Exists(PlikDziennikow)) return;
+        try
+        {
+            var f = System.Text.Json.JsonSerializer.Deserialize<PlikDz>(File.ReadAllText(PlikDziennikow), JsonOpt);
+            if (f == null || f.Wersja != 1 || f.Dzienniki == null) throw new InvalidDataException("nieobsługiwana wersja pliku");
+            obceDzienniki = new();
+            foreach (var z in f.Dzienniki)
+            {
+                var d = Dzienniki.FirstOrDefault(x => x.Id == z.Id);
+                if (d == null) { obceDzienniki.Add(z); continue; }
+                foreach (var s in z.Strony ?? new())
+                {
+                    s.Doba = DobaDaty(s.Data, s.Doba);
+                    foreach (var w in s.Wiersze) { w.Wczytany = true; foreach (var v in w.Wersje) v.T = -1e9; }
+                }
+                d.Strony = (z.Strony ?? new()).OrderBy(s => s.Doba).ToList();
+                d.Prowadzi = z.Prowadzi;
+                foreach (var t in d.Strony.SelectMany(s => s.Wiersze).Where(w => w.Tel != null)) t.Tel.Doba = DobaDaty(t.Tel.Zapisano, t.Tel.Doba);
+                Przyjmij(d, d.Ustawienia);
+            }
+            foreach (var (pk, l) in f.Telefoniczny ?? new())
+            {
+                foreach (var t in l) t.Doba = DobaDaty(t.Zapisano, t.Doba);
+                Telefoniczny[pk] = l;
+            }
+            var ids = Dzienniki.SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).SelectMany(w => new[] { w.Id, w.Para })
+                .Concat(obceDzienniki.SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Select(w => w.Id));
+            nextId = Math.Max(nextId, ids.DefaultIfEmpty(0).Max() + 1);
+            Wersja++;
+        }
+        catch (Exception ex)
+        {
+            BladDziennikow = $"nie wczytano dzienników ({Path.GetFileName(PlikDziennikow)}): {ex.Message} – plik zostaje bez zmian, dzienniki tej sesji nie są zapisywane";
+            S.Log("Zdarzenie", "EDR: " + BladDziennikow, "System", "");
+        }
+    }
+
+    /// <summary>Zapis dzienników: plik tymczasowy, potem podmiana z kopią „.bak” – przerwany zapis nie psuje pliku (jak w EDR.exe).</summary>
+    public void ZapiszDzienniki()
+    {
+        brudne = false;
+        if (!ZapisDziennikow || PlikDziennikow == null || BladDziennikow != null) return;
+        var f = new PlikDz();
+        foreach (var d in Dzienniki) f.Dzienniki.Add(new PlikDzDziennik { Id = d.Id, Post = d.Post, Nazwa = d.Nazwa, Prowadzi = d.Prowadzi, Strony = d.Strony });
+        f.Dzienniki.AddRange(obceDzienniki);
+        foreach (var (pk, l) in Telefoniczny) f.Telefoniczny[pk] = l;
+        var tmp = PlikDziennikow + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(f, JsonOpt));
+            if (File.Exists(PlikDziennikow)) File.Replace(tmp, PlikDziennikow, PlikDziennikow + ".bak", true);
+            else File.Move(tmp, PlikDziennikow);
+        }
+        catch (Exception ex)
+        {
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+            S.Log("Zdarzenie", $"EDR: nie zapisano dzienników ({Path.GetFileName(PlikDziennikow)}): {ex.Message}", "System", "");
+        }
     }
 
 
@@ -362,7 +462,8 @@ public partial class Edr
             return b == "" ? a : $"{a} / {b}";
         }
         if (v == "" || v == "---" || v == "-") return v == "" ? "" : "---";
-        if (v.Length == 4 && v.All(char.IsDigit)) v = v[..2] + ":" + v[2..];
+        // bez dwukropka: „0812” i „812” → 08:12 (E8d, jak w EDR.exe)
+        if (v.Length is 3 or 4 && v.All(char.IsDigit)) v = v[..^2] + ":" + v[^2..];
         var p = v.Split(':');
         if (p.Length == 2 && int.TryParse(p[0], out var h) && int.TryParse(p[1], out var m) && h is >= 0 and < 24 && m is >= 0 and < 60) return $"{h:00}:{m:00}";
         return null;
@@ -379,13 +480,18 @@ public partial class Edr
         return l;
     }
 
-    /// <summary>Pola wymagane wg opcji wypełniania z ustawień dziennika (numer pociągu – zawsze).</summary>
-    public static List<string> Wymagane(EdrUstawienia u)
+    /// <summary>
+    /// Pola wymagane wg opcji wypełniania z ustawień bieżących dziennika (numer pociągu – zawsze). Droga wolna także przy telefonicznym zapowiadaniu,
+    /// na szlaku jednotorowym, przy wprowadzonym ruchu jednotorowym (tor zasadniczo jednokierunkowy dwukierunkowo) i przy zamkniętym torze (E8d, jak w EDR.exe).
+    /// </summary>
+    public static List<string> Wymagane(EdrUstawienia u, EdrUstawienia zasadnicze = null)
     {
         var l = new List<string> { "Nr" };
         if (u.WymTor) l.Add("Tor");
+        bool jednotorowy = u.Tory.Count == 1 || u.Tory.Any(t => t.Status == "Zamknięty")
+            || zasadnicze != null && u.Tory.Any(t => t.Rodzaj == "Dwukierunkowy" && zasadnicze.Tory.FirstOrDefault(x => x.Szlak == t.Szlak)?.Rodzaj == "Jednokierunkowy");
         // „droga wolna” także przy bieżącym telefonicznym zapowiadaniu pociągów (podręcznik EDR rozdz. 7.2: wybór pól zależy od bieżącej podstawy prowadzenia ruchu)
-        if (u.WymDw || u.Tory.Any(t => t.Podstawa == Podstawy[3])) l.Add("Dw");
+        if (u.WymDw || jednotorowy || u.Tory.Any(t => t.Podstawa == Podstawy[3])) l.Add("Dw");
         if (u.WymOdj) l.Add("Odj");
         if (u.WymPrz) l.Add("Prz");
         return l;
@@ -453,21 +559,29 @@ public partial class Edr
         var n = u.Kopia();
         foreach (var t in n.Tory) { var z = d.Ustawienia.Tory.First(x => x.Szlak == t.Szlak); t.Tor = z.Tor; t.Urzadzenie = z.Urzadzenie; t.Status ??= "Otwarty"; t.Strona ??= ""; }
         d.Ustawienia = n; d.Parzysty = n.Parzysty;
-        // bieżące: nowe zasadnicze, a na nie – zmiany wprowadzone telefonogramami
-        var b = n.Kopia();
-        foreach (var t in d.Strony.SelectMany(s => s.Wiersze).Where(w => w.Tel != null).OrderBy(w => w.Id)) Zastosuj(b, t.Tel.Zmiany);
+        PrzeliczBiezace(d);
+    }
+
+    /// <summary>Bieżące = zasadnicze, a na nie – zmiany telefonogramów w kolejności wpisów (zamknięcie po przejeździe – od przyjazdu pociągu).</summary>
+    static void PrzeliczBiezace(EdrDziennik d)
+    {
+        var b = d.Ustawienia.Kopia();
+        foreach (var t in d.Strony.SelectMany(s => s.Wiersze).Where(w => w.Tel != null).OrderBy(w => w.Id)) Zastosuj(b, t.Tel.Zmiany, d);
         d.Biezace = b;
     }
 
-    static void Zastosuj(EdrUstawienia u, List<EdrZmianaToru> zmiany)
+    static void Zastosuj(EdrUstawienia u, List<EdrZmianaToru> zmiany, EdrDziennik d)
     {
         foreach (var z in zmiany ?? new())
         {
             var t = u.Tory.FirstOrDefault(x => x.Szlak == z.Szlak);
             if (t == null) continue;
+            // wzór 21a: tor zamknięty dopiero po przyjeździe pociągu (wpis „przyjechał” w dzienniku)
+            if (!string.IsNullOrEmpty(z.PoPociagu) && !d.Strony.SelectMany(s => s.Wiersze).Any(w => w.Rodzaj is "przyj" or "wypr" && Biezacy(w) && TenSam(w.W.Nr, z.PoPociagu) && Jest(w.W.Prz))) continue;
+            var zas = d.Ustawienia.Tory.FirstOrDefault(x => x.Szlak == z.Szlak);
             if (!string.IsNullOrEmpty(z.Status)) t.Status = z.Status;
-            if (!string.IsNullOrEmpty(z.Rodzaj)) t.Rodzaj = z.Rodzaj;
-            if (!string.IsNullOrEmpty(z.Podstawa)) t.Podstawa = z.Podstawa;
+            if (!string.IsNullOrEmpty(z.Rodzaj)) t.Rodzaj = z.Rodzaj == "*" ? zas?.Rodzaj ?? t.Rodzaj : z.Rodzaj;
+            if (!string.IsNullOrEmpty(z.Podstawa)) t.Podstawa = z.Podstawa == "*" ? zas?.Podstawa : z.Podstawa;
             if (z.Zasadniczy is int k) t.Zasadniczy = k;
         }
     }
@@ -498,6 +612,7 @@ public partial class Edr
 
     void Tekst(EdrDziennik d, EdrStrona s, string t)
     {
+        brudne = true;
         s.Wiersze.Add(new EdrWiersz { Id = nextId++, Rodzaj = "tekst", Tekst = t, Wersje = { new EdrWersja { Kto = d.Prowadzi, T = S.T, Zmiana = Znacznik() } } });
         Wersja++;
     }
@@ -532,8 +647,9 @@ public partial class Edr
                 string post = blok == null && sec != null ? Station.PostOf(sec) : null;
                 Zarejestruj(t.Id, t.Num, post, blok, post != null && h.E != null ? S.L.Edges[h.E].Track : null);
             }
-        if (S.Desks.Count == 0) { Aktualizuj(null); return; }
-        foreach (var k in S.Desks.Values) if (k.User != null) Aktualizuj(k);
+        if (S.Desks.Count == 0) Aktualizuj(null);
+        else foreach (var k in S.Desks.Values) if (k.User != null) Aktualizuj(k);
+        if (brudne) ZapiszDzienniki();
     }
 
     /// <summary>
@@ -608,6 +724,17 @@ public partial class Edr
     }
 
     string Hm(double? t) => t is double v ? S.Clock(v)[..5] : "";
+    /// <summary>„P T”: peron z rozkładu cyframi rzymskimi (liczba zamieniana, zapis rzymski zostaje) i tor cyframi arabskimi.</summary>
+    internal static string PeronTor(string peron, string tor)
+    {
+        var p = (peron ?? "").Trim();
+        if (int.TryParse(p, out var n) && n is > 0 and < 40)
+        {
+            p = "";
+            foreach (var (w, z) in new[] { (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I") }) while (n >= w) { p += z; n -= w; }
+        }
+        return (p + " " + (tor ?? "").Trim()).Trim();
+    }
     string HmD(double? t) => t is double v ? Dzien0.AddDays(Math.Floor((S.StartClock + v) / 86400)).ToString("dd-MM", CultureInfo.InvariantCulture) + " " + Hm(v) : "";
 
     /// <summary>Trasa pociągu wg rozkładu: posterunki LCS w kolejności przyjazdu.</summary>
@@ -617,26 +744,44 @@ public partial class Edr
         var pb = q.Przebieg?.Where(x => TenSam(x.Num, nr)).ToList();
         if (pb?.Count > 0)
         {
-            var l = new List<EdrTrasa>();
+            var l = new List<(string Post, double? Arr, double? Dep, string Tor, string Peron, string Num, int Lp)>();
             foreach (var x in pb)
             {
                 // ten sam posterunek dwa razy z rzędu (przyjazd i odjazd zapisane osobno) – jeden wiersz
-                if (l.Count > 0 && l[^1].Posterunek == NazwaPosterunku(x.Post)) { l[^1].Odjazd = HmD(x.Dep); continue; }
-                l.Add(new EdrTrasa { Posterunek = NazwaPosterunku(x.Post), Przyjazd = HmD(x.Arr), Odjazd = HmD(x.Dep), Tor = x.Track ?? "", Postoj = x.Dep - x.Arr >= 30 ? "ph" : "" });
+                if (l.Count > 0 && l[^1].Post == x.Post) { l[^1] = l[^1] with { Dep = x.Dep }; continue; }
+                l.Add((x.Post, x.Arr, x.Dep, x.Track, x.Peron, x.Num, q.Przebieg.IndexOf(x) + 1));
             }
             // numer zaczyna się albo kończy w obszarze LCS (obieg jednostki): bez przyjazdu na pierwszym i bez odjazdu na ostatnim posterunku
-            if (q.Przebieg.IndexOf(pb[0]) > 0) l[0].Przyjazd = "";
-            if (q.Przebieg.IndexOf(pb[^1]) < q.Przebieg.Count - 1) l[^1].Odjazd = "";
-            return l;
+            if (q.Przebieg.IndexOf(pb[0]) > 0) l[0] = l[0] with { Arr = null };
+            if (q.Przebieg.IndexOf(pb[^1]) < q.Przebieg.Count - 1) l[^1] = l[^1] with { Dep = null };
+            return l.Select(x => PunktTrasy(q, x.Post, x.Arr, x.Dep, x.Tor, x.Peron, x.Num ?? nr, x.Lp)).ToList();
         }
-        return TrasaPlanu(q);
+        return TrasaPlanu(q, nr);
     }
+    List<EdrTrasa> TrasaPlanu(TimetableEntry q, string nr) => (q.PlanPrz ?? new()).OrderBy(x => x.Value).Select((x, i) =>
+        PunktTrasy(q, x.Key, x.Value, q.PlanOdj?.TryGetValue(x.Key, out var o) == true ? o : null, q.PlanTor?.GetValueOrDefault(x.Key), q.PlanPeron?.GetValueOrDefault(x.Key), nr, i + 1)).ToList();
 
-    List<EdrTrasa> TrasaPlanu(TimetableEntry q) => (q.PlanPrz ?? new()).OrderBy(x => x.Value).Select(x =>
+    /// <summary>
+    /// Wiersz trasy (E8c): plan z rozkładu, rzeczywiste z ruchu na posterunku (<see cref="Ruch"/>); bez przejazdu – czas planowy, jak w wykazie
+    /// (uwaga właściciela 2026-10-28). Postój zamówiony z planu, obliczony z ruchu; „ph” przy postoju co najmniej 30 s.
+    /// </summary>
+    EdrTrasa PunktTrasy(TimetableEntry q, string post, double? arr, double? dep, string tor, string peron, string nr, int lp)
     {
-        var odj = q.PlanOdj?.GetValueOrDefault(x.Key);
-        return new EdrTrasa { Posterunek = NazwaPosterunku(x.Key), Przyjazd = HmD(x.Value), Odjazd = HmD(odj), Tor = q.PlanTor?.GetValueOrDefault(x.Key) ?? "", Postoj = odj is double o && o - x.Value >= 30 ? "ph" : "" };
-    }).ToList();
+        var rec = Ruch.Where(x => x.Key.EndsWith("|" + post) && (TenSam(x.Value.Nr, nr) || TenSam(x.Value.NrWyj, nr))).Select(x => x.Value).FirstOrDefault();
+        double? przR = rec?.Prz ?? (rec == null ? arr : null), odjR = rec?.Odj ?? (rec?.Prz is double rp && arr is double a0 && dep is double d0 ? d0 + Math.Max(0, rp - a0) : rec == null ? dep : null);
+        bool ph = arr is double a && dep is double d && d - a >= 30;
+        return new EdrTrasa
+        {
+            Posterunek = NazwaPosterunku(post), Przyjazd = HmD(arr), Odjazd = HmD(dep), Tor = tor ?? "", Postoj = ph ? "ph" : "",
+            PrzPlanData = Dz(arr), PrzPlanGodz = Hm(arr), PrzRzeczData = Dz(przR), PrzRzeczGodz = Hm(przR), PrzOdch = Odch(arr, przR),
+            Z = rec?.Prz != null || rec?.Odj != null ? "✓" : "", Lp = lp.ToString(CultureInfo.InvariantCulture),
+            PZam = ph ? Minuty(arr, dep) : "0,0", PObl = Minuty(rec?.Prz, rec?.Odj) is var pb && pb != "" ? pb : "0,0", PT = PeronTor(peron, tor),
+            OdjPlanData = Dz(dep), OdjPlanGodz = Hm(dep), OdjRzeczData = Dz(odjR), OdjRzeczGodz = Hm(odjR), OdjOdch = Odch(dep, odjR),
+            Rodz = q.KatIr11 ?? "", Nr = nr ?? "", SeriaPl = q.Veh ?? "", DlPl = q.Len is double ln ? ln.ToString("0", CultureInfo.InvariantCulture) : "",
+        };
+    }
+    /// <summary>Data „dd-MM-yy” jak w trasie EDR.exe.</summary>
+    string Dz(double? t) => t is double v ? Dzien0.AddDays(Math.Floor((S.StartClock + v) / 86400)).ToString("dd-MM-yy", CultureInfo.InvariantCulture) : "";
     static string Minuty(double? od, double? @do) => od is double a && @do is double b ? ((b - a) / 60).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("pl-PL")) : "";
 
     static string Odch(double? plan, double? rzecz)
@@ -655,7 +800,7 @@ public partial class Edr
         var res = new List<EdrPociag>();
         if (S.Trains == null) return res;
         bool Konczy(string b) => b != null && S.L.Blocks.TryGetValue(b, out var bd) && bd.Ends.Any(e => e.Post == post);
-        var wiersze = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr").ToList();
+        var wiersze = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr" && Biezacy(w)).ToList();
         foreach (var q in S.Rozklad.Queue)
         {
             if (q.Loco && q.Duty == null) continue;
@@ -705,7 +850,7 @@ public partial class Edr
                 Klucz = klucz, Nr = nr, NrWyj = nrWyj, Rodz = q.KatIr11 ?? "", Nazwa = q.Name ?? "",
                 ZSzlak = z, ZKierunku = z != null ? SasiadSzlaku(post, z) : start ? "tor " + tor : "", WSzlak = w, WKierunku = w != null ? SasiadSzlaku(post, w) : "",
                 Linia = new[] { z, w }.Where(x => x != null && S.L.Blocks.ContainsKey(x)).Select(x => S.L.Blocks[x].Line).FirstOrDefault(x => !string.IsNullOrEmpty(x)) ?? "",
-                Tor = tor, TorRzecz = rec?.Tor ?? "", PrzPlan = Hm(przPlan), PrzRzecz = Hm(przR), PrzOdch = Odch(przPlan, przR),
+                Tor = tor, PT = PeronTor(q.PlanPeron?.GetValueOrDefault(post), tor), TorRzecz = rec?.Tor ?? "", PrzPlan = Hm(przPlan), PrzRzecz = Hm(przR), PrzOdch = Odch(przPlan, przR),
                 OdjPlan = Hm(odjPlan), OdjRzecz = Hm(odjR), OdjOdch = Odch(odjPlan, odjR), Postoj = ph ? "ph" : "", Stan = stan, NaStacji = stan == "na stacji",
                 PZam = ph ? Minuty(przPlan, odjPlan) is var pz && pz != "" ? pz : "0,0" : "0,0", PObl = Minuty(rec?.Prz, rec?.Odj) is var pb && pb != "" ? pb : "0,0",
                 Wstega = wstega, Potw = potw, Kursuje = kursuje.TryGetValue(klucz, out var ku) ? ku : !q.NieKursuje,
@@ -742,6 +887,53 @@ public partial class Edr
     }
 
     static bool Jest(string godz) => !string.IsNullOrEmpty(godz) && godz != "---";
+    /// <summary>Wiersz liczy się do bieżącego ruchu: nie wykreślony i nie z wcześniejszego uruchomienia (plik dzienników).</summary>
+    static bool Biezacy(EdrWiersz w) => !w.Wykreslony && !w.Wczytany;
+
+    // tor szlakowy z uwag (E8d, jak w EDR.exe): „po torze lewym / prawym”, „po (zamkniętym) torze nr N”
+    static readonly System.Text.RegularExpressions.Regex UwLewy = new(@"\bpo\s+(?:torze\s+)?lewym\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant),
+        UwPrawy = new(@"\bpo\s+(?:torze\s+)?prawym\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant),
+        UwNumer = new(@"\bpo\s+(?:zamkniętym\s+)?torze\s+(?:zamkniętym\s+)?(?:nr\.?|numer)\s*\[?\s*(\w+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Tor szlakowy wskazany w uwagach: numery toru, „po torze lewym”, „po torze prawym”.</summary>
+    public static (List<string> Numery, bool Lewy, bool Prawy) TorZUwag(string uwagi)
+    {
+        uwagi ??= "";
+        return (UwNumer.Matches(uwagi).Select(m => m.Groups[1].Value).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), UwLewy.IsMatch(uwagi), UwPrawy.IsMatch(uwagi));
+    }
+
+    /// <summary>
+    /// Sprawdzenie toru szlakowego z uwag wiersza przyjęcia / wyprawienia (null – poprawny): jeden numer, należy do szlaku,
+    /// nie jednocześnie lewy i prawy, numer zgodny z lewym / prawym dla kierunku jazdy (lewy – tor o zasadniczym kierunku przeciwnym).
+    /// </summary>
+    public static string SprawdzTorZUwag(EdrDziennik d, string rodzaj, EdrWersja w)
+    {
+        if (rodzaj is not ("przyj" or "wypr") || w == null) return null;
+        var (nr, lewyT, prawy) = TorZUwag(w.Uwagi);
+        bool lewy = w.Lewy || lewyT;
+        if (nr.Count > 1) return "Uwagi wskazują różne numery torów szlakowych – podaj jeden tor dla tego przejazdu";
+        if (lewy && prawy) return "Uwagi wskazują jednocześnie tor lewy i prawy – popraw opis przejazdu";
+        if (nr.Count == 0) return null;
+        var t = d.Biezace.Tory.FirstOrDefault(x => string.Equals(x.Tor, nr[0], StringComparison.OrdinalIgnoreCase));
+        if (t == null) return $"Tor szlakowy nr {nr[0]} nie należy do szlaku {d.Nazwa} (tory: {string.Join(", ", d.Biezace.Tory.Select(x => x.Tor))})";
+        int kier = rodzaj == "przyj" ? -1 : 1;
+        if (lewy && t.Zasadniczy == kier) return $"Tor nr {t.Tor} jest dla tego kierunku torem zasadniczym (prawym), a uwagi mówią „po torze lewym”";
+        if (prawy && t.Zasadniczy == -kier) return $"Tor nr {t.Tor} jest dla tego kierunku torem lewym, a uwagi mówią „po torze prawym”";
+        return null;
+    }
+
+    /// <summary>
+    /// „Pociąg przyjechał” nie wcześniej niż „pociąg odjechał” (null – poprawnie). Przejście przez północ: odjazd od 18:00, przyjazd przed 6:00 –
+    /// przyjazd następnej doby (E8d, jak w EDR.exe). Przy dwóch godzinach w komórce liczy się pierwsza.
+    /// </summary>
+    public static string SprawdzGodziny(EdrWersja w)
+    {
+        static string Pierwsza(string g) => (g ?? "").Split('/')[0].Trim();
+        string odj = Pierwsza(w?.Odj), prz = Pierwsza(w?.Prz);
+        if (!Jest(odj) || !Jest(prz) || string.CompareOrdinal(prz, odj) >= 0) return null;
+        if (string.CompareOrdinal(odj, "18:00") >= 0 && string.CompareOrdinal(prz, "06:00") < 0) return null;
+        return $"„Pociąg przyjechał” ({prz}) nie może być wcześniej niż „pociąg odjechał” ({odj}); przejście przez północ – odjazd od 18:00 i przyjazd przed 6:00";
+    }
 
     /// <summary>
     /// Stan torów szlakowych dziennika z wpisów: pociąg z wypełnionym „odjechał” i pustym „przyjechał” zajmuje tor – przy przyjęciu tor
@@ -749,18 +941,22 @@ public partial class Edr
     /// </summary>
     public void StanSzlaku(EdrDziennik d)
     {
+        PrzeliczBiezace(d);
         var ts = d.Biezace.Tory.OrderBy(t => t.Strona == "lewy" ? 0 : t.Strona == "prawy" ? 2 : 1).ThenBy(t => t.Tor, Comparer<string>.Create(PorownajTory));
         d.ToryStan = ts.Select(t => new EdrTorSzlakowy { Szlak = t.Szlak, Tor = t.Tor, Kierunek = t.Zasadniczy, Strona = t.Strona, Status = t.Status }).ToList();
         if (d.ToryStan.Count == 0) return;
-        foreach (var w in d.Strony.SelectMany(s => s.Wiersze).Where(w => w.Rodzaj is "przyj" or "wypr"))
+        foreach (var w in d.Strony.SelectMany(s => s.Wiersze).Where(w => w.Rodzaj is "przyj" or "wypr" && Biezacy(w)))
         {
             var v = w.W;
             // jazda do km i z powrotem: tor zajęty od odjazdu do wpisu przyjazdu w wierszu powrotu
             var powrot = w.Pierwszy ? d.Strony.SelectMany(s => s.Wiersze).FirstOrDefault(x => x.Id == w.Para) : null;
             if (!Jest(v.Odj) || (powrot != null ? Jest(powrot.W.Prz) || powrot.W.Prz == "---" : Jest(v.Prz) || v.Prz == "---")) continue;
-            int kier = w.Rodzaj == "przyj" ? -1 : 1, szuk = v.Lewy ? -kier : kier;
+            // tor wskazany w uwagach („po torze nr N”, „po torze lewym”) ma pierwszeństwo przed kierunkiem zasadniczym (E8d)
+            var (nrUw, lewyUw, _) = TorZUwag(v.Uwagi);
+            int kier = w.Rodzaj == "przyj" ? -1 : 1, szuk = v.Lewy || lewyUw ? -kier : kier;
             // tor o zasadniczym kierunku jazdy pociągu; bez ustalonego kierunku – przyjęcie po torze lewym, wyprawienie po prawym (ruch prawostronny)
-            var t = d.ToryStan.FirstOrDefault(x => x.Kierunek == szuk) ?? d.ToryStan.FirstOrDefault(x => x.Kierunek == 0 && x.Strona == (szuk < 0 ? "lewy" : "prawy"))
+            var t = (nrUw.Count == 1 ? d.ToryStan.FirstOrDefault(x => string.Equals(x.Tor, nrUw[0], StringComparison.OrdinalIgnoreCase)) : null)
+                ?? d.ToryStan.FirstOrDefault(x => x.Kierunek == szuk) ?? d.ToryStan.FirstOrDefault(x => x.Kierunek == 0 && x.Strona == (szuk < 0 ? "lewy" : "prawy"))
                 ?? d.ToryStan.FirstOrDefault(x => x.Kierunek == 0) ?? d.ToryStan[0];
             t.Pociagi.Add(v.Nr); t.Ruch = kier;
         }
@@ -770,7 +966,7 @@ public partial class Edr
     public List<EdrTorStacyjny> ZajetoscTorowStacyjnych(string post)
     {
         var tory = (ToryStacyjne.GetValueOrDefault(post) ?? new()).Select(t => new EdrTorStacyjny { Tor = t }).ToList();
-        var wiersze = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr" or "powrot").OrderBy(w => w.Id);
+        var wiersze = Dzienniki.Where(d => d.Post == post).SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Where(w => w.Rodzaj is "przyj" or "wypr" or "powrot" && Biezacy(w)).OrderBy(w => w.Id);
         foreach (var w in wiersze)
         {
             var v = w.W;
@@ -803,13 +999,21 @@ public partial class Edr
             NastepnyNr = Posterunki.Select(p => p.Kod).Where(p => MojPost(p, k)).ToDictionary(p => p, NastepnyNumer),
             SprawdzeniaUst = Posterunki.Select(p => p.Kod).Where(p => MojPost(p, k)).ToDictionary(p => p, p => Sprawdzenia.GetValueOrDefault(p) ?? new()),
             PosterunkiUst = Posterunki.Select(x => x.Kopia()).ToList(), ZUkladu = posterunkiUst == null, SzlakiUkladu = SzlakiUkladu(), Admin = Admin(k),
-            BezWypadku = BezWypadku, BezWypadkuCzas = CzasBezWypadku(), BladKonfiguracji = BladKonfiguracji,
+            BezWypadku = BezWypadku, BezWypadkuCzas = CzasBezWypadku(), BladKonfiguracji = BladKonfiguracji, BladDziennikow = BladDziennikow,
             Sprawdzenia = StanSprawdzen(k)
         };
     }
 
     // ------------------------------------------------------------------ polecenia okna
+    /// <summary>Polecenie okna EDR; po udanej zmianie – zapis dzienników do pliku (E8d).</summary>
     public CmdResult Wykonaj(Desk k, EdrPolecenie p)
+    {
+        var r = WykonajPolecenie(k, p);
+        if (r.Ok) ZapiszDzienniki();
+        return r;
+    }
+
+    CmdResult WykonajPolecenie(Desk k, EdrPolecenie p)
     {
         if (p?.Rodzaj == "telefonogram") return Telefonogram(k, p);
         if (p != null && Konfiguracja(k, p) is CmdResult kr) return kr;
@@ -862,6 +1066,8 @@ public partial class Edr
                     Ustaw(w, pole, v);
                 }
                 if (w.Nr == "") return new(false, "Wpisz numer pociągu");
+                if (SprawdzGodziny(w) is string bg) return new(false, bg);
+                if (SprawdzTorZUwag(d, p.Rodzaj, w) is string bt) return new(false, bt);
                 string zmiana = "";
                 if (d.Parzysty != 0)
                 {
@@ -870,7 +1076,7 @@ public partial class Edr
                 }
                 w.Kto = user; w.T = S.T; w.Zmiana = Znacznik(); w.Pole = null;
                 w.Wpis = Godzinowe.Where(g => Jest(Wartosc(w, g))).ToDictionary(g => g, g => Teraz());
-                var r = new EdrWiersz { Id = nextId++, Rodzaj = p.Rodzaj, Wymagane = Wymagane(d.Biezace), Wersje = { w } };
+                var r = new EdrWiersz { Id = nextId++, Rodzaj = p.Rodzaj, Wymagane = Wymagane(d.Biezace, d.Ustawienia), Wersje = { w } };
                 r.Wymagane.AddRange(d.Biezace.Droznicy.Where(x => x.Dotyczy(p.Rodzaj)).Select(x => "Dr:" + x.Id));
                 s.Wiersze.Add(r);
                 if (p.Pole == "powrot")
@@ -886,6 +1092,26 @@ public partial class Edr
                 }
                 Wersja++;
                 return new(true, $"{(p.Rodzaj == "przyj" ? "Przyjęcie" : "Wyprawienie")} pociągu {w.Nr} zapisane w dzienniku {d.Nazwa}{zmiana}");
+            }
+            case "wykresl":
+            {
+                // wykreślenie wpisu z przyczyną (E8d, jak w EDR.exe): wpis zostaje, nowa wersja z przyczyną; para „do km i z powrotem” – oba wiersze
+                var r = d.Strony.SelectMany(x => x.Wiersze).FirstOrDefault(x => x.Id == p.Wiersz);
+                if (r == null) return new(false, "Nie ma takiego wiersza");
+                if (r.Rodzaj == "tekst") return new(false, "Wpisów automatycznych (dyżur, północ) nie wykreśla się");
+                if (r.Rodzaj == "telefonogram") return new(false, "Telefonogramu nie wykreśla się – sprostowanie kolejnym telefonogramem");
+                if (r.Wykreslony) return new(false, "Wpis jest już wykreślony");
+                var przyczyna = (p.Wartosc ?? "").Trim();
+                if (przyczyna == "") return new(false, "Podaj przyczynę wykreślenia");
+                var para = r.Para != 0 ? d.Strony.SelectMany(x => x.Wiersze).FirstOrDefault(x => x.Id == r.Para && !x.Wykreslony) : null;
+                foreach (var x in new[] { r, para }.Where(x => x != null))
+                {
+                    var nw = x.W.Kopia(); nw.Wykreslono = przyczyna; nw.Kto = user; nw.T = S.T; nw.Zmiana = Znacznik(); nw.Pole = "Wykreślenie";
+                    x.Wersje.Add(nw);
+                }
+                Wersja++;
+                S.Log("Zdarzenie", $"EDR: wykreślono wpis {(r.Rodzaj == "wpis" ? "" : "pociągu " + r.W.Nr + " ")}w dzienniku {d.Nazwa} – {przyczyna} ({user})", "EDR", d.Nazwa);
+                return new(true, $"Wpis {(r.Rodzaj == "wpis" ? "" : "pociągu " + r.W.Nr + " ")}wykreślony: {przyczyna}");
             }
             case "ustawienia":
             {
@@ -907,6 +1133,7 @@ public partial class Edr
             {
                 var r = d.Strony.SelectMany(x => x.Wiersze).FirstOrDefault(x => x.Id == p.Wiersz);
                 if (r == null || r.Rodzaj is "tekst" or "telefonogram" or "wpis") return new(false, r?.Rodzaj == "telefonogram" ? "Telefonogramu nie zmienia się – sprostowanie kolejnym telefonogramem" : "Nie ma takiego wiersza");
+                if (r.Wykreslony) return new(false, "Wykreślonego wpisu nie można zmieniać");
                 var dr = p.Pole?.StartsWith("Dr:") == true ? d.Biezace.Droznicy.FirstOrDefault(x => x.Id == p.Pole[3..]) : null;
                 if (!Pola.Contains(p.Pole) && dr == null) return new(false, "Nie ma takiego pola");
                 var v = (p.Wartosc ?? "").Trim();
@@ -916,6 +1143,9 @@ public partial class Edr
                 if (p.Pole == "Nr" && d.Parzysty != 0) v = Wymus(v, r.Rodzaj == "wypr" ? d.Parzysty == 1 : d.Parzysty == -1);
                 var stara = r.W;
                 if (Wartosc(stara, p.Pole) == v) return new(true, "");
+                var proba = stara.Kopia(); Ustaw(proba, p.Pole, v);
+                if (p.Pole is "Odj" or "Prz" && SprawdzGodziny(proba) is string bg2) return new(false, bg2);
+                if (p.Pole == "Uwagi" && SprawdzTorZUwag(d, r.Rodzaj, proba) is string bt2) return new(false, bt2);
                 // kolejne zmiany tego samego pola przez tę samą osobę w ciągu 10 s (np. kółkiem myszy) – jedna wersja
                 var cel = r.Wersje.Count > 1 && stara.Kto == user && stara.Pole == p.Pole && S.T - stara.T < 10 ? stara : null;
                 if (cel != null) { Ustaw(stara, p.Pole, v); stara.T = S.T; stara.Zmiana = Znacznik(); }
@@ -955,6 +1185,16 @@ public partial class Edr
             Tresc = (t.Tresc ?? "").Trim(), Notatka = (t.Notatka ?? "").Trim(), Data = string.IsNullOrWhiteSpace(t.Data) ? DataDoby(Doba) : t.Data.Trim(),
             Dziennik = d?.Id, Post = post, Doba = Doba, Kto = user, Zapisano = Znacznik(), Zmiany = t.Zmiany?.Where(z => z != null).ToList() ?? new()
         };
+        // wzór telefonogramu (E8e): treść z pól wzoru, zmiana stanu szlaku ze skutku wzoru (zamiast ręcznej)
+        if (n.Rodzaj == "telefonogram" && EdrWzory.Wzor(t.Wzor) is EdrWzor wz)
+        {
+            string tu0 = NazwaPosterunku(post), tam0 = d?.Sasiad ?? (string.IsNullOrWhiteSpace(t.OdebralPost) ? t.NadalPost : t.OdebralPost) ?? "";
+            var (tr, bl) = EdrWzory.Tresc(wz, t.Pola, n.Nadaje ? tu0 : tam0, n.Nadaje ? tam0 : tu0, d?.Biezace.Tory.Select(x => x.Tor).ToList());
+            if (bl != null) return new(false, $"Wzór {wz.Nr}: {bl}");
+            n.Tresc = tr; n.Wzor = wz.Tytul; n.WzorNr = wz.Nr; n.Pola = new(t.Pola ?? new());
+            n.Zmiany = EdrWzory.Skutek(wz, t.Pola, d);
+        }
+        else if (!string.IsNullOrWhiteSpace(t.Wzor) && t.Wzor != "[bez szablonu]" && n.Rodzaj == "telefonogram") return new(false, $"Nie ma wzoru telefonogramu {t.Wzor}");
         if (n.Tresc == "") return new(false, "Wpisz adres i treść rozmowy lub telefonogramu");
         n.Godz = Godzina(string.IsNullOrWhiteSpace(t.Godz) ? Teraz() : t.Godz);
         n.CzasZak = Godzina(string.IsNullOrWhiteSpace(t.CzasZak) ? Teraz() : t.CzasZak);
@@ -984,7 +1224,7 @@ public partial class Edr
         {
             var s = Strona(d);
             s.Wiersze.Add(new EdrWiersz { Id = nextId++, Rodzaj = "telefonogram", Tel = n, Tekst = n.Tresc, Wersje = { new EdrWersja { Kto = user, T = S.T, Zmiana = n.Zapisano } } });
-            Zastosuj(d.Biezace, n.Zmiany);
+            PrzeliczBiezace(d);
         }
         Wersja++;
         S.Log("Telefon", $"EDR {tu}: {(n.Rodzaj == "okolicznosc" ? "inne okoliczności" : n.Nadaje ? "telefonogram nadany" : "telefonogram odebrany")} nr {n.Nr}: {n.Tresc.Split('\n')[0]}", "EDR", d?.Nazwa ?? tu);
@@ -1042,6 +1282,6 @@ public partial class Edr
 
     public static string NazwaPola(string p) => p.StartsWith("Dr:") ? "dróżnik" : p switch
     {
-        "Nr" => "Nr pociągu", "Tor" => "Tor stacyjny", "Dw" => "Droga wolna", "Odj" => "Pociąg odjechał", "Prz" => "Pociąg przyjechał", "Uwagi" => "Uwagi", _ => p
+        "Nr" => "Nr pociągu", "Tor" => "Tor stacyjny", "Dw" => "Droga wolna", "Odj" => "Pociąg odjechał", "Prz" => "Pociąg przyjechał", "Uwagi" => "Uwagi", "Wykreślenie" => "Wykreślenie", _ => p
     };
 }

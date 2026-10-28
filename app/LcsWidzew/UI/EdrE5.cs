@@ -108,6 +108,24 @@ public class OknoWpisu : OknoEdr
     }
 }
 
+/// <summary>Wykreślenie wpisu z dziennika ruchu (E8d, jak w EDR.exe): przyczyna obowiązkowa, wpis zostaje przekreślony z przyczyną.</summary>
+public class OknoWykreslenia : OknoEdr
+{
+    public OknoWykreslenia(EdrWindow okno, EdrDziennik d, EdrWiersz w) : base("Wykreślenie wpisu", 460)
+    {
+        Sp.Children.Add(new TextBlock { Text = d.Nazwa, FontWeight = FontWeights.Bold, FontSize = 13 });
+        var opis = w.Rodzaj == "wpis" ? $"Wpis: {w.Tekst}" : $"{(w.Rodzaj == "przyj" ? "Przyjęcie" : w.Rodzaj == "wypr" ? "Wyprawienie" : "Powrót ze szlaku")} pociągu {w.W.Nr}"
+            + (w.Para != 0 ? " (jazda do km i z powrotem – wykreśla się oba wiersze)" : "");
+        Sp.Children.Add(new TextBlock { Text = opis, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
+        Sp.Children.Add(Et("Przyczyna wykreślenia:"));
+        var t = new TextBox { Height = 60, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        Sp.Children.Add(t);
+        Sp.Children.Add(Et("Wpis zostaje w dzienniku przekreślony, z przyczyną, kto i kiedy wykreślił. Wykreślonego wpisu nie można zmieniać."));
+        Loaded += (a, e) => t.Focus();
+        Przyciski("Wykreśl", () => okno.Wyslij(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "wykresl", Wiersz = w.Id, Wartosc = t.Text }));
+    }
+}
+
 /// <summary>Wykonanie sprawdzenia cyklicznego (przycisk w prawym górnym rogu): potwierdzenie z uwagami – zapis w dzienniku telefonicznym.</summary>
 public class OknoSprawdzenia : OknoEdr
 {

@@ -146,6 +146,10 @@ public static class EdrTest
             var r = ep.Wykaz(post0).First(x => x.Nr == q0.Num);
             K(r.PrzRzecz != "" && r.OdjRzecz != "" && r.Stan == "odjechał" && r.TorRzecz == "5" && r.ZSzlak == q0.From && r.WSzlak == q0.To && ep.Wersja > w0,
                 $"pociąg {q0.Num}: przyjazd {r.PrzRzecz}, odjazd {r.OdjRzecz}, tor 5, z {r.ZKierunku} na {r.WKierunku} – {r.Stan}");
+            // E8c: trasa pociągu – kolumny jak w EDR.exe; posterunek z przejazdem ma „✓” i rzeczywiste godziny z ruchu (rozkład bez planu na posterunkach – trasa pusta)
+            var tr0 = r.Trasa.FirstOrDefault(x => x.Z == "✓");
+            K(r.Trasa.Count == 0 || tr0 != null && tr0.PrzRzeczGodz == r.PrzRzecz && tr0.OdjRzeczGodz == r.OdjRzecz && tr0.Lp != "" && tr0.Nr != "",
+                r.Trasa.Count == 0 ? "trasa: rozkład bez planu na posterunkach – bez wierszy" : $"trasa {q0.Num}: {r.Trasa.Count} wierszy, ✓ {tr0?.Posterunek} {tr0?.PrzRzeczData} {tr0?.PrzRzeczGodz} – {tr0?.OdjRzeczGodz}, Lp. {tr0?.Lp}");
             var dz0 = ep.Dzienniki.First(d => d.Post == post0 && d.Szlaki.Contains(q0.From));
             ep.Wykonaj(kp, new EdrPolecenie { Dziennik = dz0.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = q0.Num, Tor = "5", Odj = "06:00" } });
             var rp2 = ep.Wykaz(post0).First(x => x.Nr == q0.Num);
@@ -461,6 +465,179 @@ public static class EdrTest
             K(rb.Ok && e8.CzasBezWypadku() == "1 dzień 2 godz. 5 min." && !e8.Wykonaj(k8, new EdrPolecenie { Rodzaj = "bezwypadku", Wartosc = "wczoraj" }).Ok, $"czas bez wypadku od {od8}: {e8.CzasBezWypadku()}; błędna data – odrzucona");
             var js8 = JsonSerializer.Deserialize<EdrData>(JsonSerializer.Serialize(e8.DlaStanowiska(k8), new JsonSerializerOptions { IncludeFields = true }), new JsonSerializerOptions { IncludeFields = true });
             K(js8.PosterunkiUst.Count == e8.Posterunki.Count && js8.BezWypadkuCzas == "1 dzień 2 godz. 5 min." && js8.SzlakiUkladu.Count == st.Blocks.Count && js8.Admin, "nowe dane EDR przechodzą przez sieć (serializacja)");
+        }
+
+        // E8a: kolumna „P T” – peron cyframi rzymskimi, tor arabskimi (uwaga właściciela 2026-10-28)
+        {
+            var pt = new[] { Edr.PeronTor("2", "5"), Edr.PeronTor("IV", "12"), Edr.PeronTor(null, "3"), Edr.PeronTor("1", "") };
+            K(pt[0] == "II 5" && pt[1] == "IV 12" && pt[2] == "3" && pt[3] == "I", "P T: " + string.Join(", ", pt));
+        }
+
+        // ---------------- E8d: godziny i północ, droga wolna, tor szlakowy z uwag, wykreślenie, zapis dzienników do pliku
+        sb.AppendLine("--- E8d");
+        {
+            K(Edr.Godzina("812") == "08:12" && Edr.Godzina("0812") == "08:12" && Edr.Godzina("2359") == "23:59" && Edr.Godzina("960") == null && Edr.Godzina("12") == null,
+                $"godzina bez dwukropka: 812 → {Edr.Godzina("812")}, 0812 → {Edr.Godzina("0812")}, 960 – błędna");
+            var s9 = new Simulator(st, options: options) { User = user };
+            var k9 = s9.AddDesk("PC", "Stanowisko 1", true); k9.User = user;
+            var e9 = s9.Edr; e9.PlikUstawien = null; s9.Tick(0.25);
+            CmdResult W9(EdrPolecenie p) => e9.Wykonaj(k9, p);
+            var dwa9 = e9.Dzienniki.First(d => d.Szlaki.Count == 2 && st.Blocks[d.Szlaki[0]].Ends.Count == 1);
+            EdrWiersz Ost(EdrDziennik d) => d.Strony[^1].Wiersze[^1];
+
+            // północ: odjazd 23:58, przyjazd 00:03 – następna doba; przyjazd przed odjazdem w dzień – odrzucony
+            var rp = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = "19001", Tor = "1", Odj = "23:58" } });
+            var wp = Ost(dwa9);
+            var rp2 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "pole", Wiersz = wp.Id, Pole = "Prz", Wartosc = "0003" });
+            var rz = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = "19003", Tor = "1", Odj = "10:00", Prz = "09:50" } });
+            K(rp.Ok && rp2.Ok && wp.W.Prz == "00:03" && !rz.Ok, $"północ: odjechał 23:58, przyjechał 00:03 – przyjęte; przyjechał 09:50 przed odjazdem 10:00 – odrzucone ({rz.Msg})");
+
+            // droga wolna: szlak jednotorowy – zawsze; dwutorowy – przy zamkniętym torze i przy ruchu dwukierunkowym na torze zasadniczo jednokierunkowym
+            var jeden9 = e9.Dzienniki.FirstOrDefault(d => d.Biezace.Tory.Count == 1);
+            var u9 = dwa9.Biezace.Kopia(); bool dwBez = Edr.Wymagane(u9, dwa9.Ustawienia).Contains("Dw");
+            var zam = u9.Kopia(); zam.Tory[0].Status = "Zamknięty";
+            var zas = u9.Kopia(); foreach (var t in zas.Tory) t.Rodzaj = "Jednokierunkowy";
+            K((jeden9 == null || Edr.Wymagane(jeden9.Biezace, jeden9.Ustawienia).Contains("Dw")) && Edr.Wymagane(zam, dwa9.Ustawienia).Contains("Dw") && Edr.Wymagane(u9, zas).Contains("Dw")
+                && (u9.WymDw || u9.Tory.Any(t => t.Podstawa == Edr.Podstawy[3]) || !dwBez),
+                $"droga wolna: jednotorowy {(jeden9 == null ? "(brak w układzie)" : string.Join(",", Edr.Wymagane(jeden9.Biezace, jeden9.Ustawienia)))}; dwutorowy z zamkniętym torem i z ruchem jednotorowym – wymagana, bez zmian – {(dwBez ? "wymagana z ustawień" : "nie")}");
+
+            // tor szlakowy z uwag: „po torze nr N” zajmuje tor N, błędny numer, dwa numery, sprzeczność z lewym / prawym – odrzucone
+            var tLewy = dwa9.Biezace.Tory.First(t => t.Strona == "lewy"); var tPrawy = dwa9.Biezace.Tory.First(t => t.Strona == "prawy");
+            // kierunki zasadnicze (ustawienia dziennika): tor lewy – do nas (przyjazdy), prawy – od nas (wyprawienia)
+            var uz9 = dwa9.Ustawienia.Kopia(); uz9.Tory.First(t => t.Strona == "lewy").Zasadniczy = -1; uz9.Tory.First(t => t.Strona == "prawy").Zasadniczy = 1;
+            var ru9 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "ustawienia", Ustawienia = uz9 });
+            var zasW = dwa9.Biezace.Tory.FirstOrDefault(t => t.Zasadniczy == 1);
+            K(ru9.Ok && zasW?.Tor == tPrawy.Tor, $"ustawienia: kierunek zasadniczy – tor {tLewy.Tor} do nas, tor {tPrawy.Tor} od nas ({ru9.Msg})");
+            var rw = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "19100", Tor = "2", Odj = "11:00", Uwagi = $"Po torze nr {tLewy.Tor}" } });
+            var ww = Ost(dwa9); e9.StanSzlaku(dwa9);
+            var zaj9 = dwa9.ToryStan.FirstOrDefault(t => t.Pociagi.Contains(ww.W.Nr));
+            var bz1 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "19102", Odj = "11:05", Uwagi = "Po torze nr 77" } });
+            var bz2 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "19104", Odj = "11:06", Uwagi = $"Po torze nr {tLewy.Tor}, po torze nr {tPrawy.Tor}" } });
+            var bz3 = zasW == null ? new CmdResult(false, "") : W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "19106", Odj = "11:07", Lewy = true, Uwagi = $"Po torze nr {zasW.Tor}" } });
+            var bz4 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "pole", Wiersz = ww.Id, Pole = "Uwagi", Wartosc = "po torze lewym, po torze prawym" });
+            K(rw.Ok && zaj9?.Tor == tLewy.Tor && !bz1.Ok && !bz2.Ok && !bz3.Ok && !bz4.Ok,
+                $"tor z uwag: „Po torze nr {tLewy.Tor}” – zajęty tor {zaj9?.Tor}; nr 77 – {bz1.Msg}; dwa numery – {bz2.Msg}; lewy + tor zasadniczy {zasW?.Tor} – {bz3.Msg}; lewy i prawy – {bz4.Msg}");
+
+            // wykreślenie: przyczyna obowiązkowa, wpis zostaje z nową wersją, nie zajmuje toru, nie da się go zmienić ani wykreślić drugi raz
+            int wersjiPrzed = ww.Wersje.Count;
+            var wk0 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wykresl", Wiersz = ww.Id, Wartosc = "  " });
+            var wk1 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wykresl", Wiersz = ww.Id, Wartosc = "pomyłka w numerze" });
+            var wk2 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "pole", Wiersz = ww.Id, Pole = "Prz", Wartosc = "11:10" });
+            var wk3 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wykresl", Wiersz = ww.Id, Wartosc = "drugi raz" });
+            var tekst9 = dwa9.Strony[^1].Wiersze.First(w => w.Rodzaj == "tekst");
+            var wk4 = W9(new EdrPolecenie { Dziennik = dwa9.Id, Rodzaj = "wykresl", Wiersz = tekst9.Id, Wartosc = "próba" });
+            e9.StanSzlaku(dwa9);
+            K(!wk0.Ok && wk1.Ok && ww.Wykreslony && ww.Kompletny && ww.Wersje.Count == wersjiPrzed + 1 && ww.W.Wykreslono == "pomyłka w numerze" && !wk2.Ok && !wk3.Ok && !wk4.Ok
+                && !dwa9.ToryStan.Any(t => t.Pociagi.Contains(ww.W.Nr)),
+                $"wykreślenie: bez przyczyny – {wk0.Msg}; „{wk1.Msg}”, wersji {ww.Wersje.Count}, tor zwolniony; zmiana – {wk2.Msg}; ponownie – {wk3.Msg}; wpis o dyżurze – {wk4.Msg}");
+            var wy9 = EdrWyciag.Dziennik(dwa9, "", DateTime.MinValue, DateTime.MaxValue, false);
+            K(wy9.Wiersze.Any(x => x.Wykreslony && x.Uwagi.Contains("Wykreślono: pomyłka w numerze")), "wyciąg: wpis wykreślony z przyczyną w uwagach");
+        }
+        {
+            // zapis dzienników do pliku obok układu (kopia w katalogu tymczasowym): tmp + .bak, odczyt przy następnym uruchomieniu – ciągła historia
+            var zapis0 = Edr.ZapisDziennikow; Edr.ZapisDziennikow = true;
+            try
+            {
+                var st10 = Station.Load(kopia);
+                var s10 = new Simulator(st10, options: options) { User = user };
+                var k10 = s10.AddDesk("PC", "Stanowisko 1", true); k10.User = user;
+                var e10 = s10.Edr; e10.PlikUstawien = null; s10.Tick(0.25);
+                var plik = e10.PlikDziennikow;
+                if (File.Exists(plik)) File.Delete(plik);
+                var d10 = e10.Dzienniki.First(d => d.Szlaki.Count == 2 && st10.Blocks[d.Szlaki[0]].Ends.Count == 1);
+                var r10 = e10.Wykonaj(k10, new EdrPolecenie { Dziennik = d10.Id, Rodzaj = "wypr", Dane = new EdrWersja { Nr = "19200", Tor = "1", Odj = "12:00" } });
+                bool jest1 = File.Exists(plik);
+                var r10b = e10.Wykonaj(k10, new EdrPolecenie { Dziennik = d10.Id, Rodzaj = "wpis", Wartosc = "Wpis do sprawdzenia zapisu" });
+                bool bak = File.Exists(plik + ".bak") && !File.Exists(plik + ".tmp");
+                int maxId = e10.Dzienniki.SelectMany(d => d.Strony.SelectMany(s => s.Wiersze)).Max(w => w.Id);
+                K(r10.Ok && r10b.Ok && jest1 && bak && plik.EndsWith(".edr_dzienniki.json"), $"zapis dzienników: {Path.GetFileName(plik)} po wpisie, kopia .bak po kolejnym, bez pliku .tmp");
+
+                // następne uruchomienie: te same strony (historia), wiersze z pliku nie zajmują torów, kolejne numery wierszy dalej
+                var s11 = new Simulator(Station.Load(kopia), options: options) { User = user };
+                var k11 = s11.AddDesk("PC", "Stanowisko 1", true); k11.User = user;
+                var e11 = s11.Edr; e11.PlikUstawien = null; s11.Tick(0.25);
+                var d11 = e11.Dzienniki.First(d => d.Id == d10.Id);
+                var w11 = d11.Strony.SelectMany(s => s.Wiersze).FirstOrDefault(w => w.W?.Nr == "19200");
+                e11.StanSzlaku(d11);
+                var r11 = e11.Wykonaj(k11, new EdrPolecenie { Dziennik = d11.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = "19201", Tor = "1" } });
+                int nowyId = Ost11(d11).Id;
+                EdrWiersz Ost11(EdrDziennik d) => d.Strony[^1].Wiersze[^1];
+                K(w11 != null && w11.Wczytany && d11.Strony.SelectMany(s => s.Wiersze).Any(w => w.Tekst == "Wpis do sprawdzenia zapisu") && !d11.ToryStan.Any(t => t.Pociagi.Contains("19200"))
+                    && r11.Ok && nowyId > maxId && e11.BladDziennikow == null,
+                    $"odczyt przy następnym uruchomieniu: wpisy z pliku jako historia (bez zajętości toru), nowy wiersz nr {nowyId} > {maxId}");
+
+                // uszkodzony plik – nie jest zastępowany, zapis wyłączony, komunikat
+                File.WriteAllText(plik, "{ to nie jest plik dzienników");
+                var s12 = new Simulator(Station.Load(kopia), options: options) { User = user };
+                var k12 = s12.AddDesk("PC", "Stanowisko 1", true); k12.User = user;
+                var e12 = s12.Edr; e12.PlikUstawien = null; s12.Tick(0.25);
+                var d12 = e12.Dzienniki.First(d => d.Id == d10.Id);
+                e12.Wykonaj(k12, new EdrPolecenie { Dziennik = d12.Id, Rodzaj = "wpis", Wartosc = "po błędzie" }); s12.Tick(0.25);
+                K(e12.BladDziennikow != null && File.ReadAllText(plik) == "{ to nie jest plik dzienników" && e12.DlaStanowiska(k12).BladDziennikow != null,
+                    $"uszkodzony plik dzienników zostaje bez zmian: {e12.BladDziennikow}");
+                foreach (var f in new[] { plik, plik + ".bak" }) if (File.Exists(f)) File.Delete(f);
+            }
+            finally { Edr.ZapisDziennikow = zapis0; }
+        }
+
+        // ---------------- E8e: wzory telefonogramów (Data/telefonogramy.json) – treść z pól, skutek dla stanu szlaku
+        sb.AppendLine("--- E8e");
+        {
+            var nry = new[] { "9", "10", "11", "12", "16", "16a", "17", "17a", "21", "21a", "022", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32" };
+            K(EdrWzory.Blad == null && EdrWzory.Lista.Select(w => w.Nr).SequenceEqual(nry) && EdrWzory.Sprawdz() == null, $"wzory telefonogramów: {EdrWzory.Lista.Count} ({EdrWzory.Blad ?? "plik poprawny"})");
+            var w21 = EdrWzory.Wzor("21");
+            var p21 = new Dictionary<string, string> { ["tor"] = "1", ["tryb"] = "", ["godz"] = "1015", ["powod_slowo"] = "z powodu", ["powod"] = "robót torowych" };
+            var t21 = EdrWzory.Tresc(w21, p21, "Łódź Widzew", "Łódź Chojny", new[] { "1", "2" }).Tresc;
+            p21["tryb"] = "planowo"; var t21p = EdrWzory.Tresc(w21, p21, "Łódź Widzew", "Łódź Chojny", new[] { "1", "2" }).Tresc;
+            K(t21 == "Tor numer 1 od Łódź Widzew do Łódź Chojny zamknięty od 10:15 z powodu robót torowych." && t21p.Contains("zamknięty planowo od 10:15"), $"treść ze wzoru 21: „{t21}”; z trybem: „{t21p}”");
+
+            var s13 = new Simulator(st, options: options) { User = user };
+            var k13 = s13.AddDesk("PC", "Stanowisko 1", true); k13.User = user;
+            var e13 = s13.Edr; e13.PlikUstawien = null; s13.Tick(0.25);
+            var d13 = e13.Dzienniki.First(d => d.Szlaki.Count == 2 && st.Blocks[d.Szlaki[0]].Ends.Count == 1);
+            var tor13 = d13.Biezace.Tory[0];
+            CmdResult T13(string nr, Dictionary<string, string> pola, bool nadaje = true, string dz = "") => e13.Wykonaj(k13, new EdrPolecenie { Rodzaj = "telefonogram", Dziennik = dz == "" ? d13.Id : dz, Wartosc = d13.Post,
+                Tel = new EdrTelefonogram { Wzor = nr, Pola = pola, Nadaje = nadaje, Odebral = "Adam Nowak", Nadal = "Adam Nowak", NadalPost = "Sąsiad", OdebralPost = "Sąsiad" } });
+            string Stat() { e13.StanSzlaku(d13); return d13.Biezace.Tory.First(t => t.Szlak == tor13.Szlak).Status; }
+            EdrTelefonogram Ost13() => d13.Strony[^1].Wiersze[^1].Tel;
+
+            var r21 = T13("21", new() { ["tor"] = tor13.Tor, ["godz"] = "10:15", ["powod_slowo"] = "celem", ["powod"] = "naprawy" });
+            var tel21 = Ost13(); var st21 = Stat();
+            var r22 = T13("22", new() { ["tor"] = tor13.Tor, ["godz"] = "11:00" }); var st22 = Stat();
+            K(r21.Ok && tel21.WzorNr == "21" && tel21.Tresc.StartsWith($"Tor numer {tor13.Tor} od ") && tel21.Tresc.Contains($" do {d13.Sasiad} zamknięty od 10:15 celem naprawy") && st21 == "Zamknięty" && r22.Ok && st22 == "Otwarty",
+                $"wzór 21 z dziennika ruchu: „{tel21?.Tresc}” – tor {tor13.Tor} {st21}; wzór 22 – {st22}");
+
+            var r21a = T13("21a", new() { ["tor"] = tor13.Tor, ["pociag"] = "19501", ["powod_slowo"] = "z powodu", ["powod"] = "usterki" }); var przed21a = Stat();
+            e13.Wykonaj(k13, new EdrPolecenie { Dziennik = d13.Id, Rodzaj = "przyj", Dane = new EdrWersja { Nr = "19501", Tor = "1", Odj = "12:00", Prz = "12:06" } });
+            var po = Stat();
+            T13("22", new() { ["tor"] = tor13.Tor, ["godz"] = "12:30" });
+            K(r21a.Ok && przed21a == "Otwarty" && po == "Zamknięty", $"wzór 21a: przed przyjazdem 19501 tor {przed21a}, po przyjeździe {po}");
+
+            var r16 = T13("16", new() { ["tor"] = tor13.Tor, ["godz"] = "13:00", ["powod"] = "usterki blokady" }); Stat();
+            bool dw16 = Edr.Wymagane(d13.Biezace, d13.Ustawienia).Contains("Dw"); var pod16 = d13.Biezace.Tory.First(t => t.Szlak == tor13.Szlak).Podstawa;
+            var r17 = T13("17", new() { ["tor"] = tor13.Tor, ["godz"] = "14:00" }); Stat();
+            var pod17 = d13.Biezace.Tory.First(t => t.Szlak == tor13.Szlak).Podstawa;
+            K(r16.Ok && pod16 == Edr.Podstawy[3] && dw16 && r17.Ok && pod17 == d13.Ustawienia.Tory.First(t => t.Szlak == tor13.Szlak).Podstawa,
+                $"wzór 16: prowadzenie ruchu „{pod16}”, droga wolna wymagana; wzór 17: z powrotem zasadnicze („{pod17 ?? "z urządzenia"}”)");
+
+            // zasadniczo tory jednokierunkowe (lewy – do nas, prawy – od nas): 23 wprowadza ruch dwukierunkowy, 25 przywraca zasadniczy
+            var u13 = d13.Ustawienia.Kopia(); foreach (var t in u13.Tory) { t.Rodzaj = "Jednokierunkowy"; t.Zasadniczy = t.Strona == "lewy" ? -1 : 1; }
+            e13.Wykonaj(k13, new EdrPolecenie { Dziennik = d13.Id, Rodzaj = "ustawienia", Ustawienia = u13 });
+            var zas13 = d13.Ustawienia.Tory.Select(t => t.Rodzaj).ToList();
+            var r23 = T13("23", new() { ["tor"] = tor13.Tor, ["pociag"] = "19503", ["odjechal"] = "14:10" }); Stat();
+            var rod23 = d13.Biezace.Tory.First(t => t.Szlak == tor13.Szlak).Rodzaj;
+            var r25 = T13("25", new() { ["godz"] = "15:00" }); Stat();
+            K(r23.Ok && rod23 == "Dwukierunkowy" && zas13.All(x => x == "Jednokierunkowy") && r25.Ok && d13.Biezace.Tory.Select(t => t.Rodzaj).SequenceEqual(zas13), $"wzór 23: ruch {rod23.ToLowerInvariant()}; wzór 25: rodzaj ruchu jak w ustawieniach ({string.Join(", ", zas13)})");
+
+            var bw1 = T13("21", new() { ["tor"] = tor13.Tor, ["godz"] = "10:15", ["powod_slowo"] = "celem" });
+            var bw2 = T13("22", new() { ["tor"] = "77", ["godz"] = "11:00" });
+            var bw3 = T13("99", new());
+            var rOdb = T13("10", new() { ["godz"] = "16:00" }, nadaje: false);
+            var rTel = T13("9", new() { ["godz"] = "16:05" }, dz: null);
+            var telF = e13.Telefoniczny.GetValueOrDefault(d13.Post)?.LastOrDefault();
+            var r28 = T13("28", new() { ["godz"] = "16:10" }, nadaje: false); var t28 = Ost13();
+            K(!bw1.Ok && !bw2.Ok && !bw3.Ok && rOdb.Ok && rTel.Ok && telF?.Tresc == "Nie wyprawiać pociągów od 16:05 aż do odwołania." && r28.Ok && t28.Tresc.StartsWith($"Posterunek {d13.Sasiad} otwarty o godzinie 16 minut 10"),
+                $"wzory: bez powodu – {bw1.Msg}; tor 77 – {bw2.Msg}; nieznany wzór – {bw3.Msg}; z dziennika telefonicznego: „{telF?.Tresc}”; 28 odebrany: „{t28?.Tresc}”");
         }
 
         try { Directory.Delete(kat, true); } catch { }
