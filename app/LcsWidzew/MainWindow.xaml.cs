@@ -179,7 +179,7 @@ public partial class MainWindow : Window
             Join(hp[0], hp.Length > 1 ? int.Parse(hp[1]) : Wire.DefaultPort, "Test sieci");
             ses.Login(new User { Name = "Test2", Role = "dyżurny ruchu" });
         }
-        else Start(scenario, new User { Name = "Test", Role = "dyżurny ruchu" });
+        else Start(scenario, new User { Name = "Test", Role = ShotCmds.Contains("#edradmin") ? "administrator" : "dyżurny ruchu" });
         paused = true;
         foreach (var c in ShotCmds)
         {
@@ -209,6 +209,34 @@ public partial class MainWindow : Window
             if (c.StartsWith("#kz=")) { kzShots.Add(int.Parse(c[4..])); continue; }
             if (c.StartsWith("#tablica=")) { routesShot = c[9..]; continue; }
             if (c.StartsWith("#plan")) { planShot = c.Length > 6 ? c[6..] : ""; continue; }
+            if (c.StartsWith("#edrprzyj=") || c.StartsWith("#edrwypr=") || c.StartsWith("#edrpole=")) { EdrShotCmd(c); continue; }
+            if (c.StartsWith("#edrklik=")) { edrKlik.Add(c[9..]); continue; }
+            if (c == "#edrszlaki") { edrSzlaki = true; continue; }
+            if (c.StartsWith("#edrust=")) { edrUst = int.Parse(c[8..]); continue; }
+            if (c.StartsWith("#edrtel=")) { EdrTelShot(c[8..]); continue; }
+            if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=")) { EdrE5Shot(c); continue; }
+            if (c.StartsWith("#edrdrokno=")) { edrDrOkno = int.Parse(c[11..]); continue; }
+            if (c.StartsWith("#edrsprust=")) { edrSprUst = c[11..]; continue; }
+            if (c.StartsWith("#edrwyciag=")) { edrWyciag.Add(c[11..]); continue; }
+            if (c.StartsWith("#edrpost=")) { edrPost = c[9..]; continue; }
+            // E7: „#edradmin” – zalogowany administrator, „#edrkonf=KOD” – okno posterunków i dzienników, „#edrbezwyp” – okno czasu bez wypadku, „#edropis=nr” – opis i trasa pociągu
+            if (c == "#edradmin") continue;
+            if (c.StartsWith("#edrkonf=")) { edrKonf = c[9..]; continue; }
+            if (c == "#edrbezwyp") { edrBezWyp = true; continue; }
+            if (c.StartsWith("#edropis=")) { edrOpis = c[9..]; continue; }
+            // „#edrwykaz=KOD” – wykaz pociągów posterunku do pliku .txt (kierunki, szlaki, bieg z rozkładu)
+            if (c.StartsWith("#edrwykaz=") && sim != null)
+            {
+                foreach (var p in sim.Edr.Wykaz(c[10..]))
+                {
+                    var q = sim.Rozklad.Queue.FirstOrDefault(x => $"{x.Num}@{x.T:0}" == p.Klucz);
+                    File.AppendAllText(ShotPath + ".txt", $"{p.Nr}/{p.NrWyj} {p.Rodz}|{p.Kod} z={p.ZSzlak}:{p.ZKierunku} w={p.WSzlak}:{p.WKierunku} prz={p.PrzPlan} odj={p.OdjPlan} | From={q?.From} To={q?.To} Start={q?.StartSec} plan={string.Join(",", (q?.PlanPrz ?? new()).OrderBy(x => x.Value).Select(x => x.Key))} term={string.Join(",", Enumerable.Repeat(0, 1).SelectMany(_ => { var l = new List<string>(); for (var t = q?.Duty?.Term ?? q?.Term; t != null; t = t.Then) l.Add($"{t.AtPost}>{t.To}"); return l; }))}{(char)10}");
+                }
+                continue;
+            }
+            if (c.StartsWith("#edrtelokno=")) { edrTelOkno = int.Parse(c[12..]); continue; }
+            if (c == "#edrtelefoniczny") { edrTelefoniczny = true; continue; }
+            if (c.StartsWith("#edr")) { edrShot = c.Length > 5 ? int.Parse(c[5..]) : 0; continue; }
             if (c.StartsWith("#sw=")) { Panel.SelSwitch = station.Switches.Values.First(x => x.Label == c[4..] && Panel.Page.Posts.Contains(x.Post)).Num; continue; }
             if (c.StartsWith("#via=")) { ToggleVia(station.Switches.Values.First(x => x.Label == c[5..] && Panel.Page.Posts.Contains(x.Post)).Num); continue; }
             if (c.StartsWith("#koniec="))
@@ -273,6 +301,87 @@ public partial class MainWindow : Window
                     using (var f = File.Create(ShotPath + ".tablica.png")) er.Save(f);
                     rw.Close();
                 }
+                if (edrShot >= 0)
+                {
+                    var ew = new EdrWindow(ses) { Owner = this, Width = 1500, Height = 900 }; ew.Show(); ew.Odswiez(true);
+                    if (edrPost != null) { ew.WykazPanel.Wybierz(edrPost, null); ew.Odswiez(true); }
+                    else if (edrKlik.Count == 0) ew.PokazDziennik(edrShot);
+                    foreach (var nr in edrKlik)
+                    {
+                        var p = ew.WykazPanel.Pociag(nr);
+                        if (p != null) ew.DodajZWykazu(ew.WykazPanel.Posterunek, p);
+                        File.AppendAllText(ShotPath + ".txt", $"#edrklik={nr}: {(p == null ? "BRAK W WYKAZIE" : $"przyjazd {p.PrzRzecz}, tor {p.TorRzecz}, z {p.ZKierunku} – {ew.Komunikat}")}{(char)10}");
+                    }
+                    if (edrKlik.Count > 0) ew.WykazPanel.Wybierz(null, edrKlik[^1]);
+                    ew.UpdateLayout();
+                    Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    var re = new System.Windows.Media.Imaging.RenderTargetBitmap((int)ew.ActualWidth, (int)ew.ActualHeight, 96, 96, PixelFormats.Pbgra32); re.Render((Visual)ew.Content);
+                    var ee = new System.Windows.Media.Imaging.PngBitmapEncoder(); ee.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(re));
+                    using (var f = File.Create(ShotPath + ".edr.png")) ee.Save(f);
+                    if (ew.Dane?.Dzienniki.Count > 0)
+                    {
+                        // okno przyjęcia pociągu (puste – jak po kliknięciu przycisku nad dziennikiem)
+                        var ow = ew.OknoPociagu(ew.Dane.Dzienniki[Math.Min(edrShot, ew.Dane.Dzienniki.Count - 1)], "przyj"); ow.Show(); ow.UpdateLayout();
+                        Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        var ro = new System.Windows.Media.Imaging.RenderTargetBitmap((int)ow.ActualWidth, (int)ow.ActualHeight, 96, 96, PixelFormats.Pbgra32); ro.Render((Visual)ow.Content);
+                        var eo = new System.Windows.Media.Imaging.PngBitmapEncoder(); eo.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(ro));
+                        using (var f = File.Create(ShotPath + ".edr_przyjecie.png")) eo.Save(f);
+                        ow.Close();
+                    }
+                    void Okno(Window w, string plik)
+                    {
+                        w.Show(); w.UpdateLayout(); Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        var rw = new System.Windows.Media.Imaging.RenderTargetBitmap((int)w.ActualWidth, (int)w.ActualHeight, 96, 96, PixelFormats.Pbgra32); rw.Render((Visual)w.Content);
+                        var ewn = new System.Windows.Media.Imaging.PngBitmapEncoder(); ewn.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rw));
+                        using (var f = File.Create(ShotPath + plik)) ewn.Save(f);
+                    }
+                    for (int wi = 0; wi < edrWyciag.Count; wi++)
+                    {
+                        var a = edrWyciag[wi].Split('|');
+                        var wy = ew.WyciagOkno(a[0]); wy.Width = 1000; wy.Height = 1180; wy.Show(); wy.Ustaw(a.Length > 1 ? int.Parse(a[1]) : 0, a.Length > 2 && a[2] == "h");
+                        Okno(wy, $".edr_wyciag_{wi + 1}.png"); wy.Close();
+                    }
+                    if (edrKonf != null) { var kw = (OknoPosterunkow)ew.PosterunkiOkno(); kw.Show(); kw.Wybierz(edrKonf); Okno(kw, ".edr_posterunki.png"); kw.Close(); }
+                    if (edrBezWyp) { var bw = ew.BezWypadkuOkno(); Okno(bw, ".edr_bezwypadku.png"); bw.Close(); }
+                    if (edrOpis != null)
+                    {
+                        ew.WykazPanel.Wybierz(null, edrOpis);
+                        foreach (var (zi, pl) in new[] { (1, ".edr_opis.png"), (2, ".edr_trasa.png") }) { ew.PokazZakladkePociagu(zi); Okno(ew, pl); }
+                        ew.PokazZakladkePociagu(0);
+                    }
+                    if (edrDrOkno >= 0 && ew.Dane?.Dzienniki.Count > edrDrOkno) { var dw = ew.DroznicyOkno(ew.Dane.Dzienniki[edrDrOkno]); Okno(dw, ".edr_droznicy.png"); dw.Close(); }
+                    if (edrSprUst != null) { var sw2 = ew.SprawdzeniaUstOkno(edrSprUst); Okno(sw2, ".edr_sprawdzenia.png"); sw2.Close(); }
+                    if (edrTelOkno >= 0 && ew.Dane?.Dzienniki.Count > edrTelOkno)
+                    {
+                        var dz = ew.Dane.Dzienniki[edrTelOkno]; var tw = ew.TelefonogramOkno(dz.Post, dz, false); Okno(tw, ".edr_telefonogram.png"); tw.Close();
+                    }
+                    if (edrTelefoniczny)
+                    {
+                        ew.PokazTelefoniczny(); ew.Odswiez(true); ew.UpdateLayout(); Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        var rt = new System.Windows.Media.Imaging.RenderTargetBitmap((int)ew.ActualWidth, (int)ew.ActualHeight, 96, 96, PixelFormats.Pbgra32); rt.Render((Visual)ew.Content);
+                        var et = new System.Windows.Media.Imaging.PngBitmapEncoder(); et.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rt));
+                        using (var f = File.Create(ShotPath + ".edr_telefoniczny.png")) et.Save(f);
+                    }
+                    if (edrUst >= 0 && ew.Dane?.Dzienniki.Count > edrUst)
+                    {
+                        var uw = ew.UstawieniaOkno(ew.Dane.Dzienniki[edrUst], false); uw.Show(); uw.UpdateLayout();
+                        Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        var ru = new System.Windows.Media.Imaging.RenderTargetBitmap((int)uw.ActualWidth, (int)uw.ActualHeight, 96, 96, PixelFormats.Pbgra32); ru.Render((Visual)uw.Content);
+                        var eu = new System.Windows.Media.Imaging.PngBitmapEncoder(); eu.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(ru));
+                        using (var f = File.Create(ShotPath + ".edr_ustawienia.png")) eu.Save(f);
+                        uw.Close();
+                    }
+                    if (edrSzlaki && ew.Dane != null)
+                    {
+                        var sw = new SzlakiPosterunku(ew.Dane.Dzienniki.Where(x => x.Post == ew.WykazPanel.Posterunek).ToList()) { Owner = ew }; sw.Show(); sw.UpdateLayout();
+                        Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        var rs = new System.Windows.Media.Imaging.RenderTargetBitmap((int)sw.ActualWidth, (int)sw.ActualHeight, 96, 96, PixelFormats.Pbgra32); rs.Render((Visual)sw.Content);
+                        var es = new System.Windows.Media.Imaging.PngBitmapEncoder(); es.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rs));
+                        using (var f = File.Create(ShotPath + ".edr_szlaki.png")) es.Save(f);
+                        sw.Close();
+                    }
+                    ew.Close();
+                }
                 foreach (var tab in kzShots)
                 {
                     var kw = new KzWindow(() => sim, () => server) { Owner = this, Width = 1100, Height = 520 }; kw.Show(); kw.ShowTab(tab); kw.UpdateLayout();
@@ -289,8 +398,68 @@ public partial class MainWindow : Window
     }
     /// <summary>Tryb zrzutu: ile sekund program działa po zrzucie (serwer dla testu sieci).</summary>
     public double ShotHold;
+    string edrKonf, edrOpis; bool edrBezWyp;
     readonly List<int> kzShots = new();
     string planShot, routesShot;
+    /// <summary>Tryb zrzutu: „#edr” / „#edr=i” – zrzut okna EDR z zakładką dziennika i (−1 – bez zrzutu).</summary>
+    int edrShot = -1;
+    /// <summary>Tryb zrzutu: „#edrklik=nr” – dwuklik na pociągu w wykazie (po upływie czasu zrzutu), „#edrszlaki” – zrzut okna „Szlaki posterunku”.</summary>
+    readonly List<string> edrKlik = new();
+    bool edrSzlaki;
+    /// <summary>Tryb zrzutu: „#edrust=i” – zrzut okna ustawień zasadniczych dziennika i (−1 – bez).</summary>
+    int edrUst = -1;
+    /// <summary>Tryb zrzutu: „#edrtelokno=i” – okno telefonogramu dziennika i, „#edrtelefoniczny” – zakładka dziennika telefonicznego.</summary>
+    int edrTelOkno = -1;
+    /// <summary>Tryb zrzutu E5: „#edrdrokno=i” – okno powiadomienia dróżników dziennika i, „#edrsprust=POST” – konfiguracja sprawdzeń posterunku.</summary>
+    int edrDrOkno = -1;
+    string edrSprUst;
+    /// <summary>Tryb zrzutu E6: „#edrwyciag=rodzaj|i|h” – okno wyciągu (ruchu / telefoniczny / tory), dziennik i, h – z historią; zrzut do `.edr_wyciag_n.png`.</summary>
+    readonly List<string> edrWyciag = new();
+    /// <summary>Tryb zrzutu: „#edrpost=KOD” – posterunek wybrany u góry okna EDR (wykaz, dzienniki, dziennik telefoniczny, kontrolka).</summary>
+    string edrPost;
+
+    /// <summary>
+    /// Tryb zrzutu E5: „#edrdr=i|ozn:km:j|ozn:km:d” – dróżnicy w ustawieniach dziennika i (j – godzina, d – ukośnik), „#edrpowrot=i:nr:tor:km” – jazda do km i z powrotem,
+    /// „#edrwpis=i|treść” – wpis dowolny, „#edrspr=POST|nazwa|minuty” – wymagane sprawdzenie posterunku.
+    /// </summary>
+    void EdrE5Shot(string c)
+    {
+        var dane = ses.GetEdr(); CmdResult r;
+        var arg = c[(c.IndexOf('=') + 1)..];
+        if (c.StartsWith("#edrdr="))
+        {
+            var a = arg.Split('|'); var d = dane.Dzienniki[int.Parse(a[0])]; var u = d.Ustawienia.Kopia();
+            foreach (var x in a.Skip(1)) { var f = x.Split(':'); u.Droznicy.Add(new EdrDroznik { Oznaczenie = f[0], Nazwa = f[0], Km = f[1], WgSzlaku = f[2] == "j" ? "Jednotorowych" : "Dwu i więcej torowych" }); }
+            r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "ustawienia", Ustawienia = u });
+        }
+        else if (c.StartsWith("#edrpowrot="))
+        {
+            var a = arg.Split(':'); var d = dane.Dzienniki[int.Parse(a[0])];
+            r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "wypr", Pole = "powrot", Wartosc = a[3], Dane = new EdrWersja { Nr = a[1], Tor = a[2], Dw = dane.Zegar[..5], Odj = dane.Zegar[..5] } });
+        }
+        else if (c.StartsWith("#edrwpis="))
+        {
+            var a = arg.Split('|', 2); r = ses.EdrCmd(new EdrPolecenie { Dziennik = dane.Dzienniki[int.Parse(a[0])].Id, Rodzaj = "wpis", Wartosc = a[1] });
+        }
+        else
+        {
+            var a = arg.Split('|'); var l = (dane.SprawdzeniaUst.GetValueOrDefault(a[0]) ?? new()).ToList(); l.Add(new EdrSprawdzenie { Nazwa = a[1], Okres = int.Parse(a[2]) });
+            r = ses.EdrCmd(new EdrPolecenie { Rodzaj = "sprawdzenia", Wartosc = a[0], Sprawdzenia = l });
+        }
+        File.AppendAllText(ShotPath + ".txt", $"{c}: {(r.Ok ? "OK" : "ODRZUCONE")} {r.Msg}{(char)10}");
+    }
+    bool edrTelefoniczny;
+
+    /// <summary>Tryb zrzutu: „#edrtel=i|treść|odebrał|lewy” – telefonogram nadany z dziennika i (ostatnie – zamknięcie toru lewego); i = -1 – inne okoliczności posterunku.</summary>
+    void EdrTelShot(string arg)
+    {
+        var a = arg.Split('|'); var dane = ses.GetEdr(); int i = int.Parse(a[0]);
+        var d = i >= 0 ? dane.Dzienniki[i] : null;
+        var t = new EdrTelefonogram { Rodzaj = d == null ? "okolicznosc" : "telefonogram", Tresc = a.Length > 1 ? a[1] : "", Odebral = a.Length > 2 ? a[2] : "" };
+        if (d != null && a.Length > 3 && d.Biezace.Tory.FirstOrDefault(x => x.Strona == a[3]) is EdrTorUstawienia tz) t.Zmiany.Add(new EdrZmianaToru { Szlak = tz.Szlak, Status = "Zamknięty" });
+        var r = ses.EdrCmd(new EdrPolecenie { Rodzaj = "telefonogram", Dziennik = d?.Id, Wartosc = d?.Post ?? dane.Posterunki.Keys.First(), Tel = t });
+        File.AppendAllText(ShotPath + ".txt", $"#edrtel={arg}: {(r.Ok ? "OK" : "ODRZUCONE")} {r.Msg}{(char)10}");
+    }
 
     /// <summary>Stanowisko sieciowe w trybie testu: odczekanie na meldunki z serwera.</summary>
     void Pump(double until)
@@ -779,16 +948,18 @@ public partial class MainWindow : Window
         var m = NewMenu($"Zwrotnica {lb} (położenie {w.Pos})");
         Add(m, "Przestawienie do „+” (Plus)", $"{lb} Plus", enabled: w.Pos != "+" || w.Moving != null);
         Add(m, "Przestawienie do „−” (Minus)", $"{lb} Minus", enabled: w.Pos != "-" || w.Moving != null);
-        Add(m, "Zastopowanie (Stop)", $"{lb} Stop", enabled: !w.Stopped);
-        Add(m, "Odwołanie zastopowania (oStop)", $"{lb} oStop", enabled: w.Stopped);
+        // kolejność jak na filmie ISDR z 2026-10-27: PLUS MINUS ZMK OZM… / MINUSBZ KSR KSRP …; STOP, OSTOP, ZEROLO – z dawnego menu (spoza filmu)
         var sec = station.Switches[num].Sec; var sc = I.Secs.GetValueOrDefault(sec) ?? new SecInd();
         Add(m, "Zamknięcie ruchowe (Zmk)", $"{lb} Zmk", enabled: !sc.Closed);
         Add(m, "Odwołanie zamknięcia ruchowego (oZmk)", $"{lb} oZmk", enabled: sc.Closed);
         Add(m, "Przestawienie „+” z bocznikowaniem (PlusBZ)", $"{lb} PlusBZ", special: true);
         Add(m, "Przestawienie „−” z bocznikowaniem (MinBZ)", $"{lb} MinBZ", special: true);
+        m[^1] = m[^1] with { Label = "MINUSBZ" };                 // napis jak na filmie ISDR
         Add(m, "Kasowanie sygnalizacji rozprucia (KSR)", $"{lb} KSR", special: true, enabled: w.Rozpr);
+        Add(m, "Zastopowanie (Stop)", $"{lb} Stop", enabled: !w.Stopped);
+        Add(m, "Odwołanie zastopowania (oStop)", $"{lb} oStop", enabled: w.Stopped);
         Add(m, "Zerowanie licznika osi (ZeroLO)", $"{lb} ZeroLO", special: true, enabled: sc.Fault != null);
-        return (lb, m, menuTitle);
+        return (lb, m, $"{menuTitle}{(w.Flank ? ", zamknięta w ochronie bocznej" : "")}");
     }
 
     (string, List<PolecenieBtn>, string) SecCmds(string sec)
@@ -908,6 +1079,7 @@ public partial class MainWindow : Window
         if (!r.Ok && init) panelInit = null;
         ClearSel();
         if (r.Ok && kod == "OSZ") Odswiez();
+        Pol.Potwierdz(hdr, r.Ok, r.Msg);
     }
 
     /// <summary>OSZ na nastawni: odświeżenie stanu komputera zobrazowania – nowy telegram stanu, dzienniki i obraz od nowa.</summary>
@@ -952,6 +1124,28 @@ public partial class MainWindow : Window
     void Plan_Click(object s, RoutedEventArgs e) => new PlanWindow(ses) { Owner = this }.Show();
     void Routes_Click(object s, RoutedEventArgs e) => new RoutesWindow(ses.RouteTable, ses.IsHost ? sim : null) { Owner = this }.Show();
     void Book_Click(object s, RoutedEventArgs e) => new BookWindow(ses) { Owner = this }.Show();
+    EdrWindow edrWin;
+    void Edr_Click(object s, RoutedEventArgs e)
+    {
+        if (edrWin == null || !edrWin.IsLoaded) { edrWin = new EdrWindow(ses) { Owner = this }; edrWin.Closed += (a, b) => edrWin = null; edrWin.Show(); }
+        else edrWin.Activate();
+    }
+
+    /// <summary>Tryb zrzutu: „#edrprzyj=i:nr:tor”, „#edrwypr=i:nr:tor”, „#edrpole=i:Pole:wartość” (ostatni wiersz pociągu dziennika i; „teraz”, „+N” – minuty).</summary>
+    void EdrShotCmd(string c)
+    {
+        var a = c[(c.IndexOf('=') + 1)..].Split(':');
+        var dane = ses.GetEdr(); var d = dane.Dzienniki[int.Parse(a[0])];
+        CmdResult r;
+        if (c.StartsWith("#edrpole="))
+        {
+            var w = d.Strony[^1].Wiersze.Last(x => x.Rodzaj != "tekst");
+            var v = a[2] == "teraz" ? dane.Zegar[..5] : a[2].StartsWith("+") ? EdrWindow.Przesun(dane.Zegar[..5], 0, int.Parse(a[2][1..]), dane.Zegar[..5]) : string.Join(":", a.Skip(2));
+            r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "pole", Wiersz = w.Id, Pole = a[1], Wartosc = v });
+        }
+        else r = ses.EdrCmd(new EdrPolecenie { Dziennik = d.Id, Rodzaj = c.StartsWith("#edrprzyj=") ? "przyj" : "wypr", Dane = new EdrWersja { Nr = a[1], Tor = a.Length > 2 ? a[2] : "", Odj = dane.Zegar[..5] } });
+        File.AppendAllText(ShotPath + ".txt", $"{c}: {(r.Ok ? "OK" : "ODRZUCONE")} {r.Msg}{(char)10}");
+    }
     void Instr_Click(object s, RoutedEventArgs e)
     {
         if (sim == null) { MessageBox.Show(this, "Panel instruktora działa na serwerze.", "Instruktor"); return; }

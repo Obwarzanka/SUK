@@ -146,6 +146,8 @@ public class BlockDef
     public string Name, NameShort;
     public bool Internal;
     public int DefDir;
+    /// <summary>Kierunek pociągów parzystych (jak <see cref="DefDir"/>; 0 – nie ustalono) – z edytora UT, EDR wymusza wg niego parzystość numeru.</summary>
+    public int EvenDir;
     public List<BlockEnd> Ends = new();
     public List<string> SecsWE = new();
     /// <summary>Rodzaje urządzeń bezpieczeństwa ruchu na szlaku.</summary>
@@ -235,6 +237,8 @@ public class Station
     public Dictionary<string, TrackEndDef> TrackEnds = new();
     /// <summary>Kozły oporowe – tylko symbol na końcu toru (bez funkcji końca przebiegu).</summary>
     public HashSet<string> Bumpers = new();
+    /// <summary>Wskaźniki W5 (granica przetaczania, pole „w5”): węzeł → kierunek jazdy manewrowej, którą ogranicza, i nazwa.</summary>
+    public Dictionary<string, (int Dir, string Label)> W5 = new();
     /// <summary>Pary torów, przez które nie ma jazdy (w obie strony): rozjazd krzyżowy pojedynczy – brakujący przejazd (pole „noPass”).</summary>
     public List<(string A, string B)> NoPass = new();
     public Dictionary<string, string> Posts = new();
@@ -524,6 +528,7 @@ public class Station
                 Id = p.Name, Type = S(v, "type"), Nbr = S(v, "nbr"), Far = S(v, "far"), Tor = S(v, "tor"), Line = S(v, "line"), Label = S(v, "label", p.Name),
                 Internal = v.TryGetProperty("internal", out var it) && it.GetBoolean(), DefDir = v.GetProperty("defDir").GetInt32(), NbrW = S(v, "nbrW"), NbrE = S(v, "nbrE")
             };
+            if (v.TryGetProperty("evenDir", out var ev) && ev.ValueKind == JsonValueKind.Number) b.EvenDir = Math.Sign(ev.GetInt32());
             if (v.TryGetProperty("aspects", out var asp) && asp.ValueKind == JsonValueKind.Number) b.Aspects = Math.Clamp(asp.GetInt32(), 2, 4);
             foreach (var en in v.GetProperty("ends").EnumerateArray())
                 b.Ends.Add(new BlockEnd { Boundary = S(en, "boundary"), EntrySig = S(en, "entrySig"), Post = S(en, "post"), Label = S(en, "label"), Outward = en.GetProperty("outward").GetInt32() });
@@ -539,6 +544,8 @@ public class Station
             foreach (var p in np.EnumerateArray()) if (p.GetArrayLength() == 2) st.NoPass.Add((p[0].GetString(), p[1].GetString()));
         if (r.TryGetProperty("bumpers", out var bmp) && bmp.ValueKind == JsonValueKind.Object)
             foreach (var p in bmp.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.Bumpers.Add(p.Name);
+        if (r.TryGetProperty("w5", out var w5) && w5.ValueKind == JsonValueKind.Object)
+            foreach (var p in w5.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.W5[p.Name] = (p.Value.GetProperty("dir").GetInt32(), S(p.Value, "label", ""));
         foreach (var p in r.GetProperty("trackEnds").EnumerateObject())
             st.TrackEnds[p.Name] = new TrackEndDef { Id = S(p.Value, "id"), Label = S(p.Value, "label", ""), Disp = S(p.Value, "disp", Lbl(S(p.Value, "id"))), Marker = p.Value.TryGetProperty("marker", out var mk) && mk.GetBoolean() };
         if (r.TryGetProperty("planScale", out var psc) && psc.ValueKind == JsonValueKind.Object && psc.TryGetProperty("along", out var pal) && psc.TryGetProperty("across", out var pac) && pal.ValueKind == JsonValueKind.Number && pac.ValueKind == JsonValueKind.Number && pac.GetDouble() > 0)

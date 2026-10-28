@@ -174,12 +174,14 @@ public class LcsServer : IDisposable
             case "ansctl": sim.AnswerControl(d, (string)m["post"], m["yes"].GetValue<bool>()); break;
             case "phone": sim.Phone(d, (string)m["to"], (string)m["text"]); break;
             case "book": sim.AddBook(d, (string)m["text"], (string)m["auto"]); break;
+            case "edr": Res(sim.Edr.Wykonaj(d, Wire.Get<EdrPolecenie>(m["p"]))); break;
             case "get":
                 switch ((string)m["what"])
                 {
                     case "plan": Res(sim.PlanRows()); break;
                     case "score": Res(sim.Score()); break;
                     case "book": Res(sim.BookFor(d)); break;
+                    case "edr": Res(sim.Edr.DlaStanowiska(d)); break;
                 }
                 break;
         }
@@ -352,6 +354,8 @@ public class RemoteSession : ILcsSession, IDisposable
     public ScoreData GetScore() => Wire.Get<ScoreData>(Call("get", ("what", "score"))) ?? new() { Stats = new() };
     public BookData GetBook() => Wire.Get<BookData>(Call("get", ("what", "book"))) ?? new();
     public void AddBook(string text, string auto) => Send(Wire.Msg("book", ("text", text), ("auto", auto)));
+    public EdrData GetEdr() => Wire.Get<EdrData>(Call("get", ("what", "edr")));
+    public CmdResult EdrCmd(EdrPolecenie p) => Res(Call("edr", ("p", p)));
 
     public void Dispose() { closed = true; try { tcp?.Close(); } catch { } }
 }

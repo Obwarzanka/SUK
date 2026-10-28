@@ -234,6 +234,12 @@ public static partial class Test
         Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("PBL dwukierunkowa (półsamoczynna)")).SelectedIndex = 0;
         Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("4-stawna")).SelectedIndex = 2;
         Ok(l1.Typ == UtLine.Sbl && l1.Stawnosc == 4, "SBL 4-stawna z panelu");
+        // kierunek pociągów parzystych (EDR): od końca 1 (Andrzejów) do końca 2 (semafor MJ) – przy semaforze pociągi parzyste wjeżdżają
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("nie ustalono")).SelectedIndex = 1;
+        var jb = DoSymulatora.Buduj(d.P, null).Json["blocks"]?["1A"];
+        Ok(l1.Parzysty == 1 && jb?["evenDir"]?.GetValue<int>() == -jb?["ends"]?[0]?["outward"]?.GetValue<int>(), $"kierunek parzysty z panelu → evenDir {jb?["evenDir"]} (wjazd przy semaforze)");
+        Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("nie ustalono")).SelectedIndex = 0;
+        Ok(l1.Parzysty == 0 && DoSymulatora.Buduj(d.P, null).Json["blocks"]?["1A"]?["evenDir"] == null, "kierunek parzysty „nie ustalono” – bez evenDir");
         // kilometraż linii (wymaga go „Sprawdź”)
         w.SetTool(UtTool.Km); w.AskNameForTest = _ => "17 10.000";
         var pk = r1.At(300).P; Look(pk, 0.5); w.View.SimDrag(S(pk), S(Go(pk, lineAz, 20)));
@@ -255,6 +261,19 @@ public static partial class Test
         Ok(d.P.Tracks.First(x => x.Id == t2.Id).Post == null && Kontrola.Run(d.P).Any(u => u.Text == "tor 2 nie należy do posterunku ani do szlaku"), $"tor 2 bez posterunku – uwaga ({string.Join("; ", Kontrola.Run(d.P).Select(u => u.Text))})");
         w.DoUndo();
         Ok(Kontrola.Run(d.P).Count == 0, $"Ctrl+Z ×3 – znowu bez uwag ({string.Join("; ", Kontrola.Run(d.P).Select(u => u.Text))})");
+        // odstęp SBL bez granicy odcinka: S60 (km 60) – A (km 150) na szlaku 1A; licznik tylko przy A – odstęp S60 zlewa się z poprzednim
+        string OdstepUw() => Szlaki.Check(d.P, Szlaki.Drogi(d.P)).Select(u => u.Text).FirstOrDefault(x => x.Contains("brak granicy odcinka"));
+        d.Change("Odcinek (test)", q => { q.Sections.Add(new UtSection { Name = "1A", Track = t1.Id, S = 100 }); q.Devices.Add(new UtDevice { Kind = UtDevice.LicznikOsi, Track = t1.Id, S = 150 }); });
+        Ok(OdstepUw() is string ou && ou.Contains("S60") && ou.Contains("końcem szlaku"), $"„Sprawdź”: odstęp S60 – A bez licznika osi – uwaga ({OdstepUw()})");
+        d.Change("Licznik (test)", q => q.Devices.Add(new UtDevice { Kind = UtDevice.LicznikOsi, Track = t1.Id, S = 70 }));
+        Ok(OdstepUw() == null, $"licznik osi 10 m za S60 (rozmieszczenie rozproszone) – odstęp ma granicę, bez uwagi ({OdstepUw()})");
+        w.DoUndo(); w.DoUndo();
+        Ok(Kontrola.Run(d.P).Count == 0, $"Ctrl+Z ×2 – odcinek i liczniki cofnięte, bez uwag ({string.Join("; ", Kontrola.Run(d.P).Select(u => u.Text))})");
+        // W5 za semaforem wjazdowym A (km 100, dla jazdy na szlak) – granica przetaczania w danych symulatora
+        d.Change("W5 (test)", q => q.Devices.Add(new UtDevice { Kind = UtDevice.W5, Name = "W5a", Track = t1.Id, S = 100, Dir = -Dev("A").Dir }));
+        var jw5 = DoSymulatora.Buduj(d.P, null).Json["w5"]?.AsObject();
+        Ok(jw5 != null && jw5.Count == 1 && (int)jw5.First().Value["dir"] == -Dev("A").Dir && (string)jw5.First().Value["label"] == "W5a", $"W5 do symulatora: „w5” – węzeł z kierunkiem jazdy na szlak ({jw5?.ToJsonString()})");
+        w.DoUndo();
 
         // --- tarcza ostrzegawcza To1 przed semaforem A: „Powtarza” z propozycji, „Sprawdź”, eksport do symulatora (repeats)
         Kind(UtDevice.TarczaOstrz);

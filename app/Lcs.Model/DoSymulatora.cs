@@ -117,7 +117,7 @@ public static class DoSymulatora
         var devNode = new Dictionary<string, string>();
         foreach (var d in ut.Devices.Where(d => pts.ContainsKey(d.Track)))
         {
-            if (d.Kind is UtDevice.Ukres or UtDevice.W4 or UtDevice.W5) continue;
+            if (d.Kind is UtDevice.Ukres or UtDevice.W4) continue;
             double s = Math.Clamp(d.S, 0, r[d.Track].Length);
             var id = NodeOn(d.Track, s);
             devNode[d.Id] = id;
@@ -294,9 +294,10 @@ public static class DoSymulatora
         foreach (var ln in ut.Lines)
         {
             if (!drogi.TryGetValue(ln.Id, out var dr) || dr.Err != null) { uw.Add($"szlak {ln.Numer}: {dr?.Err ?? "brak drogi"} – pominięty"); continue; }
-            var ends = new JsonArray(); string far = null, nbr = "", post = ""; int defDir = 0;
+            var ends = new JsonArray(); string far = null, nbr = "", post = ""; int defDir = 0, evenDir = 0;
             foreach (var en in ln.Konce)
             {
+                int ki = ln.Konce.IndexOf(en);
                 if (en.Semafor != null && ut.Devices.FirstOrDefault(d => d.Id == en.Semafor) is UtDevice sg && devNode.TryGetValue(sg.Id, out var bn))
                 {
                     int outward = -sg.Dir;
@@ -311,6 +312,8 @@ public static class DoSymulatora
                     boundaries[bn] = new JsonObject { ["szlak"] = ln.Numer };
                     lineOfEntry[sg.Id] = ln.Numer;
                     if (defDir == 0) defDir = outward;
+                    // pociągi parzyste jadą od końca „od” do końca „do”: przy „od” wyjeżdżają z posterunku (na zewnątrz), przy „do” wjeżdżają
+                    if (ln.Parzysty is 1 or 2 && evenDir == 0) { int od = ln.Parzysty - 1; evenDir = ki == od ? outward : -outward; }
                 }
                 else if (en.Track != null && pts.ContainsKey(en.Track))
                 {
@@ -327,17 +330,20 @@ public static class DoSymulatora
                 ["defDir"] = defDir, ["tor"] = ln.Tor, ["line"] = ln.Linia, ["label"] = ln.Numer, ["aspects"] = ln.Stawnosc,
                 ["name"] = ln.Nazwa, ["nameShort"] = ln.NazwaSkr,
             };
+            if (evenDir != 0) b["evenDir"] = evenDir;
             if (far != null) { b["far"] = far; farEnds[far] = new JsonObject { ["szlak"] = ln.Numer, ["nbr"] = nbr }; }
             blocks[ln.Numer] = b;
         }
 
         // ---------- sygnalizatory, wykolejnice, kozły ----------
-        var signals = new JsonObject(); var derailers = new JsonObject(); var bumpers = new JsonObject();
+        var signals = new JsonObject(); var derailers = new JsonObject(); var bumpers = new JsonObject(); var w5 = new JsonObject();
         var sigKey = new Dictionary<string, string>();      // id urządzenia UT → nazwa sygnalizatora w symulatorze (do „repeats”)
         foreach (var d in ut.Devices.Where(d => devNode.ContainsKey(d.Id)))
         {
             var node = devNode[d.Id]; var post = Kod(d.Track);
             if (d.Kind == UtDevice.Koziol) { bumpers[node] = new JsonObject(); continue; }
+            // W5 – granica przetaczania: koniec manewru na szlak (bez W5 – semafor wjazdowy)
+            if (d.Kind == UtDevice.W5) { if (d.Dir != 0) w5[node] = new JsonObject { ["dir"] = d.Dir, ["label"] = d.Name, ["post"] = post }; continue; }
             if (d.Kind == UtDevice.Wykolejnica)
             {
                 var wk = $"{post}:{d.Name}";
@@ -531,7 +537,7 @@ public static class DoSymulatora
             ["name"] = ut.Name, ["code"] = code, ["width"] = W, ["height"] = H, ["orient"] = "ab", ["source"] = source ?? "UT + zobrazowanie",
             ["detection"] = "lo", ["posts"] = posts, ["pages"] = pages,
             ["nodes"] = nodes, ["edges"] = edges, ["switches"] = switches, ["signals"] = signals, ["derailers"] = derailers,
-            ["blocks"] = blocks, ["boundaries"] = boundaries, ["farEnds"] = farEnds, ["trackEnds"] = new JsonObject(), ["bumpers"] = bumpers,
+            ["blocks"] = blocks, ["boundaries"] = boundaries, ["farEnds"] = farEnds, ["trackEnds"] = new JsonObject(), ["bumpers"] = bumpers, ["w5"] = w5,
             ["sections"] = sections, ["platforms"] = platforms, ["labels"] = new JsonArray(), ["crossings"] = crossings, ["dashed"] = new JsonArray(),
             ["routeRules"] = new JsonArray(),
         };

@@ -40,6 +40,9 @@ public interface ILcsSession : IPulpitSource
     ScoreData GetScore();
     BookData GetBook();
     void AddBook(string text, string auto);
+    /// <summary>EDR – dzienniki ruchu stanowiska (PLAN_EDR.md).</summary>
+    EdrData GetEdr();
+    CmdResult EdrCmd(EdrPolecenie p);
 }
 
 /// <summary>Stanowisko w tym samym programie co komputer zależności.</summary>
@@ -87,4 +90,6 @@ public class LocalSession : ILcsSession
     public ScoreData GetScore() => Sim.Score();
     public BookData GetBook() => Sim.BookFor(Desk);
     public void AddBook(string text, string auto) => Sim.AddBook(Desk, text, auto);
+    public EdrData GetEdr() => Sim.Edr.DlaStanowiska(Desk);
+    public CmdResult EdrCmd(EdrPolecenie p) => Sim.Edr.Wykonaj(Desk, p);
 }

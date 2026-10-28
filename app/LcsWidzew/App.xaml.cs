@@ -111,6 +111,12 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        if (A.Length > 0 && A[0] == "--edrtest")
+        {
+            Sim.EdrTest.Run(StationPath, A.Length > 1 ? A[1] : "edrtest.txt", CreateSimulatorOptions());
+            Shutdown();
+            return;
+        }
         if (A.Length > 1 && A[0] == "--trasy")
         {
             // diagnostyka: tablica przebiegów pliku i orientacja torów

@@ -1,0 +1,31 @@
+EDR: kontrola 20 z 20
+Dzienniki ruchu: 9
+   LW: Łódź Chojny L. 540 (typ sbl, tory 1,2, szlaki 1C,2C)
+   LW: Łódź Andrzejów L. 17 (typ sbl, tory 1,2, szlaki 2A,1A)
+   LW: Łódź Olechów L. 541 (typ sbl, tory 1,2, szlaki 2O,1O)
+   LF: Łódź Widzew L. 458 (typ sbl, tory 1, szlaki W 101)
+   LF: Łódź … L. 458 (typ sbl, tory 102, szlaki W102)
+   LF: Łódź … (typ sbl, tory 1, szlaki 1W)
+   LF: Łódź … L. 17 (typ sbl, tory 1, szlaki 2W)
+   LW: Łódź Fabryczna L. 17 (typ sbl, tory 1, szlaki 1ŁF,2ŁW)
+   LF: Łódź Widzew L. 17 (typ sbl, tory 1, szlaki 1ŁF,2ŁW)
+OK   każdy koniec szlaku w jednym dzienniku posterunku (18 z 18)
+OK   nazwy dzienników posterunku są różne
+OK   szlak wielotorowy w jednym dzienniku: Łódź Chojny L. 540 – tory 1,2
+OK   tory stacyjne posterunków: LW 10; LF 0; LN 0
+OK   „Dyżur objął …” raz w każdym dzienniku
+OK   kolejny cykl nie powtarza wpisu o dyżurze
+OK   przyjęcie 12345 zapisane, kolumna 1 (nieparzysty): Przyjęcie pociągu 12345 zapisane w dzienniku Łódź Chojny L. 540
+OK   pola wymagane (sbl): Nr,Tor,Odj,Prz; wiersz niekompletny
+OK   po wpisaniu brakujących pól wiersz kompletny, godzina „8:05” → „08:05”
+OK   każde nowe pole – nowa wersja (2)
+OK   zmiany kółkiem w ciągu 10 s – jedna wersja
+OK   zmiana po 12 s – nowa wersja, poprzednia zachowana
+OK   wyprawienie 23456: kolumna 2, droga wolna „---”, „0812” → „08:12”, po torze lewym
+OK   bez numeru pociągu – odrzucone
+OK   błędna godzina – odrzucone, wartość bez zmian
+OK   wpisu o dyżurze nie da się zmienić
+OK   po północy nowa strona 28-10-2026, poprzednia doba zachowana
+OK   dziennik posterunku LF sterowanego z innego stanowiska – odrzucone
+OK   drugie stanowisko widzi tylko swoje dzienniki, wpis o objęciu dyżuru przez Adama Nowaka
+OK   dane EDR po serializacji zgodne (4330 B)

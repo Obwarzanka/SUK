@@ -6,3 +6,7 @@ artifacts/
 __pycache__/
 app/LcsWidzew/Data/ostatni_uklad.txt
 app/LcsWidzew/Data/bledy.log
+
+# filmy źródłowe (ponad 100 MB – limit GitHuba) i wyniki selftestu
+*.mp4
+app/LcsWidzew/selftest.txt*

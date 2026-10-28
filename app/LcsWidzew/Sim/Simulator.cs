@@ -47,6 +47,7 @@ public partial class Simulator
         Otoczenie = new Otoczenie(this);
         Kz = new KomputerZaleznosci(this);
         Urzadzenia = new Urzadzenia(this);
+        Edr = new Edr(this);
         if (routes) Kz.BuildRouteTable();
     }
 
@@ -122,6 +123,8 @@ public partial class Simulator
     public readonly Otoczenie Otoczenie;
     /// <summary>Urządzenia przytorowe i karty sterowników (Sim/Urzadzenia/).</summary>
     public readonly Urzadzenia Urzadzenia;
+    /// <summary>Elektroniczny dziennik ruchu (Sim/Edr/, PLAN_EDR.md).</summary>
+    public readonly Edr Edr;
 
     public void Tick(double dt)
     {
@@ -133,6 +136,7 @@ public partial class Simulator
         Kz.UpdateSignals(); Kz.UpdateRoutes(); Kz.SignalCodes();
         Nadrzedny.Pip.Tick();
         Rej.UpdateAlarms();
+        Edr.Tick();
     }
 
 }

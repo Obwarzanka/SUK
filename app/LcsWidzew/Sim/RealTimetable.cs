@@ -83,6 +83,7 @@ public partial class Rozklad
             var q = new TimetableEntry
             {
                 T = Math.Max(1, appear - t0), Num = num, Cat = emptyIn ? "PRÓŻ" : cat, Name = Sx(e, "name"), Veh = veh, Len = len,
+                Origin = Sx(e, "origin"), Destination = Sx(e, "destination"), Przewoznik = Sx(e, "carrier") ?? cat, KatIr11 = Sx(e, "kat"),
                 From = from, To = legs.Count == 1 ? to : null, Stop = StopsOf(legs[0]).Count > 0, StopAt = StopsOf(legs[0]), DepBy = DepsOf(legs[0]), Term = first,
                 Track = $"{Sx(e, "name")} ({veh}{(emptyIn ? ", próżny z Olechowa" : "")}): {plan}{(emptyOut ? " → próżny do Olechowa" : "")}"
             };
@@ -110,6 +111,18 @@ public partial class Rozklad
                 q.StartSec = f.Post == "LF" ? "LF:JT" + (f.Track ?? "7") : "LW:JT6";
                 q.StartDir = f.Post == "LF" ? 1 : stops.Count > 1 && stops[1].Post == "LF" ? -1 : 1;
                 q.T = Math.Max(1, f.Arr - 600 - t0); q.Dep = f.Dep - t0;
+            }
+            // plan na posterunkach dla wykazu pociągów EDR (przyjazd / odjazd albo przejazd, tor)
+            q.PlanPrz = new(); q.PlanOdj = new(); q.PlanTor = new(); q.Przebieg = new();
+            for (int i = 0; i < stops.Count; i++)
+                if (stops[i].Post != null)
+                    q.Przebieg.Add(new PlanPunkt { Post = stops[i].Post, Arr = stops[i].Arr - t0, Dep = stops[i].Dep - t0, Track = stops[i].Track,
+                        Num = numsAt.Where(x => x.Key < i).OrderBy(x => x.Key).Select(x => x.Value).LastOrDefault() ?? num });
+            foreach (var s in stops)
+            {
+                if (s.Post == null) continue;
+                q.PlanPrz.TryAdd(s.Post, s.Arr - t0); q.PlanOdj[s.Post] = s.Dep - t0;
+                if (s.Track != null) q.PlanTor.TryAdd(s.Post, s.Track);
             }
             res.Add(q);
 

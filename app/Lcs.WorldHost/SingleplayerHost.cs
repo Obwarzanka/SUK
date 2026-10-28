@@ -168,5 +168,7 @@ public sealed class SingleplayerHost : IDisposable
         public ScoreData GetScore() => Read(session.GetScore);
         public BookData GetBook() => Read(session.GetBook);
         public void AddBook(string text, string auto) => host.Apply("AddBook", () => session.AddBook(text, auto));
+        public EdrData GetEdr() => Read(session.GetEdr);
+        public CmdResult EdrCmd(EdrPolecenie p) => host.Apply("EdrCmd", () => session.EdrCmd(p));
     }
 }

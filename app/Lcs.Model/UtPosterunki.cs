@@ -36,6 +36,9 @@ public class UtLine
     public string Typ { get; set; } = Sbl;
     /// <summary>Stawność SBL: 2, 3 albo 4 (KOMPUTERY.pdf 1.6.1).</summary>
     public int Stawnosc { get; set; } = 3;
+    /// <summary>Kierunek pociągów o numerach parzystych (EDR wymusza parzystość numeru w dzienniku ruchu):
+    /// 0 – nie ustalono, 1 – od końca 1 do końca 2, 2 – od końca 2 do końca 1. Ustala projektant.</summary>
+    public int Parzysty { get; set; }
     /// <summary>Dwa końce szlaku.</summary>
     public List<UtLineEnd> Konce { get; set; } = new();
 
@@ -407,6 +410,7 @@ public static class Szlaki
     public static List<(bool Error, string Text, string Track, double S, string Id)> Check(UtProject p, Dictionary<string, SzlakDroga> drogi)
     {
         var res = new List<(bool, string, string, double, string)>();
+        Dictionary<string, TrasaResult> rt = null; OdcinkiResult odc = null;
         foreach (var l in p.Lines)
         {
             var nm = $"szlak {(l.Numer.Length > 0 ? l.Numer : "(bez numeru)")}";
@@ -433,11 +437,69 @@ public static class Szlaki
                 res.Add((false, $"{nm}: semafor {sd.Name} na szlaku – funkcja powinna być „odstępowy”", sd.Track, sd.S, l.Id));
             if (!l.Samoczynna && d.Semafory.Any(x => x.Funkcja == UtDevice.FOdstepowy))
                 res.Add((false, $"{nm}: semafory odstępowe na szlaku bez SBL ({UtLine.Typy.First(x => x.Key == l.Typ).Name})", tr, s0, l.Id));
+            // jak Odcinki.Check – dopóki odcinki nie są projektowane, bez uwag
+            if (l.Samoczynna && p.Sections.Count > 0 && d.Semafory.Any(x => x.Funkcja == UtDevice.FOdstepowy))
+            {
+                rt ??= Topologia.Routes(p); odc ??= Odcinki.Compute(p, rt);
+                foreach (var (sd, nast) in OdstepyBezGranicy(p, l, d, rt, odc))
+                    res.Add((false, $"{nm}: między semaforem odstępowym {sd.Name} a {(nast != null ? "semaforem " + nast.Name : "końcem szlaku")} brak granicy odcinka (licznik osi, złącze) – odstęp nie ma osobnej kontroli niezajętości", sd.Track, sd.S, l.Id));
+            }
         }
         // semafor odstępowy poza szlakami
         foreach (var sd in p.Devices.Where(x => x.Kind == UtDevice.Semafor && x.Funkcja == UtDevice.FOdstepowy))
             if (At(p, drogi, sd.Track, sd.S) == null) res.Add((false, $"semafor odstępowy {sd.Name} nie leży na żadnym szlaku", sd.Track, sd.S, null));
         return res;
+    }
+
+    /// <summary>
+    /// Odstępy SBL bez osobnej kontroli niezajętości. Odstęp (Dz.U. 2015 poz. 360) to tor od semafora odstępowego do następnego semafora
+    /// tego samego kierunku (albo do końca szlaku); komputer zależności liczy go od pierwszej granicy odcinka za semaforem, więc w odstępie
+    /// musi leżeć granica odcinka (licznik osi, złącze) – od 0,5 m przed semaforem do 0,5 m przed następnym. Bez niej odstęp zlewa się
+    /// z poprzednim. Wynik: semafor odstępowy i następny semafor tego kierunku (null – koniec szlaku).
+    /// </summary>
+    static IEnumerable<(UtDevice Sem, UtDevice Nast)> OdstepyBezGranicy(UtProject p, UtLine l, SzlakDroga d, Dictionary<string, TrasaResult> r, OdcinkiResult odc)
+    {
+        if (d.Kawalki.Count == 0 || l.Konce.Count == 0) yield break;
+        XY P(string tr, double s) => r.TryGetValue(tr, out var rr) && rr.Elements.Count > 0 ? rr.At(Math.Clamp(s, 0, rr.Length)).P : new XY(0, 0);
+        static double Dist(XY a, XY b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+        // kawałki w kolejności drogi od końca 1, z kierunkiem przejścia (From → To) i odległością od początku drogi
+        var e0 = l.Konce[0];
+        XY prev;
+        if (e0.Semafor != null && p.Devices.FirstOrDefault(x => x.Id == e0.Semafor) is UtDevice s0) prev = P(s0.Track, s0.S);
+        else if (e0.Track != null && r.TryGetValue(e0.Track, out var r0)) prev = P(e0.Track, e0.S ?? (e0.AtStart ? 0 : r0.Length));
+        else yield break;
+        var kaw = new List<(string Track, double From, double To, double D0, double D1)>(); double len = 0;
+        foreach (var k in d.Kawalki)
+        {
+            bool odS0 = Dist(P(k.Track, k.S0), prev) <= Dist(P(k.Track, k.S1), prev);
+            double from = odS0 ? k.S0 : k.S1, to = odS0 ? k.S1 : k.S0, dl = k.S1 - k.S0;
+            kaw.Add((k.Track, from, to, len, len + dl));
+            len += dl; prev = P(k.Track, to);
+        }
+        int CompAt(double dd)
+        {
+            var k = kaw.FirstOrDefault(x => dd >= x.D0 && dd <= x.D1); if (k.Track == null) return -1;
+            return odc.At(k.Track, k.From + Math.Sign(k.To - k.From) * (dd - k.D0));
+        }
+        // semafory odstępowe: miejsce na drodze i kierunek działania względem drogi
+        var sem = new List<(UtDevice Dev, double D, int Kier)>();
+        foreach (var sd in d.Semafory.Where(x => x.Funkcja == UtDevice.FOdstepowy && x.Dir != 0))
+            if (kaw.FirstOrDefault(x => x.Track == sd.Track && sd.S >= Math.Min(x.From, x.To) && sd.S <= Math.Max(x.From, x.To)) is { Track: not null } k)
+                sem.Add((sd, k.D0 + Math.Abs(sd.S - k.From), sd.Dir * Math.Sign(k.To - k.From)));
+        const double Delta = 0.5;
+        foreach (int kier in new[] { 1, -1 })
+        {
+            // u – odległość w kierunku jazdy od początku szlaku tego kierunku
+            double U(double dd) => kier > 0 ? dd : len - dd;
+            var ciag = sem.Where(x => x.Kier == kier).OrderBy(x => U(x.D)).ToList();
+            for (int i = 0; i < ciag.Count; i++)
+            {
+                double ua = U(ciag[i].D) - Delta, ub = (i + 1 < ciag.Count ? U(ciag[i + 1].D) : len) - Delta;
+                if (ub - ua < 1) continue;                                 // dwa semafory w jednym miejscu
+                int ca = CompAt(U(Math.Max(ua, 0.01))), cb = CompAt(U(ub));
+                if (ca >= 0 && ca == cb) yield return (ciag[i].Dev, i + 1 < ciag.Count ? ciag[i + 1].Dev : null);
+            }
+        }
     }
 }
 

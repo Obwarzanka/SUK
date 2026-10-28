@@ -1,0 +1,103 @@
+EDR: kontrola 76 z 76
+Dzienniki ruchu: 9
+   LW: Łódź Chojny L. 540 (typ sbl, tory 1,2, szlaki 1C,2C)
+   LW: Łódź Andrzejów L. 17 (typ sbl, tory 1,2, szlaki 2A,1A)
+   LW: Łódź Olechów L. 541 (typ sbl, tory 1,2, szlaki 2O,1O)
+   LF: Łódź Widzew L. 458 (typ sbl, tory 1, szlaki W 101)
+   LF: Łódź … L. 458 (typ sbl, tory 102, szlaki W102)
+   LF: Łódź … (typ sbl, tory 1, szlaki 1W)
+   LF: Łódź … L. 17 (typ sbl, tory 1, szlaki 2W)
+   LW: Łódź Fabryczna L. 17 (typ sbl, tory 1, szlaki 1ŁF,2ŁW)
+   LF: Łódź Widzew L. 17 (typ sbl, tory 1, szlaki 1ŁF,2ŁW)
+OK   każdy koniec szlaku w jednym dzienniku posterunku (18 z 18)
+OK   nazwy dzienników posterunku są różne
+OK   szlak wielotorowy w jednym dzienniku: Łódź Chojny L. 540 – tory 1,2
+OK   tory stacyjne posterunków: LW 10; LF 0; LN 0
+OK   „Dyżur objął …” raz w każdym dzienniku
+OK   kolejny cykl nie powtarza wpisu o dyżurze
+OK   przyjęcie 12345 zapisane, kolumna 1 (nieparzysty): Przyjęcie pociągu 12345 zapisane w dzienniku Łódź Chojny L. 540
+OK   pola wymagane (sbl): Nr,Tor,Odj,Prz; wiersz niekompletny
+OK   po wpisaniu brakujących pól wiersz kompletny, godzina „8:05” → „08:05”
+OK   każde nowe pole – nowa wersja (2)
+OK   zmiany kółkiem w ciągu 10 s – jedna wersja
+OK   zmiana po 12 s – nowa wersja, poprzednia zachowana
+OK   wyprawienie 23456: kolumna 2, droga wolna „---”, „0812” → „08:12”, po torze lewym
+OK   bez numeru pociągu – odrzucone
+OK   błędna godzina – odrzucone, wartość bez zmian
+OK   wpisu o dyżurze nie da się zmienić
+OK   po północy nowa strona 28-10-2026, poprzednia doba zachowana
+OK   dziennik posterunku LF sterowanego z innego stanowiska – odrzucone
+OK   drugie stanowisko widzi tylko swoje dzienniki, wpis o objęciu dyżuru przez Adama Nowaka
+OK   dane EDR po serializacji zgodne (11914 B)
+--- E2
+OK   kierunek parzysty szlaku 1C,2C → dziennik Łódź Chojny L. 540: wyprawiane parzyste
+OK   wyprawienie 12345 → 12344 (parzysty kierunek): Wyprawienie pociągu 12344 zapisane w dzienniku Łódź Chojny L. 540 (numer dostosowany do kierunku szlaku: 12345 → 12344)
+OK   przyjęcie 12344 → 12345 (nieparzysty kierunek)
+OK   zmiana numeru w wierszu przyjęcia też dostosowana (22222 → 22223)
+OK   ten sam pociąg mimo zmiany parzystości, numer bez cyfry na końcu bez zmian
+   wykaz LW: 5 pociągów – 18100 Łódź Andrzejów→Łódź Fabryczna , 64410 Łódź Chojny→Łódź Olechów , 46021 Łódź Olechów→Łódź Chojny , 19210 Łódź Andrzejów→Łódź Fabryczna , 19213 Łódź Chojny→Łódź Andrzejów 06:10
+   wykaz LF: 2 pociągów – 18100 Łódź Widzew→Łódź Widzew , 19210 Łódź Widzew→Łódź Widzew 
+   wykaz LN: 0 pociągów – 
+OK   wykaz LW: pociągi z szlaków posterunku z kierunkiem przyjazdu (5)
+OK   wykaz uporządkowany wg czasu
+OK   wykaz LF: kierunek przyjazdu ze szlaku wewnętrznego od LW (18100 z Łódź Widzew w Łódź Widzew, 19210 z Łódź Widzew w Łódź Widzew)
+OK   pociąg 64410: przyjazd 06:00, odjazd 06:01, tor 5, z Łódź Chojny na Łódź Olechów – odjechał
+OK   po wpisie przyjęcia w dzienniku Łódź Chojny L. 540 – w wykazie „P” (numer w dzienniku: 64411)
+   06:01:10 przebieg LW:G LW:P102 Pociąg
+   06:01:10 przebieg LW:H LW:S5 Pociąg
+   06:01:10 przebieg LW:W LW:L1 Pociąg
+   06:01:10 przebieg LW:U LW:L3 Pociąg
+   06:01:10 przebieg LW:T LW:L7 Pociąg
+   06:03:00 przebieg LW:V LW:L2 Pociąg
+   ruch T2|LW: 18100 przyjazd 06:01:37 z 2A, tor 1, odjazd –
+   ruch T3|LW: 64410 przyjazd 06:03:25 z 2C, tor 5, odjazd –
+   ruch T4|LW: 46021 przyjazd 06:06:45 z 2O, tor 3, odjazd –
+OK   wjazd pociągu z szlaku zarejestrowany w cyklu symulacji (przebiegi wjazdowe: 6)
+OK   po 10 min ruchu: zarejestrowane przyjazdy / odjazdy 4, pociągów 6
+OK   wykaz po serializacji zgodny (22531 B)
+--- E3
+OK   Łódź Andrzejów L. 17: bez ustawień kierunek zasadniczy nieustalony, tor lewy 1, prawy 2, oba wolne
+OK   szlak jednotorowy dwukierunkowy Łódź Widzew L. 458: kierunek zasadniczy nieustalony (↕)
+OK   ustawienia: dwa tory lewe – odrzucone
+OK   ustawienia: tor jednokierunkowy bez kierunku zasadniczego – odrzucone
+OK   ustawienia zasadnicze zapisane (Zapisano ustawienia dziennika Łódź Andrzejów L. 17): tor lewy – Z posterunku sąsiedniego, prawy – DO posterunku sąsiedniego, plik edrtest_10752.edr.json
+OK   ustawienia wczytane z pliku w nowym symulatorze
+OK   przyjęcie bez godziny odjazdu – tor szlakowy wolny
+OK   „odjechał” wpisany – tor lewy zajęty, jazda do nas, pociąg 46021
+OK   przed przyjazdem tory stacyjne wolne
+OK   „przyjechał” – tor szlakowy wolny, tor stacyjny 3 zajęty przez 46021
+OK   wyprawienie 46020 z toru 3 na Łódź Chojny L. 540 (kierunek zasadniczy nieustalony): tor 3 wolny, zajęty tor prawy, jazda od nas
+OK   „przyjechał” u sąsiada – tor szlakowy wolny
+OK   wyprawienie po torze lewym – zajęty tor lewy, jazda od nas
+OK   „przyjechał” = „---” – wpis zamknięty, tor wolny
+OK   pola wymagane z opcji wypełniania w ustawieniach: Nr,Dw,Odj,Prz
+OK   stan torów w danych stanowiska (także po serializacji)
+--- E4
+OK   telefonogram nadany bez „Odebrał” – odrzucony
+OK   telefonogram bez treści – odrzucony
+OK   telefonogram nr 1 w dzienniku ruchu na całą szerokość, nadany 05:55, w podpisie godzina wprowadzenia: „Nadał Jan Kowalski Łódź Widzew, odebrał Adam Nowak Łódź Chojny godz. 06:00” (Telefonogram nr 1 zapisany w dzienniku ruchu Łódź Chojny L. 540)
+OK   zamknięcie toru: stan bieżący „Zamknięty”, ustawienia zasadnicze bez zmian
+OK   telefonogram z dziennika ruchu – tylko w dzienniku ruchu, nie w telefonicznym
+OK   telefonogramu w dzienniku nie da się zmienić
+OK   telefonogram odebrany: bez „Nadał” odrzucony, potem nr 2 – „Nadał Adam Nowak Łódź Chojny, odebrał Jan Kowalski Łódź Widzew godz. 06:00”
+OK   zapowiadanie telefoniczne wprowadzone telefonogramem – „Droga wolna” wymagana w nowym wierszu
+OK   inne okoliczności – tylko w dzienniku telefonicznym, numer 3 (numeracja wspólna z telefonogramami w dziennikach ruchu)
+OK   po zmianie ustawień zasadniczych zamknięcie toru z telefonogramu zostaje w stanie bieżącym
+OK   telefonogram otwierający tor – stan bieżący „Otwarty”
+OK   telefonogram do nieistniejącego posterunku – odrzucony
+OK   dziennik telefoniczny, telefonogramy i stan bieżący po serializacji
+OK   numeracja: przed północą następny 5, nowa doba – dobowa 1, miesięczna 5, roczna 5; nieznana – odrzucona
+--- E5
+OK   druga godzina w komórce (pole wyboru w edytorze): „8:00 / 8:12” → „08:00 / 08:12”, błędna – odrzucona
+OK   posterunki dróżników w ustawieniach dziennika: bez oznaczenia i powtórzone – odrzucone, dwa poprawne – przyjęte
+OK   przyjęcie: wymagane powiadomienie dróżnika 63 (w obu kierunkach), skp1 nie (tylko do sąsiada); godzina wprowadzenia odjazdu zapisana
+OK   dróżnik „jak na linii jednotorowej” – godzina 06:02 (z godziną wprowadzenia)
+OK   dróżnik „dwu i więcej torowy” – tylko ukośnik, godzina odrzucona
+OK   jazda do km bez kilometra – odrzucona
+OK   jazda do km 57,987 i z powrotem: dwa wiersze w klamrze, w powrocie wymagane „przyjechał”
+OK   pociąg na szlaku od wyjazdu do wpisu powrotu; po powrocie tor wolny, wiersz kompletny
+OK   wpis o dowolnej treści: pusty odrzucony, zapisany na całą szerokość, bez zmian
+OK   więcej niż cztery sprawdzenia – odrzucone
+OK   sprawdzenie co 30 min – na początku w terminie
+OK   po 16 min – wkrotce, po 31 min – po_terminie; wykonanie: znów w terminie, ostatnio 06:31, zapis w dzienniku telefonicznym
+OK   dróżnicy, klamra i sprawdzenia po serializacji

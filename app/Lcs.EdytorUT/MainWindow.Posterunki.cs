@@ -263,6 +263,17 @@ public partial class MainWindow
             st.SelectionChanged += (s, e) => { if (st.SelectedIndex >= 0) Ch("Stawność SBL", y => y.Stawnosc = st.SelectedIndex + 2); };
             P.Children.Add(st);
         }
+        if (l.Konce.Count == 2)
+        {
+            P.Children.Add(Label("Pociągi parzyste jadą (EDR – parzystość numeru w dzienniku ruchu)"));
+            var par = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+            par.Items.Add("nie ustalono");
+            par.Items.Add($"od końca 1 do końca 2 ({Szlaki.Opis(p, l.Konce[0])} → {Szlaki.Opis(p, l.Konce[1])})");
+            par.Items.Add($"od końca 2 do końca 1 ({Szlaki.Opis(p, l.Konce[1])} → {Szlaki.Opis(p, l.Konce[0])})");
+            par.SelectedIndex = Math.Clamp(l.Parzysty, 0, 2);
+            par.SelectionChanged += (s, e) => { if (par.SelectedIndex >= 0) Ch("Kierunek parzysty szlaku", y => y.Parzysty = par.SelectedIndex); };
+            P.Children.Add(par);
+        }
         for (int i = 0; i < l.Konce.Count; i++)
         {
             int ii = i; var e = l.Konce[i];

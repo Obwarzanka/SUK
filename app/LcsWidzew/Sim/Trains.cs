@@ -57,7 +57,17 @@ public class TimetableEntry
     public HashSet<string> StopAt;
     public Dictionary<string, double> DepBy;
     public UnitDuty Duty;
+    /// <summary>Plan na posterunkach (wykaz pociągów EDR): przyjazd i odjazd [s od początku symulacji], tor – z rozkładu rzeczywistego.</summary>
+    public Dictionary<string, double> PlanPrz, PlanOdj;
+    public Dictionary<string, string> PlanTor;
+    /// <summary>EDR: stacja początkowa i końcowa biegu, przewoźnik, kategoria wg Ir-11, uwagi dyspozytora, nie kursuje (zaznacza dyspozytor).</summary>
+    public string Origin, Destination, Przewoznik, KatIr11, UwagiEksp, UwagiPrzew;
+    public bool NieKursuje;
+    /// <summary>Bieg z rozkładu rzeczywistego: kolejne posterunki z godzinami, torem i numerem pociągu na tym odcinku biegu (obieg jednostki – kilka numerów).</summary>
+    public List<PlanPunkt> Przebieg;
 }
+
+public class PlanPunkt { public string Post, Track, Num; public double Arr, Dep; }
 
 public class CatDef { public double Len, VMax, Dwell; public RgbColor Color; }
 
