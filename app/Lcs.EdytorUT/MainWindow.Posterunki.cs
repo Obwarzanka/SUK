@@ -85,6 +85,35 @@ public partial class MainWindow
         return post;
     }
 
+    /// <summary>
+    /// Posterunek z zaznaczonych semaforów wjazdowych: funkcja „wjazdowy” (gdy pusta), tory od semaforów do środka stacji
+    /// (<see cref="Posterunki.ZSemaforow"/>) – jedna zmiana z cofaniem.
+    /// </summary>
+    public UtPost NewPostFromSignals(List<string> sem)
+    {
+        var tory = Posterunki.ZSemaforow(Doc.P, sem);
+        if (tory.Tory.Count == 0) { Message("Posterunek: brak torów za zaznaczonymi semaforami"); return null; }
+        var kod = AskName("Nowy posterunek z semaforów wjazdowych", $"Kod posterunku (np. LW) – przedrostek nazw w symulatorze; torów: {tory.Tory.Count}", "");
+        if (string.IsNullOrEmpty(kod)) return null;
+        if (Doc.P.Posts.Any(x => x.Kod == kod)) { Message($"Kod posterunku {kod} jest już zajęty"); return null; }
+        var nazwa = AskName("Nowy posterunek z semaforów wjazdowych", "Nazwa posterunku (np. Łódź Widzew)", kod);
+        if (nazwa == null) return null;
+        var post = new UtPost { Kod = kod, Nazwa = nazwa };
+        int fn = 0;
+        Doc.Change("Posterunek z semaforów wjazdowych", p =>
+        {
+            p.Posts.Add(post);
+            foreach (var t in p.Tracks.Where(t => tory.Tory.Contains(t.Id))) t.Post = post.Id;
+            foreach (var d in p.Devices.Where(d => sem.Contains(d.Id) && string.IsNullOrEmpty(d.Funkcja))) { d.Funkcja = UtDevice.FWjazdowy; fn++; }
+        });
+        View.ClearMulti(); View.SelectObj(Kontrola.KPosterunek, post.Id);
+        PostExpander.IsExpanded = true;
+        var nazwy = Doc.P.Devices.Where(d => sem.Contains(d.Id)).Select(d => d.Name);
+        Message($"Posterunek {PostName(post)}: torów {tory.Tory.Count} od semaforów {string.Join(", ", nazwy)}" + (fn > 0 ? $"; funkcja „wjazdowy” – {fn}" : "")
+            + (tory.Uwagi.Count > 0 ? " – UWAGA: " + string.Join("; ", tory.Uwagi) : "") + " (Ctrl+Z cofa)");
+        return post;
+    }
+
     /// <summary>Nowy szlak z końców; <paramref name="tory"/> – tory szlaku (z panelu toru) tracą posterunek.</summary>
     void OnSzlakPlace(UtLineEnd a, UtLineEnd b) => OnSzlakPlace(a, b, null);
     void OnSzlakPlace(UtLineEnd a, UtLineEnd b, List<string> tory)

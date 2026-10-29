@@ -52,6 +52,10 @@ public partial class MainWindow
         if (tory.Count >= 2)
             act.Children.Add(SmallBtn($"Połącz tory ({tory.Count})", () => JoinTracks(tory),
                 "Zaznaczone tory w jeden (Ctrl+J): najbliższe końce stykiem albo stycznie łukiem R z paska (łuki odwrotne przy przesunięciu); wszystko, co na nich leży, przechodzi na tor wynikowy"));
+        var sem = View.Multi.Where(x => x.Kind == Kontrola.KUrzadzenie && Doc.P.Devices.FirstOrDefault(d => d.Id == x.Id)?.Kind == UtDevice.Semafor).Select(x => x.Id).ToList();
+        if (sem.Count > 0)
+            P.Children.Add(SmallBtn($"Posterunek z semaforów wjazdowych ({sem.Count})…", () => NewPostFromSignals(sem),
+                "Zaznaczone semafory dostają funkcję „wjazdowy” (jeśli jej nie mają), a tory od nich do środka stacji – nowy posterunek. Tory szlaków i innych posterunków zostają; Ctrl+Z cofa całość"));
         act.Children.Add(SmallBtn("Usuń zaznaczone", () => DeleteMulti(), "Usuń wszystkie zaznaczone elementy (Del); jedno Ctrl+Z przywraca"));
         act.Children.Add(SmallBtn("Odznacz", () => View.ClearMulti(), "Koniec zaznaczenia (Esc)"));
         P.Children.Add(act);

@@ -1,4 +1,4 @@
-namespace Lcs.Model;
+﻿namespace Lcs.Model;
 
 /// <summary>Położenie rozjazdu na torze zasadniczym: na prostej albo na stałym promieniu (Ok), na krzywej przejściowej, na granicy prostej i łuku.</summary>
 public enum NaLuku { Ok, Przejsciowa, Granica }
@@ -6,9 +6,9 @@ public enum NaLuku { Ok, Przejsciowa, Granica }
 /// <summary>
 /// Wariant montażu rozjazdu: nowy wielobok toru zasadniczego (<see cref="V"/> – zmiana R / L jednego łuku), przesunięcie rozjazdu
 /// wzdłuż toru (<see cref="Shift"/> [m]) albo inny typ (<see cref="Type"/>). <see cref="Dev"/> – o ile najwyżej przesunie się oś toru [m];
-/// <see cref="BezL"/> – łuk traci krzywą przejściową (tylko przyciskiem, nie samo).
+/// <see cref="BezL"/> – łuk traci krzywą przejściową, <see cref="Zalom"/> – wierzchołek łuku przesunięty (oba tylko przyciskiem, nie samo).
 /// </summary>
-public record Wariant(string Label, List<UtVertex> V = null, double Shift = 0, string Type = null, double Dev = 0, int Vertex = -1, double R0 = 0, double R1 = 0, bool BezL = false)
+public record Wariant(string Label, List<UtVertex> V = null, double Shift = 0, string Type = null, double Dev = 0, int Vertex = -1, double R0 = 0, double R1 = 0, bool BezL = false, bool Zalom = false)
 {
     public bool Luk => V != null;
 }
@@ -154,7 +154,7 @@ public static class Naprawa
     /// nie może mieć nowych błędów; (2) przesunięcie rozjazdu (łącznika) wzdłuż toru (do 160 m – za długą przejściową); (3) przy zwrotnym R &lt; 140 m – inny typ.
     /// Kolejność: łuki od najmniejszego przesunięcia osi (najwyżej <see cref="MaxDev"/>), potem przesunięcia, potem typy.
     /// </summary>
-    public static List<Wariant> Warianty(UtProject p, UtTurnout t)
+    public static List<Wariant> Warianty(UtProject p, UtTurnout t, bool zalom = true)
     {
         var res = new List<Wariant>();
         var main = Tr(p, t.Track); var typ = Katalog.Find(t.Type); if (main == null || typ == null) return res;
@@ -163,7 +163,7 @@ public static class Naprawa
         var pol = Polozenie(r0, t.S, t.S + t.Dir * len);
         if (pol != NaLuku.Ok)
         {
-            if (main.Align == null) res.AddRange(ArcVariants(p, t, main, r0, len));
+            if (main.Align == null) res.AddRange(ArcVariants(p, t, main, r0, len, zalom));
             res.AddRange(ShiftVariants(p, t, main, r0, len));
         }
         if (Rozjazdy.Geometry(main, t) is TurnoutGeo g && g.Kind != "Rz" && g.RDiv > 0 && g.RDiv < Rozjazdy.MinRDiv)
@@ -179,7 +179,7 @@ public static class Naprawa
         return res;
     }
 
-    static List<Wariant> ArcVariants(UtProject p, UtTurnout t, UtTrack main, TrasaResult r0, double len)
+    static List<Wariant> ArcVariants(UtProject p, UtTurnout t, UtTrack main, TrasaResult r0, double len, bool zalom)
     {
         var res = new List<Wariant>();
         double k = r0.K;
@@ -268,25 +268,65 @@ public static class Naprawa
                 if (Ok(z0)) cands.Add((z0, $"bez przejściowej (L {l0:0.#} → 0)"));
                 else R(z0, $"bez przejściowej, ");
             }
-            foreach (var (nv, what) in cands)
+            // załom przesunięty wzdłuż prostej przed nim albo za nim (sąsiednie wierzchołki zostają), R dobrany – gdy sam promień nie
+            // wystarcza, np. krótki łuk pod rozjazdem, który w terenie leży na łuku (rozjazd łukowy na całym łuku albo łuk obok rozjazdu)
+            int nz = cands.Count;
+            var pv = v.P;
+            // rozjazd w całości na łuku tego wierzchołka (rozjazd łukowy) – osobno od wariantów z łukiem obok rozjazdu
+            bool CalyNaLuku(List<UtVertex> nv)
             {
+                if (!Valid(nv, out var nr, out var M) || Curve(nr, vv) is not var (a, b)) return false;
+                double ts = M(t.S), te = ts + t.Dir * len;
+                return Math.Min(ts, te) > a && Math.Max(ts, te) < b;
+            }
+            foreach (var (od, nm) in zalom ? new[] { (v0[vi - 1].P, "przed"), (v0[vi + 1].P, "za") } : Array.Empty<(XY, string)>())
+            {
+                double dx = pv.X - od.X, dy = pv.Y - od.Y, dl = Math.Sqrt(dx * dx + dy * dy); if (dl < 1e-6) continue;
+                dx /= dl; dy /= dl;
+                foreach (int sg in new[] { -1, 1 })
+                {
+                    bool luk = false, obok = false;
+                    for (double dm = 2; dm <= 40 && dm * k < dl - 1 && !(luk && obok); dm += 2)
+                    {
+                        var moved = With(v0, q => { q.X = pv.X + dx * sg * dm * k; q.Y = pv.Y + dy * sg * dm * k; });
+                        string pre = $"załom W{vi + 1} o {dm:0} m wzdłuż prostej {nm} nim ({(sg > 0 ^ nm == "za" ? "w stronę rosnącego km" : "w stronę malejącego km")}), ";
+                        var nowe = new List<(List<UtVertex> V, string What)>();
+                        if (Ok(moved)) nowe.Add((moved, pre + $"R {v.R:0} m"));
+                        else
+                            // krok 3 % – z krótkiego łuku (R 300) do promienia łuku pod całym rozjazdem (kilka tysięcy m)
+                            foreach (double st in new[] { 1.03, 1 / 1.03 })
+                                if (Search(moved, x => With(moved, q => q.R = x), v.R, st, Rozjazdy.MinRDiv, 100000, 1) is List<UtVertex> mv)
+                                    nowe.Add((mv, pre + $"R {v.R:0} → {mv[vv].R:0} m"));
+                        foreach (var c in nowe)
+                        {
+                            bool nl = CalyNaLuku(c.V);
+                            if (nl ? luk : obok) continue;
+                            cands.Add(c); if (nl) luk = true; else obok = true;
+                        }
+                    }
+                }
+            }
+            for (int ci = 0; ci < cands.Count; ci++)
+            {
+                var (nv, what) = cands[ci]; bool przesZalom = ci >= nz;
                 Valid(nv, out var nr, out var M);
                 double d1 = r0.Tangent.TryGetValue(vi, out var a1) && nr.Tangent.TryGetValue(vi, out var b1) ? Math.Max(0, b1 - a1) / k : 0;
                 double d2 = r0.Tangent2.TryGetValue(vi, out var a2) && nr.Tangent2.TryGetValue(vi, out var b2) ? Math.Max(0, b2 - a2) / k : 0;
-                double dev = Deviation(r0, nr, cs - d1 - 2, ce + d2 + 2, M);
+                // przesunięty załom obraca proste do sąsiednich wierzchołków – przesunięcie osi z całego toru
+                double dev = przesZalom ? Deviation(r0, nr, 0, r0.Length, M) : Deviation(r0, nr, cs - d1 - 2, ce + d2 + 2, M);
                 var (ts, td) = t.BranchAtEnd && t.Partner != null ? Rozjazdy.PairPos(p, t, nv) : (M(t.S), t.Dir);
                 double te = ts + td * len, n1 = Math.Min(ts, te), n2 = Math.Max(ts, te);
                 string where = Curve(nr, vi) is not var (ncs, nce) ? $"bez łuku W{vi + 1}"
                     : n2 <= ncs + 0.01 ? $"łuk W{vi + 1} zaczyna się za rozjazdem"
                     : n1 >= nce - 0.01 ? $"łuk W{vi + 1} kończy się przed rozjazdem"
                     : $"rozjazd w całości na łuku W{vi + 1}";
-                res.Add(new Wariant($"{where} ({what}, oś najwyżej {dev * 100:0} cm)", nv, Dev: dev, Vertex: vi, R0: v.R, R1: nv[vi].R, BezL: v.L > 0 && nv[vi].L <= 0 || v.LOut > 0 && nv[vi].LOut <= 0));
+                res.Add(new Wariant($"{where} ({what}, oś najwyżej {dev * 100:0} cm)", nv, Dev: dev, Vertex: vi, R0: v.R, R1: nv[vi].R, BezL: v.L > 0 && nv[vi].L <= 0 || v.LOut > 0 && nv[vi].LOut <= 0, Zalom: przesZalom));
             }
         }
         // sprawdzenie na kopii (drugi rozjazd łącznika ustawia się sam na przecięciu): rozjazd na stałym promieniu, żaden inny nie trafia na granicę
         var bad0 = p.Turnouts.Where(z => Polozenie(p, z) != NaLuku.Ok).Select(z => z.Id).ToHashSet();
         string json = UtDocument.Serialize(p);
-        return res.GroupBy(w => w.Label).Select(g => g.First()).Where(w => w.Dev <= MaxDev).OrderBy(w => w.Dev).Where(w =>
+        return res.GroupBy(w => w.Label).Select(g => g.First()).Where(w => w.Dev <= MaxDev).OrderBy(w => w.Zalom).ThenBy(w => w.Dev).Where(w =>
         {
             var tmp = UtDocument.Deserialize(json);
             Zastosuj(tmp, tmp.Turnouts.First(x => x.Id == t.Id), w); Rozjazdy.SyncTurnouts(tmp, Dotkniete(tmp, main.Id));
@@ -381,7 +421,7 @@ public static class Naprawa
     /// <summary>Wariant, który montaż robi sam: rozjazd poza stałym promieniem, zmiana łuku przesuwa oś najwyżej o <paramref name="maxDev"/>,
     /// łuk zachowuje krzywe przejściowe (mogą się skrócić, nie niżej niż <see cref="MinL"/>).</summary>
     public static Wariant Auto(UtProject p, UtTurnout t, double maxDev = AutoDev) =>
-        Polozenie(p, t) == NaLuku.Ok ? null : Warianty(p, t).FirstOrDefault(w => w.Luk && !w.BezL && w.Dev <= maxDev);
+        Polozenie(p, t) == NaLuku.Ok ? null : Warianty(p, t, zalom: false).FirstOrDefault(w => w.Luk && !w.BezL && w.Dev <= maxDev);
 
     /// <summary>
     /// Plan montażu samoczynnego rozjazdów <paramref name="ids"/>: w łączniku para razem – próba na kopii (pierwszy rozjazd, potem drugi),

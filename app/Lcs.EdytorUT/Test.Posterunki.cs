@@ -88,6 +88,34 @@ public static partial class Test
             "funkcje z panelu urządzenia: A, B wjazdowe, F wyjazdowy, S60 odstępowy");
         Ok(!Kontrola.Run(d.P).Any(u => u.Text.Contains("funkcja semafora")), "„Sprawdź”: funkcje określone");
 
+        // --- posterunek z semaforów wjazdowych (zlecenie właściciela 2026-10-30): klik A, Shift + klik B, przycisk w panelu – tory mijanki
+        // (tory szlaków zostają); potem Ctrl+Z i dalej jak dawniej (Shift + prostokąt, „+ posterunek”)
+        Point DevPt(UtDevice dv)
+        {
+            var c0 = S(w.View.Geometry(d.P.Tracks.First(t => t.Id == dv.Track)).At(dv.S).P);
+            for (int rr = 0; rr <= 40; rr += 2)
+                for (int ix = -rr; ix <= rr; ix += 2)
+                    foreach (var iy in new[] { -rr, rr })
+                        foreach (var pt in new[] { new Point(c0.X + ix, c0.Y + iy), new Point(c0.X + iy, c0.Y + ix) })
+                            if (w.View.HitAny(pt) == (Kontrola.KUrzadzenie, dv.Id)) return pt;
+            return c0;
+        }
+        w.SetTool(UtTool.Wskaz); w.View.Select(null);
+        Look(r1.At(150).P, 0.3); w.View.SimClick(DevPt(Dev("A")));
+        Look(r1.At(1050).P, 0.3); UtView.TestMods = ModifierKeys.Shift; w.View.SimClick(DevPt(Dev("B"))); UtView.TestMods = ModifierKeys.None;
+        var bWj = Find<Button>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Posterunek z semaforów wjazdowych (2)") == true);
+        Ok(w.View.Multi.Count == 2 && bWj != null, $"klik A, Shift + klik B – w panelu „Posterunek z semaforów wjazdowych (2)” ({w.View.Multi.Count} zaznaczone)");
+        if (bWj != null)
+        {
+            var kody = new Queue<string>(new[] { "MJ", "Mijanka" }); w.AskNameForTest = _ => kody.Dequeue();
+            Click(bWj); w.AskNameForTest = null;
+            var pz = d.P.Posts.SingleOrDefault();
+            Ok(pz != null && pz.Kod == "MJ" && d.P.Tracks.All(t => t.Post == pz.Id) && d.UndoName == "Posterunek z semaforów wjazdowych" && w.LastMessage.Contains("torów 4"),
+                $"posterunek MJ z semaforów A i B – wszystkie 4 tory mijanki ({w.LastMessage})");
+            w.DoUndo();
+            Ok(d.P.Posts.Count == 0 && d.P.Tracks.All(t => t.Post == null), "Ctrl+Z – bez posterunku");
+        }
+
         // --- posterunek: Shift + prostokąt przez całą mijankę, „+ posterunek”
         w.View.FitPoints(new[] { a, b, Go(a, lineAz + 90, 5), Go(b, lineAz + 90, 5) });
         var all = new[] { a, b, Go(a, lineAz + 90, 5), Go(b, lineAz + 90, 5) }.Select(S).ToList();
@@ -274,6 +302,53 @@ public static partial class Test
         var jw5 = DoSymulatora.Buduj(d.P, null).Json["w5"]?.AsObject();
         Ok(jw5 != null && jw5.Count == 1 && (int)jw5.First().Value["dir"] == -Dev("A").Dir && (string)jw5.First().Value["label"] == "W5a", $"W5 do symulatora: „w5” – węzeł z kierunkiem jazdy na szlak ({jw5?.ToJsonString()})");
         w.DoUndo();
+
+        // --- W9 / W8 (Ie-1): przeciągnięciem, prędkość i litera C z panelu, ograniczenia z kierunkiem w danych symulatora
+        Kind(UtDevice.W9);
+        PlaceDir(t1, 400, 1, 1); PlaceDir(t1, 600, -1, 1);
+        // wskaźniki bez pytania o nazwę – nazwy w teście z km
+        d.Change("Nazwy W9 (test)", q => { foreach (var x in q.Devices.Where(x => x.Kind == UtDevice.W9)) x.Name = x.S < 500 ? "W9a" : "W9b"; });
+        UtDevice W(string n) => d.P.Devices.FirstOrDefault(x => x.Name == n);
+        Ok(W("W9a")?.Kind == UtDevice.W9 && W("W9a").Dir == 1 && W("W9b")?.Dir == -1, $"W9a (km 400, w stronę rosnącego km) i W9b (km 600, przeciwnie) przeciągnięciem ({string.Join(", ", d.P.Devices.Where(x => x.Kind == UtDevice.W9).Select(x => $"{x.Name} km {x.S:0} dir {x.Dir}"))}; {w.LastMessage})");
+        w.SetTool(UtTool.Wskaz);
+        TextBox VBox() => Find<TextBox>(w.TrackPanel, x => (x.ToolTip as string)?.StartsWith("Prędkość co 5 km/h") == true);
+        w.View.SelectDevice(W("W9a").Id); Type(VBox(), "40");
+        Ok(W("W9a").Vw == 40 && d.UndoName == "Prędkość wskaźnika", "panel W9a: prędkość 40 km/h");
+        w.View.SelectDevice(W("W9a").Id); Type(VBox(), "42");
+        Ok(W("W9a").Vw == 40 && w.LastMessage.Contains("co 5 km/h"), $"prędkość 42 – odrzucona ({w.LastMessage})");
+        w.View.SelectDevice(W("W9b").Id);
+        var cC = Find<CheckBox>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Na stronie końca litera C") == true); cC.IsChecked = true; Click(cC);
+        Ok(W("W9b").Vw == null && W("W9b").W9C, "W9b: tablica tylko z końcem, litera C");
+        var j9 = DoSymulatora.Buduj(d.P, null);
+        var lim = j9.Json["edges"].AsArray().OfType<System.Text.Json.Nodes.JsonObject>().Where(e => e["vlim"] is System.Text.Json.Nodes.JsonObject).ToList();
+        Ok(lim.Count > 0 && lim.All(e => e["vlim"].AsObject().Count == 1 && (int?)e["vlim"][(string)e["a"]] == 40 && e["vlimC"]?[(string)e["a"]] != null)
+            && Math.Abs(lim.Sum(e => (double)e["len"]) - 200) < 1,
+            $"„Do symulatora”: W9 40 km/h od km 400 do W9b (km 600) tylko w stronę rosnącego km, z literą C – {lim.Count} kawałki, {lim.Sum(e => (double)e["len"]):0} m");
+        d.Change("Bez W9b (test)", q => q.Devices.RemoveAll(x => x.Name == "W9b"));
+        Ok(DoSymulatora.Buduj(d.P, null).Uwagi.Any(u => u.StartsWith("W9 W9a") && u.Contains("brak W9 końca")), "W9a bez W9 końca – uwaga w „Do symulatora”");
+        w.DoUndo();
+        d.Change("W8 (test)", q => q.Devices.Add(new UtDevice { Kind = UtDevice.W8, Name = "W8a", Track = t1.Id, S = 120, Dir = 1, Vw = 40 }));
+        Ok(!DoSymulatora.Buduj(d.P, null).Uwagi.Any(u => u.StartsWith("W8 W8a")), "W8a przed W9a – zapowiedź, bez uwagi");
+        d.Change("Bez W9 (test)", q => q.Devices.RemoveAll(x => x.Kind == UtDevice.W9));
+        var j8 = DoSymulatora.Buduj(d.P, null);
+        var lim8 = j8.Json["edges"].AsArray().OfType<System.Text.Json.Nodes.JsonObject>().Where(e => e["vlim"] is System.Text.Json.Nodes.JsonObject).ToList();
+        Ok(j8.Uwagi.Any(u => u.StartsWith("W8 W8a") && u.Contains("lit. e")) && lim8.Count > 0 && lim8.All(e => e["szlak"] == null) && lim8.Sum(e => (double)e["len"]) > 800,
+            $"W8 bez W9 – ograniczenie na całej stacji, bez torów szlakowych ({lim8.Count} kawałków, {lim8.Sum(e => (double)e["len"]):0} m)");
+        w.DoUndo(); w.DoUndo();
+        // W4, W17 – węzły w danych symulatora; W24 na semaforze
+        d.Change("W4, W17, W24 (test)", q =>
+        {
+            q.Devices.Add(new UtDevice { Kind = UtDevice.W4, Name = "W4a", Track = t1.Id, S = 500, Dir = 1 });
+            q.Devices.Add(new UtDevice { Kind = UtDevice.Ukres, Track = t1.Id, S = 700 });
+            q.Devices.First(x => x.Name == "B").W24 = true;
+        });
+        var j4 = DoSymulatora.Buduj(d.P, null).Json;
+        var w4j = j4["w4"]?.AsObject(); var ahead4 = (string)w4j?.FirstOrDefault().Value?["ahead"];
+        var e4 = j4["edges"].AsArray().OfType<System.Text.Json.Nodes.JsonObject>().FirstOrDefault(e => (string)e["id"] == ahead4);
+        Ok(w4j?.Count == 1 && e4 != null && (string)e4["a"] == w4j.First().Key && j4["ukres"]?.AsArray().Count == 1 && j4["signals"]?["MJ:B"]?["w24"]?.GetValue<bool>() == true,
+            "„Do symulatora”: W4 z torem za wskaźnikiem w kierunku jazdy, ukres W17, W24 na semaforze B");
+        w.DoUndo(); w.DoUndo(); w.DoUndo(); w.DoUndo(); w.DoUndo(); w.DoUndo();
+        Ok(!d.P.Devices.Any(x => x.Kind is UtDevice.W8 or UtDevice.W9 or UtDevice.W4 or UtDevice.Ukres) && !Dev("B").W24, "Ctrl+Z – wskaźniki cofnięte");
 
         // --- tarcza ostrzegawcza To1 przed semaforem A: „Powtarza” z propozycji, „Sprawdź”, eksport do symulatora (repeats)
         Kind(UtDevice.TarczaOstrz);

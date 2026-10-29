@@ -58,6 +58,7 @@ public static partial class Test
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "przeciagnij") { log.AppendLine("== przeciągnięcie sygnalizatora w projekcie"); await RunPrzeciagnij(w, Environment.GetEnvironmentVariable("EDYTOR_UT_PLIK"), Environment.GetEnvironmentVariable("EDYTOR_UT_SYG") ?? "B1"); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "posterunki") { log.AppendLine("== posterunki i szlaki (tylko ta część)"); await RunPosterunki(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "komory") { log.AppendLine("== komora nieczynna (tylko ta część)"); await RunKomory(w, shot); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "lacznik") { log.AppendLine("== łącznik (tylko ta część)"); await RunLacznik(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "obiekty") { log.AppendLine("== obiekty inżynieryjne (tylko ta część)"); await RunObiekty(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "urzosm") { log.AppendLine("== podpowiedzi z OSM (tylko ta część)"); await RunUrzOsm(w, shot); Finish(); return; }

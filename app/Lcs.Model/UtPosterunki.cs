@@ -510,8 +510,58 @@ public static class Posterunki
     public static UtPost Of(UtProject p, string track) =>
         p.Tracks.FirstOrDefault(t => t.Id == track)?.Post is string pid ? p.Posts.FirstOrDefault(x => x.Id == pid) : null;
 
-    /// <summary>Grupa nazw (nazwy semaforów i numery rozjazdów nie mogą się powtarzać w obrębie posterunku): id posterunku toru albo „”.</summary>
-    public static string Grupa(UtProject p, string track) => p.Tracks.FirstOrDefault(t => t.Id == track)?.Post ?? "";
+    /// <summary>
+    /// Grupa nazw (nazwy semaforów, numery rozjazdów i nazwy odcinków nie mogą się powtarzać w obrębie posterunku): id posterunku toru.
+    /// Obszar bez posterunków – jedna grupa „”; gdy posterunki są, tor jeszcze nieprzypisany ma własną grupę – nie wiadomo, do której stacji
+    /// należy, więc nie blokuje nazw innych stacji (uwaga właściciela 2026-10-30: wiele posterunków na jednym UT).
+    /// </summary>
+    public static string Grupa(UtProject p, string track) =>
+        p.Tracks.FirstOrDefault(t => t.Id == track)?.Post ?? (p.Posts.Count > 0 ? "?" + track : "");
+
+    /// <summary>
+    /// Tory posterunku z jego semaforów wjazdowych (zlecenie właściciela 2026-10-30: „zaznacz semafory wjazdowe – posterunek sam się
+    /// wytwarza”): od każdego semafora w stronę jego działania (do stacji), po stykach torów (rozjazdy, łączniki, końce torów), bez
+    /// przechodzenia za zaznaczone semafory, bez wchodzenia na drogi szlaków i na tory innych posterunków. Tor z semaforem wchodzi cały.
+    /// Uwagi: tory innego posterunku na drodze, szlak, semafor zwrócony na zewnątrz.
+    /// </summary>
+    public static (List<string> Tory, List<string> Uwagi) ZSemaforow(UtProject p, IReadOnlyCollection<string> semafory, string postId = null,
+        Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        var uw = new List<string>();
+        var sem = p.Devices.Where(d => semafory.Contains(d.Id) && r.ContainsKey(d.Track)).ToList();
+        var drogi = Szlaki.Drogi(p, r, styki);
+        // miejsce na torze nie leży za żadnym zaznaczonym semaforem tego toru (patrząc od stacji)
+        bool Wolno(string tr, double s) => sem.Where(d => d.Track == tr).All(d => (s - d.S) * d.Dir >= -0.5);
+        double Dl(string tr) => r[tr].Length;
+        var inside = new HashSet<string>(); var q = new Queue<string>();
+        foreach (var d in sem) if (inside.Add(d.Track)) q.Enqueue(d.Track);
+        var inni = new HashSet<string>();
+        while (q.Count > 0)
+        {
+            var t = q.Dequeue();
+            // styki toru t: jego końce na innych torach i końce innych torów na nim
+            var sas = styki.Where(x => x.Track == t).Select(x => (S: x.AtStart ? 0 : Dl(t), U: x.Other, Y: x.OtherS))
+                .Concat(styki.Where(x => x.Other == t).Select(x => (S: x.OtherS, U: x.Track, Y: x.AtStart ? 0 : Dl(x.Track))));
+            foreach (var (s, u, y) in sas)
+            {
+                if (inside.Contains(u) || !Wolno(t, s) || !Wolno(u, y) || !r.ContainsKey(u)) continue;
+                var tu = p.Tracks.FirstOrDefault(x => x.Id == u); if (tu == null) continue;
+                if (tu.Post != null && tu.Post != postId) { inni.Add(u); continue; }
+                // droga szlaku – posterunek się tu kończy (szlak zaczyna się za semaforem wjazdowym)
+                double y1 = Math.Clamp(y + (y < 0.01 ? 1 : -1), 0, Dl(u));
+                if (Szlaki.At(p, drogi, u, y1) != null) continue;
+                inside.Add(u); q.Enqueue(u);
+            }
+        }
+        if (inni.Count > 0) uw.Add($"tory innego posterunku na drodze ({inni.Count}) – zostają przy swoim posterunku");
+        foreach (var d in sem.Where(d => d.Funkcja is not (null or "" or UtDevice.FWjazdowy)))
+            uw.Add($"semafor {d.Name} ma funkcję „{d.Funkcja}”, nie „wjazdowy”");
+        return (inside.ToList(), uw);
+    }
+
+    /// <summary>Dwie rzeczy na torach <paramref name="a"/> i <paramref name="b"/> w tej samej grupie nazw (<see cref="Grupa"/>).</summary>
+    public static bool TaGrupa(UtProject p, string a, string b) => Grupa(p, a) == Grupa(p, b);
 
     /// <summary>Kontrola: kod pusty / powtórzony, tory bez posterunku (gdy posterunki są), posterunek bez torów.</summary>
     public static List<(bool Error, string Text, string Track, string Id)> Check(UtProject p, Dictionary<string, SzlakDroga> drogi, Dictionary<string, TrasaResult> r)

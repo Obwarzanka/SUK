@@ -575,6 +575,27 @@ public partial class UtView
                 T(dv.Name, -0.6, 4, -1);
                 break;
             }
+            case UtDevice.W8:
+            {
+                // słupek 2 mm jak wskaźniki Ig-10 s. 34, tablica wg Ie-1: trójkąt wierzchołkiem w dół (ku słupkowi), liczba = 0,1 prędkości
+                L(0, 1, 0, 3);
+                var tri = Tri(P(0, 3), P(-1.7, 6), P(1.7, 6));
+                dc.DrawGeometry(Brushes.White, pen, tri);
+                T(dv.Vw is int v8 ? (v8 / 10.0).ToString("0.#", CultureInfo.InvariantCulture) : "?", 0, 7.2);
+                T(dv.Name, -0.6, 4.5, -1);
+                break;
+            }
+            case UtDevice.W9:
+            {
+                // słupek i tablica 2 × 3 mm (Ig-10 s. 34), wg Ie-1: kąt wierzchołkiem w dół (strona początku) dotyka przeciwległego boku, liczba = 0,1 prędkości
+                L(0, 1, 0, 3);
+                Box(-1, 3, 1, 6);
+                if (dv.Vw is int v9) { L(-1, 6, 0, 3); L(1, 6, 0, 3); T((v9 / 10.0).ToString("0.#", CultureInfo.InvariantCulture), 0, 7.2); }
+                else { L(-1, 3, 0, 6); L(1, 3, 0, 6); }       // tylko koniec odcinka: kąt w górę
+                if (dv.W9C) T("C", 1.9, 4.5);
+                T(dv.Name, -0.6, 4.5, -1);
+                break;
+            }
         }
     }
 

@@ -250,7 +250,7 @@ public static class Rozjazdy
         if (t.BranchAtEnd && p.Turnouts.FirstOrDefault(o => o.Id == t.Partner) is UtTurnout pm && Geometry(p, pm) is TurnoutGeo gpm && Geometry(main, t) is TurnoutGeo gt
             && Equalizer(gpm, gt) is var (_, dev, rx))
         {
-            if (dev > MaxSkewDev) res.Add($"skosy łącznika rozchodzą się o {dev * 180 / Math.PI:0.##}° (więcej niż {MaxSkewDev * 180 / Math.PI:0}°) – tory za mało równoległe na łącznik");
+            if (dev > MaxLaczDev) res.Add($"skosy łącznika rozchodzą się o {dev * 180 / Math.PI:0.##}° (więcej niż {MaxLaczDev * 180 / Math.PI:0}°) – tory za mało równoległe na łącznik");
             else if (rx < MinRDiv) res.Add($"brak miejsca na łuk wyrównujący we wstawce (skosy rozchodzą się o {dev * 180 / Math.PI:0.##}°, mieści się R {rx:0} m < {MinRDiv:0} m) – rozsuń tory albo przesuń łącznik na prostszy odcinek");
         }
         if (t.Partner != null && !t.BranchAtEnd)
@@ -421,7 +421,7 @@ public static class Rozjazdy
         for (int i = 0; i < 30 && double.IsFinite(fa) && double.IsFinite(fb) && Math.Abs(fb) > 1e-10 && Math.Abs(fb - fa) > 1e-15; i++)
         {
             double c = b - fb * (b - a) / (fb - fa);
-            if (!double.IsFinite(c) || Math.Abs(c - s0) > 60) break;
+            if (!double.IsFinite(c) || Math.Abs(c - s0) > 200) break;
             a = b; fa = fb; b = c; fb = F(b);
         }
         t.S = double.IsFinite(fb) && Math.Abs(fb) < 1e-6 ? b : s0;
@@ -483,6 +483,11 @@ public static class Rozjazdy
 
     /// <summary>Największe odchylenie torów łącznika od równoległości (odrysowane ze zdjęcia nie są idealnie równoległe).</summary>
     public const double MaxSkewDev = 3 * Math.PI / 180;
+    /// <summary>
+    /// Największy kąt między torami (i między skosami) łącznika z łukiem wyrównującym we wstawce – tory nierównoległe albo rozjazdy różnych
+    /// typów (zlecenie właściciela 2026-10-29); łuk musi przy tym mieć co najmniej <see cref="MinRDiv"/>.
+    /// </summary>
+    public const double MaxLaczDev = 15 * Math.PI / 180;
 
     /// <summary>
     /// Dwa rozjazdy pojedyncze z samymi odgałęzieniami (do skosu) na różnych torach → łącznik: odgałęzienie rozjazdu
@@ -499,7 +504,6 @@ public static class Rozjazdy
         var a = p.Turnouts.FirstOrDefault(x => x.Id == aId); var b = p.Turnouts.FirstOrDefault(x => x.Id == bId);
         if (a == null || b == null || !a.Single || !b.Single) return "łącznik tworzą dwa rozjazdy pojedyncze";
         if (a.Track == b.Track) return "oba rozjazdy leżą na tym samym torze";
-        if (a.Type != b.Type) return $"rozjazdy różnych typów ({a.Type}, {b.Type}) – ustaw ten sam typ";
         var ba = Tr(p, a.Branch); var bb = Tr(p, b.Branch);
         if (ba == null || bb == null) return "brak odgałęzienia";
         if (ba.Vertices.Count != 3 || bb.Vertices.Count != 3)
@@ -514,7 +518,7 @@ public static class Rozjazdy
         if (ga == null || gb == null) return "brak geometrii rozjazdu";
         if (RayHit(rb, ga.SR, ga.AzDiv) is not var (sSr, _)) return "skos rozjazdu nie trafia w tor drugiego rozjazdu";
         double dAz = Math.Abs(Math.IEEERemainder(rb.At(sSr).Az - ga.Az, Math.PI));
-        if (dAz > MaxSkewDev) return $"tory nie są równoległe ({dAz * 180 / Math.PI:0.##}°)";
+        if (dAz > MaxLaczDev) return $"tory nie są równoległe ({dAz * 180 / Math.PI:0.##}°, łącznik z łukiem do {MaxLaczDev * 180 / Math.PI:0}°)";
         var oldSr = gb.SR;
         b.Side = a.Side; b.Partner = a.Id; b.BranchAtEnd = true; a.Partner = b.Id;
         p.Tracks.RemoveAll(x => x.Id == b.Branch); b.Branch = a.Branch;
@@ -534,7 +538,7 @@ public static class Rozjazdy
         var res = new List<(UtTurnout, double)>();
         var a = p.Turnouts.FirstOrDefault(x => x.Id == aId); if (a == null || !a.Single) return res;
         string json = UtDocument.Serialize(p);
-        foreach (var b in p.Turnouts.Where(x => x.Id != aId && x.Single && x.Type == a.Type && x.Track != a.Track))
+        foreach (var b in p.Turnouts.Where(x => x.Id != aId && x.Single && x.Track != a.Track))
         {
             var tmp = UtDocument.Deserialize(json);
             if (MakeCrossover(tmp, aId, b.Id, out var sh, true) == null && sh <= 50) res.Add((b, sh));
@@ -553,7 +557,7 @@ public static class Rozjazdy
 
     /// <summary>
     /// Numer zajęty przez inny rozjazd tego samego posterunku (numery powtarzają się między posterunkami). Bez <paramref name="exceptId"/>
-    /// (nowy rozjazd) – w posterunku toru <paramref name="track"/>, a bez toru – w całym obszarze.
+    /// (nowy rozjazd) – w posterunku toru <paramref name="track"/>, a bez toru – w całym obszarze (grupy – <see cref="Posterunki.Grupa"/>).
     /// </summary>
     public static bool NumberUsed(UtProject p, string n, string exceptId = null, string track = null)
     {
@@ -676,7 +680,7 @@ public static class Rozjazdy
     /// Łącznik z toru A na tor B (równoległe, do 0,5°): rozjazd 1 na A, odgałęzienie skosem rozjazdu do przecięcia z B, rozjazd 2 na B
     /// tego samego typu; tor łączący PR1 – ŚR1 – ŚR2 – PR2. Null – tory nie są równoległe albo skos nie trafia w tor B.
     /// </summary>
-    public static (UtTurnout T1, UtTurnout T2, UtTrack Link, string Error) NewCrossover(UtProject p, string trackA, double s, int dir, int side, string trackB, string type, string n1, string n2)
+    public static (UtTurnout T1, UtTurnout T2, UtTrack Link, string Error) NewCrossover(UtProject p, string trackA, double s, int dir, int side, string trackB, string type, string n1, string n2, string type2 = null)
     {
         var t1 = new UtTurnout { Number = n1, Type = type, Track = trackA, S = s, Dir = dir, Side = side };
         var g1 = Geometry(p, t1); var tb = Tr(p, trackB);
@@ -684,9 +688,9 @@ public static class Rozjazdy
         var rb = Trasa.Compute(tb);
         if (RayHit(rb, g1.SR, g1.AzDiv) is not var (sSr, _)) return (null, null, null, "skos rozjazdu nie trafia w drugi tor – przeciągnij w jego stronę");
         double dAz = Math.Abs(Math.IEEERemainder(rb.At(sSr).Az - g1.Az, Math.PI));
-        if (dAz > MaxSkewDev) return (null, null, null, $"tory nie są równoległe ({dAz * 180 / Math.PI:0.##}°, dopuszczalne {MaxSkewDev * 180 / Math.PI:0}°) – połącz rozjazdem i torem");
+        if (dAz > MaxLaczDev) return (null, null, null, $"tory nie są równoległe ({dAz * 180 / Math.PI:0.##}°, łącznik z łukiem wyrównującym do {MaxLaczDev * 180 / Math.PI:0}°) – połącz rozjazdem i torem");
         var link = new UtTrack();
-        var t2 = new UtTurnout { Number = n2, Type = type, Track = trackB, Side = side, Branch = link.Id, BranchAtEnd = true, Partner = t1.Id };
+        var t2 = new UtTurnout { Number = n2, Type = type2 ?? type, Track = trackB, Side = side, Branch = link.Id, BranchAtEnd = true, Partner = t1.Id };
         t1.Branch = link.Id; t1.Partner = t2.Id;
         link.Vertices = new() { new UtVertex { X = g1.PR.X, Y = g1.PR.Y }, new UtVertex { X = g1.SR.X, Y = g1.SR.Y, R = g1.RDiv }, new UtVertex(), new UtVertex() };
         return (t1, t2, link, null);

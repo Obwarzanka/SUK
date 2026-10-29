@@ -23,6 +23,11 @@ public class UtObiekt
     public double Angle { get; set; } = 90;
     /// <summary>Szerokość przeszkody / światło obiektu [m] (droga pod wiaduktem, przepust, przejście).</summary>
     public double Width { get; set; } = 6;
+    /// <summary>Wiadukt drogowy: liczba ustrojów (osobne jezdnie obok siebie, każdy o szerokości <see cref="Width"/>) i odstęp między nimi [m].</summary>
+    public int Ustroje { get; set; } = 1;
+    public double OdstepUstrojow { get; set; } = 2;
+    /// <summary>Wiadukt drogowy z kilkoma ustrojami: skrzydełka tylko na skrajnych krawędziach (wspólne), nie przy każdym ustroju.</summary>
+    public bool SkrzydlaWspolne { get; set; }
     /// <summary>Obiekt poprzeczny: zasięg w obie strony od osi toru [m].</summary>
     public double Reach { get; set; } = 10;
     /// <summary>Ściana / mur oporowy: strona (+1 – po prawej patrząc w stronę rosnącego km toru) i odległość od osi toru [m].</summary>
@@ -57,6 +62,18 @@ public static class Obiekty
     public const string Most = "most", Wiadukt = "wiadukt", WiaduktTor = "wiadukt_tor", Tunel = "tunel", WiaduktDrog = "wiadukt_drog",
         TunelPod = "tunel_pod", Przepust = "przepust", PrzejsciePod = "przejscie_pod", Kladka = "kladka", Sciana = "sciana", Mur = "mur";
 
+    /// <summary>
+    /// Nastawnie (Ig-10 zał. 8 s. 35–39, warstwa „budynek”): klucz „nastawnia_{p|n}_{r|m|e|k}” – parterowa (podłoga do 2 m nad główką szyny)
+    /// albo piętrowa, ręczna, mechaniczna, elektryczna, komputerowa. Budynek z boku toru: km od–do = długość wzdłuż toru,
+    /// <see cref="UtObiekt.Offset"/> – od osi toru do ściany od strony toru, <see cref="UtObiekt.Width"/> – głębokość budynku.
+    /// </summary>
+    public const string NastawniaPrefix = "nastawnia_";
+    public static bool Nastawnia(string kind) => kind?.StartsWith(NastawniaPrefix) == true;
+    /// <summary>Nastawnia piętrowa (podwójny obrys).</summary>
+    public static bool Pietrowa(string kind) => Nastawnia(kind) && kind[NastawniaPrefix.Length] == 'p';
+    /// <summary>Urządzenia nastawni: r – ręczna, m – mechaniczna (kreski skośne), e – elektryczna (kratka skośna), k – komputerowa (kratka prostopadła).</summary>
+    public static char Urzadzenia(string kind) => Nastawnia(kind) ? kind[^1] : ' ';
+
     /// <summary>Położenie: wzdłuż toru (km od–do), poprzeczny (km), z boku toru (km od–do, strona, odległość).</summary>
     public enum Pol { Wzdluz, Poprzeczny, ZBoku }
 
@@ -79,7 +96,18 @@ public static class Obiekty
         new(Kladka, "przejście piesze nad torami (kładka)", "zał. 8, s. 42", Pol.Poprzeczny, false, 3),
         new(Sciana, "ściana oporowa", "zał. 8, s. 63", Pol.ZBoku, false, 0),
         new(Mur, "mur oporowy", "zał. 8, s. 63", Pol.ZBoku, false, 0),
+        new(NastawniaPrefix + "n_r", "nastawnia parterowa ręczna", "zał. 8, s. 35", Pol.ZBoku, false, 6),
+        new(NastawniaPrefix + "n_m", "nastawnia parterowa mechaniczna", "zał. 8, s. 36", Pol.ZBoku, false, 6),
+        new(NastawniaPrefix + "n_e", "nastawnia parterowa elektryczna", "zał. 8, s. 36", Pol.ZBoku, false, 6),
+        new(NastawniaPrefix + "n_k", "nastawnia parterowa komputerowa", "zał. 8, s. 38", Pol.ZBoku, false, 6),
+        new(NastawniaPrefix + "p_r", "nastawnia piętrowa ręczna", "zał. 8, s. 37", Pol.ZBoku, false, 8),
+        new(NastawniaPrefix + "p_m", "nastawnia piętrowa mechaniczna", "zał. 8, s. 37", Pol.ZBoku, false, 8),
+        new(NastawniaPrefix + "p_e", "nastawnia piętrowa elektryczna", "zał. 8, s. 38", Pol.ZBoku, false, 8),
+        new(NastawniaPrefix + "p_k", "nastawnia piętrowa komputerowa", "zał. 8, s. 39", Pol.ZBoku, false, 8),
     };
+
+    /// <summary>Domyślna odległość ściany nastawni od osi toru [m].</summary>
+    public const double NastawniaOdsun = 6;
 
     public static Rodzaj Info(string key) => Kinds.FirstOrDefault(k => k.Key == key) ?? Kinds[0];
     public static bool Wzdluz(UtObiekt o) => Info(o.Kind).Pol != Pol.Poprzeczny;
@@ -135,7 +163,7 @@ public static class Obiekty
             {
                 var (x, y) = (ws[i], ws[j]);
                 bool bx = Info(x.Kind).Pol == Pol.ZBoku, by = Info(y.Kind).Pol == Pol.ZBoku;
-                if (bx != by || (bx && x.Side != y.Side)) continue;
+                if (bx != by || (bx && x.Side != y.Side) || Nastawnia(x.Kind) != Nastawnia(y.Kind)) continue;
                 foreach (var (t, a, b) in x.Wszystkie())
                     foreach (var (u, c, d) in y.Wszystkie())
                         if (t == u && Math.Min(b, d) - Math.Max(a, c) > 0.5)
@@ -156,7 +184,7 @@ public static class Obiekty
     {
         var res = new List<UtObiekt>();
         foreach (var t in o.Tory ?? new())
-            res.Add(new UtObiekt { Kind = o.Kind, Name = o.Name, Nad = o.Nad, Track = t.Track, S0 = t.S0, S1 = t.S1, Angle = o.Angle, Width = o.Width, Reach = o.Reach, Side = o.Side, Offset = o.Offset, Uwagi = o.Uwagi });
+            res.Add(new UtObiekt { Kind = o.Kind, Name = o.Name, Nad = o.Nad, Track = t.Track, S0 = t.S0, S1 = t.S1, Angle = o.Angle, Width = o.Width, Ustroje = o.Ustroje, OdstepUstrojow = o.OdstepUstrojow, SkrzydlaWspolne = o.SkrzydlaWspolne, Reach = o.Reach, Side = o.Side, Offset = o.Offset, Uwagi = o.Uwagi });
         o.Tory = null;
         return res;
     }

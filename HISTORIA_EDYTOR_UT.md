@@ -658,3 +658,88 @@ Właściciel: „a możemy z ORM jakoś pobrać miejsca, gdzie są sygnalizatory
 - **Panel szlaku (`MainWindow.Posterunki.cs`):** lista „Pociągi parzyste jadą (EDR …)” pod blokadą i stawnością (tylko szlak z dwoma końcami), z opisem końców.
 - **Eksport (`DoSymulatora.cs`):** `blocks.*.evenDir` w zwrocie jak `defDir`: przy końcu „od” pociąg parzysty wyjeżdża z posterunku (`outward`), przy końcu „do” wjeżdża (`-outward`); bez ustalenia – brak pola. Symulator: `BlockDef.EvenDir`.
 - **Test (`Test.Posterunki.cs`):** wybór „od końca 1 do końca 2” na szlaku 1A (koniec 2 – semafor MJ) → `evenDir` = −`outward`; „nie ustalono” → bez `evenDir`.
+
+## Edytor UT – sieć OSM po nieudanym pobraniu (2026-10-28)
+
+- **Zgłoszenie właściciela** (zrzut toru 16 na podkładzie): „czemu oś toru nie zawsze się pokazuje” – chodziło o cienką pomarańczową linię sieci OSM (`UtView.DrawOsm`), nie o oś toru UT.
+- **Przyczyna:** `OsmWanted` wymagał `Osm != null`. Pierwsze pobranie idzie z pola „sieć torów OSM (linie)” albo z wejścia w Ślad; gdy się nie udało (widok ponad ok. 5 km – „przybliż widok”, błąd lub limit Overpass), sieć zostawała pusta i dobieranie po ruchu mapy (`OsmAuto`, 0,7 s) już nigdy nie ruszało. W Łuku z punktów bez wcześniej pobranej sieci – tak samo.
+- **Poprawka (`UtView.Slad.cs`):** `OsmWanted => OsmShown || tool is Slad or LukPunkty` – brakujący obszar dobiera się po każdym przesunięciu / przybliżeniu, także przed pierwszym udanym pobraniem.
+- **Test (`Test.OsmWidok.cs`):** sieć włączona, pierwsze pobranie rzuca wyjątek (sieć pusta), przesunięcie mapy – sieć pobrana, widok pokryty. `--test` 749 OK, 0 błędów; selftest 25 z 26, kontrola zależności 5 z 5. Nie sprawdzono na żywym Overpass.
+
+## Edytor UT – sieć OSM na dysku, serwer zapasowy, ponawianie (2026-10-28)
+
+- **Zgłoszenie:** „dalej ta oś toru się średnio pokazuje” – po poprzedniej poprawce.
+- **Próba na żywo (curl z nagłówkiem programu, obszar 1,5 × 2 km przy Widzewie):** overpass-api.de – przekroczenie 40 s, 502, raz 200 po 35 s (160 kB); overpass.kumi.systems, private.coffee, maps.mail.ru – brak odpowiedzi w 40 s. Linie zależały od losu odpowiedzi serwera.
+- **Zapis na dysku (`OsmSiec.Save` / `Load`, `OsmSiec.CacheFile` = `%LOCALAPPDATA%\LcsEdytorUT\osm\siec.json`):** węzły (id, X, Y), drogi, pobrane prostokąty; zapis przez `.tmp`; uszkodzony plik pomijany. Wczytanie raz na sesję przy pierwszej potrzebie sieci (`UtView.OsmFromDisk`); w teście – nie.
+- **Serwer zapasowy:** `OsmPunkty.Siec` jak `Slupki` / `Urzadzenia` – po 3 nieudanych próbach główny, 2 próby `OverpassZapas`.
+- **Ponawianie (`UtView.OsmPobierz`, `finally`):** po błędzie – samo po `OsmRetrySec` (15 s) bez ruchu mapy, komunikat „… – ponowię za 15 s”; po udanym pobraniu, gdy mapa w tym czasie się przesunęła (pobranie pominięte przez `osmBusy`) – reszta po 0,7 s. Pole „sieć torów OSM (linie)” pobiera brakujący obszar także, gdy sieć już jest.
+- **Test (`Test.OsmWidok.cs`):** ponowienie bez ruchu mapy (0,5 s), zapis i odczyt sieci (id > 2³², obszary), uszkodzony plik. `--test` 752 OK, 0 błędów. Nie sprawdzone klikami na żywym Overpass.
+
+## Edytor UT – sieć OSM z API OpenStreetMap (2026-10-28)
+
+- **Zgłoszenie:** „oś toru dalej niewidoczna” po zapisie na dysku i ponawianiu; pliku `osm/siec.json` po sesji właściciela nie było – Overpass nie odpowiedział ani razu.
+- **Źródło (`OsmPunkty.SiecApi`, `ParseApi`):** `https://api.openstreetmap.org/api/0.6/map?bbox=…` – prostokąt dzielony na kawałki ≤ 0,015° × 0,025° (ok. 1,7 km), po 3 naraz, kawałek z błędem 400 (ponad 50 000 węzłów) – na cztery (do 3 poziomów). XML czytany strumieniowo; drogi `railway` = rail / light_rail / narrow_gauge / tram (jak zapytanie Overpass), drogi z brakującym węzłem pomijane. API daje drogi w całości (także węzły poza prostokątem). `Siec`: najpierw API, przy błędzie Overpass i zapasowy Overpass.
+- **Na żywo** (program próbny z `EdytorUT.dll`, środek Widzewa): 1,6 × 1,6 km – 100 dróg, 1426 węzłów, 3,3 s; 5 × 5 km – 287 dróg, 4380 węzłów, 15,1 s. Overpass tego dnia: 55 s albo brak odpowiedzi.
+- **Test (`Test.OsmWidok.cs`):** odpowiedź XML z torem, ulicą, peronem i drogą z brakującym węzłem – zostaje sam tor, węzły w PUWG.
+
+## Edytor UT – linia OSM fioletowa z obwódką (2026-10-28)
+
+- **Zgłoszenie:** „dalej nie ma osi” po przejściu na API OpenStreetMap. Plik `%LOCALAPPDATA%\LcsEdytorUT\osm\siec.json` był już zapisany (40 dróg, obszar 2,8 × 5,7 km wokół widoku projektu) – sieć była, ale niewidoczna.
+- **Przyczyna (od pierwszego zgłoszenia):** `OsmPen` pomarańczowy (ff6a00, 1,3 px) w osi pomarańczowego pasa kafelków OpenRailwayMap – na zrzucie właściciela linia była widoczna tylko na białym napisie „16”. Pobieranie (poprzednie poprawki) też zawodziło, ale nie było jedyną przyczyną.
+- **Poprawka (`UtView.Slad.cs`):** linia fioletowa 7a10c8, 1,4 px, pod nią biała obwódka 3,6 px (`OsmHalo`); węzły fioletowe; podpowiedź pola w panelu „Podkłady” i README – „fioletowe z białą obwódką”.
+- **Sprawdzenie:** zrzut miejsca z kopii projektu właściciela z ORM, ortofotomapą i siecią z dysku (program próbny z `EdytorUT.dll`): `zrzuty/EdytorUT_osm_fioletowa.png` (0,5 m/px), `zrzuty/EdytorUT_osm_fioletowa_blisko.png` (0,1 m/px). Test `Test.OsmWidok`: piksel linii fioletowy, obok biała obwódka.
+
+## Edytor UT – szerokość obiektu poprzecznego na rysunku (2026-10-29)
+
+- **Zgłoszenie:** „nie mogę zmienić szerokości” – wiadukt drogowy nad torami, pole „Światło / szerokość [m]” = 30, znak się nie zmieniał.
+- **Przyczyna:** wartość zapisywała się w `UtObiekt.Width`, ale rysunek obiektów poprzecznych używał tylko stałego wymiaru znaku Ig-10 (3,5 mm / 3 mm arkusza).
+- **Poprawka (`UtView.Obiekty.cs`, `ObPolSzer`):** bok znaku wiaduktu drogowego, tunelu pod linią, przejścia i kładki = większa z wartości: wymiar znaku Ig-10 albo połowa rzeczywistej szerokości (w poprzek osi przeszkody) w skali widoku; to samo w obrysie do trafiania. Przepust bez zmian (znak). Na arkuszu 1:2000 przy typowych szerokościach rysunek jak dotąd.
+- **Sprawdzenie:** build Release, `--test` 0 błędów.
+
+## Edytor UT – nastawnie, wskaźniki W8 / W9; W4, W8, W9, W17, W24 w symulatorze (2026-10-29)
+
+- **Zgłoszenie:** „gdzie są symbole nastawni, wskaźników? niektóre wskaźniki mają wpływ na ruch pociągów?”, potem: „W24, W4, W17 muszą mieć wpływ, tak samo W9, W8 i inne wskaźniki ograniczenia prędkości”.
+- **Nastawnie (Ig-10 zał. 8 s. 35–39, warstwa „budynek”):** 8 rodzajów obiektu (`Obiekty.NastawniaPrefix` + `n|p` + `r|m|e|k`) położonych z boku toru jak ściana oporowa: km od–do = długość budynku, `Offset` – od osi toru do ściany (domyślnie 6 m), `Width` – głębokość. Rysunek (`UtView.Obiekty.cs`, `NastawniaRect`): obrys 0,5 mm, piętrowa – druga ściana 1 mm wewnątrz, kreskowanie co 1 mm (mechaniczna skośne, elektryczna kratka skośna, komputerowa kratka prostopadła), belka 1 mm grubości 2 mm od ściany od strony toru, kropka 1 mm 1 mm nad belką; prostokąt wg kierunku toru w połowie km, w rzeczywistych wymiarach, nie mniejszy niż 10 × 6 mm (piętrowa 10 × 8 mm); w Schemacie skala w poprzek osobno. Panel: oznaczenie wg Ig-10 zał. 1, odległość, głębokość; zmiana rodzaju między nastawniami zostawia wymiary. Katalog Symbole Ig-10: 8 kart (`tools/symbole_ig10.py`, w JSON dopisane tylko nowe wpisy). Założenie do potwierdzenia: belka znaku od strony toru.
+- **W8 / W9 w UT:** nowe urządzenia (`UtDevice.W8`, `W9`, pola `Vw`, `W9C`), panel „Prędkość” (5–200 km/h co 5) i „litera C”; znak: słupek jak wskaźniki Ig-10 s. 34, W8 – trójkąt wierzchołkiem do słupka, W9 – tablica 2 × 3 mm z kątem (koniec – kąt odwrócony), liczba 1/10 prędkości – **propozycja do akceptacji** (Ig-10 nie ma osobnej karty W8 / W9).
+- **Do symulatora (`DoSymulatora.cs`):** W4, W8, W9, W17 dostają węzeł w grafie. W9 – przejście w kierunku wskaźnika (zwrotnice: z ostrza na oba tory, od strony krzyżownicy tylko na ostrze) do W9 widzianego z tyłu; tory dostają `vlim` {węzeł wejścia: km/h} i `vlimC`; bez końca w 5 km albo do granicy obszaru – uwaga. W8 bez W9 początku tego kierunku w 3 km – ograniczenie na torach stacyjnych do wyjazdu ze stacji (Ie-1 W8 lit. e) i uwaga. `w4` (węzeł → tor za wskaźnikiem), `ukres` (węzły), `w24` przy semaforze.
+- **Symulator:** `Edge.VLim` / `VLimC` w `EdgeLimit` (także w przebiegu z prędkością ustaloną; C – kawałki już za czołem bez ograniczenia), profil maszynisty (`SpeedLimit`, `Przed`, `Docelowa`). `Lookahead`: W4 – pociąg z postojem staje 5 m przed W4 swojego kierunku; W17 – koniec drogi (koniec przebiegu manewrowego, PK, koniec toru) między ukresem a zwrotnicą za nim → 3 m przed ukresem (`ZwrotnicaPrzed`, do 150 m). W24 – `UpdateSignals` zapala go z sygnałem zezwalającym na wyjazd pod prąd (semafor z W24 w UT); rysunku na pulpicie jeszcze nie ma.
+- **Sprawdzenie:** selftest „WSKAŹNIKI” (W9 w obie strony i z C, W4 i W17 na torze podzielonym w kopii układu, W24): `station_test` 6 z 6, LCS testowe 4 z 4; wyniki przebiegów bez zmian (25 z 26, kontrola 5 z 5; 15 z 15). Test edytora: nastawnia klikami (`Test.Obiekty.cs`, zrzuty `zrzuty/EdytorUT_test_obiekty_nastawnia*.png`, katalog), W8 / W9 przeciągnięciem i eksport (`Test.Posterunki.cs`).
+
+## Edytor UT – rozjazd łukowy na krótkim łuku: przesunięcie załomu (2026-10-29)
+
+- **Zgłoszenie:** rozjazd 86 (Rz 60E1-300-1:9) w projekcie „Nowy obszar – odzyskany” – uwaga „na granicy prostej i łuku”, tylko „Przesuń”; właściciel: „tu powinno się dać wstawić rozjazd łukowy” (schemat: rozjazd na łuku toru).
+- **Przyczyna:** tor zwrotny rozjazdu 85, za nim prosta 20,7 m i łuk W4 R 300 tylko 4,8 m (załom ok. 1°) w środku rozjazdu 86. Warianty łuku zmieniały tylko R / L przy stałym wierzchołku: łuk pod całym rozjazdem musiałby zacząć się wewnątrz rozjazdu 85; do tego `Search` krokiem 1 % po 160 krokach kończył się na R ≈ 1470 m.
+- **Poprawka (`UtNaprawa.cs`, `ArcVariants`):** wierzchołek przesuwany wzdłuż prostej przed nim albo za nim (2–40 m co 2 m, sąsiednie wierzchołki zostają), R szukany krokiem 3 %; z każdego kierunku pierwszy wariant „rozjazd w całości na łuku” i pierwszy z łukiem obok; przesunięcie osi liczone z całego toru. `Wariant.Zalom` – lista najpierw bez przesuwania wierzchołka, `Auto` (montaż, „Napraw”) ich nie liczy.
+- **Sprawdzenie:** na kopii projektu – rozjazd 86: „rozjazd w całości na łuku W4 (załom W4 o 2 m …, R 300 → 2941 m, oś najwyżej 7 cm)”, po zastosowaniu Rłd, tor zwrotny R 333 m, bez błędów torów. `--test` 773 OK / 0 błędów.
+
+## Edytor UT – numery rozjazdów na torach bez posterunku (2026-10-29)
+
+- **Zgłoszenie:** „numer jest już zajęty w tym posterunku – takich numerów może być kilka dla różnych posterunków”. W projekcie „Nowy obszar – odzyskany” 76 z 99 torów bez posterunku (49 rozjazdów) – `NumberUsed` traktował je jak jedną grupę.
+- **Poprawka (`UtTurnout.cs`, `NumberUsed`):** gdy w projekcie są posterunki, tor bez posterunku nie powtarza numeru z nikim (rozjazd wstawia się, „Sprawdź” nie zgłasza powtórzenia); obszar bez posterunków – dalej jedna stacja. `--test` 773 OK / 0 błędów.
+
+## Edytor UT – łącznik między torami nierównoległymi i z rozjazdami różnych typów (2026-10-29)
+
+- **Zgłoszenie:** zrzut „Łącznik 62/61: tory nie są równoległe (5,17°)”; „czemu nie mogą łączyć się 2 typy rozjazdów”; decyzja: „narzędzie Rozjazd ma samo zrobić dwa rozjazdy i tor łączący z łukiem”.
+- **Było:** łącznik tylko przy torach równoległych do 3° (`MaxSkewDev`) i z rozjazdami jednego typu (`MakeCrossover`, `CrossoverCandidates`, panel zmieniał typ obu). Uwaga: rada „dwa rozjazdy + Ctrl+J” nie działa – `Laczenie.Join` nie łączy dwóch odgałęzień (oba mają rozjazd na początku).
+- **Poprawka:** `Rozjazdy.MaxLaczDev` = 15° w `NewCrossover`, `MakeCrossover` i „Sprawdź”; łuk wyrównujący w przecięciu skosów (`Equalizer`, R ≥ 140 m – istniejąca uwaga) bierze różnicę kierunków; `Relink` – sieczna do 200 m (dalekie przecięcie skosu z torem zbiegającym się). `NewCrossover(…, type2)` – drugi rozjazd innego typu; `OnTurnoutPlace` sprawdza na kopii, czy łuk się mieści / wstawka jest dość długa, a jeśli nie – bierze typ tej samej szyny najbliższy kątem. Panel: typ tego rozjazdu (łącznik – każdy osobno) i „Ten sam typ dla …”. Komunikat podaje R i kąt łuku wyrównującego.
+- **Sprawdzenie:** `Test.Lacznik.cs` – tor A prosty, tor B zbiegający się pod 5°, przeciągnięcie z A na B: łącznik 3/4, łuk R 800 m (5,73°), bez uwag; drugi rozjazd 1:12 z panelu – łuk R 650 m (7,31°), tor łączący bez błędów.
+
+## Edytor UT – wiadukt drogowy z kilkoma ustrojami (2026-10-29)
+
+- **Zgłoszenie:** schemat stacji – ul. Przybyszewskiego nad torami: dwie jezdnie, każda na osobnym ustroju ze skrzydełkami; „takiej opcji nie mamy”.
+- **Poprawka:** `UtObiekt.Ustroje` (1–6) i `OdstepUstrojow` [m] (także w `Rozdziel`); `UtView.UstrojeWiad` – ustroje w poprzek osi drogi (jeden – jak dotąd: znak Ig-10 albo szerokość rzeczywista; kilka – szerokość każdego i odstęp w skali, każdy nie węższy niż 1,5 mm); rysunek: dla każdego prostokąt, kreskowane krawędzie jezdni i skrzydełka (s. 44), tor pod spodem przerywany pod całością; obrys do trafiania na całą szerokość. Panel wiaduktu drogowego: liczba ustrojów, szerokość jednego, odstęp.
+- **Sprawdzenie:** `Test.Obiekty.cs` – WD-1: 2 ustroje po 8 m, odstęp 4 m z panelu, klik na ustroju, zapis i odczyt; zrzut `zrzuty/EdytorUT_test_obiekty_wiadukt_dwa_ustroje.png`.
+- **Dopisane (2026-10-29):** „a ze wspólnymi nie można?” – `UtObiekt.SkrzydlaWspolne`, pole w panelu „Skrzydełka wspólne”: skrzydełka tylko na skrajnych krawędziach całego wiaduktu, wewnętrzne krawędzie ustrojów bez nich; test w `Test.Obiekty.cs`.
+
+## Edytor UT – semafor na bramce: komory od belki wstecz (2026-10-30)
+
+Właściciel z wycinkiem planu Ig-10 (bramka nad czterema torami, W / V / U / T, przed nią tarcze ToU, ToT): „przed wstawieniem sygnalizatorów na maszt wyglądało to tak jak na planie, po zrobieniu tego dziwnie się dzieje i się obracają”. Na planie semafor na bramce to znak semafora na maszcie zawieszony górą – belka przy górnej komorze, komory schodzą przeciwnie do kierunku jazdy (tarcza ToU stoi przed U, a jej komory idą w stronę jazdy). Edytor rysował komory od belki w stronę jazdy, więc po zmianie mocowania na bramkę znak odwracał się względem planu.
+- `UtView.Urzadzenia.cs`: łącznik, W24, komory (`DrawHangingHeads`), W21 (cyfra górą do belki), pasy i nazwa – od belki w −x; znaki w komorach i pasach w tym samym układzie co na maszcie. Słupy bramki (`GantryLayout`) – w stronę komór, czyli wstecz. `HitDevice` – rząd komór wiszącego wstecz.
+- Próba na kopii projektu właściciela (B, F, J, K): komory i nazwy na prawo od belki, słupy po stronie komór – jak W / V / U / T na planie. Zrzut `zrzuty/EdytorUT_bramka_komory_wstecz.png`. K ma stronę −1 (pod torem) – dane, nie rysunek.
+
+## Edytor UT – wiele posterunków na jednym UT; posterunek z semaforów wjazdowych (2026-10-30)
+
+- **Zgłoszenie:** „gdy nazwy semaforów, rozjazdów, odcinków się powtarzają, nie można ich postawić – problem przy wielu posterunkach na jednym UT”; „pamiętaj, że muszą mieć jakieś id, żeby dało się pracować”; „opcja zaznaczenia semaforów wjazdowych, żeby posterunek sam się wytwarzał, a nie że muszę wszystkie tory po kolei dodawać”.
+- **Nazwy:** `Posterunki.Grupa` – id posterunku; tor bez posterunku przy istniejących posterunkach – własna grupa („?” + id toru), obszar bez posterunków – jedna grupa „”. Z tego korzystają semafory (`NameTaken`, `NextName`), rozjazdy (`NumberUsed`, przenumerowanie, „Sprawdź”) i odcinki (`SamePost`, wstawianie i zmiana nazwy w `MainWindow.Wyposazenie.cs` – wcześniej w całym obszarze, `Odcinki.Suggest`). Każdy obiekt ma i tak własne `Id` (GUID); w symulatorze klucz to kod posterunku + nazwa.
+- **Posterunek z semaforów wjazdowych:** `Posterunki.ZSemaforow` – BFS po torach od torów zaznaczonych semaforów, przez styki (`Topologia.Styki`: końce torów, początki odgałęzień), z pominięciem miejsc za zaznaczonymi semaforami (patrząc od stacji), torów innych posterunków (uwaga) i torów na drodze szlaku (`Szlaki.At`). Panel zaznaczenia (klik + Shift + klik na semaforach): „Posterunek z semaforów wjazdowych (N)…” – kod, nazwa, funkcja „wjazdowy” semaforom bez funkcji, tory do posterunku, jedna zmiana z cofaniem.
+- **Sprawdzenie:** projekty testowe – mijanka MT i LCS testowe TW: tory jak przypisane ręcznie; TG – bez dwóch torów szlakowych (2,9 km) za semaforami A i B, przypisanych kiedyś ręcznie (zamierzone). `Test.Posterunki.cs`: klik A, Shift + klik B, przycisk – posterunek MJ z 4 torami, Ctrl+Z.

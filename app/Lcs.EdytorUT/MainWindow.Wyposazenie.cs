@@ -57,7 +57,7 @@ public partial class MainWindow
         }
         var name = AskName("Odcinek kontroli niezajętości", "Nazwa odcinka (np. It1, Iz5/7, It2-3)", Odcinki.Suggest(Doc.P, o, comp));
         if (string.IsNullOrEmpty(name)) return;
-        if (Doc.P.Sections.Any(x => x.Name == name)) { Message($"Nazwa odcinka {name} jest już zajęta"); return; }
+        if (Doc.P.Sections.Any(x => x.Name == name && Posterunki.TaGrupa(Doc.P, x.Track, track))) { Message($"Nazwa odcinka {name} jest już zajęta w tym posterunku"); return; }
         // rodzaj kontroli: jak u sąsiada (najczęstszy w projekcie), domyślnie liczniki osi
         var kind = Doc.P.Sections.GroupBy(x => x.Kind).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? UtSection.LicznikOsi;
         var sec = new UtSection { Name = name, Track = track, S = s, Kind = kind };
@@ -168,7 +168,7 @@ public partial class MainWindow
         P.Children.Add(new TextBlock { Text = rz.Count > 0 ? $"odcinek zwrotnicowy (rozjazdy {string.Join(", ", rz.Select(x => x.Number))})" : "odcinek torowy", Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, -4, 0, 6) });
         Field(P, "Nazwa", s.Name, n =>
         {
-            if (n.Length == 0 || Doc.P.Sections.Any(x => x.Id != s.Id && x.Name == n)) { Message(n.Length == 0 ? "Nazwa nie może być pusta" : $"Nazwa {n} jest już zajęta"); RefreshTrackPanel(); return; }
+            if (n.Length == 0 || Doc.P.Sections.Any(x => x.Id != s.Id && x.Name == n && Posterunki.TaGrupa(Doc.P, x.Track, s.Track))) { Message(n.Length == 0 ? "Nazwa nie może być pusta" : $"Nazwa {n} jest już zajęta w tym posterunku"); RefreshTrackPanel(); return; }
             Doc.Change("Nazwa odcinka", p => p.Sections.First(x => x.Id == s.Id).Name = n);
         });
         P.Children.Add(Label("Rodzaj kontroli niezajętości"));

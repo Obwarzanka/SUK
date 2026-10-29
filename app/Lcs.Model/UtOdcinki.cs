@@ -259,14 +259,15 @@ public static class Odcinki
     {
         var rz = comp >= 0 ? Turnouts(p, o, comp).Select(t => t.Number).Where(n => n.Length > 0).ToList() : new();
         string baseName;
+        var k = comp >= 0 ? o.Of(comp).OrderByDescending(x => x.Len).FirstOrDefault() : null;
         if (rz.Count > 0) baseName = "Iz" + string.Join("/", rz.OrderBy(x => x.Length).ThenBy(x => x));
         else
         {
-            var k = comp >= 0 ? o.Of(comp).OrderByDescending(x => x.Len).FirstOrDefault() : null;
             var t = k != null ? p.Tracks.FirstOrDefault(x => x.Id == k.Track) : null;
             baseName = t != null && t.Number.Length > 0 ? "It" + t.Number : "o1";
         }
-        var used = p.Sections.Select(s => s.Name).ToHashSet();
+        // nazwy zajęte w posterunku odcinka (inne posterunki mogą mieć te same)
+        var used = p.Sections.Where(s => k == null || Posterunki.TaGrupa(p, s.Track, k.Track)).Select(s => s.Name).ToHashSet();
         if (!used.Contains(baseName)) return baseName;
         foreach (var c in "abcdefghijk") if (!used.Contains(baseName + c)) return baseName + c;
         for (int i = 2; ; i++) if (!used.Contains(baseName + "_" + i)) return baseName + "_" + i;

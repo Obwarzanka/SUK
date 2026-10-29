@@ -116,6 +116,46 @@ def mur(n):
 sym('ob_sciana', 'Ściana oporowa', 'zał. 8, s. 63', 'wzdłuż toru po stronie ściany, w odległości od osi z panelu; grupy 3 kresek co 10 mm', [line((-5, 0), (45, 0))] + mur(3))
 sym('ob_mur', 'Mur oporowy', 'zał. 8, s. 63', 'wzdłuż toru po stronie muru, w odległości od osi z panelu; grupy 2 kresek co 10 mm', [line((-5, 0), (45, 0))] + mur(2))
 
+# Nastawnie (s. 35–39, warstwa „budynek”): obrys 0,5 mm, piętrowa – druga ściana 1 mm wewnątrz; kreskowanie co 1 mm: mechaniczna – skośne,
+# elektryczna – kratka skośna, komputerowa – kratka prostopadła, ręczna – bez; belka 1 mm grubości 2 mm od ściany od strony toru,
+# kropka średnicy 1 mm 1 mm nad belką. Na podglądzie: tor y = 0, budynek 20 × 10 mm (piętrowa 20 × 12) w odległości 3 mm.
+def clip(x0, y0, x1, y1, px, py, dx, dy):
+    """odcinek prostej (px, py) + t (dx, dy) w prostokącie (Liang-Barsky); None – poza"""
+    t0, t1 = -1e9, 1e9
+    for p, q in ((-dx, px - x0), (dx, x1 - px), (-dy, py - y0), (dy, y1 - py)):
+        if abs(p) < 1e-12:
+            if q < 0: return None
+            continue
+        t = q / p
+        if p < 0: t0 = max(t0, t)
+        else: t1 = min(t1, t)
+    if t1 - t0 < 1e-6: return None
+    return ((round(px + t0 * dx, 3), round(py + t0 * dy, 3)), (round(px + t1 * dx, 3), round(py + t1 * dy, 3)))
+def rect(x0, y0, x1, y1, w): return {'t': 'poly', 'pts': [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 'fill': None, 'w': w}
+def nastawnia(piet, urz):
+    X0, X1, Y0 = 0.0, 20.0, 3.0; Y1 = Y0 + (12.0 if piet else 10.0)
+    res = [line((-2, 0), (22, 0)), rect(X0, Y0, X1, Y1, 0.5)]
+    a0, b0, a1, b1 = X0, Y0, X1, Y1
+    if piet:
+        a0, b0, a1, b1 = X0 + 1, Y0 + 1, X1 - 1, Y1 - 1; res.append(rect(a0, b0, a1, b1, 0.5))
+    dirs = {'r': [], 'm': [(1, 1)], 'e': [(1, 1), (1, -1)], 'k': [(1, 0), (0, 1)]}[urz]
+    cx, cy = (a0 + a1) / 2, (b0 + b1) / 2
+    for dx, dy in dirs:
+        n = (dx * dx + dy * dy) ** 0.5; dx, dy = dx / n, dy / n; nx, ny = -dy, dx
+        for i in range(-30, 31):
+            s = clip(a0, b0, a1, b1, cx + nx * i, cy + ny * i, dx, dy)
+            if s: res.append(line(s[0], s[1]))
+    bl = (a1 - a0) * 0.6; yb = b0 + 2
+    res.append(poly((cx - bl / 2 - 0.25, yb - 0.25), (cx + bl / 2 + 0.25, yb - 0.25), (cx + bl / 2 + 0.25, yb + 1.25), (cx - bl / 2 - 0.25, yb + 1.25), fill='paper', w=0))
+    res.append(poly((cx - bl / 2, yb), (cx + bl / 2, yb), (cx + bl / 2, yb + 1), (cx - bl / 2, yb + 1), w=0))
+    res.append({'t': 'circle', 'at': [cx, yb + 2.5], 'r': 0.75, 'fill': 'paper', 'w': 0})
+    res.append({'t': 'circle', 'at': [cx, yb + 2.5], 'r': 0.5, 'fill': 'ink', 'w': 0})
+    return res
+ANCH_NA = 'budynek z boku toru: km od–do = długość, odległość ściany od osi toru i głębokość z panelu; belka od strony toru; znak nie mniejszy niż 10 × 6 mm (piętrowa 10 × 8 mm)'
+for piet, pn in ((False, 'parterowa'), (True, 'piętrowa')):
+    for urz, un, ig in (('r', 'ręczna', (35, 37)), ('m', 'mechaniczna', (36, 37)), ('e', 'elektryczna', (36, 38)), ('k', 'komputerowa', (38, 39))):
+        sym(f"ob_nastawnia_{'p' if piet else 'n'}_{urz}", f'Nastawnia {pn} {un}', f'zał. 8, s. {ig[1] if piet else ig[0]}', ANCH_NA, nastawnia(piet, urz))
+
 out = os.path.join(os.path.dirname(__file__), '..', 'app', 'Lcs.EdytorUT', 'Dane', 'symbole_ig10.json')
 def one(x): return json.dumps(x, ensure_ascii=False, separators=(', ', ': '))
 NL = chr(10)

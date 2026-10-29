@@ -117,7 +117,6 @@ public static class DoSymulatora
         var devNode = new Dictionary<string, string>();
         foreach (var d in ut.Devices.Where(d => pts.ContainsKey(d.Track)))
         {
-            if (d.Kind is UtDevice.Ukres or UtDevice.W4) continue;
             double s = Math.Clamp(d.S, 0, r[d.Track].Length);
             var id = NodeOn(d.Track, s);
             devNode[d.Id] = id;
@@ -342,6 +341,7 @@ public static class DoSymulatora
         {
             var node = devNode[d.Id]; var post = Kod(d.Track);
             if (d.Kind == UtDevice.Koziol) { bumpers[node] = new JsonObject(); continue; }
+            if (d.Kind is UtDevice.W4 or UtDevice.W8 or UtDevice.W9 or UtDevice.Ukres) continue;   // niżej: wskaźniki
             // W5 – granica przetaczania: koniec manewru na szlak (bez W5 – semafor wjazdowy)
             if (d.Kind == UtDevice.W5) { if (d.Dir != 0) w5[node] = new JsonObject { ["dir"] = d.Dir, ["label"] = d.Name, ["post"] = post }; continue; }
             if (d.Kind == UtDevice.Wykolejnica)
@@ -401,6 +401,99 @@ public static class DoSymulatora
             else if (ut.Lines.FirstOrDefault(l => l.Id == d.Powtarza) is UtLine pl && blocks.ContainsKey(pl.Numer)) o["repeats"] = pl.Numer;
             else uw.Add($"{ZobSymbole.Nazwa(ut, d.Id)}: semafor powtarzany (albo szlak) nie trafia do symulatora – pominięty");
         }
+
+        // ---------- wskaźniki W4, W8, W9, W17 (Ie-1) ----------
+        var w4 = new JsonObject(); var ukres = new JsonArray();
+        var edgeJson = edges.OfType<JsonObject>().ToDictionary(x => (string)x["id"]);
+        var edgesAt = edgeInfo.SelectMany(e => new[] { (N: e.A, E: e), (N: e.B, E: e) }).ToLookup(x => x.N, x => x.E);
+        var turnAt = ut.Turnouts.Where(z => swNode.ContainsKey(z.Id)).GroupBy(z => swNode[z.Id]).ToDictionary(g => g.Key, g => g.First());
+        // dalsza jazda z węzła: zwrotnica – z ostrza na wprost albo na bok, z toru na wprost / zwrotnego tylko na ostrze; inne węzły – pozostałe tory
+        List<(string Id, string Track, double S0, double S1, string A, string B)> Dalej(string node, string from)
+        {
+            var all = edgesAt[node].Where(e => e.Id != from).ToList();
+            if (from == null || !turnAt.TryGetValue(node, out var z)) return all;
+            bool Ostrze((string Id, string Track, double S0, double S1, string A, string B) e) => e.Track == z.Track && (z.Dir > 0 ? e.B == node : e.A == node);
+            return Ostrze(edgeInfo.First(e => e.Id == from)) ? all : all.Where(Ostrze).ToList();
+        }
+        // kierunek jazdy względem km toru UT urządzenia w jego węźle: przyjazd krawędzią „from”
+        int KierunekWzgledem(UtDevice d, string node, string from)
+        {
+            var fe = edgeInfo.First(e => e.Id == from);
+            if (fe.Track == d.Track) return fe.B == node ? 1 : -1;
+            var dalej = Dalej(node, from).FirstOrDefault(e => e.Track == d.Track);
+            return dalej.Id == null ? 0 : dalej.A == node ? 1 : -1;
+        }
+        var w9 = ut.Devices.Where(d => d.Kind == UtDevice.W9 && devNode.ContainsKey(d.Id)).ToList();
+        var nodeW9 = w9.ToLookup(d => devNode[d.Id]);
+        // przejście w kierunku dir (km toru urządzenia) od węzła urządzenia: odwiedza krawędzie z węzłem wejścia, aż stop(węzeł, krawędź przyjazdu) – do maxLen m
+        void Przejdz(UtDevice d, double maxLen, Func<string, string, bool> stop, Action<string, string> visit, out bool urwane)
+        {
+            urwane = false; var node = devNode[d.Id];
+            var start = edgeInfo.FirstOrDefault(e => e.Track == d.Track && (d.Dir > 0 ? e.A == node : e.B == node));
+            if (start.Id == null) { urwane = true; return; }
+            var q = new Stack<(string Node, (string Id, string Track, double S0, double S1, string A, string B) E, double Len)>();
+            q.Push((node, start, 0)); var seen = new HashSet<string>();
+            bool cut = false;
+            while (q.Count > 0)
+            {
+                var (n, e, len) = q.Pop();
+                if (!seen.Add(e.Id + n)) continue;
+                visit(e.Id, n);
+                var nn = e.A == n ? e.B : e.A; double l2 = len + (e.S1 - e.S0);
+                if (stop(nn, e.Id)) continue;
+                if (l2 > maxLen || farEnds.ContainsKey(nn)) { cut = true; continue; }
+                foreach (var x in Dalej(nn, e.Id)) q.Push((nn, x, l2));
+            }
+            urwane = cut;
+        }
+        void Ogranicz(string eid, string from, int v, bool c)
+        {
+            var o = edgeJson[eid];
+            var lim = o["vlim"] as JsonObject ?? (JsonObject)(o["vlim"] = new JsonObject());
+            int cur = lim[from] is JsonNode old ? (int)old : int.MaxValue;
+            if (cur < v) return;
+            lim[from] = v;
+            // niższe ograniczenie bez C zastępuje wcześniejsze z C; to samo z C (drugi przebieg) – dokłada znacznik
+            if (c) ((JsonObject)(o["vlimC"] ??= new JsonObject()))[from] = true;
+            else if (cur > v) (o["vlimC"] as JsonObject)?.Remove(from);
+        }
+        foreach (var d in ut.Devices.Where(d => devNode.ContainsKey(d.Id)))
+        {
+            var node = devNode[d.Id];
+            if (d.Kind == UtDevice.W4) { if (d.Dir != 0) w4[node] = new JsonObject { ["dir"] = d.Dir, ["track"] = Nr(d.Track), ["label"] = d.Name, ["ahead"] = edgeInfo.FirstOrDefault(e => e.Track == d.Track && (d.Dir > 0 ? e.A == node : e.B == node)).Id }; continue; }
+            if (d.Kind == UtDevice.Ukres) { ukres.Add(node); continue; }
+            if (d.Kind == UtDevice.W9 && d.Vw is int v9)
+            {
+                // od W9 w jego kierunku do W9 zwróconego przeciwnie (strona końca widziana z tej jazdy); litera C – na tablicy końca
+                bool c = false;
+                Przejdz(d, 5000, (n, from) =>
+                {
+                    var end = nodeW9[n].FirstOrDefault(x => x.Id != d.Id && KierunekWzgledem(x, n, from) == -x.Dir);
+                    if (end != null) c |= end.W9C;
+                    return end != null;
+                }, (eid, from) => Ogranicz(eid, from, v9, false), out bool urw);
+                if (c) Przejdz(d, 5000, (n, from) => nodeW9[n].Any(x => x.Id != d.Id && KierunekWzgledem(x, n, from) == -x.Dir), (eid, from) => Ogranicz(eid, from, v9, true), out _);
+                if (urw) uw.Add($"W9 {d.Name} ({v9} km/h, tor {Nr(d.Track)} km {d.S:0}): brak W9 końca ograniczenia w ciągu 5 km albo do granicy obszaru – ograniczenie do tego miejsca");
+            }
+            if (d.Kind == UtDevice.W8 && d.Vw is int v8)
+            {
+                // W8 lit. e: bez W9 początku ograniczenia w tym kierunku (do 3 km) – ograniczenie na stacji do jej minięcia (od pierwszego toru stacyjnego)
+                bool maW9 = false;
+                Przejdz(d, 3000, (n, from) => { if (nodeW9[n].Any(x => x.Vw != null && KierunekWzgledem(x, n, from) == x.Dir)) maW9 = true; return maW9; }, (_, _) => { }, out _);
+                if (maW9) continue;
+                bool naStacji = false;
+                Przejdz(d, 6000, (n, from) =>
+                {
+                    bool st = edgeJson[from]["szlak"] == null; naStacji |= st;
+                    // za stacją tor szlakowy – koniec ograniczenia
+                    return naStacji && Dalej(n, from).All(x => edgeJson[x.Id]["szlak"] != null) && Dalej(n, from).Count > 0;
+                }, (eid, from) => { if (edgeJson[eid]["szlak"] == null) Ogranicz(eid, from, v8, false); }, out _);
+                uw.Add($"W8 {d.Name} ({v8} km/h): bez W9 za nim – w symulatorze ograniczenie do minięcia całej stacji (Ie-1, W8 lit. e)");
+            }
+        }
+        // W24 na semaforze (Ie-1 § W24): zapala się z sygnałem zezwalającym na wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego
+        foreach (var d in ut.Devices.Where(d => d.Kind == UtDevice.Semafor && d.W24 && sigKey.ContainsKey(d.Id)))
+            ((JsonObject)signals[sigKey[d.Id]])["w24"] = true;
 
         // ---------- plan: perony, przejazdy ----------
         var platforms = new JsonArray(); var crossings = new JsonArray();
@@ -537,7 +630,7 @@ public static class DoSymulatora
             ["name"] = ut.Name, ["code"] = code, ["width"] = W, ["height"] = H, ["orient"] = "ab", ["source"] = source ?? "UT + zobrazowanie",
             ["detection"] = "lo", ["posts"] = posts, ["pages"] = pages,
             ["nodes"] = nodes, ["edges"] = edges, ["switches"] = switches, ["signals"] = signals, ["derailers"] = derailers,
-            ["blocks"] = blocks, ["boundaries"] = boundaries, ["farEnds"] = farEnds, ["trackEnds"] = new JsonObject(), ["bumpers"] = bumpers, ["w5"] = w5,
+            ["blocks"] = blocks, ["boundaries"] = boundaries, ["farEnds"] = farEnds, ["trackEnds"] = new JsonObject(), ["bumpers"] = bumpers, ["w5"] = w5, ["w4"] = w4, ["ukres"] = ukres,
             ["sections"] = sections, ["platforms"] = platforms, ["labels"] = new JsonArray(), ["crossings"] = crossings, ["dashed"] = new JsonArray(),
             ["routeRules"] = new JsonArray(),
         };

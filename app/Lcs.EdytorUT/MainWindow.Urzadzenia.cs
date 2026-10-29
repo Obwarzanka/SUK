@@ -154,11 +154,41 @@ public partial class MainWindow
         if (d.Directed) row.Children.Add(SmallBtn("Odwróć kierunek", () => ChDevice(d.Id, "Kierunek urządzenia", x => x.Dir = -x.Dir), "Dla jazdy w drugą stronę"));
         P.Children.Add(row);
         if (d.Kind is UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan) BuildSignalConfig(P, d);
+        if (d.Kind is UtDevice.W8 or UtDevice.W9) BuildSpeedSign(P, d);
         foreach (var n in Urzadzenia.Check(Doc.P, d))
             P.Children.Add(new TextBlock { Text = n, Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         P.Children.Add(SmallBtn("Usuń", () => { View.SelectDevice(d.Id); DeleteDevice(); }, "Usuń urządzenie (Del)"));
         P.Children.Add(new Separator { Margin = new Thickness(0, 8, 0, 10) });
     }
+    /// <summary>W8 / W9 (Ie-1): prędkość dozwolona co 5 km/h; W9 – litera C na stronie końca (ograniczenie dotyczy czoła pociągu).</summary>
+    void BuildSpeedSign(StackPanel P, UtDevice d)
+    {
+        bool w9 = d.Kind == UtDevice.W9;
+        P.Children.Add(Label(w9 ? "Prędkość na stronie początku [km/h] (puste – tablica tylko z końcem odcinka)" : "Prędkość dozwolona [km/h]"));
+        var v = new TextBox { Text = d.Vw?.ToString() ?? "", Margin = new Thickness(0, 2, 0, 6), ToolTip = "Prędkość co 5 km/h (np. 40); Enter" };
+        void Commit()
+        {
+            var t = v.Text.Trim();
+            if (t.Length == 0 && w9) { ChDevice(d.Id, "Prędkość wskaźnika", x => x.Vw = null); return; }
+            if (!int.TryParse(t, out var n) || n < 5 || n > 200 || n % 5 != 0) { Message("Prędkość wskaźnika: 5–200 km/h, co 5 km/h (Ie-1)"); v.Text = d.Vw?.ToString() ?? ""; return; }
+            if (n != d.Vw) ChDevice(d.Id, "Prędkość wskaźnika", x => x.Vw = n);
+        }
+        v.LostFocus += (s, e) => Commit(); v.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
+        P.Children.Add(v);
+        if (w9)
+        {
+            var c = new CheckBox { Content = "Na stronie końca litera C (ograniczenie dotyczy czoła pociągu)", IsChecked = d.W9C, Margin = new Thickness(0, 0, 0, 4) };
+            c.Click += (s, e) => ChDevice(d.Id, "Litera C wskaźnika W9", x => x.W9C = c.IsChecked == true);
+            P.Children.Add(c);
+        }
+        P.Children.Add(new TextBlock
+        {
+            Text = w9 ? "W symulatorze: jazda w kierunku wskaźnika – od tego miejsca prędkość ograniczona; jazda w drugą stronę – tu koniec ograniczenia (bez C – gdy minie go koniec składu)."
+                      : "W symulatorze: zapowiedź ograniczenia; bez W9 tego kierunku dalej na torze – ograniczenie do minięcia całej stacji (Ie-1, W8 lit. e).",
+            Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
+        });
+    }
+
     /// <summary>
     /// Wspólna konstrukcja: z kim sygnalizator wisi na bramce / wysięgniku, „Połącz z…” (sygnalizatory w pobliżu, ten sam kierunek)
     /// i „Odłącz”. Połączenie przesuwa dołączane sygnalizatory w miejsce konstrukcji.

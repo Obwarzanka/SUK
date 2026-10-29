@@ -218,7 +218,25 @@ public partial class MainWindow
         var type = View.RzType;
         if (target != null)
         {
-            var (t1, t2, link, err) = Rozjazdy.NewCrossover(Doc.P, track, s, dir, side, target, type, "", "");
+            // tory nierównoległe: łuk wyrównujący we wstawce; gdy przy tym samym typie się nie mieści (albo rozjazdy nachodzą na siebie) –
+            // drugi rozjazd innego typu tej samej szyny, najbliższy kątem (próba na kopii)
+            bool Zle(string ty2)
+            {
+                var tmp = UtDocument.Deserialize(UtDocument.Serialize(Doc.P));
+                var (a, b, l, e) = Rozjazdy.NewCrossover(tmp, track, s, dir, side, target, type, "", "", ty2);
+                if (e != null) return true;
+                tmp.Tracks.Add(l); tmp.Turnouts.Add(a); tmp.Turnouts.Add(b); Rozjazdy.Sync(tmp);
+                return new[] { a.Id, b.Id }.Any(id => tmp.Turnouts.FirstOrDefault(x => x.Id == id) is not UtTurnout z
+                    || Rozjazdy.Check(tmp, z).Any(n => n.Contains("łącznik") || n.Contains("wstawk") || n.Contains("łuk wyrównując")));
+            }
+            string type2 = null;
+            if (Katalog.Find(type) is RozjazdTyp ty1 && Zle(null))
+            {
+                string rail = ty1.Name.Split(' ').ElementAtOrDefault(1) ?? "";
+                type2 = Katalog.Types.Where(x => x.Kind == RozjazdTyp.Rz && x.Name != type && x.Name.Contains(rail))
+                    .OrderBy(x => Math.Abs(x.Alpha - ty1.Alpha)).FirstOrDefault(x => !Zle(x.Name))?.Name;
+            }
+            var (t1, t2, link, err) = Rozjazdy.NewCrossover(Doc.P, track, s, dir, side, target, type, "", "", type2);
             if (err != null) { Message("Łącznik: " + err); return; }
             var nums = AskNumbers("Łącznik – numery rozjazdów", new[] { "Rozjazd na torze, z którego zaczyna się łącznik", "Rozjazd na torze sąsiednim" });
             if (nums == null || !NumbersOk(nums, track)) return;
@@ -227,7 +245,10 @@ public partial class MainWindow
             View.SelectTurnout(t1.Id);
             string am = AutoMount(t1.Id, t2.Id);
             var g = View.Geometry(Doc.P.Tracks.First(x => x.Id == link.Id));
-            Message($"Łącznik {t1.Number}/{t2.Number} ({type}): tor łączący {UtView.Len3(g.Length)}" + am + Notes(t1) + Notes(t2));
+            var lt1 = Doc.P.Turnouts.FirstOrDefault(x => x.Id == t1.Id); var lt2 = Doc.P.Turnouts.FirstOrDefault(x => x.Id == t2.Id);
+            string luk = lt1 != null && lt2 != null && Rozjazdy.Geometry(Doc.P, lt1) is TurnoutGeo gq1 && Rozjazdy.Geometry(Doc.P, lt2) is TurnoutGeo gq2
+                && Rozjazdy.Equalizer(gq1, gq2) is var (_, dq, rq) && dq > 1e-4 ? $", łuk wyrównujący R {rq:0} m ({dq * 180 / Math.PI:0.##}°)" : "";
+            Message($"Łącznik {t1.Number}/{t2.Number} ({type}{(type2 != null ? $" + {type2} – z tym samym typem łuk wyrównujący się nie mieści" : "")}): tor łączący {UtView.Len3(g.Length)}{luk}" + am + Notes(t1) + Notes(t2));
         }
         else
         {
@@ -327,8 +348,11 @@ public partial class MainWindow
         var tb = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
         foreach (var k in Katalog.Types.Where(k => k.Kind == RozjazdTyp.Rz)) tb.Items.Add(k.Name);
         tb.SelectedItem = t.Type;
-        tb.SelectionChanged += (s, e) => { if (tb.SelectedItem is string n) Doc.Change("Typ rozjazdu", p => { foreach (var x in p.Turnouts.Where(x => x.Id == t.Id || x.Id == t.Partner)) x.Type = n; }); };
-        P.Children.Add(Label("Typ (łącznik – oba rozjazdy)")); P.Children.Add(tb);
+        // łącznik: każdy rozjazd ma własny typ (łuk wyrównujący we wstawce bierze różnicę kątów); przycisk – ten typ dla obu
+        tb.SelectionChanged += (s, e) => { if (tb.SelectedItem is string n && n != t.Type) Doc.Change("Typ rozjazdu", p => { foreach (var x in p.Turnouts.Where(x => x.Id == t.Id)) x.Type = n; }); };
+        P.Children.Add(Label(partner != null ? "Typ tego rozjazdu (drugi rozjazd łącznika może mieć inny)" : "Typ")); P.Children.Add(tb);
+        if (partner != null && partner.Type != t.Type)
+            P.Children.Add(SmallBtn($"Ten sam typ dla {partner.Number}", () => Doc.Change("Typ rozjazdu", p => { foreach (var x in p.Turnouts.Where(x => x.Id == t.Partner)) x.Type = t.Type; }), $"Rozjazd {partner.Number}: {partner.Type} → {t.Type}"));
 
         var zas = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
         zas.Items.Add("+  na wprost"); zas.Items.Add("−  na zwrot");

@@ -162,29 +162,53 @@ public partial class Trains
     }
 
     // ------------------------------------------------------------------ ruch
-    (double D, string Sig, bool Dwell, bool End) Lookahead(Train t)
+    public (double D, string Sig, bool Dwell, bool End) Lookahead(Train t)
     {
         var last = t.Segs[^1];
         if (last.Sink) return (double.PositiveInfinity, null, false, false);
         double dist = Total(t) - t.Head; string node = last.To, from = last.E, prevE = last.E; int dir = last.Dir;
+        // W17 (Ie-1 § W17): ukres przed zwrotnicą w kierunku jazdy – koniec drogi nie może wypaść między ukresem a zwrotnicą
+        double? uk = null, ukSw = null;   // ukres i zwrotnica za nim [m od czoła]
+        (double, string, bool, bool) Koniec(double d) => (uk is double u && d > u - UkresZapas && (ukSw == null || d <= ukSw) ? Math.Max(0, u - UkresZapas) : d, null, false, true);
         for (int k = 0; k < 60; k++)
         {
+            if (S.L.Ukres.Contains(node) && ZwrotnicaPrzed(node, dir, from)) { uk = dist; ukSw = null; }
+            else if (uk != null && ukSw == null && (S.L.Nodes[node].Switch != null || S.L.Nodes[node].Kind == "crossing")) ukSw = dist;
             var sg = SigsFor(node, dir, t).ToList();
-            if (t.Stop && !t.DwellDone && prevE != null && S.L.Edges[prevE].Platform && sg.Count > 0 && S.L.Edges[prevE].Sec != t.DwellSecDone
-                && (t.StopAt == null || t.StopAt.Contains(Station.PostOf(S.L.Edges[prevE].Sec)))) return (dist - 15, null, true, false);
+            bool postoj = t.Stop && !t.DwellDone && prevE != null && S.L.Edges[prevE].Platform && S.L.Edges[prevE].Sec != t.DwellSecDone
+                && (t.StopAt == null || t.StopAt.Contains(Station.PostOf(S.L.Edges[prevE].Sec)));
+            // W4 (Ie-1 § W4): pociąg mający postój zatrzymuje czoło przed wskaźnikiem jego kierunku
+            if (postoj && S.L.W4.TryGetValue(node, out var w4) && w4.Ahead != prevE) return (dist - W4Zapas, null, true, false);
+            if (postoj && sg.Count > 0) return (dist - 15, null, true, false);
             foreach (var s in sg) if (!Permits(s, t)) return (dist - 8, s, false, false);
-            if (t.Shunt && S.L.TrackEnds.ContainsKey(node)) return (dist - 10, null, false, true);
+            if (t.Shunt && S.L.TrackEnds.ContainsKey(node)) return Koniec(dist - 10);
             // PK – punkt końcowy przebiegu: dalej tylko w nastawionym przebiegu pociągowym (np. od semafora sąsiedniego posterunku)
             if (!t.Shunt && SigsAt(node, dir).Any(x => S.L.Signals[x].PkTrain) && S.NextInTerrain(node, dir, from) is { } pkn && S.Secs[S.L.Edges[pkn.Edge].Sec].LockType != "train")
-                return (dist - 8, null, false, true);
-            if (t.Shunt && k > 0 && !InShuntRoute(prevE) && prevE != null) return (dist - S.L.Edges[prevE].Len - 6, null, false, true);
+                return Koniec(dist - 8);
+            if (t.Shunt && k > 0 && !InShuntRoute(prevE) && prevE != null) return Koniec(dist - S.L.Edges[prevE].Len - 6);
             if (S.L.FarEnds.TryGetValue(node, out var fe) && dir == S.L.Blocks[fe.Szlak].Ends[0].Outward) return (double.PositiveInfinity, null, false, false);
             var nx = S.NextInTerrain(node, dir, from);
-            if (nx == null) return (dist - 5, null, false, true);
+            if (nx == null) return Koniec(dist - 5);
             dist += S.L.Edges[nx.Edge].Len; from = nx.Edge; prevE = nx.Edge; node = S.L.Other(nx.Edge, node);
             if (dist > 2500) break;
         }
         return (double.PositiveInfinity, null, false, false);
+    }
+
+    /// <summary>Czoło zatrzymuje się tyle metrów przed W4 i przed ukresem W17.</summary>
+    const double W4Zapas = 5, UkresZapas = 3;
+
+    /// <summary>Za ukresem w kierunku jazdy (do 150 m) jest zwrotnica albo skrzyżowanie – ukres osłania zbieg torów.</summary>
+    bool ZwrotnicaPrzed(string node, int dir, string from)
+    {
+        double d = 0;
+        for (int i = 0; i < 10 && d < 150; i++)
+        {
+            var nx = S.NextInTerrain(node, dir, from); if (nx == null) return false;
+            d += S.L.Edges[nx.Edge].Len; from = nx.Edge; node = S.L.Other(nx.Edge, node);
+            if (S.L.Nodes[node].Switch != null || S.L.Nodes[node].Kind == "crossing") return true;
+        }
+        return false;
     }
 
     /// <summary>Manewry poruszają się wyłącznie w obrębie utwierdzonych przebiegów manewrowych (lub toru, na którym stoją).</summary>
@@ -389,8 +413,11 @@ public partial class Trains
         S.Log("Ruch", $"Jednostka {unit} z zaplecza na torze {TrackOf(t)} – zmiana numeru na pociąg {t.Num}, odjazd {S.Clock(t.DwellUntil)} na szlak {d.To}", "Pociąg", t.Num);
     }
 
-    /// <summary>Prędkość dopuszczalna toru dla pociągu [m/s]: tor (vmax) i zwrotnice (jazda na bok, na / z ostrza).</summary>
-    double EdgeLimit(string eid)
+    /// <summary>
+    /// Prędkość dopuszczalna toru dla pociągu [m/s]: tor (vmax), zwrotnice (jazda na bok, na / z ostrza) i wskaźniki W8 / W9 przy jeździe
+    /// od węzła <paramref name="from"/>; <paramref name="zaCzolem"/> – kawałek już za czołem: ograniczenie W9 z literą C go nie obejmuje (Ie-1 § W9 lit. a).
+    /// </summary>
+    double EdgeLimit(string eid, string from = null, bool zaCzolem = false)
     {
         var e = S.L.Edges[eid];
         double v = e.VMax > 0 ? e.VMax : StationEdge(eid) ? VStation : 1e4;
@@ -404,6 +431,8 @@ public partial class Trains
             foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) vr = Math.Min(vr, Math.Min(r.VSet, S.Sygnalizowana(r).V));
             if (vr < 1e4) v = vr;
         }
+        // ostrzeżenie stałe (W8 / W9) obowiązuje także w przebiegu z prędkością ustaloną
+        if (from != null && e.VLim != null && e.VLim.TryGetValue(from, out var vw) && !(zaCzolem && e.VLimC?.Contains(from) == true)) v = Math.Min(v, vw);
         return v / 3.6;
     }
 
@@ -414,13 +443,13 @@ public partial class Trains
     public double SpeedLimit(Train t)
     {
         double lim = 1e4, pos = 0, tail = t.Head - t.Len;
-        foreach (var sg in t.Segs) { double a = pos, b = pos + sg.Len; pos = b; if (sg.E != null && b > tail && a < t.Head) lim = Math.Min(lim, EdgeLimit(sg.E)); }
+        foreach (var sg in t.Segs) { double a = pos, b = pos + sg.Len; pos = b; if (sg.E != null && b > tail && a < t.Head) lim = Math.Min(lim, EdgeLimit(sg.E, sg.From, b < t.Head - 0.01)); }
         var last = t.Segs[^1]; if (last.Sink || last.E == null) return lim;
         double dist = Total(t) - t.Head; string node = last.To, from = last.E; int dir = last.Dir;
         for (int k = 0; k < 40 && dist < 2500; k++)
         {
             var nx = S.NextInTerrain(node, dir, from); if (nx == null) break;
-            var l = EdgeLimit(nx.Edge);
+            var l = EdgeLimit(nx.Edge, node);
             if (l < 1e3) lim = Math.Min(lim, Math.Sqrt(l * l + 2 * Brake * Math.Max(0, dist)));
             dist += S.L.Edges[nx.Edge].Len; from = nx.Edge; node = S.L.Other(nx.Edge, node);
         }

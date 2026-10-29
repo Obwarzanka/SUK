@@ -48,6 +48,13 @@ public class UtDevice
     public string W21 { get; set; }
     /// <summary>W21 świetlny: zapala się z sygnałem zezwalającym i pokazuje prędkość przebiegu (Ie-1); false – tablica odblaskowa z cyfrą <see cref="W21"/>.</summary>
     public bool W21Swietlny { get; set; }
+    /// <summary>
+    /// W8 / W9 (Ie-1 § W8, W9): prędkość dozwolona [km/h, co 5]. W9 – strona zwrócona w kierunku <see cref="Dir"/> (kąt w dół i liczba) oznacza
+    /// początek ograniczenia, druga strona (kąt w górę) – koniec ograniczenia dla jazdy przeciwnej; null – tablica tylko z oznaczeniem końca.
+    /// </summary>
+    public int? Vw { get; set; }
+    /// <summary>W9: na stronie końca litera C – ograniczenie dotyczy czoła pociągu (kończy się, gdy minie je czoło).</summary>
+    public bool W9C { get; set; }
 
     /// <summary>
     /// Wspólna konstrukcja (bramka albo wysięgnik nad kilkoma torami): sygnalizatory z tym samym kluczem wiszą na jednej belce, niezależnie
@@ -142,7 +149,7 @@ public class UtDevice
     public bool Powtarzajacy => Kind == TarczaOstrz || (Kind == Semafor && Funkcja == FPowtarzacz);
 
     public const string Semafor = "semafor", TarczaOstrz = "to", TarczaMan = "tm", Koziol = "koziol", Wykolejnica = "wk",
-        LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5";
+        LicznikOsi = "lo", Zlacze = "zlacze", Ukres = "ukres", W4 = "w4", W5 = "w5", W8 = "w8", W9 = "w9";
 
     /// <summary>Rodzaje: klucz, nazwa w programie, miejsce w Ig-10, czy ma kierunek działania, przedrostek nazwy.</summary>
     public static readonly (string Key, string Name, string Ig10, bool Directed, string Prefix)[] Kinds =
@@ -157,6 +164,8 @@ public class UtDevice
         (Ukres, "Ukres (W17)", "zał. 8, s. 24", false, ""),
         (W4, "Wskaźnik W4", "zał. 8, s. 33", true, ""),
         (W5, "Wskaźnik W5", "zał. 8, s. 30", true, ""),
+        (W8, "Wskaźnik W8 (ograniczenie prędkości)", "zał. 8, s. 34 – słupek; obraz wg Ie-1", true, ""),
+        (W9, "Wskaźnik W9 (odcinek ograniczonej prędkości)", "zał. 8, s. 34 – słupek; obraz wg Ie-1", true, ""),
     };
 
     public static (string Key, string Name, string Ig10, bool Directed, string Prefix) KindInfo(string k) => Kinds.FirstOrDefault(x => x.Key == k);

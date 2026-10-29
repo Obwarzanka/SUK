@@ -93,7 +93,9 @@ pokazuje zobrazowanie wg Ie-104.
 - **Ustawienie:** przy końcu peronu albo przed ukresem, z prawej strony toru (wyjątkowo z lewej, np. brak skrajni). Przy końcu peronu,
   gdy nie jest końcem przebiegu – dotyczy tylko pociągów z postojem przy tym peronie. Nie stawia się go, gdy do 25 m za końcem peronu
   jest semafor.
-- **Symulator:** tylko UT – urządzenie „Wskaźnik W4” (`UtDevice.W4`, Ig-10 zał. 8 s. 33), z kierunkiem działania.
+- **Symulator:** obsługiwany (2026-10-29) – urządzenie „Wskaźnik W4” (`UtDevice.W4`, Ig-10 zał. 8 s. 33), z kierunkiem działania.
+  Pociąg mający postój przy peronie staje czołem 5 m przed W4 swojego kierunku (bez W4 – 15 m przed semaforem na końcu toru peronowego).
+  W4 zwrócony w drugą stronę nie zatrzymuje (`Sim/Trains.cs`, `Lookahead`; dane „w4” z „Do symulatora”).
 
 ### W 5 „Wskaźnik przetaczania” (s. 123)
 - **Znaczenie:** granica przetaczania (manewrów). Dalej tylko za zezwoleniem dyżurnego ruchu.
@@ -137,7 +139,9 @@ pokazuje zobrazowanie wg Ie-104.
   W stacji – jak na szlaku jednotorowym. Ograniczenie na całą stację – przy tarczy ostrzegawczej semafora wjazdowego (obowiązuje do
   minięcia stacji). Na torach głównych dodatkowych i rozjazdach poza torami głównymi zasadniczymi W 8 nie jest wymagany – wystarczy W 9.
   Służy też jako zapowiedź obniżenia prędkości drogowej przed W 27a.
-- **Symulator:** brak.
+- **Symulator:** obsługiwany (2026-10-29) – urządzenie „Wskaźnik W8” z prędkością (`UtDevice.W8`, `Vw`). Z W9 za nim (do 3 km) – tylko
+  zapowiedź (maszynista hamuje do W9 z wyprzedzeniem). Bez W9 – ograniczenie na wszystkich torach stacyjnych za W8 do minięcia stacji
+  (lit. e), z uwagą w „Do symulatora”. Znak na planie: słupek Ig-10 s. 34, trójkąt wg Ie-1 – propozycja do akceptacji.
 
 ### W 9 i W 14 „Wskaźniki odcinka ograniczonej prędkości” (s. 131–134)
 - **Znaczenie:** początek albo koniec odcinka ograniczonej prędkości. W 9 (biały) – ograniczenie stałe, razem z W 8; W 14 (pomarańczowy)
@@ -148,7 +152,10 @@ pokazuje zobrazowanie wg Ie-104.
 - **Ustawienie:** za W 8 / D 6 na początku i końcu odcinka; ograniczenie na całą stację – przy semaforze wjazdowym. Koniec odcinka
   maszynista odczytuje z **odwrotnej strony** wskaźnika postawionego dla przeciwnego kierunku (także gdy stoi on z lewej strony).
   Tło odblaskowe; przy wąskim międzytorzu – zmniejszony, nisko.
-- **Symulator:** brak.
+- **Symulator:** W 9 obsługiwany (2026-10-29), W 14 – brak. Urządzenie „Wskaźnik W9” (`UtDevice.W9`): `Vw` – prędkość na stronie początku
+  (puste – tablica tylko z końcem), `W9C` – litera C na stronie końca. Jazda w kierunku wskaźnika – od niego ograniczenie aż do W9
+  zwróconego przeciwnie (jego strona końca); bez końca w 5 km – uwaga. „Do symulatora” zapisuje ograniczenie na torach z węzłem wejścia
+  („vlim”, „vlimC”), maszynista ma je w profilu prędkości; z literą C pociąg przyspiesza, gdy czoło minie koniec (`EdgeLimit`).
 
 ### W 10a, W 10b „Wskaźniki odcinka z popychaniem” (s. 135)
 - **Znaczenie:** W 10a – rozpocząć popychanie, W 10b – zakończyć popychanie.
@@ -206,7 +213,9 @@ pokazuje zobrazowanie wg Ie-104.
 - **Znaczenie:** granica, do której wolno zająć tor taborem przy zbiegających się torach.
 - **Wygląd:** biało-czerwony słupek (słupek ukresowy).
 - **Ustawienie:** wg skrajni i warunków (przechyłka, poszerzenie w łuku).
-- **Symulator:** tylko UT – urządzenie „Ukres (W17)” (`UtDevice.Ukres`, Ig-10 zał. 8 s. 24), bez kierunku.
+- **Symulator:** obsługiwany (2026-10-29) – urządzenie „Ukres (W17)” (`UtDevice.Ukres`, Ig-10 zał. 8 s. 24), bez kierunku. Gdy koniec
+  drogi (koniec przebiegu manewrowego, PK, koniec toru) wypadałby między ukresem a zwrotnicą za nim, czoło staje 3 m przed ukresem
+  (`Sim/Trains.cs`). Zajętość odcinków dalej wyznaczają liczniki osi i złącza – stawiaj je przy ukresie.
 
 ### W 18 „Wskaźnik samoczynnej blokady liniowej” (s. 148–149)
 - **Znaczenie:** ostatni semafor odstępowy SBL przed semaforem wjazdowym. Gdy ten semafor jest ciemny lub unieważniony – jazda z prędkością
@@ -266,8 +275,9 @@ pokazuje zobrazowanie wg Ie-104.
 - **Wygląd:** świetlny, matowobiała kresa na czarnym kwadracie, wznosząca się z prawa na lewo.
 - **Ustawienie / stan:** na maszcie semafora albo osobnym maszcie; świeci z sygnałem zezwalającym i z sygnałem zastępczym Sz. Przy
   zamknięciach torowych może być przenośną tablicą (dzień).
-- **Symulator:** obsługiwany częściowo – właściwość semafora `W24` w UT; polecenie NSZ zapala Sz razem z W24 (`Sim/Kz/Commands.cs`,
-  stan `Sim/State.cs`). W24 przy zwykłym sygnale zezwalającym na wyjazd w kierunku przeciwnym – jeszcze nie.
+- **Symulator:** obsługiwany (2026-10-29) – właściwość semafora `W24` w UT („w24” w danych symulatora). Świeci z sygnałem zezwalającym,
+  gdy przebieg pociągowy prowadzi na tor szlaku w kierunku przeciwnym do zasadniczego (`KomputerZaleznosci.UpdateSignals`), oraz z Sz
+  po NSZ (`Sim/Kz/Commands.cs`). Pulpit jeszcze go nie rysuje (stan `SigInd.W24`).
 
 ### W 25 „Wskaźnik ogrzewania” (s. 159)
 - **Znaczenie:** stanowisko elektrycznego ogrzewania wagonów; trwa ogrzewanie – nie zbliżać się ani nie dojeżdżać do składu.
@@ -459,11 +469,13 @@ Najważniejsze różnice do uwzględnienia, gdy wejdą:
 
 | Wskaźnik | Stan | Gdzie w kodzie |
 |---|---|---|
-| W 4 | tylko UT | `Lcs.Model/UtDevice.cs` (`W4`), rysunek `Lcs.EdytorUT/UtView.Urzadzenia.cs` |
+| W 4 | obsługiwany | `Lcs.Model/UtDevice.cs` (`W4`), `DoSymulatora.cs` („w4”), `Station.cs` (`W4`), `Sim/Trains.cs` (`Lookahead`) |
 | W 5 | obsługiwany | `UtDevice.W5`; `LcsWidzew/Model/Station.cs` (`W5`); `Sim/Kz/Blocks.cs`, `Sim/Kz/KomputerZaleznosci.cs` |
-| W 17 | tylko UT | `UtDevice.Ukres` |
+| W 8 | obsługiwany | `UtDevice.W8`, `Vw`; `DoSymulatora.cs` (lit. e → „vlim”) |
+| W 9 | obsługiwany | `UtDevice.W9`, `Vw`, `W9C`; `DoSymulatora.cs` („vlim”, „vlimC”); `Station.cs` (`Edge.VLim`); `Sim/Trains.cs` (`EdgeLimit`) |
+| W 17 | obsługiwany | `UtDevice.Ukres`; „ukres”; `Station.cs` (`Ukres`); `Sim/Trains.cs` (`Lookahead`, `ZwrotnicaPrzed`) |
 | W 21 | obsługiwany | `UtDevice.W21`, `W21Swietlny`; `Station.cs` (`W21`, `Dobor`); `Sim/State.cs` |
-| W 24 | obsługiwany częściowo (tylko z Sz – NSZ) | `UtDevice.W24`; `Sim/Kz/Commands.cs`, `Sim/State.cs` |
+| W 24 | obsługiwany (na pulpicie jeszcze nie rysowany) | `UtDevice.W24`; „w24”; `Sim/Kz/KomputerZaleznosci.cs`, `Sim/Kz/Commands.cs`, `Sim/State.cs` |
 | pozostałe | brak | – |
 
 ### Propozycje (do decyzji właściciela, nic nie jest zrobione)
@@ -474,7 +486,6 @@ pracę dyżurnego lub komputera zależności:
 1. **W 2 / W 26a / W 26b** – litera przy semaforze drogowskazowym, zapalana z sygnałem (i W 26 z Sz) – jak W 24.
 2. **W 18, W 19, W 20** – przy SBL i skróconych odstępach; W 19 / W 20 świetlne zależą od sygnału, więc to stan semafora.
 3. **W 3, W 31** – unieważnienie / skasowanie semafora (semafor ciemny).
-4. **W 8, W 9, W 14, W 27a, W 35, W 36** – ograniczenia prędkości dla ruchu pociągów (ostrzeżenia stałe i doraźne) – gdy symulator będzie
-   liczył prędkość jazdy po szlaku.
+4. **W 14, W 27a, W 35, W 36** – pozostałe ograniczenia prędkości (W 8 i W 9 – zrobione 2026-10-29).
 5. **W 23** – granica odcinka izolowanego dla manewrów (dziś granice wyznaczają złącza i liczniki osi).
 6. **We** – dopiero po zamodelowaniu sieci trakcyjnej i jej sekcji.

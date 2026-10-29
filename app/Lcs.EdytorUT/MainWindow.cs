@@ -185,7 +185,7 @@ public partial class MainWindow : Window
             UtTool.Przejazd => "Przejazd: kliknij na torze w osi drogi (droga prostopadle) albo przeciągnij wzdłuż osi drogi – kąt i długość drogi na planie",
             UtTool.Obiekt => Obiekty.Info(View.ObKind) is var oi && oi.Pol == Obiekty.Pol.Poprzeczny
                 ? $"{oi.Name} ({oi.Ig10}): kliknij na torze w osi przeszkody (prostopadle) albo przeciągnij wzdłuż jej osi – kąt i zasięg na planie"
-                : $"{oi.Name} ({oi.Ig10}): kliknij na torze w miejscu początku (OD), potem w miejscu końca (DO) albo przeciągnij wzdłuż toru" + (oi.Pol == Obiekty.Pol.ZBoku ? " – po stronie ściany" : "; Ctrl + klik na innym torze – dołóż tor do zaznaczonego obiektu") + "; PPM / Esc – od nowa",
+                : $"{oi.Name} ({oi.Ig10}): kliknij na torze w miejscu początku (OD), potem w miejscu końca (DO) albo przeciągnij wzdłuż toru" + (oi.Pol == Obiekty.Pol.ZBoku ? (Obiekty.Nastawnia(oi.Key) ? " – długość budynku, po stronie nastawni" : " – po stronie ściany") : "; Ctrl + klik na innym torze – dołóż tor do zaznaczonego obiektu") + "; PPM / Esc – od nowa",
             UtTool.Km => "Kilometraż: wciśnij na torze w miejscu o znanym km linii i przeciągnij w stronę rosnącego km; w oknie numer linii i km (np. 17 25.452). Drugi punkt na tym samym torze – kilometr skrócony / wydłużony",
             UtTool.Szlak => "Szlak: najedź na tor szlaku – program sam znajdzie końce (semafory wjazdowe albo granicę obszaru) i pokaże drogę, klik – utwórz; klik na istniejącym szlaku – zaznacz; Ctrl + klik – końce ręcznie; PPM / Esc – od nowa",
             UtTool.Miarka => "Miarka: klikaj kolejne punkty (przeciągnięcie przesuwa widok); Backspace – cofnij punkt, PPM – wyczyść, Esc – koniec",

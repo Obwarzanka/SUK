@@ -40,6 +40,12 @@ public class Edge
     public double VMax;
     /// <summary>Ograniczenie wynikające ze zwrotnicy (jazda na bok, na ostrze lub z ostrza) [km/h], 0 – brak.</summary>
     public double SwLimit;
+    /// <summary>
+    /// Ograniczenie ze wskaźników W8 / W9 (Ie-1) [km/h] przy jeździe od węzła (klucz – węzeł wejścia na ten tor); null – brak.
+    /// <see cref="VLimC"/> – węzły wejścia, dla których ograniczenie dotyczy czoła pociągu (W9 końca z literą C).
+    /// </summary>
+    public Dictionary<string, double> VLim;
+    public HashSet<string> VLimC;
     /// <summary>Łącznik obrazów: połączenie logiczne końców torów na dwóch obrazach (nie rysowane, ma długość).</summary>
     public bool Link;
     /// <summary>Tor rozebrany – rysowany linią przerywaną, wyłączony z jazd i przebiegów.</summary>
@@ -111,6 +117,8 @@ public class SignalDef
     public string Stripes;
     /// <summary>Wskaźnik W21: „S” – świetlny (liczba z prędkości przebiegu), cyfra – tablica odblaskowa (dziesiątki km/h), null – brak.</summary>
     public string W21;
+    /// <summary>Wskaźnik W24 na semaforze (pole „w24”): świeci z sygnałem zezwalającym na wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego.</summary>
+    public bool W24;
 
     /// <summary>
     /// Dobór sygnału do prędkości przebiegu v [km/h] (Ie-1 § 4: pasy świetlne, W21 – podwyższenie prędkości z sygnału 40 / 60 / 100):
@@ -239,6 +247,10 @@ public class Station
     public HashSet<string> Bumpers = new();
     /// <summary>Wskaźniki W5 (granica przetaczania, pole „w5”): węzeł → kierunek jazdy manewrowej, którą ogranicza, i nazwa.</summary>
     public Dictionary<string, (int Dir, string Label)> W5 = new();
+    /// <summary>Wskaźniki W4 (miejsce zatrzymania czoła pociągu, pole „w4”): węzeł → tor przed wskaźnikiem w kierunku jazdy (pole „ahead”), nazwa.</summary>
+    public Dictionary<string, (string Ahead, string Label)> W4 = new();
+    /// <summary>Wskaźniki ukresu W17 (pole „ukres”): węzły – tabor nie może stanąć między ukresem a zwrotnicą.</summary>
+    public HashSet<string> Ukres = new();
     /// <summary>Pary torów, przez które nie ma jazdy (w obie strony): rozjazd krzyżowy pojedynczy – brakujący przejazd (pole „noPass”).</summary>
     public List<(string A, string B)> NoPass = new();
     public Dictionary<string, string> Posts = new();
@@ -478,6 +490,10 @@ public class Station
                 Elec = e.TryGetProperty("elec", out var el) && (el.ValueKind == JsonValueKind.True || (el.ValueKind == JsonValueKind.String && el.GetString() == "true"))
             };
             foreach (var p in e.GetProperty("pts").EnumerateArray()) ed.Pts.Add((p[0].GetDouble(), p[1].GetDouble()));
+            if (e.TryGetProperty("vlim", out var vl) && vl.ValueKind == JsonValueKind.Object)
+                foreach (var p in vl.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.Number) (ed.VLim ??= new())[p.Name] = p.Value.GetDouble();
+            if (e.TryGetProperty("vlimC", out var vc) && vc.ValueKind == JsonValueKind.Object)
+                foreach (var p in vc.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.True) (ed.VLimC ??= new()).Add(p.Name);
             st.Edges[ed.Id] = ed;
             st.Nodes[ed.A].Edges.Add(ed.Id); st.Nodes[ed.B].Edges.Add(ed.Id);
             if (!st.Sections.TryGetValue(ed.Sec, out var sec)) st.Sections[ed.Sec] = sec = new SectionDef { Id = ed.Sec };
@@ -512,6 +528,7 @@ public class Station
             {
                 Name = p.Name, Node = S(v, "node"), Dir = v.GetProperty("dir").GetInt32(), Type = S(v, "type"), Szlak = S(v, "szlak"), Track = S(v, "track"),
                 Label = S(v, "label", Lbl(p.Name)), Repeats = S(v, "repeats"), Post = S(v, "post", PostOf(p.Name)),
+                W24 = v.TryGetProperty("w24", out var w24v) && w24v.ValueKind == JsonValueKind.True,
                 PkRoutes = S(v, "routes", "PM"), Mount = S(v, "mount", ""), Gantry = S(v, "gantry"), Side = S(v, "side", "P"), Stripes = S(v, "stripes"), W21 = S(v, "w21"),
                 Lamps = v.TryGetProperty("lamps", out var lm) && lm.ValueKind == JsonValueKind.Number ? lm.GetInt32() : v.TryGetProperty("lamps", out var lm2) && lm2.ValueKind == JsonValueKind.String && int.TryParse(lm2.GetString(), out var lmi) ? lmi : 0,
                 NoShunt = v.TryGetProperty("shunt", out var sh) && (sh.ValueKind == JsonValueKind.False || (sh.ValueKind == JsonValueKind.String && sh.GetString() == "false"))
@@ -546,6 +563,10 @@ public class Station
             foreach (var p in bmp.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.Bumpers.Add(p.Name);
         if (r.TryGetProperty("w5", out var w5) && w5.ValueKind == JsonValueKind.Object)
             foreach (var p in w5.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name)) st.W5[p.Name] = (p.Value.GetProperty("dir").GetInt32(), S(p.Value, "label", ""));
+        if (r.TryGetProperty("w4", out var w4) && w4.ValueKind == JsonValueKind.Object)
+            foreach (var p in w4.EnumerateObject()) if (st.Nodes.ContainsKey(p.Name) && S(p.Value, "ahead") is string ah && st.Edges.ContainsKey(ah)) st.W4[p.Name] = (ah, S(p.Value, "label", ""));
+        if (r.TryGetProperty("ukres", out var uk) && uk.ValueKind == JsonValueKind.Array)
+            foreach (var p in uk.EnumerateArray()) if (p.GetString() is string un && st.Nodes.ContainsKey(un)) st.Ukres.Add(un);
         foreach (var p in r.GetProperty("trackEnds").EnumerateObject())
             st.TrackEnds[p.Name] = new TrackEndDef { Id = S(p.Value, "id"), Label = S(p.Value, "label", ""), Disp = S(p.Value, "disp", Lbl(S(p.Value, "id"))), Marker = p.Value.TryGetProperty("marker", out var mk) && mk.GetBoolean() };
         if (r.TryGetProperty("planScale", out var psc) && psc.ValueKind == JsonValueKind.Object && psc.TryGetProperty("along", out var pal) && psc.TryGetProperty("across", out var pac) && pal.ValueKind == JsonValueKind.Number && pac.ValueKind == JsonValueKind.Number && pac.GetDouble() > 0)

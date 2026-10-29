@@ -215,6 +215,145 @@ public static class SelfTest
             }
             sb.AppendLine($"MANEWR NA SZLAK: kontrola {wOk} z {wTot}");
         }
+        // wskaźniki W9, W4, W17, W24 (Ie-1) – wskaźnik na próbę w pamięci, miejsce dobrane z układu (bez nazw stacji)
+        {
+            int iOk = 0, iTot = 0;
+            void Wi(bool c, string m) { iTot++; if (c) iOk++; sb.AppendLine($"wskaźniki: {(c ? "OK  " : "BŁĄD")} {m}"); }
+            var ws = new Simulator(st, options: options) { User = sim.User }; new Trains(ws);
+            Train Pociag(string e, string from, double head, bool shunt = false) =>
+                new() { Id = "Ttest", Num = "test", Len = Math.Min(40, head), VMax = 160 / 3.6, Head = head, Shunt = shunt, Segs = { new Seg { E = e, From = from, To = st.Other(e, from), Len = st.Edges[e].Len, Dir = st.EdgeDir(e, from) } } };
+            // W9: ograniczenie 40 km/h przy jeździe od węzła A toru szlakowego (bez ograniczeń toru), w drugą stronę – bez
+            var ew = st.Edges.Values.FirstOrDefault(e => e.Szlak && e.VMax == 0 && e.Len > 100);
+            if (ew != null)
+            {
+                ew.VLim = new() { [ew.A] = 40 };
+                var tAB = Pociag(ew.Id, ew.A, ew.Len / 2); var tBA = Pociag(ew.Id, ew.B, ew.Len / 2);
+                Wi(Math.Abs(ws.Trains.SpeedLimit(tAB) * 3.6 - 40) < 0.01 && ws.Trains.SpeedLimit(tBA) * 3.6 > 40, $"W9 40 km/h na torze {ew.Id} od {ew.A}: pod pociągiem {ws.Trains.SpeedLimit(tAB) * 3.6:0} km/h, w przeciwną stronę {ws.Trains.SpeedLimit(tBA) * 3.6:0}");
+                ew.VLimC = new() { ew.A };
+                var za = Pociag(ew.Id, ew.A, ew.Len); za.Segs.Add(new Seg { E = null, From = ew.B, Len = 30, Dir = za.Segs[0].Dir }); za.Head = ew.Len + 20; za.Len = 40;
+                Wi(ws.Trains.SpeedLimit(za) * 3.6 > 40 && Math.Abs(ws.Trains.SpeedLimit(tAB) * 3.6 - 40) < 0.01, "W9 z literą C: czoło za końcem ograniczenia – koniec składu jeszcze na nim, pociąg już przyspiesza");
+                ew.VLim = null; ew.VLimC = null;
+            }
+            // W4: węzeł w środku toru peronowego (bez sygnalizatora i zwrotnicy) – pociąg z postojem staje 5 m przed nim
+            var p4 = st.Edges.Values.Where(e => e.Platform && e.Len > 30).Select(e => (E: e, N: e.B)).FirstOrDefault(x => st.Nodes[x.N].Signals.Count == 0 && st.Nodes[x.N].Switch == null && st.Nodes[x.N].Edges.Count == 2
+                && st.Nodes[x.N].Edges.Select(id => st.Edges[id]).All(e => e.Platform));
+            if (p4.E != null)
+            {
+                var ahead = st.Nodes[p4.N].Edges.First(id => id != p4.E.Id);
+                var t4 = Pociag(p4.E.Id, p4.E.A, 20); t4.Stop = true;
+                var bez = ws.Trains.Lookahead(t4);
+                st.W4[p4.N] = (ahead, "W4test");
+                var z = ws.Trains.Lookahead(t4);
+                Wi(z.Dwell && Math.Abs(z.D - (p4.E.Len - 20 - 5)) < 0.01 && !(bez.Dwell && Math.Abs(bez.D - z.D) < 0.01), $"W4 na torze peronowym {p4.E.Id}: postój {z.D:0.0} m przed czołem (5 m przed W4), bez W4 – {(bez.Dwell ? $"{bez.D:0.0} m" : "dalej")}");
+                var t4b = Pociag(ahead, st.Other(ahead, p4.N), 20); t4b.Stop = true;
+                st.W4[p4.N] = (p4.E.Id, "W4test");
+                var zb = ws.Trains.Lookahead(t4);
+                Wi(!(zb.Dwell && Math.Abs(zb.D - (p4.E.Len - 25)) < 0.01), "W4 zwrócony w drugą stronę – nie zatrzymuje pociągu tego kierunku");
+                st.W4.Remove(p4.N);
+            }
+            else
+            {
+                // tor peronowy bez węzła w środku – podział w kopii układu (jak węzeł W4 z eksportu UT)
+                var s4 = Station.Load(stationPath);
+                var pe = s4.Edges.Values.Where(e => e.Platform && e.Len > 80 && s4.Nodes[e.B].Signals.Count > 0).OrderByDescending(e => e.Len).FirstOrDefault();
+                if (pe != null)
+                {
+                    var n4 = Podziel(s4, pe.Id); var ahead = s4.Nodes[n4].Edges.First(id => id != pe.Id);
+                    var w4s = new Simulator(s4, options: options) { User = sim.User }; new Trains(w4s);
+                    var t4 = new Train { Id = "Ttest", Num = "test", Len = 20, VMax = 160 / 3.6, Head = 20, Stop = true, Segs = { new Seg { E = pe.Id, From = pe.A, To = n4, Len = pe.Len, Dir = s4.EdgeDir(pe.Id, pe.A) } } };
+                    var bez = w4s.Trains.Lookahead(t4);
+                    s4.W4[n4] = (ahead, "W4test");
+                    var z = w4s.Trains.Lookahead(t4);
+                    Wi(z.Dwell && Math.Abs(z.D - (pe.Len - 20 - 5)) < 0.01 && bez.Dwell && bez.D > z.D + 10,
+                        $"W4 w połowie toru peronowego {pe.Track}: postój {z.D:0.0} m przed czołem (5 m przed W4), bez W4 – przy semaforze, {bez.D:0.0} m");
+                    s4.W4[n4] = (pe.Id, "W4test");
+                    var zb = w4s.Trains.Lookahead(t4);
+                    Wi(Math.Abs(zb.D - bez.D) < 0.01, "W4 zwrócony w drugą stronę – pociąg tego kierunku staje jak bez W4");
+                }
+            }
+            // W17: koniec drogi manewrowej za ukresem (między ukresem a zwrotnicą) – czoło staje 3 m przed ukresem
+            // miejsce: tor przed zwrotnicą (do 120 m), odcinek do zwrotnicy w przebiegu manewrowym, a za zwrotnicą już nie – bez ukresu koniec drogi wypada za ukresem
+            var c17 = st.Switches.Values.SelectMany(sw => st.Nodes[sw.Node].Edges.Select(e2 => (Sw: sw.Node, E2: e2, N: st.Other(e2, sw.Node))))
+                .Where(x => st.Edges[x.E2].Len < 120 && st.Nodes[x.N].Edges.Count == 2 && st.Nodes[x.N].Switch == null && st.Nodes[x.N].Signals.Count == 0)
+                .Select(x => (x.Sw, x.E2, x.N, E: st.Nodes[x.N].Edges.First(id => id != x.E2)))
+                .Where(x => st.Edges[x.E].Len > 50 && ws.NextInTerrain(x.N, st.EdgeDir(x.E, st.Other(x.E, x.N)), x.E)?.Edge == x.E2).ToList();
+            bool w17 = false;
+            foreach (var p17 in c17)
+            {
+                var sc = ws.Secs[st.Edges[p17.E2].Sec]; var lt = sc.LockType; sc.LockType = "shunt";
+                var tm = Pociag(p17.E, st.Other(p17.E, p17.N), 20, shunt: true);
+                var bez = ws.Trains.Lookahead(tm);
+                double doUk = st.Edges[p17.E].Len - 20;
+                if (bez.End && bez.D > doUk && bez.D <= doUk + st.Edges[p17.E2].Len)
+                {
+                    st.Ukres.Add(p17.N);
+                    var z = ws.Trains.Lookahead(tm);
+                    Wi(z.End && Math.Abs(z.D - (doUk - 3)) < 0.01, $"W17 przed zwrotnicą {Station.Lbl(st.Nodes[p17.Sw].Switch)}: manewr staje {z.D:0.0} m przed czołem (3 m przed ukresem), bez ukresu – {bez.D:0.0} m (za ukresem)");
+                    st.Ukres.Remove(p17.N); w17 = true;
+                }
+                sc.LockType = lt;
+                if (w17) break;
+            }
+            if (!w17)
+            {
+                // tor przy zwrotnicy bez węzła ukresu – podział w kopii układu (węzeł W17 z eksportu UT w połowie toru przed zwrotnicą)
+                var s17 = Station.Load(stationPath);
+                foreach (var sw in s17.Switches.Values)
+                {
+                    foreach (var e2 in s17.Nodes[sw.Node].Edges.ToList())
+                    {
+                        var ed = s17.Edges[e2]; if (ed.Len < 40 || ed.Len > 280) continue;
+                        var far = s17.Other(e2, sw.Node); if (s17.Nodes[far].Signals.Count > 0) continue;
+                        var u = Podziel(s17, e2);
+                        // połowy: od far do u (tu stoi manewr) i od u do zwrotnicy
+                        var doZw = s17.Nodes[u].Edges.First(id => s17.Other(id, u) == sw.Node); var odFar = s17.Nodes[u].Edges.First(id => id != doZw);
+                        var ws17 = new Simulator(s17, options: options) { User = sim.User }; new Trains(ws17);
+                        var sc = ws17.Secs[ed.Sec]; sc.LockType = "shunt";
+                        var tm = new Train { Id = "Ttest", Num = "test", Len = 10, VMax = 25 / 3.6, Head = 10, Shunt = true, Segs = { new Seg { E = odFar, From = far, To = u, Len = s17.Edges[odFar].Len, Dir = s17.EdgeDir(odFar, far) } } };
+                        var bez = ws17.Trains.Lookahead(tm);
+                        double doUk = s17.Edges[odFar].Len - 10, doSw = doUk + s17.Edges[doZw].Len;
+                        if (!(bez.End && bez.D > doUk && bez.D <= doSw)) { sc.LockType = null; s17 = Station.Load(stationPath); break; }
+                        s17.Ukres.Add(u);
+                        var z = ws17.Trains.Lookahead(tm);
+                        Wi(z.End && Math.Abs(z.D - (doUk - 3)) < 0.01, $"W17 w połowie toru przed zwrotnicą {Station.Lbl(sw.Num)}: manewr staje {z.D:0.0} m przed czołem (3 m przed ukresem), bez ukresu – {bez.D:0.0} m (między ukresem a zwrotnicą)");
+                        w17 = true; break;
+                    }
+                    if (w17) break;
+                }
+                if (!w17) sb.AppendLine("wskaźniki: (brak miejsca na próbę W17 w tym układzie)");
+            }
+            // W24: semafor z wyjazdem na tor szlaku w kierunku przeciwnym do zasadniczego – z sygnałem zezwalającym świeci W24
+            var s24 = st.Signals.Keys.FirstOrDefault(ws.Kz.WyjazdPodPrad);
+            if (s24 != null)
+            {
+                var r24 = ws.RouteTable[s24].First(r => r.Type == "P" && r.EndKind == "szlak" && st.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && st.Signals[s24].Dir == -b.DefDir);
+                ws.Kz.Routes["r24test"] = new Route { Id = r24.Id, Start = s24, End = r24.End, EndKind = r24.EndKind, Type = "P" };
+                ws.Kz.Sigs[s24].Aspect = Aspect.Train;
+                ws.Kz.UpdateSignals(); bool bezW24 = ws.Kz.Sigs[s24].W24;
+                st.Signals[s24].W24 = true; ws.Kz.UpdateSignals(); bool zW24 = ws.Kz.Sigs[s24].W24;
+                Wi(zW24 && !bezW24, $"W24 na {Station.Lbl(s24)}: z sygnałem zezwalającym na tor szlaku {r24.End} pod prąd świeci; semafor bez W24 w UT – nie");
+                st.Signals[s24].W24 = false; ws.Kz.Routes.Remove("r24test");
+            }
+            sb.AppendLine($"WSKAŹNIKI: kontrola {iOk} z {iTot}");
+
+            // podział toru w połowie nowym węzłem (jak węzeł urządzenia z eksportu UT): pierwsza połowa zostaje pod tym samym id
+            static string Podziel(Station s, string eid)
+            {
+                var e = s.Edges[eid]; var b = e.B; var n = "podzial_" + eid;
+                double x = (s.Nodes[e.A].X + s.Nodes[b].X) / 2, y = (s.Nodes[e.A].Y + s.Nodes[b].Y) / 2;
+                s.Nodes[n] = new Node { Id = n, X = x, Y = y, Post = s.Nodes[b].Post };
+                var e2 = new Edge
+                {
+                    Id = eid + "_2", A = n, B = b, Sec = e.Sec, Len = e.Len / 2, Track = e.Track, Line = e.Line, Szlak = e.Szlak, Cat = e.Cat, Elec = e.Elec, Grad = e.Grad,
+                    PeronUt = e.PeronUt, Platform = e.Platform, VMax = e.VMax, SwLimit = e.SwLimit, Dir = e.Dir, Radius = e.Radius, Pts = new() { (x, y), (s.Nodes[b].X, s.Nodes[b].Y) },
+                };
+                e.Len /= 2; e.B = n; e.Pts = new() { (s.Nodes[e.A].X, s.Nodes[e.A].Y), (x, y) };
+                s.Nodes[b].Edges[s.Nodes[b].Edges.IndexOf(eid)] = e2.Id;
+                s.Nodes[n].Edges.Add(eid); s.Nodes[n].Edges.Add(e2.Id);
+                s.Edges[e2.Id] = e2; s.Sections[e.Sec].Edges.Add(e2.Id);
+                return n;
+            }
+        }
         // zależności specjalne (<układ>.zaleznosci.json) – wpisy testowe w pamięci, dobrane z tablicy przebiegów (bez nazw stacji)
         {
             var zalOrig = st.Zal;

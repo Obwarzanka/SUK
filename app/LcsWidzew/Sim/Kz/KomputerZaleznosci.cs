@@ -363,13 +363,15 @@ public partial class KomputerZaleznosci
         Urzadzenia.Wykolejnica(name, zaloz);
     }
 
-    internal void UpdateSignals()
+    public void UpdateSignals()
     {
         foreach (var (n, s) in Sigs)
         {
             var d = L.Signals[n];
             if (s.Aspect == Aspect.Sz && T >= s.SzUntil) { s.Aspect = Aspect.Stop; Log("Zdarzenie", "Sygnał zastępczy wygasł samoczynnie", "Semafor", n); }
-            if (s.Aspect != Aspect.Sz) s.W24 = false;
+            // W24 (Ie-1 § W24 lit. b): z sygnałem zezwalającym na wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego – semafor z W24 w UT
+            if (s.Aspect == Aspect.Train) s.W24 = d.W24 && Routes.Values.Any(r => r.Start == n && r.Type == "P" && r.EndKind == "szlak" && L.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && b.DefDir != 0 && d.Dir == -b.DefDir);
+            else if (s.Aspect != Aspect.Sz) s.W24 = false;
             if (d.Type == "odstepowy")
             {
                 var bs = Blocks[d.Szlak];
