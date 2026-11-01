@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Lcs.WorldHost;
 
 /// <summary>Przejściowy adapter obecnego rdzenia. Jeden Simulator/Trains; podział KZ i Ada należą do S02A–S02D.</summary>
-public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true, ILogger? ownership = null, ILogger? cycleInputs = null) : IWorldRuntime
+public sealed class SimulatorRuntime(string stationPath, string scenario, ILogger logger, ILogger recorder, bool exportEvents = true, ILogger? ownership = null, ILogger? cycleInputs = null, ILogger? outputPlans = null) : IWorldRuntime
 {
     Simulator? sim;
     Desk? desk;
@@ -22,7 +22,7 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     {
         if (!Rozklad.Scenarios.Any(s => s.Key == scenario)) throw new ArgumentException("Nieznany scenariusz.");
         var station = Station.Load(stationPath);
-        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder, MapaWlasnosciLogger = ownership, WejscieCykluLogger = cycleInputs });
+        sim = new Simulator(station, options: new SimulatorOptions { RejestratorLogger = recorder, MapaWlasnosciLogger = ownership, WejscieCykluLogger = cycleInputs, PlanWyjsciaLogger = outputPlans });
         var trains = new Trains(sim);
         _ = Sygnaly.Tab;
         _ = trains.Tabor;
@@ -66,6 +66,7 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     {
         // S02A.02: podsumowanie naruszeń wejść KZ bez własnego rekordu (4116), jeśli były.
         sim?.Wejscia.PodsumujNaKoniec();
+        sim?.Wyjscia.PodsumujNaKoniec();
         // Kopia powstaje na właścicielu po ostatnim kroku. Zapis do pliku należy do procesu po zakończeniu cyklu.
         if (exportEvents && sim != null) FinalEvents = string.Join('\n', sim.Events.Select(e =>
             $"{e.Id}|{e.T.ToString("R", CultureInfo.InvariantCulture)}|{e.Czas}|{e.Kategoria}|{e.Zdarzenie}|{e.Obiekt}")) + "\n";

@@ -53,7 +53,7 @@ public class SigState
 public class DerState { public string Name, Lock; public bool On = true; public bool? MovingTo; public double MoveUntil; public HashSet<string> Flank = new(); }
 
 /// <summary>Żądanie ustawienia kierunku WYJAZD od końca EndIdx (-1 – od posterunku spoza obszaru LCS).</summary>
-public class BlockReq { public int EndIdx; public double At; public bool Alarmed; public string ForTrain; }
+public class BlockReq { public long Numer; public int EndIdx; public double At; public bool Alarmed; public string ForTrain; }
 
 /// <summary>Stan elektronicznej blokady samoczynnej (Ie-104 § 8 pkt 17).</summary>
 public class BlockState

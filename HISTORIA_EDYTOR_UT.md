@@ -8,6 +8,8 @@ Wpisy są w kolejności dopisywania, nie zawsze według dat.
 
 ## Edytor UT
 
+**2026-11-01 — zamknięcie regresji S02A.03 (testy 30.10):** wydzielenie biernego planu KZ i jednej bramki wyjść w symulatorze nie zmienia modelu, geometrii ani formatów UT. Pełny `EdytorUT --test`: **718 OK / 0 błędów**, edytor zobrazowania **387/0**, Przechyłka **10/0**, Komputerownia **16/0**. Edytor taboru **42/0**, tabor **20/20**, host **317/317**. Selftest na kopii `station_test.json`: **25 z 26**, zależności **5 z 5** (taki wynik ma bieżąca baza). **24/24** scenariuszy i **36/36** porównań zachowuje pełną kolejność i czas wpisów. Release 15 projektów: 0 błędów, jedno istniejące CS0465. Zrzut pulpitu obejrzany, testowe procesy i porty zamknięte, chroniony `station.json` zachował hash. Szczegóły i ograniczenia: [raport S02A.03](SUK_plan_multiplayer/raporty/S02A.03.md), `artifacts/2026-10-30-S02A.03/regresja-parallel-20261030-005608/`. Bez commit/push, instalacji usługi i wdrożenia.
+
 **2026-10-26 – ŁF: semafor B101 odwrócony** (kierunek −1 jak B102 na końcu toru; wyszło po poprawce granicy torów w F8, `ROZWOJ.md`).
 
 **2026-10-26 – rozcięcie toru zachowuje posterunek:** `Ciecie.Cut` – część za cięciem (nowy tor) dostaje `Post` rozcinanego toru; wcześniej wypadała z posterunku (znikała z obrazów stacji w edytorze zobrazowania, uwaga „tor nie należy do posterunku ani do szlaku”). Znalezione przy teście F8 przez styki torów (`PLAN_EDYTOR_ZOBRAZOWANIA_V2.md` § 10a). Przy okazji w projekcie „Nowy obszar – odzyskany” (ŁF) poprawione wg planu schematycznego: numery zwrotnic 33–38, numery torów 6 / 101 / 102, szczeliny 8 cm (tor 1 pod K) i 5 cm (tor 7 / 102), kozły na 9 końcach torów, B1 i B102 odwrócone, szlak 102W. Test `--test` 0 błędów.

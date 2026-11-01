@@ -1,0 +1,52 @@
+{
+  "opis": "Przykład danych S02A.03, nie wynik uruchomienia: bierny plan oNN, jego SHA-256 oraz decyzja na następnym regularnym wejściu. Skróty wejścia/trasy są ilustracyjne. Ponowne zatwierdzenie tego samego planu nie może ponownie wykonać efektu.",
+  "plan": {
+    "schemaVersion": 1,
+    "kontrakt": "kz.plan_wyjscia",
+    "numer": 1,
+    "cykl": 0,
+    "czasSymulacjiMs": 0,
+    "krok": "Polecenie",
+    "inputHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "ok": true,
+    "wynik": "napięcie nastawcze odłączone",
+    "efekty": [
+      {
+        "effectId": "KZ-1-1",
+        "rodzaj": "NapiecieNastawcze",
+        "obiekt": "zasilanie",
+        "wartosc": "0",
+        "typ": "",
+        "kategoria": "",
+        "zrodlo": "System",
+        "kluczAlarmu": null,
+        "warunek": "Brak",
+        "przebieg": null,
+        "zadanie": 0
+      }
+    ]
+  },
+  "contentHash": "6bf9f00fabd8fc9a566f92950396b4ce5d914d23b2aad4365197bf3dc69deec3",
+  "wejscie": {
+    "schemaVersion": 1,
+    "kontrakt": "kz.wejscie_cyklu",
+    "kzId": "KZ-A",
+    "nrWejscia": 1,
+    "nrPartii": 1,
+    "cykl": 0,
+    "faza": "KARTY",
+    "czasSymulacjiMs": 0,
+    "skrotTrasy": "0000000000000000000000000000000000000000000000000000000000000000",
+    "statusy": [],
+    "rozstrzygniecia": [
+      {
+        "nrDecyzji": 1,
+        "planId": "KZ-1",
+        "contentHash": "6bf9f00fabd8fc9a566f92950396b4ce5d914d23b2aad4365197bf3dc69deec3",
+        "stan": "Committed",
+        "powod": "PLAN_ACCEPTED",
+        "wykonane": 0
+      }
+    ]
+  }
+}

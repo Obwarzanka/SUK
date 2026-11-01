@@ -138,6 +138,14 @@ public sealed class RejestrWejscCyklu
     readonly Simulator S;
     readonly ILogger log;
     readonly IOdbiorcaPartiiWejsc obszar;
+    readonly List<RozstrzygniecieWyjscia> rozstrzygniecia = new();
+
+    /// <summary>Decyzja bramki staje się uporządkowanym wejściem na następnej regularnej granicy (bez callbacku w Evaluate).</summary>
+    internal void Rozstrzygniecie(RozstrzygniecieWyjscia decyzja)
+    {
+        if (rozstrzygniecia.Count >= 32768) throw new InvalidOperationException("Przekroczony limit oczekujących rozstrzygnięć KZ.");
+        rozstrzygniecia.Add(decyzja);
+    }
 
     MapaWlasnosci mapaTrasy;
     TrasaWejsc trasa;
@@ -235,6 +243,7 @@ public sealed class RejestrWejscCyklu
     /// </summary>
     internal IDisposable Faza(FazaWejscia faza)
     {
+        S.Kz.PozaPropozycja(); S.Wyjscia.SprawdzGotowosc();
         if (wOdbiorcy) throw new InvalidOperationException("Odbiorca wejść KZ nie może otwierać faz statusów.");
         if (zatrzymany) throw Zatrzymany();
         if (stos.Count > 0)
@@ -402,6 +411,8 @@ public sealed class RejestrWejscCyklu
         f.Statusy.Clear();
         bool regularna = Regularna(f.Faza);
         if (statusy.IsEmpty && !regularna) return;     // faza natychmiastowa bez zgłoszeń – brak wejścia
+        var decyzje = regularna ? rozstrzygniecia.ToImmutableArray() : ImmutableArray<RozstrzygniecieWyjscia>.Empty;
+        if (regularna) rozstrzygniecia.Clear();
         long partia = ++nrPartii, cykl = S.NrCyklu, czas = (long)Math.Round(S.T * 1000, MidpointRounding.AwayFromZero);
         var wejscia = ImmutableArray<WejscieCyklu>.Empty;
         var t = trasaWymagana ? Trasa : null;          // bez odczytu tabeli (brak hosta i odbiorców) – tylko partia dla KZ obszaru
@@ -445,7 +456,7 @@ public sealed class RejestrWejscCyklu
                     b.Add(new WejscieCyklu
                     {
                         KzId = kz, NrWejscia = nr, NrPartii = partia, Cykl = cykl, Faza = f.Faza, CzasSymulacjiMs = czas, SkrotTrasy = t.Sha256,
-                        Statusy = st.MoveToImmutable(),
+                        Statusy = st.MoveToImmutable(), Rozstrzygniecia = decyzje,
                     });
                 }
                 wejscia = b.ToImmutable();

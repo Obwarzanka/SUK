@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SUK — zamrożone wejście cyklu KZ (CycleInput) i tabela rozsyłania statusów, v1 (S02A.02)",
+  "title": "SUK — zamrożone wejście cyklu KZ (CycleInput) i tabela rozsyłania statusów, v1 (S02A.02/03)",
   "description": "Dokument to jedno wejście cyklu (kontrakt kz.wejscie_cyklu, linia JSONL) albo tabela rozsyłania (kz.trasa_wejsc).",
   "oneOf": [
     { "$ref": "#/definitions/wejscie" },
@@ -13,7 +13,8 @@
     "Rozsyłanie wyłącznie z mapy własności (kz.mapa_wlasnosci): obiekt przypisany – właściciel i zadeklarowani odbiorcy mapy (KZ korzystający z obiektu); NIEJEDNOZNACZNY – odbiorcy i wszyscy kandydaci; NIEZNANY – odbiorcy mapy, a bez nich wszystkie KZ. Wejście jest ostrożne (status nie ginie); polecenie dla obiektu nieprzypisanego jest odrzucane (inny kontrakt).",
     "Porządek statusów w wejściu jest kanoniczny: pozycja obiektu w tabeli (rodzaj, id – porządek ordinal), kolejne statusy tego samego obiektu w kolejności zgłoszenia. Kolejność słowników układu i kart nie zmienia treści wejścia. SHA-256 wejścia liczony z bajtów UTF-8 jednej linii JSON; skrotTrasy = SHA-256 bajtów tabeli rozsyłania.",
     "Postać kanoniczna (bajty do SHA-256): wejście – jedna linia, separatory ',' i ':', pola w kolejności tego schematu; tabela – każdy element w osobnej linii z wcięciem 2 spacji, separator klucza ': ', LF i LF na końcu (jak json.dumps(indent=2, ensure_ascii=False)); pusta lista – []. Ciągi według RFC 8785 §3.2.2.2 (jak JSON.stringify i Python json.dumps(ensure_ascii=False)): ucieczka tylko cudzysłowu, ukośnika wstecznego i U+0000–U+001F (\\b \\t \\n \\f \\r, pozostałe \\u00xx małymi literami), reszta dosłownie w UTF-8. Wektory zgodności: kontrakty/testy/wejscie_cyklu_kanon.json.",
-    "Wszyscy odbiorcy jednego KZ (testowi, w przyszłości grupy i kanały S02B) dostają ten sam obiekt wejścia. v1 nie zawiera jeszcze znormalizowanych intencji poleceń ani komunikatów KZ–KZ (S02A.03, S02A1, decyzja D03) – dodanie ich jest nową wersją kontraktu."
+    "Wszyscy odbiorcy jednego KZ (testowi, w przyszłości grupy i kanały S02B) dostają ten sam obiekt wejścia. v1 nie zawiera jeszcze znormalizowanych intencji poleceń ani komunikatów KZ–KZ (S02A.03, S02A1, decyzja D03) – dodanie ich jest nową wersją kontraktu.",
+    "S02A.03 dodaje zgodne opcjonalne pole rozstrzygniecia po statusy: uporządkowane decyzje Committed/Rejected pojedynczej bramki wyjścia, wspólne dla odbiorców na następnej regularnej granicy KARTY/RUCH. Gdy decyzji nie ma, pole jest pomijane i wcześniejsze bajty kanoniczne pozostają bez zmian. nrDecyzji rośnie w kolejności świata; planId/contentHash wiążą decyzję z biernym planem (kz.plan_wyjscia). wykonane w decyzji zatwierdzenia wynosi 0, bo przyjęcie intencji poprzedza wykonanie adapterów kart; decyzja nie potwierdza fizycznego wykonania."
   ],
   "definitions": {
     "kzId": {
@@ -103,6 +104,19 @@
         { "$ref": "#/definitions/statusZasilania" }
       ]
     },
+    "rozstrzygniecie": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nrDecyzji", "planId", "contentHash", "stan", "powod", "wykonane"],
+      "properties": {
+        "nrDecyzji": { "type": "integer", "minimum": 1 },
+        "planId": { "type": "string", "pattern": "^KZ-[1-9][0-9]*$" },
+        "contentHash": { "$ref": "#/definitions/sha256" },
+        "stan": { "enum": ["Committed", "Rejected"] },
+        "powod": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+        "wykonane": { "const": 0 }
+      }
+    },
     "wejscie": {
       "type": "object",
       "additionalProperties": false,
@@ -117,7 +131,8 @@
         "faza": { "enum": ["KARTY", "RUCH", "ROZKAZ", "USTERKA", "ZDARZENIE_KARTY", "POZA_FAZA"] },
         "czasSymulacjiMs": { "$ref": "#/definitions/nieujemna" },
         "skrotTrasy": { "$ref": "#/definitions/sha256" },
-        "statusy": { "type": "array", "items": { "$ref": "#/definitions/status" } }
+        "statusy": { "type": "array", "items": { "$ref": "#/definitions/status" } },
+        "rozstrzygniecia": { "type": "array", "minItems": 1, "maxItems": 32768, "items": { "$ref": "#/definitions/rozstrzygniecie" } }
       }
     },
     "trasa": {

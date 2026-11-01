@@ -75,13 +75,13 @@ public partial class KomputerZaleznosci
         foreach (var sc in b.SecsWE) if (SecOcc(sc)) why.Add($"odstęp {sc} zajęty");
         foreach (var en in b.Ends) if (Sigs.TryGetValue(en.EntrySig, out var esg) && esg.Aspect != Aspect.Stop) why.Add($"semafor {en.EntrySig} nie wskazuje „Stój”");
         if (Routes.Values.Any(r => r.End == b.Id)) why.Add("nastawiony przebieg na szlak " + b.Id);
-        if (Trains != null && TrainOnBlock(b.Id)) why.Add("pociąg na szlaku " + b.Id);
+        if ((czasObliczenia != null ? ruchObliczenia : S.Trains != null) && TrainOnBlock(b.Id)) why.Add("pociąg na szlaku " + b.Id);
         return why;
     }
 
     /// <summary>Lampka TOR – szlak wolny, kierunek ustawiony, wszystkie sygnały odstępowe „wolna droga”.</summary>
     /// <summary>Pociąg na szlaku: odstęp w obszarze LCS zajęty przez pojazd (karty odcinków) albo meldunek sąsiada o pociągu przed granicą.</summary>
-    public bool TrainOnBlock(string id) => L.Blocks[id].SecsWE.Any(sc => Secs[sc].TrainOcc) || Otoczenie.SzlakZajetyUSasiada(id);
+    public bool TrainOnBlock(string id) => L.Blocks[id].SecsWE.Any(sc => Secs[sc].TrainOcc) || (szlakSasiada != null ? szlakSasiada[id] : S.Otoczenie.SzlakZajetyUSasiada(id));
 
     public bool TorLamp(BlockDef b)
     {
@@ -92,7 +92,7 @@ public partial class KomputerZaleznosci
         return L.Signals.Values.Where(s => s.Szlak == b.Id && s.Type == "odstepowy" && s.Dir == bs.Dir).All(s => Sigs[s.Name].Aspect == Aspect.Train);
     }
 
-    internal void UpdateBlocks()
+    void UpdateBlocksCore()
     {
         foreach (var (id, bs) in Blocks)
         {
@@ -114,30 +114,30 @@ public partial class KomputerZaleznosci
                     if (bs.AwaitEnd == e && Sigs.TryGetValue(b.Ends[e].EntrySig ?? "", out var es) && es.Aspect == Aspect.Train) bs.EntryOk[e] = true;
                 }
                 // pociąg od posterunku sąsiedniego spoza LCS – jego blok początkowy przychodzi samoczynnie
-                Otoczenie.BlokPoczatkowy(id, b, bs, occ);
+                BlokPoczatkowySasiada(id, b, bs, occ);
                 if (bs.AwaitEnd is int ae)
                 {
                     if (occ) bs.FreeSince = 0;
                     else
                     {
                         if (bs.FreeSince == 0) { bs.FreeSince = T; if (ae >= 0) Log("Zdarzenie", $"Szlak {id} wolny – pociąg przybył; daj blok końcowy ({id} Ko)", "Blokada liniowa", id); }
-                        if (ae < 0) Otoczenie.BlokKoncowy(id, b, bs);
+                        if (ae < 0) BlokKoncowySasiada(id, b, bs);
                         else if (!bs.EndAlarmed && T - bs.FreeSince > Cfg.ReqAlarmAfter)
-                        { bs.EndAlarmed = true; var b2 = bs; Alarm($"Blokada {id}: pociąg przybył, brak bloku końcowego – szlak zablokowany ({id} Ko)", "Blokada liniowa", id, "bk" + id, () => b2.AwaitEnd != null); }
+                        { bs.EndAlarmed = true; var b2 = bs; Alarm($"Blokada {id}: pociąg przybył, brak bloku końcowego – szlak zablokowany ({id} Ko)", "Blokada liniowa", id, "bk" + id, warunek: WarunekAlarmu.BrakBlokuKoncowego); }
                     }
                 }
             }
             var rq = bs.Req;
             if (rq == null) continue;
             // odpowiedź posterunku spoza obszaru LCS na nasze żądanie (Wbl)
-            if (!b.Internal && rq.EndIdx == 0) Otoczenie.OdpowiedzNaWbl(id, b, bs, rq);
+            if (!b.Internal && rq.EndIdx == 0) OdpowiedzSasiada(id, b, bs, rq);
             // żądanie skierowane do dyżurnego LCS – alarm dopiero po dłuższym braku reakcji (Ie-104 § 7 ust. 3)
             bool toUs = rq.EndIdx == -1 || b.Internal;
             if (toUs && !rq.Alarmed && T - rq.At > Cfg.ReqAlarmAfter)
             {
                 rq.Alarmed = true;
                 var from = rq.EndIdx == -1 ? b.Nbr : Station.Lbl(b.Ends[rq.EndIdx].EntrySig) + " (" + (L.Posts.GetValueOrDefault(b.Ends[rq.EndIdx].Post) ?? "") + ")";
-                Alarm($"Blokada {id}: żądanie pozwolenia od {from} oczekuje od {(T - rq.At) / 60:0} min{(rq.ForTrain != null ? " (pociąg " + rq.ForTrain + ")" : "")} – Pzk {id}", "Blokada liniowa", id, "req" + id, () => bs.Req == rq);
+                Alarm($"Blokada {id}: żądanie pozwolenia od {from} oczekuje od {(T - rq.At) / 60:0} min{(rq.ForTrain != null ? " (pociąg " + rq.ForTrain + ")" : "")} – Pzk {id}", "Blokada liniowa", id, "req" + id, warunek: WarunekAlarmu.AktualneZadanieBlokady, zadanie: rq.Numer);
             }
         }
     }
@@ -211,7 +211,7 @@ public partial class KomputerZaleznosci
                 if (bs.Req != null) return new(false, bs.Req.EndIdx == e ? "Żądanie już wysłane" : "Oczekuje żądanie z przeciwnej strony – Pzk");
                 if (bs.Busy) return new(false, "Trwa zmiana stanu blokady");
                 { var why = BlockConds(b); if (why.Count > 0) return new(false, why[0] + " (§20 ust. 4)"); }
-                bs.Req = new BlockReq { EndIdx = e, At = T };
+                bs.Req = new BlockReq { Numer = ++numerZadania, EndIdx = e, At = T };
                 return new(true, b.Internal ? $"żądanie kierunku WYJAZD – oczekuje na pozwolenie (Pzk) od strony {Station.Lbl(b.Ends[1 - e].EntrySig)}" : "żądanie pozwolenia wysłane do " + b.Nbr);
             case "OWBL":
                 if (bs.Req == null || bs.Req.EndIdx != e) return new(false, "Brak własnego żądania");

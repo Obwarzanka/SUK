@@ -319,6 +319,7 @@ public class SystemNadrzedny
     public CmdResult Exec(string line, bool confirm = false)
     {
         S.Wejscia.PozaOdbiorca();
+        S.Wyjscia.SprawdzGotowosc(); S.Kz.PozaPropozycja();
         line = string.Join(' ', (line ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
         if (line == "") return new(false, "");
         if (S.LinkDown) return new(false, "Brak łączności z komputerem zależności – polecenie nie zostało przyjęte");

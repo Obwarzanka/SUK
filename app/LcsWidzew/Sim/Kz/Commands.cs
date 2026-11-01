@@ -90,7 +90,7 @@ public partial class KomputerZaleznosci
     IEnumerable<string> ZwrotnicePosterunku(string post) => L.Switches.Values.Where(x => x.Post == post && Sws.ContainsKey(x.Num)).Select(x => x.Num);
 
     /// <summary>Polecenie „wszystkie semafory Stój” (STW).</summary>
-    public CmdResult WszystkieStoj()
+    CmdResult WszystkieStojCore()
     {
         foreach (var (n, x) in Sigs)
             if (L.Signals[n].Type != "odstepowy" && x.Aspect is Aspect.Train or Aspect.Shunt) { x.Aspect = Aspect.Stop; if (x.Route != null && Routes.TryGetValue(x.Route, out var q)) q.State = "stopped"; }
@@ -98,7 +98,7 @@ public partial class KomputerZaleznosci
     }
 
     /// <summary>Wykonanie polecenia systemowego (adresy już rozwiązane).</summary>
-    public CmdResult Wykonaj(PolecenieSystemowe p)
+    CmdResult WykonajCore(PolecenieSystemowe p)
     {
         string code = p.Kod, a0 = p.Arg0, k0 = p.Obiekty.FirstOrDefault();
         switch (code)
@@ -239,12 +239,12 @@ public partial class KomputerZaleznosci
             {
                 return BlockCmd(code, k0, p.Koniec);
             }
-            case "ONN": Urzadzenia.NapiecieNastawcze(false); return new(true, "napięcie nastawcze odłączone");
-            case "NN": Urzadzenia.NapiecieNastawcze(true); return new(true, "napięcie nastawcze załączone");
+            case "ONN": Efekt(RodzajEfektu.NapiecieNastawcze, Zasilanie.Id, "0"); return new(true, "napięcie nastawcze odłączone");
+            case "NN": Efekt(RodzajEfektu.NapiecieNastawcze, Zasilanie.Id, "1"); return new(true, "napięcie nastawcze załączone");
             case "AGR":
                 if (Power.Mains) return new(false, "Zasilanie sieciowe obecne");
                 if (Power.Gen) return new(false, "Agregat pracuje");
-                Urzadzenia.UruchomAgregat(); return new(true, "agregat uruchomiony");
+                Efekt(RodzajEfektu.Agregat, Zasilanie.Id); return new(true, "agregat uruchomiony");
             // ----- specjalne (po potwierdzeniu)
             case "SZ":
             {
@@ -293,7 +293,7 @@ public partial class KomputerZaleznosci
             case "ZEROLO":
             {
                 var sc = k0;
-                Urzadzenia.Zeruj(sc); return new(true, "odcinek oczekuje na pierwszy przejazd");
+                Efekt(RodzajEfektu.ZeroLO, sc); return new(true, "odcinek oczekuje na pierwszy przejazd");
             }
         }
         return new(false, $"Polecenie „{code}” nieobsługiwane");

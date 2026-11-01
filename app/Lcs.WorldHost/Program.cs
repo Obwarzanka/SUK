@@ -84,8 +84,12 @@ internal static class Program
             var recorder = logs.Modul(CoreLogging.Modul, CoreLogging.Wersja);
             var ownership = logs.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja);
             var cycleInputs = logs.Modul(WejscieCykluLog.Modul, WejscieCykluLog.Wersja);
+            foreach (var (outputId, outputCode, outputFields) in PlanWyjsciaLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new(outputId, outputCode, KontraktLogu.Strumien.Diagnostyka, outputFields)))
+                    throw new InvalidOperationException("Niezgodny katalog planu wyjścia.");
+            var outputPlans = logs.Modul(PlanWyjsciaLog.Modul, PlanWyjsciaLog.Wersja);
             ZdarzeniaProcesu.Uruchomiono(logger, "world");
-            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership, cycleInputs), options, logger: logger);
+            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership, cycleInputs, outputPlans), options, logger: logger);
             var serviceLogger = logs.Modul(ServiceLog.Module, WorldLog.Version);
             if (profile != null)
             {

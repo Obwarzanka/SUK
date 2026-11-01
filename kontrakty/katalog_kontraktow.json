@@ -56,17 +56,18 @@
         "S02A1.02",
         "S02.03",
         "S02A.01",
-        "S02A.02"
+        "S02A.02",
+        "S02A.03"
       ],
       "rozdzialy": [
         "25 §3",
         "25 §8"
       ],
-      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B. Zamrożony w S01.01 (18.10.2026): struktura i nadane kody stałe; nowe kody dopisuje zadanie tworzące moduł (zgodnie z zasadami pliku); S01.01 dodało podzakres 3600–3699 REJ i 13 kodów. S02A.02 dodało kody 4111–4116 (rejestr wejść cyklu KZ).",
+      "opis": "Przydział zakresów 1000–9999 na obszary/moduły i pierwsze kody (przykłady 25 §4). Podzakres KZDIAG 42xx–49xx przydziela S02A1.02 wspólnie dla A/B. Zamrożony w S01.01 (18.10.2026): struktura i nadane kody stałe; nowe kody dopisuje zadanie tworzące moduł (zgodnie z zasadami pliku); S01.01 dodało podzakres 3600–3699 REJ i 13 kodów. S02A.02 dodało kody 4111–4116 (rejestr wejść cyklu KZ), S02A.03 – 4121–4125 (plan i pojedyncze wyjście KZ).",
       "pliki": [
         {
           "plik": "kontrakty/logi/katalog_zdarzen_v1.json",
-          "sha256_lf": "14af7be4792e6bd5477abfe124eaa64ab21ad46a2634a9545e1e6c5941b6e969"
+          "sha256_lf": "acf0872c689ebaac5af4d45776e0a0d0aa9a1ea470ec7e22755888f3994ddd49"
         }
       ]
     },
@@ -749,11 +750,28 @@
         "16",
         "25"
       ],
-      "opis": "Numerowane wejście jednego KZ z rejestru wejść świata: kzId, nrWejscia (inputSeq, bez luk), nrPartii, cykl (cycleId), faza (regularne KARTY, RUCH; natychmiastowe ROZKAZ, USTERKA, ZDARZENIE_KARTY; POZA_FAZA), czas symulacji, skrót tabeli rozsyłania i statusy kart w porządku kanonicznym – tylko wartości, bez referencji i wywołań zwrotnych; odbiorca nie może zgłaszać statusów ani otwierać faz. Tabela rozsyłania (kz.trasa_wejsc) wynika wyłącznie z mapy własności: właściciel i zadeklarowani odbiorcy; obiekt bez jednoznacznego właściciela – ostrożnie do kandydatów/wszystkich KZ; bez posterunków – brak tabeli (fail-closed). Postać kanoniczna: JSON z ciągami wg RFC 8785 (jedna linia dla wejścia, wcięcie 2 dla tabeli), SHA-256 bajtów UTF-8; wektory zgodności C#/Python w kontrakty/testy/wejscie_cyklu_kanon.json. v1 bez intencji poleceń i komunikatów KZ–KZ. Generuje Lcs.Core.TestHost --wejscia-cyklu.",
+      "opis": "Numerowane wejście jednego KZ z rejestru wejść świata: kzId, nrWejscia (inputSeq, bez luk), nrPartii, cykl (cycleId), faza (regularne KARTY, RUCH; natychmiastowe ROZKAZ, USTERKA, ZDARZENIE_KARTY; POZA_FAZA), czas symulacji, skrót tabeli rozsyłania i statusy kart w porządku kanonicznym – tylko wartości, bez referencji i wywołań zwrotnych; odbiorca nie może zgłaszać statusów ani otwierać faz. Tabela rozsyłania (kz.trasa_wejsc) wynika wyłącznie z mapy własności: właściciel i zadeklarowani odbiorcy; obiekt bez jednoznacznego właściciela – ostrożnie do kandydatów/wszystkich KZ; bez posterunków – brak tabeli (fail-closed). Postać kanoniczna: JSON z ciągami wg RFC 8785 (jedna linia dla wejścia, wcięcie 2 dla tabeli), SHA-256 bajtów UTF-8; wektory zgodności C#/Python w kontrakty/testy/wejscie_cyklu_kanon.json. S02A.03 dodaje zgodne opcjonalne rozstrzygniecia Committed/Rejected; pusta lista jest pomijana, zachowując wcześniejsze bajty. v1 bez intencji poleceń i komunikatów KZ–KZ. Generuje Lcs.Core.TestHost --wejscia-cyklu.",
       "pliki": [
         {
           "plik": "kontrakty/kz/wejscie_cyklu_v1.schema.json",
-          "sha256_lf": "986276da65c897866f8e9f38da89b2afc92589932ccbe667d852594a7d8ea71d"
+          "sha256_lf": "0df7eb0527da5d24d1416057028b3ad1cbb5eb73c7c02f26c07829b8c697daf1"
+        }
+      ]
+    },
+    {
+      "id": "kz.plan_wyjscia",
+      "nazwa": "Bierny plan wyjścia KZ (OutputPlan)",
+      "wersja": 1,
+      "status": "wstepny",
+      "tworzy": "S02A.03",
+      "zamraza": "S02A1.01",
+      "konsumenci": ["S02A.04", "S02A1.01", "S02A1.02", "S02B.01", "S02C.01"],
+      "rozdzialy": ["18 §3", "19 §7 pkt 3", "25"],
+      "opis": "Plan przejściowego KZ C#: numeracja, krok, skrót wejścia, wynik polecenia i uporządkowane efekty będące wyłącznie wartościami (także NN/ONN, AGR, ZeroLO i warunki alarmów). Prywatny stan proponowany pozostaje poza planem; jedno zatwierdzenie przyjmuje go raz i wykonuje efekty, odmowa go odrzuca. Deduplikacja w jednym żyjącym świecie, bez trwałości/restartu S06, selektora S02C i importu planu z JSON. contentHash nie jest hashem pełnego prywatnego stanu KZ. Decyzje Committed/Rejected są zgodnym opcjonalnym polem rozstrzygniecia w wejściu cyklu v1.",
+      "pliki": [
+        {
+          "plik": "kontrakty/kz/plan_wyjscia_v1.schema.json",
+          "sha256_lf": "ac5ea374f439c7f8c22d1447862c00667ff36b1a79302b9323c5116eb37ad89c"
         }
       ]
     }
@@ -782,6 +800,10 @@
     {
       "plik": "kontrakty/testy/wejscie_cyklu_kanon.json",
       "sha256_lf": "ac39383c18e22201c160cd4f7c8a0f64f15b72395fe21c4d375fcfa098373300"
+    },
+    {
+      "plik": "kontrakty/testy/plan_wyjscia_przyklad.json",
+      "sha256_lf": "ce418a4c812f45ac43611fa7ab3485f695f017a14582230b04dfbd1ae770081f"
     }
   ]
 }

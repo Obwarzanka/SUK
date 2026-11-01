@@ -233,7 +233,7 @@ public partial class KomputerZaleznosci
         return why;
     }
 
-    public void ReleaseRoute(string uid, string reason)
+    void ReleaseRoute(string uid, string reason)
     {
         if (!Routes.TryGetValue(uid, out var r)) return;
         foreach (var sc in r.Secs) UnlockSec(sc, uid, true);
@@ -249,7 +249,7 @@ public partial class KomputerZaleznosci
         if (reason != null) Log("Zdarzenie", $"Zwolniono przebieg {r.Id} ({reason})", "Przebieg", r.Id);
     }
 
-    internal void UpdateRoutes()
+    void UpdateRoutesCore()
     {
         foreach (var uid in Routes.Keys.ToList())
         {
@@ -270,7 +270,7 @@ public partial class KomputerZaleznosci
                 {
                     if (sg.LampFault && r.Type == "P")
                     {
-                        if (!sg.FailAlarm) { var rr = r; Alarm($"Semafor {r.Start}: nie wyświetlił sygnału zezwalającego (§26 ust. 1)", "Semafor", r.Start, stillActive: () => Routes.ContainsKey(rr.Uid) && !rr.Passed && Sigs[rr.Start].Aspect == Aspect.Stop); sg.FailAlarm = true; }
+                        if (!sg.FailAlarm) { var rr = r; Alarm($"Semafor {r.Start}: nie wyświetlił sygnału zezwalającego (§26 ust. 1)", "Semafor", r.Start, warunek: WarunekAlarmu.BrakSygnaluPrzebiegu, przebieg: rr.Uid); sg.FailAlarm = true; }
                     }
                     else if (!sg.NoData)
                     {
@@ -287,7 +287,7 @@ public partial class KomputerZaleznosci
                 }
                 else if (r.State == "setting" && T - r.T0 > 20 && !r.SlowAlarm)
                 {
-                    r.SlowAlarm = true; var rr = r; Alarm($"Przebieg {r.Id} nie może zostać nastawiony: {(why.Count > 0 ? why[0] : "brak kontroli")}", "Przebieg", r.Id, stillActive: () => Routes.ContainsKey(rr.Uid) && rr.State == "setting");
+                    r.SlowAlarm = true; var rr = r; Alarm($"Przebieg {r.Id} nie może zostać nastawiony: {(why.Count > 0 ? why[0] : "brak kontroli")}", "Przebieg", r.Id, warunek: WarunekAlarmu.NastawianiePrzebiegu, przebieg: rr.Uid);
                 }
             }
             if (r.Passed)
@@ -332,7 +332,7 @@ public partial class KomputerZaleznosci
         var w = Sws[num];
         double time = L.Switches[num].Manual ? Cfg.SwTime * 4 : Cfg.SwTime;
         w.Moving = new MoveInfo { Target = pos, From = w.Pos, Until = T + time, Started = T };
-        Urzadzenia.Przestaw(num, pos);
+        Efekt(RodzajEfektu.Zwrotnica, num, pos);
         Log("Zdarzenie", $"Przestawianie do „{pos}”" + (byRoute ? " (przebiegowo)" : ""), "Zwrotnica", num);
     }
 

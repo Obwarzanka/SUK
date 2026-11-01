@@ -15,7 +15,8 @@
     "S01.01 (18.10.2026): przydzielono podzakres 3600–3699 REJ (kopia dziennika pulpitu – Rejestrator) i kody fundamentu logów; adapter przyjmuje kod bez definicji, jeśli jest zgodny z podzakresem, a pola ponad pola kontekstu schematu tylko z listy 'pola' definicji.",
     "Pole 'pola' wymienia pola kontekstu schematu i pola dodatkowe zdarzenia; inne pola adapter odrzuca i liczy w counters.rejectedFields. Rekord spoza katalogu dostaje LOG.EVENT_UNCATALOGUED z originalEventId i zachowanym poziomem.",
     "S02A.01 (21.10.2026): w podzakresie 4100–4199 KZ przydzielono 4101–4103 mapie własności postId/kzId (moduł LcsWidzew.MapaWlasnosci, strona hosta); bez zmian schematu rekordu.",
-    "S02A.02 (21.10.2026): podzakres 4100–4199 KZ – kody 4111–4116 rejestru wejść cyklu (LcsWidzew.WejscieCyklu); zmiana addytywna, schemat rekordu bez zmian."
+    "S02A.02 (21.10.2026): podzakres 4100–4199 KZ – kody 4111–4116 rejestru wejść cyklu (LcsWidzew.WejscieCyklu); zmiana addytywna, schemat rekordu bez zmian.",
+    "S02A.03 (28.10.2026): podzakres 4100–4199 KZ – kody 4121–4125 biernego planu i pojedynczego wyjścia (LcsWidzew.PlanWyjscia); diagnostyka decyzji bramki, bez treści planu/polecenia i bez gwarancji trwałego audytu lub fizycznego wykonania karty."
   ],
   "obszary": [
     {
@@ -1089,6 +1090,61 @@
       "status": "wdrozony",
       "zrodlo": "S02A.02; 25 §5 F24",
       "uwaga": "Podsumowanie (LOG_LIMIT_SUMMARY) po wyczerpaniu limitów rekordów 4114/4115, tylko gdy przybyły nieopisane naruszenia lub błędy odbiorców: na granicy fazy KARTY (pierwsze od razu, potem najwyżej raz na 3000 cykli świata), przy zatrzymaniu rejestru (DELIVERY_LIMIT) i na końcu świata (zamknięcie hosta). counters (11): violations, violationsSuppressed, receiverFailures, receiverFailuresSuppressed (nieopisane narastająco), outsidePhase, nestedPhases, reentrantPhases, phaseCloseOrder, unknownObjects, deferredDeliveries, stopped."
+    },
+    {
+      "eventId": 4121,
+      "eventCode": "KZ.OUTPUT_GATE_READY",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.PlanWyjscia",
+      "stream": "diagnostic",
+      "pola": ["worldId", "worldRunId", "serverTick", "simulationTimeMs", "effectId", "reasonCode", "outcome", "counters"],
+      "status": "wdrozony",
+      "zrodlo": "S02A.03; 18 §3; 19 §7 pkt 3; 25 F24",
+      "uwaga": "Bramka pojedynczego wyjścia KZ gotowa; jeden rekord startowy na świat. Rejestruje metadane i liczniki, bez treści planu, polecenia lub danych operatora. effectId jest pomijane, gdy nie jest poprawnym identyfikatorem SUK."
+    },
+    {
+      "eventId": 4122,
+      "eventCode": "KZ.OUTPUT_PLAN_COMMITTED",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.PlanWyjscia",
+      "stream": "diagnostic",
+      "pola": ["worldId", "worldRunId", "serverTick", "simulationTimeMs", "effectId", "reasonCode", "outcome", "counters"],
+      "status": "wdrozony",
+      "zrodlo": "S02A.03; 18 §3; 19 §7 pkt 3; 25 F24",
+      "uwaga": "Jedno zatwierdzenie logicznego planu wyjścia, identyfikowane effectId. Najwyżej 16 szczegółów na świat; dalsze zatwierdzenia są dokładnie liczone w podsumowaniu 4125. Nie dowodzi fizycznego wykonania przez kartę i nie zastępuje trwałego dziennika commit/replay."
+    },
+    {
+      "eventId": 4123,
+      "eventCode": "KZ.OUTPUT_PLAN_REJECTED",
+      "severity": "Warning",
+      "moduleId": "LcsWidzew.PlanWyjscia",
+      "stream": "diagnostic",
+      "pola": ["worldId", "worldRunId", "serverTick", "simulationTimeMs", "effectId", "reasonCode", "outcome", "counters"],
+      "status": "wdrozony",
+      "zrodlo": "S02A.03; 18 §3; 19 §7 pkt 3; 25 F24",
+      "uwaga": "Odmowa zastosowania planu wyjścia; reasonCode jest krótkim typowanym kodem bramki, bez treści polecenia. Najwyżej 16 szczegółów na kod powodu na świat; dalsze odmowy są dokładnie liczone w 4125. Ponowienie już zatwierdzonego planu nie wykonuje ponownie skutków."
+    },
+    {
+      "eventId": 4124,
+      "eventCode": "KZ.OUTPUT_GATE_FAILED",
+      "severity": "Error",
+      "moduleId": "LcsWidzew.PlanWyjscia",
+      "stream": "diagnostic",
+      "pola": ["worldId", "worldRunId", "serverTick", "simulationTimeMs", "effectId", "reasonCode", "outcome", "counters"],
+      "status": "wdrozony",
+      "zrodlo": "S02A.03; 18 §3; 19 §7 pkt 3; 25 F24",
+      "uwaga": "Bramka zatrzymana po błędzie wykonywania zatwierdzonego planu (fail-stop); zapis zawsze poza limitami szczegółów. Wyjątek redaguje adapter hosta. Nie wolno automatycznie ponawiać fizycznego skutku o nieznanym wyniku; sam log nie zapewnia odtworzenia po restarcie."
+    },
+    {
+      "eventId": 4125,
+      "eventCode": "KZ.OUTPUT_GATE_SUMMARY",
+      "severity": "Information",
+      "moduleId": "LcsWidzew.PlanWyjscia",
+      "stream": "diagnostic",
+      "pola": ["worldId", "worldRunId", "serverTick", "simulationTimeMs", "effectId", "reasonCode", "outcome", "counters"],
+      "status": "wdrozony",
+      "zrodlo": "S02A.03; 18 §3; 19 §7 pkt 3; 25 F24",
+      "uwaga": "Podsumowanie decyzji bramki i szczegółów pominiętych przez limity (liczniki narastające). Najwyżej co 3000 cykli oraz przy zamykaniu świata i fail-stop; bramka nie emituje ponownie niezmienionego podsumowania. Bez rekordów statusu każdej karty w każdym cyklu i bez treści planu/polecenia."
     }
   ]
 }

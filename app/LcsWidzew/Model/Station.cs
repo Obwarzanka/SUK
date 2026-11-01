@@ -222,6 +222,9 @@ public class Station
     /// <summary>Pełna ścieżka źródła ustawiana wyłącznie przez Load; Parse nie wiąże modelu z plikiem.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string SourcePath { get; private set; }
+    /// <summary>Kolejność kart utrwalona przy odczycie projektu, niezależna od późniejszego porządku słowników adapterów.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal IReadOnlyDictionary<string, int> KolejnoscKart { get; private set; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, int>(new Dictionary<string, int>());
     public string Name, Code, Source;
     public Dictionary<string, Node> Nodes = new();
     public Dictionary<string, Edge> Edges = new();
@@ -565,6 +568,10 @@ public class Station
         if (st.Pages.Count == 0) st.Pages.Add(new PageDef { Id = "ALL", Name = st.Name, X0 = -1e9, X1 = 1e9 });
         st.Sanitize();
         st.Finalize();
+        var kolejnosc = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (rodzaj, ids) in new (string, IEnumerable<string>)[] { ("zwrotnica", st.Switches.Keys), ("wykolejnica", st.Derailers.Keys), ("sygnalizator", st.Signals.Keys), ("odcinek", st.Sections.Keys) })
+            foreach (var id in ids) kolejnosc[rodzaj + "|" + id] = kolejnosc.Count;
+        st.KolejnoscKart = new System.Collections.ObjectModel.ReadOnlyDictionary<string, int>(kolejnosc);
         return st;
     }
 

@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SUK — bierny plan wyjścia KZ, v1 (S02A.03)",
+  "description": "Postać kanoniczna planu przejściowego KZ C#. Jest artefaktem danych do kontroli i porównań; bramka nie przyjmuje planów odtworzonych z JSON ani z nieufnego klienta. Nie jest ABI Ada lub selektorem grup.",
+  "$ref": "#/definitions/plan",
+  "x-suk-zasady": [
+    "Evaluate oblicza prywatny proponowany stan KZ i bierną listę efektów. Nie wykonuje kart, NN/ONN, AGR, ZeroLO, rejestratora zdarzeń/alarmów, książki ani statystyki. Publiczny plan zawiera tylko wartości; prywatny proponowany stan pozostaje poza tym kontraktem.",
+    "numer jest kolejnym numerem planu jednego świata, od 1. planId jest wyprowadzane jako KZ-{numer}, effectId jako KZ-{numer}-{pozycja}, gdzie pozycja zaczyna się od 1. Efekty wykonują się w podanej kolejności; unikalność i zgodność identyfikatorów z numerem sprawdza konsument ponad JSON Schema.",
+    "Jedna bramka rezerwuje plan przed skutkami i callbackami, przyjmuje stan proponowany raz, a następnie wykonuje efekty. Ponowienie zatwierdzonego planu nie powtarza skutków. Odrzucenie odrzuca również stan proponowany; błąd podczas wykonania zatrzymuje bramkę bez automatycznego ponowienia skutku o nieznanym wyniku.",
+    "Warunki alarmu to nazwa z zamkniętej listy i identyfikatory; bez delegatów i referencji do stanów prywatnych. AktualneZadanieBlokady odwołuje się do tożsamości zadanie, BrakSygnaluPrzebiegu i NastawianiePrzebiegu do przebieg.",
+    "Postać kanoniczna: jedna linia JSON, UTF-8, separatory ',' i ':', pola w kolejności definitions/plan/properties i definitions/efekt/properties; ciągi wg RFC 8785 jak KanonJson w C#. contentHash = SHA-256 tych bajtów. contentHash nie obejmuje prywatnego proponowanego stanu ani identyfikatora uruchomienia świata; nie dowodzi zgodności pełnego stanu grup/kanałów.",
+    "Tożsamość uruchomienia świata i pochodzenie planu są sprawdzane przez lokalną bramkę poza kanonicznym dokumentem. S02A.03 zapewnia deduplikację w jednym żyjącym świecie; trwałość/restart/replay, epoki grup i selektor należą do kolejnych zadań. Executed oznacza zakończenie adaptera, nie potwierdzenie fizycznego wykonania przez kartę.",
+    "Opcjonalne pole rozstrzygniecia wejścia cyklu (wejscie_cyklu_v1.schema.json) niesie decyzje Committed/Rejected w kolejności świata na następnej regularnej granicy. Nie oznacza importu poleceń ani istnienia przyszłych grup Ada."
+  ],
+  "definitions": {
+    "nieujemna": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "tekstLubNull": { "type": ["string", "null"] },
+    "efekt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectId", "rodzaj", "obiekt", "wartosc", "typ", "kategoria", "zrodlo", "kluczAlarmu", "warunek", "przebieg", "zadanie"],
+      "properties": {
+        "effectId": { "type": "string", "pattern": "^KZ-[1-9][0-9]*-[1-9][0-9]*$" },
+        "rodzaj": { "enum": ["Zwrotnica", "Wykolejnica", "Sygnal", "NapiecieNastawcze", "Agregat", "ZeroLO", "Zdarzenie", "Alarm", "Uwaga", "Status"] },
+        "obiekt": { "type": "string" },
+        "wartosc": { "$ref": "#/definitions/tekstLubNull" },
+        "typ": { "type": "string" },
+        "kategoria": { "type": "string" },
+        "zrodlo": { "type": "string" },
+        "kluczAlarmu": { "$ref": "#/definitions/tekstLubNull" },
+        "warunek": { "enum": ["Brak", "BrakSieci", "ZwrotnicaWRuchu", "Rozprucie", "BrakKontroli", "BrakDanychSygnalu", "BrakSygnaluPrzebiegu", "NastawianiePrzebiegu", "BrakBlokuKoncowego", "ZadanieBlokady", "AktualneZadanieBlokady"] },
+        "przebieg": { "$ref": "#/definitions/tekstLubNull" },
+        "zadanie": { "$ref": "#/definitions/nieujemna" }
+      },
+      "allOf": [
+        { "if": { "properties": { "rodzaj": { "const": "Zwrotnica" } } }, "then": { "properties": { "obiekt": { "minLength": 1 }, "wartosc": { "enum": ["+", "-"] } } } },
+        { "if": { "properties": { "rodzaj": { "enum": ["Wykolejnica", "NapiecieNastawcze"] } } }, "then": { "properties": { "obiekt": { "minLength": 1 }, "wartosc": { "enum": ["0", "1"] } } } },
+        { "if": { "properties": { "rodzaj": { "enum": ["Sygnal", "Agregat", "ZeroLO"] } } }, "then": { "properties": { "obiekt": { "minLength": 1 } } } }
+      ]
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kontrakt", "numer", "cykl", "czasSymulacjiMs", "krok", "inputHash", "ok", "wynik", "efekty"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kontrakt": { "const": "kz.plan_wyjscia" },
+        "numer": { "type": "integer", "minimum": 1 },
+        "cykl": { "$ref": "#/definitions/nieujemna" },
+        "czasSymulacjiMs": { "$ref": "#/definitions/nieujemna" },
+        "krok": { "enum": ["Statusy", "Blokady", "Sygnaly", "Przebiegi", "KodySygnalow", "Polecenie", "WszystkieStoj"] },
+        "inputHash": { "$ref": "#/definitions/sha256" },
+        "ok": { "type": ["boolean", "null"] },
+        "wynik": { "$ref": "#/definitions/tekstLubNull" },
+        "efekty": { "type": "array", "maxItems": 8192, "items": { "$ref": "#/definitions/efekt" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "krok": { "enum": ["Polecenie", "WszystkieStoj"] } } },
+          "then": { "properties": { "ok": { "type": "boolean" }, "wynik": { "type": "string" } } },
+          "else": { "properties": { "ok": { "type": "null" }, "wynik": { "type": "null" } } }
+        }
+      ]
+    }
+  }
+}

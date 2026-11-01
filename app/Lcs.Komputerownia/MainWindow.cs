@@ -263,6 +263,9 @@ public class MainWindow : Window
         var r = await Pol.Zadanie("usterka", ("key", key), ("target", target), ("clear", clear));
         var msg = r == null ? "brak odpowiedzi" : (string)r;
         if (msg != "OK") Info.Text = "Usterka: " + msg;
+        // Cykliczne odświeżenie mogło wysłać żądanie kart przed usterką i jeszcze trwać – wtedy Odswiez() nic by nie zrobiło
+        // i widok (oraz test --test) pokazałby stan sprzed usterki. Czekamy na nie (najwyżej czas odpowiedzi) i odświeżamy po.
+        for (int i = 0; wToku && i < 400; i++) await Task.Delay(20);
         await Odswiez();
         return msg;
     }
