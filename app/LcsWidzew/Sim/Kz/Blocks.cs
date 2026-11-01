@@ -81,7 +81,7 @@ public partial class KomputerZaleznosci
         return null;
     }
 
-    readonly Dictionary<(string, int), List<string>> pierwszyOdstepCache = new();
+    Dictionary<(string, int), List<string>> pierwszyOdstepCache = new();
     /// <summary>
     /// Odcinki pierwszego odstępu za końcem szlaku e (Dz.U. 2015 poz. 360: od posterunku zapowiadawczego do najbliższego semafora
     /// blokady samoczynnej tego kierunku): od granicy posterunku do pierwszego semafora odstępowego albo wjazdowego w kierunku wyjazdu,

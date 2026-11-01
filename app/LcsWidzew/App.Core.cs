@@ -17,6 +17,8 @@ public partial class App
             KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
         foreach (var (id, kod, pola) in PlanWyjsciaLog.Definicje)
             KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
+        foreach (var (id, kod, pola) in GraniceLog.Definicje)
+            KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola));
         return new SimulatorOptions
         {
             DataDirectory = Path.GetDirectoryName(Path.GetFullPath(StationPath)),
@@ -24,6 +26,7 @@ public partial class App
             MapaWlasnosciLogger = Diagnostyka.Modul(MapaWlasnosciLog.Modul, MapaWlasnosciLog.Wersja),
             WejscieCykluLogger = Diagnostyka.Modul(WejscieCykluLog.Modul, WejscieCykluLog.Wersja),
             PlanWyjsciaLogger = Diagnostyka.Modul(PlanWyjsciaLog.Modul, PlanWyjsciaLog.Wersja),
+            GraniceLogger = Diagnostyka.Modul(GraniceLog.Modul, GraniceLog.Wersja),
         };
     }
 }

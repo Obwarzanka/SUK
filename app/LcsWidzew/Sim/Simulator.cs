@@ -33,6 +33,8 @@ public partial class Simulator
     public event Action<EventRecord> AlarmAdded { add => Rej.AlarmAdded += value; remove => Rej.AlarmAdded -= value; }
     public event Action Beep { add => Rej.Beep += value; remove => Rej.Beep -= value; }
     public event Action<string> SpecialExecuted;
+    /// <summary>Adresat powiadomienia o książce; nie korzysta z globalnego kontekstu wykonywania.</summary>
+    public event Action<string, string> SpecialExecutedForDesk;
     public event Action PendingExpired;
 
     /// <summary>
@@ -40,6 +42,8 @@ public partial class Simulator
     /// <see cref="WejscieCyklu"/> każdego KZ według mapy własności, ta sama treść dla wszystkich odbiorców.
     /// </summary>
     public readonly RejestrWejscCyklu Wejscia;
+    /// <summary>Jedna bramka wykonania planów KZ; nigdy nie należy do obliczającej kopii.</summary>
+    public readonly BramkaWyjsc Wyjscia;
     /// <summary>Numer cyklu świata (cycleId wejść KZ): rośnie o 1 na początku każdego <see cref="Tick"/>; 0 – przed pierwszym cyklem.</summary>
     public long NrCyklu { get; private set; }
 
@@ -48,6 +52,7 @@ public partial class Simulator
         L = st;
         DataDirectory = Path.GetFullPath(options?.DataDirectory ?? (st.SourcePath == null ? "." : Path.GetDirectoryName(st.SourcePath)));
         Nadrzedny = new SystemNadrzedny(this);
+        Granice = new DiagnostykaGranic(this, options?.GraniceLogger);
         Rej = new Rejestrator(L, () => T, () => Clock(), () => User, options?.RejestratorLogger);
         mapaLog = options?.MapaWlasnosciLogger;
         Instruktor = new Instruktor(this);
@@ -55,8 +60,10 @@ public partial class Simulator
         Otoczenie = new Otoczenie(this);
         Kz = new KomputerZaleznosci(this);
         Wejscia = new RejestrWejscCyklu(this, Kz, options?.WejscieCykluLogger);
+        Wyjscia = new BramkaWyjsc(this, options?.PlanWyjsciaLogger);
         Urzadzenia = new Urzadzenia(this);
         Edr = new Edr(this);
+        _ = Sygnaly.Tab; // dane projektowe ładuje świat, zanim dopuści bierne Evaluate (bez I/O)
         if (routes) Kz.BuildRouteTable();
     }
 
@@ -71,10 +78,12 @@ public partial class Simulator
     /// <summary>Skrót posterunku: inicjały nazwy (Łódź Widzew → ŁW, Koluszki → Ko).</summary>
     public static string PostShort(Station L, string post) => Rejestrator.PostShort(L, post);
 
-    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System") => Rej.Log(kategoria, text, typ, obiekt, zrodlo);
+    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System", KontekstOperatora kontekst = null) => Rej.Log(kategoria, text, typ, obiekt, zrodlo, kontekst);
     /// <summary>Alarm (Ie-104 § 7): lista z potwierdzeniem i znacznikiem trwania stanu alarmowego.</summary>
-    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null) => Rej.Alarm(text, typ, obiekt, key, stillActive);
-    public void Remark(string text) => Rej.Remark(text);
+    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null, KontekstOperatora kontekst = null) => Rej.Alarm(text, typ, obiekt, key, stillActive, kontekst);
+    public void Remark(string text, KontekstOperatora kontekst = null) => Rej.Remark(text, kontekst);
+
+    internal readonly DiagnostykaGranic Granice;
 
     // ------------------------------------------------------------------ topologia
     public record Fwd(string Edge, string Num, string Pos);
@@ -138,6 +147,8 @@ public partial class Simulator
     public void Tick(double dt)
     {
         Wejscia.PozaOdbiorca();
+        Wyjscia.SprawdzGotowosc();
+        Kz.PozaPropozycja();
         T += dt; NrCyklu++;
         Nadrzedny.Tick();
         Urzadzenia.Tick(); Kz.UpdateBlocks();

@@ -108,6 +108,12 @@ Stan KZ jest przyjmowany przed publikacją efektów całej partii, więc callbac
 
 Diagnostyka modułu `LcsWidzew.PlanWyjscia`: 4121 — gotowość, 4122 — zatwierdzenie, 4123 — odmowa, 4124 — zatrzymanie, 4125 — podsumowanie. Szczegóły zatwierdzeń mają limit 16 na świat, odmowy 16 na przyczynę; podsumowania obejmują pominięte szczegóły i liczniki. Treść polecenia i dane operatora nie trafiają do tych logów. Kontrakt danych: `kontrakty/kz/plan_wyjscia_v1.schema.json`; opis odbioru: [S02A.03](SUK_plan_multiplayer/raporty/S02A.03.md).
 
+### Kontekst operatora i adapter ruchu (S02A.04)
+
+Polecenia stanowiska używają migawki operatora i obrazu. Inne stanowisko ani jego callback nie zmienia kontekstu wykonywanego polecenia; książka po poleceniu specjalnym otwiera się u jego adresata. Parser, potwierdzenia, książka i PIP pozostają wspólne. Zachowano dotychczasowe zasady obsługi i zaufane wewnętrzne wrappery; prawa sieciowe i lease należą do kolejnych etapów.
+
+Ruch pobiera historyczne zależności przez `AdapterRuchu` z niezmiennej `ProjekcjaRuchu`, publikowanej wyłącznie ze stanu przyjętego przez bramkę. Sygnał widziany przez maszynistę i położenie iglic nadal pochodzą z terenu. Nie zmieniono zasad jazdy ani odłożonego kroku 8. Logi `LcsWidzew.Granice` (4130–4133) zawierają tylko korelację, czas/cykl i liczniki; do 16 szczegółów kontekstu i projekcji na świat, potem zbiorcze podsumowania. Bez danych operatora i treści poleceń. Odbiór: [S02A.04](SUK_plan_multiplayer/raporty/S02A.04.md).
+
 ### Gra jednoosobowa (S02.02)
 
 Uruchom pulpit jak dotychczas przez `uruchom.bat`. Lokalna gra korzysta z plików układu i scenariusza; nie wymaga konta serwera ani Internetu. Dotychczasowe logowanie dyżurnego służy lokalnej sesji symulatora. Pauza i przyciski tempa działają na wspólnym cyklu o kroku 0,1 s. Polecenia w pauzie, również tuż po uruchomieniu przy czasie 0, otrzymują wynik bez przesuwania czasu.

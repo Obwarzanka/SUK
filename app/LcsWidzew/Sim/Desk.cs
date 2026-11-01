@@ -37,7 +37,6 @@ public partial class Simulator
     public Dictionary<string, Desk> Desks => Nadrzedny.Desks;
     public Dictionary<string, string> Control => Nadrzedny.Control;
     public List<ControlRequest> ControlReqs => Nadrzedny.ControlReqs;
-    public Desk CurDesk => Nadrzedny.CurDesk;
     public List<string> LinkTrace => Nadrzedny.LinkTrace;
     public static Dictionary<string, SystemNadrzedny.CodeInfo> Codes => SystemNadrzedny.Codes;
     public static string Fold(string s) => SystemNadrzedny.Fold(s);
@@ -63,7 +62,11 @@ public partial class Simulator
     public void Login(Desk d, User u) => Nadrzedny.Login(d, u);
 
     /// <summary>Zdarzenia stanowisk zgłaszane przez system nadrzędny.</summary>
-    internal void ZglosWykonanieSpecjalnego(string line) => SpecialExecuted?.Invoke(line);
+    internal void ZglosWykonanieSpecjalnego(string deskId, string line)
+    {
+        SpecialExecutedForDesk?.Invoke(deskId, line);
+        SpecialExecuted?.Invoke(line);
+    }
     internal void ZglosWygasniecie() => PendingExpired?.Invoke();
 
     // ------------------------------------------------------------------ dane dla okien stanowiska

@@ -99,6 +99,7 @@ public partial class KomputerZaleznosci
         {
             PrzyjmijStan(p.Stan); numerZadania = p.Stan.numerZadania;
             foreach (var klucz in p.Stan.noweStatusy.Keys) wersjeStatusow[klucz] = plan.Numer;
+            S.UniewaznijProjekcjeRuchu(plan.Numer);
         }
         ZwolnijKopie(p.Stan, przyjmij);
     }
@@ -194,6 +195,6 @@ public partial class KomputerZaleznosci
     internal void UpdateSignals() => S.Wyjscia.Zatwierdz(Evaluate(KrokKz.Sygnaly));
     internal void UpdateRoutes() => S.Wyjscia.Zatwierdz(Evaluate(KrokKz.Przebiegi));
     internal void SignalCodes() => S.Wyjscia.Zatwierdz(Evaluate(KrokKz.KodySygnalow));
-    public CmdResult Wykonaj(PolecenieSystemowe p) { var plan = Evaluate(KrokKz.Polecenie, p); S.Wyjscia.Zatwierdz(plan); return plan.Wynik; }
-    public CmdResult WszystkieStoj() { var plan = Evaluate(KrokKz.WszystkieStoj); S.Wyjscia.Zatwierdz(plan); return plan.Wynik; }
+    public CmdResult Wykonaj(PolecenieSystemowe p, KontekstOperatora kontekst = null) { var plan = Evaluate(KrokKz.Polecenie, p); S.Wyjscia.Zatwierdz(plan, kontekst); return plan.Wynik; }
+    public CmdResult WszystkieStoj(KontekstOperatora kontekst = null) { var plan = Evaluate(KrokKz.WszystkieStoj); S.Wyjscia.Zatwierdz(plan, kontekst); return plan.Wynik; }
 }

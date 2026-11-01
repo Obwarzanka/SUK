@@ -88,6 +88,44 @@ public sealed class KopiaStanuTests
     static void Zwolnij(KomputerZaleznosci kz, KomputerZaleznosci k, bool zatwierdzona) => typeof(KomputerZaleznosci).GetMethod("ZwolnijKopie", Wszystkie)!.Invoke(kz, new object[] { k, zatwierdzona });
     static object? Pula(KomputerZaleznosci kz) => typeof(KomputerZaleznosci).GetField("pula", Wszystkie)!.GetValue(kz);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MemoPierwszegoOdstepuNieWspoldzieliSlownikaAniListTakzeZPuli(bool zPuli)
+    {
+        var s = New();
+        var bloki = s.L.Blocks.Values.Where(b => b.Ends.Count > 0).Take(2).ToArray();
+        Assert.Equal(2, bloki.Length);
+        var pole = typeof(KomputerZaleznosci).GetField("pierwszyOdstepCache", Wszystkie)!;
+        Dictionary<(string, int), List<string>> Memo(KomputerZaleznosci k)
+            => (Dictionary<(string, int), List<string>>)pole.GetValue(k)!;
+        var listaSwiata = s.Kz.PierwszyOdstep(bloki[0], 0);
+        if (zPuli)
+        {
+            var poprzednia = Kopia(s.Kz);
+            s.Kz.PrzyjmijStan(poprzednia);
+            Zwolnij(s.Kz, poprzednia, zatwierdzona: true);
+        }
+        var kopia = Kopia(s.Kz);
+        Assert.NotSame(Memo(s.Kz), Memo(kopia));
+        var listaKopii = kopia.PierwszyOdstep(bloki[0], 0);
+        Assert.Equal(listaSwiata, listaKopii);
+        Assert.NotSame(listaSwiata, listaKopii);
+        listaKopii.Add("TYLKO_KOPIA");
+        kopia.PierwszyOdstep(bloki[1], 0);
+        Assert.DoesNotContain("TYLKO_KOPIA", listaSwiata);
+        Assert.False(Memo(s.Kz).ContainsKey((bloki[1].Id, 0)));
+        Zwolnij(s.Kz, kopia, zatwierdzona: false);
+
+        var przyjeta = Kopia(s.Kz);
+        var nowaLista = przyjeta.PierwszyOdstep(bloki[1], 0);
+        s.Kz.PrzyjmijStan(przyjeta);
+        Assert.Equal(nowaLista, Memo(s.Kz)[(bloki[1].Id, 0)]);
+        Assert.NotSame(nowaLista, Memo(s.Kz)[(bloki[1].Id, 0)]);
+        nowaLista.Add("PO_PRZYJECIU");
+        Assert.DoesNotContain("PO_PRZYJECIU", Memo(s.Kz)[(bloki[1].Id, 0)]);
+    }
+
     [Fact]
     public void KopiaZPuliJestTakaJakNowaIJakSwiatTakzePoZmianiePrzebiegow()
     {

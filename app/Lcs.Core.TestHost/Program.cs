@@ -57,6 +57,9 @@ internal static class Program
                 if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
                     throw new InvalidOperationException("Nie można zarejestrować kontraktu wejść cyklu.");
 
+            foreach (var (id, kod, pola) in GraniceLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
+                    throw new InvalidOperationException("Nie można zarejestrować kontraktu granic operatora i ruchu.");
             string stationPath = Remove(args, "--station");
             foreach (var (id, kod, pola) in PlanWyjsciaLog.Definicje)
                 if (!KatalogZdarzen.Zarejestruj(new DefinicjaZdarzenia(id, kod, KontraktLogu.Strumien.Diagnostyka, pola)))
@@ -107,7 +110,7 @@ internal static class Program
             if (string.IsNullOrWhiteSpace(stationPath))
                 throw new ArgumentException("Host testowy wymaga jawnego --station wskazującego kopię testową.");
             stationPath = Path.GetFullPath(stationPath);
-            var options = new SimulatorOptions { RejestratorLogger = Diagnostyka.Modul(CoreLogging.Modul, CoreLogging.Wersja), PlanWyjsciaLogger = Diagnostyka.Modul(PlanWyjsciaLog.Modul, PlanWyjsciaLog.Wersja) };
+            var options = new SimulatorOptions { RejestratorLogger = Diagnostyka.Modul(CoreLogging.Modul, CoreLogging.Wersja), PlanWyjsciaLogger = Diagnostyka.Modul(PlanWyjsciaLog.Modul, PlanWyjsciaLog.Wersja), GraniceLogger = Diagnostyka.Modul(GraniceLog.Modul, GraniceLog.Wersja) };
             if (args.Count == 4 && args[3] == "wzorce") SelfTest.RunPatterns(stationPath, args[1], args[2], options);
             else if (args.Count == 4 && args[3].StartsWith("tylko:", StringComparison.Ordinal)) SelfTest.RunScenario(stationPath, args[1], args[2], args[3][6..], options);
             else if (args.Count == 3) SelfTest.RunScenario(stationPath, args[1], args[2], options: options);

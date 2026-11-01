@@ -47,6 +47,8 @@ public class LcsServer : IDisposable
         public void Send(string line) { if (!Alive) return; try { lock (Lk) { W.WriteLine(line); W.Flush(); } Bytes += line.Length + 1; } catch { Alive = false; } }
     }
 
+    Client ClientOfId(string id) { if (id == null) return null; lock (clients) return clients.FirstOrDefault(x => x.Desk?.Id == id); }
+
     readonly Dispatcher ui;
     readonly Func<string> stationJson;
     Simulator sim;
@@ -78,7 +80,7 @@ public class LcsServer : IDisposable
         sim.AlarmAdded += e => Broadcast(Wire.Msg("al", ("d", e)));
         sim.Beep += () => Broadcast(Wire.Msg("beep"));
         sim.PendingExpired += () => Broadcast(Wire.Msg("pendexp"));
-        sim.SpecialExecuted += _ => { var c = ClientOf(sim.CurDesk); c?.Send(Wire.Msg("special")); };
+        sim.SpecialExecutedForDesk += (id, _) => { var c = ClientOfId(id); c?.Send(Wire.Msg("special")); };
         List<Client> list; lock (clients) list = clients.Where(c => c.Alive && c.Desk != null).ToList();
         foreach (var c in list)
         {

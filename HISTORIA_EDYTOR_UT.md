@@ -1,5 +1,9 @@
 # Edytor układu torowego – historia prac
 
+## 2026-11-02 — regresja po integracji S02A.04
+
+Zbudowano całe rozwiązanie Release, w tym EdytorUT i symulator. Test EdytoraUT: **786 OK, błędów: 0**; zobrazowanie: **387 OK, błędów: 0**. Nie zmieniano modelu UT, geometrii, symboli ani plików projektowych. Wspólny rdzeń otrzymał jawny kontekst operatora i adapter zatwierdzonej projekcji dla ruchu. Testy wykorzystały kopie danych, hash chronionego station.json pozostał niezmieniony. Zrzuty i pełne wyniki: `artifacts/2026-11-02-S02A.04/ui-odbior/`; opis integracji i ograniczeń: `SUK_plan_multiplayer/raporty/S02A.04.md`.
+
 Szczegółowe opisy zrobionych prac nad edytorem UT (`app/Lcs.EdytorUT`, `app/Lcs.Model`) i kalkulatorem przechyłki, przeniesione z `ROZWOJ.md` 2026-10-17. Plan, decyzje właściciela i pytania są w `PLAN_EDYTOR_UT.md`, stan i następny krok – w `ROZWOJ.md`, etap 1. Nowe wpisy dopisuj tutaj, a w `ROZWOJ.md` tylko jedną linię w skrócie.
 
 Wpisy są w kolejności dopisywania, nie zawsze według dat.

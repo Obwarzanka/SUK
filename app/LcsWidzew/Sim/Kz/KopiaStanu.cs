@@ -38,11 +38,13 @@ public partial class KomputerZaleznosci
             // Po zatwierdzeniu klucze cache puli i świata są równe (przyjęcie dopisało nowe wpisy), a wartości są czystą
             // funkcją projektu – osobne kontenery i listy zostają, bez kopiowania całości przy każdym obliczeniu.
             k.odstepCache = p.odstepCache; k.nextSigCache = p.nextSigCache;
+            k.pierwszyOdstepCache = p.pierwszyOdstepCache;
         }
         else
         {
             k.odstepCache = odstepCache.ToDictionary(e => e.Key, e => new List<string>(e.Value), odstepCache.Comparer);
             k.nextSigCache = new Dictionary<string, string>(nextSigCache, nextSigCache.Comparer);
+            k.pierwszyOdstepCache = pierwszyOdstepCache.ToDictionary(e => e.Key, e => new List<string>(e.Value), pierwszyOdstepCache.Comparer);
         }
         k.znaneStatusy = znaneStatusy; // wspólny odczyt; zapisy obliczenia trafiają tylko do delty
         k.noweStatusy = p?.noweStatusy ?? new Dictionary<string, string>(znaneStatusy.Comparer); k.noweStatusy.Clear();
@@ -79,9 +81,10 @@ public partial class KomputerZaleznosci
         // Cache topologii rosną tylko o nowe wpisy (czysta funkcja projektu); świat dostaje własne listy.
         DopiszNowe(obliczony.odstepCache, odstepCache, l => new List<string>(l));
         DopiszNowe(obliczony.nextSigCache, nextSigCache, s => s);
+        DopiszNowe(obliczony.pierwszyOdstepCache, pierwszyOdstepCache, l => new List<string>(l));
     }
 
-    static void DopiszNowe<V>(Dictionary<string, V> z, Dictionary<string, V> doSlownika, Func<V, V> kopia)
+    static void DopiszNowe<K, V>(Dictionary<K, V> z, Dictionary<K, V> doSlownika, Func<V, V> kopia)
     {
         if (z.Count == doSlownika.Count) return; // po przyjęciu poprzedniej kopii klucze są równe; nowe wpisy zmieniają liczbę
         foreach (var (k, v) in z) if (!doSlownika.ContainsKey(k)) doSlownika.Add(k, kopia(v));

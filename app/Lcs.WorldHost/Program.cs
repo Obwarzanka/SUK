@@ -88,8 +88,12 @@ internal static class Program
                 if (!KatalogZdarzen.Zarejestruj(new(outputId, outputCode, KontraktLogu.Strumien.Diagnostyka, outputFields)))
                     throw new InvalidOperationException("Niezgodny katalog planu wyjścia.");
             var outputPlans = logs.Modul(PlanWyjsciaLog.Modul, PlanWyjsciaLog.Wersja);
+            foreach (var (boundaryId, boundaryCode, boundaryFields) in GraniceLog.Definicje)
+                if (!KatalogZdarzen.Zarejestruj(new(boundaryId, boundaryCode, KontraktLogu.Strumien.Diagnostyka, boundaryFields)))
+                    throw new InvalidOperationException("Niezgodny katalog granic operatora i ruchu.");
+            var boundaries = logs.Modul(GraniceLog.Modul, GraniceLog.Wersja);
             ZdarzeniaProcesu.Uruchomiono(logger, "world");
-            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership, cycleInputs, outputPlans), options, logger: logger);
+            loop = new WorldLoop(() => runtime = new SimulatorRuntime(station, scenario, logger, recorder, events != null, ownership, cycleInputs, outputPlans, boundaries), options, logger: logger);
             var serviceLogger = logs.Modul(ServiceLog.Module, WorldLog.Version);
             if (profile != null)
             {

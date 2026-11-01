@@ -132,7 +132,7 @@ public sealed class SingleplayerHost : IDisposable
         }
         public WorldObservation Observe() { var s = Session!.Sim; return new(s.T, s.Trains.List.Count, s.Routes.Count, s.Events.Count); }
         // S02A.02: podsumowanie naruszeń wejść KZ bez własnego rekordu (4116), jeśli były.
-        public void Dispose() { Session?.Sim.Wejscia.PodsumujNaKoniec(); Session?.Sim.Wyjscia.PodsumujNaKoniec(); }
+        public void Dispose() { Session?.Sim.Wejscia.PodsumujNaKoniec(); Session?.Sim.Wyjscia.PodsumujNaKoniec(); Session?.Sim.PodsumujGranice(); }
     }
 
     sealed class HostedSession(SingleplayerHost host, LocalSession session) : ILcsSession

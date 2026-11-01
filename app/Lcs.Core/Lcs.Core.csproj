@@ -22,6 +22,9 @@
   <ItemGroup>
     <!-- S02A.02: testy hosta sprawdzają wewnętrzne granice rejestru wejść cyklu (fazy, zgłoszenia statusów kart). -->
     <InternalsVisibleTo Include="Lcs.WorldHost.Testy" />
+    <!-- Wspólny SelfTest ma jawne syntetyczne fixtures poza produkcyjną bramką. -->
+    <InternalsVisibleTo Include="Lcs.Core.TestHost" />
+    <InternalsVisibleTo Include="LcsWidzew" />
   </ItemGroup>
 
   <ItemGroup>

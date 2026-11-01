@@ -43,13 +43,14 @@ public sealed class BramkaWyjsc
     }
 
     /// <summary>Zatwierdza cały wydany plan; wywołanie z tym samym planem, także z callbacku, nie powtarza żadnego skutku.</summary>
-    public RozstrzygniecieWyjscia Zatwierdz(PlanWyjscia plan) => Rozstrzygnij(plan, true, "PLAN_ACCEPTED");
+    public RozstrzygniecieWyjscia Zatwierdz(PlanWyjscia plan, KontekstOperatora kontekst = null) => Rozstrzygnij(plan, true, "PLAN_ACCEPTED", kontekst);
     /// <summary>Odrzucenie odrzuca również proponowany stan KZ. Nie publikuje jego zdarzeń ani potwierdzenia wykonania.</summary>
     public RozstrzygniecieWyjscia Odrzuc(PlanWyjscia plan) => Rozstrzygnij(plan, false, "PLAN_REJECTED");
 
-    RozstrzygniecieWyjscia Rozstrzygnij(PlanWyjscia plan, bool przyjmij, string powod)
+    RozstrzygniecieWyjscia Rozstrzygnij(PlanWyjscia plan, bool przyjmij, string powod, KontekstOperatora kontekst = null)
     {
         ArgumentNullException.ThrowIfNull(plan); S.Wejscia.PozaOdbiorca();
+        kontekst ??= S.Nadrzedny.Kontekst();
         if (plan.Swiat != Swiat) return Odmowa(plan, "WORLD_MISMATCH");
         if (wyniki.TryGetValue(plan.Numer, out var stary))
         {
@@ -80,7 +81,7 @@ public sealed class BramkaWyjsc
                     // a wyjątek został połknięty – wtedy nie wykonujemy dalszych efektów (A05).
                     SprawdzGotowosc(); biezacy = efekt.EffectId;
                     if (efekt.Rodzaj == RodzajEfektu.Status && !S.Kz.StatusNadalAktualny(efekt, plan.Numer)) wyparteStatusy++;
-                    else { Wykonaj(efekt); wykonane++; ile++; }
+                    else { Wykonaj(efekt, kontekst); wykonane++; ile++; }
                     SprawdzGotowosc();
                 }
             SprawdzGotowosc(); // także plan bez efektów nie kończy się „Executed” po zatrzymaniu bramki
@@ -106,7 +107,7 @@ public sealed class BramkaWyjsc
     }
     void Zapamietaj(RozstrzygniecieWyjscia d) { decyzje.Enqueue(d); if (decyzje.Count > MaxPotwierdzen) decyzje.Dequeue(); }
 
-    void Wykonaj(EfektWyjscia e)
+    void Wykonaj(EfektWyjscia e, KontekstOperatora kontekst)
     {
         switch (e.Rodzaj)
         {
@@ -116,10 +117,10 @@ public sealed class BramkaWyjsc
             case RodzajEfektu.NapiecieNastawcze: S.Urzadzenia.NapiecieNastawcze(e.Wartosc == "1"); break;
             case RodzajEfektu.Agregat: S.Urzadzenia.UruchomAgregat(); break;
             case RodzajEfektu.ZeroLO: S.Urzadzenia.Zeruj(e.Obiekt); break;
-            case RodzajEfektu.Zdarzenie: S.Log(e.Kategoria, e.Wartosc, e.Typ, e.Obiekt, e.Zrodlo); break;
+            case RodzajEfektu.Zdarzenie: S.Log(e.Kategoria, e.Wartosc, e.Typ, e.Obiekt, e.Zrodlo, kontekst); break;
             case RodzajEfektu.Alarm:
-                S.Alarm(e.Wartosc, e.Typ, e.Obiekt, e.KluczAlarmu, e.Warunek == WarunekAlarmu.Brak ? null : () => S.Kz.AlarmTrwa(e)); break;
-            case RodzajEfektu.Uwaga: S.Remark(e.Wartosc); break;
+                S.Alarm(e.Wartosc, e.Typ, e.Obiekt, e.KluczAlarmu, e.Warunek == WarunekAlarmu.Brak ? null : () => S.Kz.AlarmTrwa(e), kontekst); break;
+            case RodzajEfektu.Uwaga: S.Remark(e.Wartosc, kontekst); break;
             case RodzajEfektu.Status: S.Urzadzenia.LogStatus(e.Typ, e.Obiekt, e.Wartosc); break;
             default: throw new InvalidOperationException("Nieznany efekt planu KZ.");
         }
