@@ -178,6 +178,8 @@ public partial class MainWindow
         cat.SelectionChanged += (s, e) => ChTrack(id, "Kategoria toru", x => x.Cat = cats[cat.SelectedIndex].Item1);
         TrackPanel.Children.Add(Label("Kategoria (Ig-10: grubość osi)")); TrackPanel.Children.Add(cat);
         PostCombo(TrackPanel, new List<string> { id }, "Należy do (posterunek albo szlak)");
+        // tor bez posterunku i poza szlakiem: posterunek z całej stacji jednym klikiem (od semaforów wjazdowych)
+        if (t.Post == null && Szlaki.At(Doc.P, View.DrogiNow(), id, View.Geometry(t).Length / 2) == null) StationPostButton(TrackPanel, id);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
         var elec = new CheckBox { Content = "zelektryfikowany", IsChecked = t.Elec, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };

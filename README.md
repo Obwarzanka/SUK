@@ -383,6 +383,7 @@ Stan (etapy 1–7 i Z0 – posterunki, szlaki, funkcja semafora; edytor zobrazow
 - **Funkcja semafora** (panel semafora): wjazdowy, wyjazdowy, drogowskazowy, odstępowy, powtarzacz (Sp), PK. Od niej zależy symbol na pulpicie, więc „Sprawdź” przypomina o semaforze bez funkcji.
 - **Powtarza** (panel tarczy ostrzegawczej i semafora-powtarzacza): semafor, którego sygnał urządzenie powtarza, albo szlak (informacja z sąsiedniej stacji). Wybierasz z listy. „Zaproponuj” wstawia pierwszy semafor przed urządzeniem w kierunku jego działania (po torze na wprost i przez styki torów, do 3 km) – to tylko propozycja, sprawdź ją. „Sprawdź” przypomina o tarczy bez wskazania i o usuniętym semaforze. W symulatorze tarcza jest zielona, gdy semafor powtarzany podaje sygnał zezwalający (pole `repeats`).
 - **Posterunki i szlaki** (panel „Posterunki i szlaki”; gdy jest rozwinięty, tory posterunków są podświetlone ich kolorem, a szlaki – pasem z numerem):
+  - **posterunek z tej stacji (najprościej):** kliknij jeden tor stacji (bez posterunku) albo jej semafor wjazdowy – w panelu przycisk „Posterunek z tej stacji (N torów)…” i pod nim znalezione semafory wjazdowe. Program idzie od tego toru po rozjazdach i stykach do semaforów z funkcją „wjazdowy” (granica w km semafora, kierunek semafora nie ma znaczenia – stacja to strona, z której program przyszedł), szlaków i torów innych posterunków. Tor z semaforem wjazdowym wchodzi, gdy po stronie stacji ma co najmniej 50 m albo połowę długości. Semafory skierowane od stacji na zewnątrz są wypisane pod przyciskiem – odwróć je, jeśli to wjazdowe tej stacji. Semafor bez funkcji „wjazdowy” nie jest granicą – stacja „wycieknie” dalej (sprawdź liczbę torów).
   - **posterunek z semaforów wjazdowych:** kliknij jeden semafor wjazdowy, Shift + klik na pozostałych (wszystkie wjazdowe tej stacji), w panelu „Posterunek z semaforów wjazdowych (N)…” – kod i nazwa. Semafory bez funkcji dostają „wjazdowy”, a do posterunku trafiają wszystkie tory od semaforów do środka stacji (po rozjazdach i stykach torów), bez torów szlaków i innych posterunków. Jedno Ctrl+Z cofa całość. Brak któregoś semafora wjazdowego – posterunek „wycieknie” za stację, sprawdź liczbę torów w komunikacie.
   - **nazwy w wielu posterunkach:** nazwy semaforów, numery rozjazdów i nazwy odcinków muszą być różne tylko w obrębie posterunku. Tor bez posterunku (gdy posterunki już są) nie blokuje nazw innych stacji; w symulatorze nazwy dostają przedrostek kodu posterunku (np. LW:A), więc przypisz tory przed „Do symulatora…”.
   - **posterunek:** zaznacz tory (Shift + prostokąt albo Ctrl + klik), potem „+ posterunek” – kod (np. LW) i nazwa. Tor przypiszesz też w panelu toru (pole „Należy do”). Rozjazdy i urządzenia należą do posterunku swojego toru. Nazwy semaforów i numery rozjazdów nie mogą się powtarzać w jednym posterunku, ale na różnych posterunkach mogą (np. „A” na każdej stacji);
@@ -510,6 +511,19 @@ Tylko IC (ptrc.gay/pkpic):
 ```bash
 python tools/pkpic_import.py 2026-10-15 app/LcsWidzew/Data/rozklad_ic.json
 ```
+
+### Rozkład jazdy `<układ>.rj.json` (PLAN_EDYTOR_RJ.md, R1)
+
+Plik obok pliku układu, wspólny dla symulatora i (przyszłego) edytora rozkładu jazdy: pociągi z **odcinkami** (numer, kategoria wg Ir-11, kategoria ruchu, przewoźnik) i **biegiem** przez posterunki (przyjazd, odjazd, postój, tor, peron, odcinek odjazdu – zmiana numeru lub kategorii w punkcie, zmiana czoła), start na torze albo z zaplecza, odstawienie, pociąg towarzyszący (np. zjazd luzem). Czasy „GG:MM:SS”.
+- Rozkład **dobowy** (czas doby) zastępuje rozkład rzeczywisty w scenariuszach „Rozkład rzeczywisty …” (okno godzin jak dotąd); **względny** (czas od początku scenariusza) – plik `<układ>.rozklad.json` w „Ruchu podstawowym”. Bez pliku wszystko działa jak dotąd; błędny plik – zdarzenie i rozkład jak bez pliku.
+- Import z dzisiejszych źródeł:
+
+```bash
+app/LcsWidzew/bin/Release/net10.0-windows/LcsWidzew.exe --station app/LcsWidzew/Data/station.json --rj-import wynik.rj.json
+```
+
+  (`… --rj-import wynik.rj.json plik` – z `<układ>.rozklad.json`). Obok powstaje `wynik.rj.json.txt` z liczbą pociągów i wynikiem sprawdzenia.
+- Test zgodności (kopia układu w katalogu tymczasowym): `LcsWidzew.exe --station <układ> --rjtest wynik.txt [ic_05,ic_08]` – import i wczytanie dają tę samą kolejkę pociągów, wykaz EDR i ruch.
 
 ### Rozkład układu z pliku (`<układ>.rozklad.json`)
 

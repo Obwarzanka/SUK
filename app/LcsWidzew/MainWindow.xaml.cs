@@ -68,6 +68,15 @@ public partial class MainWindow : Window
         };
         BuildTabs();
         Loaded += (s, e) => { Start(scenario, null); Dispatcher.BeginInvoke(() => { ShowPage(station.Pages.Count - 1); if (ShotPath == null) ShowLogin(); else Demo(); }, DispatcherPriority.Loaded); };
+        // EDR (E9e, decyzja właściciela 2026-10-28): przy każdym zamknięciu – „Zachować dane sesji EDR?”; „Nie zapisuj” przywraca dzienniki sprzed sesji
+        Closing += (s, e) =>
+        {
+            if (ShotPath != null || sim?.Edr == null || !Sim.Edr.ZapisDziennikow) return;
+            var r = MessageBox.Show(this, "Zachować dane sesji EDR?\n\nTak – zapisz dzienniki tej sesji.\nNie – nie zapisuj (dzienniki wracają do stanu sprzed uruchomienia).", "Zakończenie pracy",
+                MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Yes);
+            if (r == MessageBoxResult.Cancel) { e.Cancel = true; return; }
+            sim.Edr.ZakonczSesje(r == MessageBoxResult.Yes);
+        };
         Closed += (s, e) => { timer.Stop(); server?.Dispose(); serwis?.Dispose(); (ses as RemoteSession)?.Dispose(); localWorld?.Dispose(); };
         SizeChanged += (s, e) => Panel.FitPage();
         timer.Tick += OnTimer;
@@ -216,6 +225,8 @@ public partial class MainWindow : Window
             if (c.StartsWith("#edrtel=")) { EdrTelShot(c[8..]); continue; }
             if (c.StartsWith("#edrdr=") || c.StartsWith("#edrpowrot=") || c.StartsWith("#edrwpis=") || c.StartsWith("#edrspr=") || c.StartsWith("#edrwykresl=") || c.StartsWith("#edrtorst=")) { EdrE5Shot(c); continue; }
             if (c.StartsWith("#edrdrokno=")) { edrDrOkno = int.Parse(c[11..]); continue; }
+            // E9: „#edr9=dane,sytuacja,dyzur,uzytkownicy,stoj,godziny,gotowosc,analiza,ladunek,opislok,zakladki,prawo,historia,pdf” – dane lokalne pociągu i zrzuty okien E9
+            if (c.StartsWith("#edr9=")) { edr9.AddRange(c[6..].Split(',')); continue; }
             if (c.StartsWith("#edrsprust=")) { edrSprUst = c[11..]; continue; }
             if (c.StartsWith("#edrwyciag=")) { edrWyciag.Add(c[11..]); continue; }
             if (c.StartsWith("#edrpost=")) { edrPost = c[9..]; continue; }
@@ -350,6 +361,7 @@ public partial class MainWindow : Window
                         ew.PokazZakladkePociagu(0);
                     }
                     if (edrDrOkno >= 0 && ew.Dane?.Dzienniki.Count > edrDrOkno) { var dw = ew.DroznicyOkno(ew.Dane.Dzienniki[edrDrOkno]); Okno(dw, ".edr_droznicy.png"); dw.Close(); }
+                    if (edr9.Count > 0) Edr9Shot(ew, Okno);
                     if (edrSprUst != null) { var sw2 = ew.SprawdzeniaUstOkno(edrSprUst); Okno(sw2, ".edr_sprawdzenia.png"); sw2.Close(); }
                     if (edrTelOkno >= 0 && ew.Dane?.Dzienniki.Count > edrTelOkno)
                     {
@@ -416,6 +428,7 @@ public partial class MainWindow : Window
     string edrTelWzor;
     /// <summary>Tryb zrzutu E5: „#edrdrokno=i” – okno powiadomienia dróżników dziennika i, „#edrsprust=POST” – konfiguracja sprawdzeń posterunku.</summary>
     int edrDrOkno = -1;
+    readonly List<string> edr9 = new();
     string edrSprUst;
     /// <summary>Tryb zrzutu E6: „#edrwyciag=rodzaj|i|h” – okno wyciągu (ruchu / telefoniczny / tory), dziennik i, h – z historią; zrzut do `.edr_wyciag_n.png`.</summary>
     readonly List<string> edrWyciag = new();
@@ -464,6 +477,54 @@ public partial class MainWindow : Window
         File.AppendAllText(ShotPath + ".txt", $"{c}: {(r.Ok ? "OK" : "ODRZUCONE")} {r.Msg}{(char)10}");
     }
     bool edrTelefoniczny;
+
+    /// <summary>Zrzuty E9 (PLAN_EDR.md): dane lokalne wybranego pociągu i okna – sytuacja, dyżur, użytkownicy, polecenia pociągu, zakładki, układ z prawej, historia, wyciąg PDF.</summary>
+    void Edr9Shot(EdrWindow ew, Action<Window, string> okno)
+    {
+        var post = ew.PostWybrany;
+        var p = ew.WykazPanel.Wybrany ?? ew.WykazPanel.Widoczne.FirstOrDefault();
+        string Log(string t) { File.AppendAllText(ShotPath + ".txt", t + (char)10); return t; }
+        if (edr9.Contains("dane") && p != null)
+        {
+            CmdResult L(string pole, EdrPociagLokalny l = null, EdrWierszLok w = null) => ew.Wyslij(new EdrPolecenie { Rodzaj = "pociag", Pole = pole, Post = post, Klucz = p.Klucz, Wartosc = p.Nr, Lok = l, WierszLok = w });
+            foreach (var (n, r) in new[] { ("stoj", L("stoj")), ("prognoza", L("prognoza", new() { PrognozaOdj = EdrWindow.Przesun(p.OdjPlan != "" ? p.OdjPlan : ew.Teraz, 0, 12, ew.Teraz) })),
+                ("ladunek", L("ladunek", new() { TN = true, TWR = true, PN = true, Ladunek = "UN 1203 benzyna, 12 cystern" })), ("gotowosc", L("gotowosc", new() { GotowoscZgl = ew.Teraz, Maszynista = "Jan Maszynista" })),
+                ("analiza", L("analiza", new() { Brutto = "1250", Dlugosc = "410", Serie = new() { "ET22" }, NumeryLok = new() { "ET22-1105" } })),
+                ("opoznienie", L("wiersz", w: new EdrWierszLok { Rodzaj = "opoznienia", Komorki = new() { "PLK", "11", "12", "Łódź Widzew", "Usterka urządzeń srk", "rozjazd 12", "Łódź Widzew", "W", "IZ Łódź" } })),
+                ("skom", L("wiersz", w: new EdrWierszLok { Rodzaj = "skomNa", Komorki = new() { "11504", "06:30", "+3", "Os", "ŁKA", "Łódź Fabryczna – Skierniewice" } })),
+                ("usluga", ew.Wyslij(new EdrPolecenie { Rodzaj = "usluga", Post = post, Usluga = new EdrUsluga { Rodzaj = "Manewry", Pociag = p.Nr, Przewoznik = "PKP Intercity", Tor = p.Tor, Od = ew.Teraz } })),
+                ("lokalny", ew.Wyslij(new EdrPolecenie { Rodzaj = "lokalny", Post = post, PociagLok = new EdrPociagLok { Nr = "99901", Rodzaj = "Pw", Przewoznik = "PLK", WKierunku = "Łódź Chojny", Tor = "3", Odjazd = EdrWindow.Przesun(ew.Teraz, 0, 20, ew.Teraz), Uwagi = "pociąg lokalny (dane lokalne)" } })) })
+                Log($"#edr9 {n}: {(r.Ok ? "OK" : "ODRZUCONE")} {r.Msg}");
+            ew.Odswiez(true); ew.WykazPanel.Wybierz(null, p.Nr);
+            okno(ew, ".edr9_wykaz.png");
+            // inny pociąg zaznaczony – widać oznaczenia 19284 (TN, TWR, przesyłka, POCIĄG STÓJ z prognozą)
+            if (ew.WykazPanel.Widoczne.FirstOrDefault(x => x.Klucz != p.Klucz && !x.Lokalny) is EdrPociag inny) { ew.WykazPanel.Wybierz(null, inny.Nr); okno(ew, ".edr9_wykaz_oznaczenia.png"); ew.WykazPanel.Wybierz(null, p.Nr); }
+        }
+        if (edr9.Contains("sytuacja")) { var w = new OknoSytuacji(ew, post, true) { Owner = ew }; okno(w, ".edr9_sytuacja.png"); w.Close(); }
+        if (edr9.Contains("dyzur")) { var w = new OknoDyzuru(ew, post) { Owner = ew }; okno(w, ".edr9_dyzur.png"); w.Close(); }
+        if (edr9.Contains("uzytkownicy"))
+        {
+            Log("#edr9 uzytkownicy: " + ew.Wyslij(new EdrPolecenie { Rodzaj = "uzytkownicy", Uzytkownicy = new() { new() { Id = "obs", Nazwa = "Olga Obserwator", Rola = "Obserwator", Haslo = "obs1" }, new() { Id = "kd", Nazwa = "Karol Koordynator", Rola = "Koordynator", Haslo = "kd12" } } }).Msg);
+            var w = new OknoUzytkownikow(ew) { Owner = ew }; okno(w, ".edr9_uzytkownicy.png"); w.Close();
+        }
+        if (p != null)
+            foreach (var (k, f) in new (string, Func<Window>)[] { ("stoj", () => new OknoStoj(ew, post, p)), ("godziny", () => new OknoGodzin(ew, post, p)), ("gotowosc", () => new OknoGotowosci(ew, post, p)),
+                ("analiza", () => new OknoAnalizy(ew, post, p)), ("ladunek", () => new OknoLadunku(ew, post, p)), ("opislok", () => new OknoOpisuLok(ew, post, p)) })
+                if (edr9.Contains(k)) { var w = f(); w.Owner = ew; okno(w, $".edr9_{k}.png"); w.Close(); }
+        if (edr9.Contains("zakladki"))
+        {
+            for (int i = 1; i <= 9; i++) { ew.PokazZakladkePociagu(i); okno(ew, $".edr9_zakladka_{i}.png"); }
+            ew.PokazZakladkePociagu(0);
+        }
+        if (edr9.Contains("prawo")) { ew.UstawUklad("prawo"); okno(ew, ".edr9_uklad_prawo.png"); ew.UstawUklad("dol"); }
+        if (edr9.Contains("historia")) { var w = new OknoHistorii(ew, null) { Owner = ew }; okno(w, ".edr9_historia.png"); w.Close(); }
+        if (edr9.Contains("pdf"))
+        {
+            var wy = ew.WyciagOkno("ruchu"); wy.Show(); wy.Ustaw(0, true);
+            Log("#edr9 pdf: " + wy.ZapiszPdfDo(ShotPath + ".edr9_wyciag.pdf") + " " + wy.ZapiszCsvDo(ShotPath + ".edr9_wyciag.csv"));
+            wy.Close();
+        }
+    }
 
     /// <summary>Tryb zrzutu: „#edrtel=i|treść|odebrał|lewy” – telefonogram nadany z dziennika i (ostatnie – zamknięcie toru lewego); i = -1 – inne okoliczności posterunku.</summary>
     void EdrTelShot(string arg)

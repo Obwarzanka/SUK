@@ -1,0 +1,7235 @@
+{
+  "Source": "SAZ.zip TD2_CONFIG + lista pojazdów użytkownika, 2026-10-25",
+  "OwnerNames": {
+    "IC": "PKP Intercity S.A.",
+    "PR": "POLREGIO S.A.",
+    "SKPL": "SKPL Cargo Sp. z o.o.",
+    "CD": "České dráhy",
+    "TUR": "Turystyczny",
+    "PKPC": "PKP Cargo S.A.",
+    "KM": "Koleje Mazowieckie Sp. z o.o.",
+    "KD": "Koleje Dolnośląskie S.A.",
+    "SKMT": "PKP Szybka Kolej Miejska w Trójmieście Sp. z o.o.",
+    "KSK": "KSK Wrocław",
+    "CTL": "CTL Logistics Sp. z o.o.",
+    "DLA": "Dolnośląskie Linie Autobusowe Sp. z o.o.",
+    "POLTRANS": "Pol-Trans sp. z o.o.",
+    "ALZA": "Alza Cargo",
+    "ECCO": "Ecco Rail Sp. z o.o.",
+    "TRACKTEC": "TrackTec Logistics Sp. z o.o.",
+    "ITL": "ITL Polska Sp. z o.o.",
+    "ZIK": "Zakład Inżynierii Kolejowej w Sandomierzu Sp. z o.o.",
+    "INDUSTRIAL": "Industrial Division Sp. z o.o.",
+    "ORION": "Orion Kolej Sp. z o.o.",
+    "MAJKOL": "Majkoltrans Sp. z o.o.",
+    "PKPE": "PKP Energetyka Sp. z o.o.",
+    "PPMT": "Pomorskie Przedsiębiorstwo Mechaniczno-Torowe Sp. z o.o.",
+    "KŚ": "Koleje Śląskie Sp. z o.o.",
+    "ŁKA": "Łódzka Kolej Aglomeracyjna sp. z o.o.",
+    "KMŁ": "Koleje Małopolskie sp. z o.o.",
+    "DB": "DB",
+    "RJ": "RegioJet",
+    "LOTOS": "LOTOS Kolej Sp. z o.o.",
+    "R4C": "Rail4Chem mbH, Essen"
+  },
+  "OwnerClasses": {
+    "IC": "passenger",
+    "PR": "passenger",
+    "KM": "passenger",
+    "KD": "passenger",
+    "SKMT": "passenger",
+    "SKPL": "passenger",
+    "PKPC": "cargo",
+    "KSK": "tourist",
+    "CTL": "private_cargo",
+    "DLA": "private_cargo",
+    "POLTRANS": "private_cargo",
+    "ALZA": "private_cargo",
+    "ECCO": "private_cargo",
+    "TRACKTEC": "private_cargo",
+    "ITL": "private_cargo",
+    "ZIK": "private_cargo",
+    "INDUSTRIAL": "private_cargo",
+    "ORION": "private_cargo",
+    "MAJKOL": "private_cargo",
+    "PKPE": "private_cargo",
+    "PPMT": "private_cargo",
+    "LOTOS": "private_cargo",
+    "R4C": "private_cargo"
+  },
+  "Operators": {
+    "2EN57-038+1715": [
+      "KM"
+    ],
+    "EN57-1715": [
+      "KM"
+    ],
+    "EN57-038": [
+      "KM"
+    ],
+    "2EN57-1542+1747": [
+      "PR"
+    ],
+    "2EN57-694+716": [
+      "PR"
+    ],
+    "EN57-001": [
+      "PR"
+    ],
+    "EN57-1072": [
+      "PR"
+    ],
+    "EN57-1101": [
+      "PR"
+    ],
+    "EN57-1337": [
+      "PR"
+    ],
+    "EN57-1466": [
+      "PR"
+    ],
+    "EN57-1542": [
+      "PR"
+    ],
+    "EN57-1747": [
+      "PR"
+    ],
+    "EN57-1777": [
+      "PR"
+    ],
+    "EN57-1786": [
+      "PR"
+    ],
+    "EN57-694": [
+      "PR"
+    ],
+    "EN57-716": [
+      "PR"
+    ],
+    "EN57-765": [
+      "PR"
+    ],
+    "EN57-961": [
+      "PR"
+    ],
+    "EN57-986": [
+      "PR"
+    ],
+    "EN57-952": [
+      "PR"
+    ],
+    "EN71-005": [
+      "PR"
+    ],
+    "EN71-006": [
+      "PR"
+    ],
+    "EN71-009": [
+      "PR"
+    ],
+    "EN71-010": [
+      "PR"
+    ],
+    "EN71-014": [
+      "PR"
+    ],
+    "EN71-015": [
+      "PR"
+    ],
+    "EN71-016": [
+      "PR"
+    ],
+    "EN71-028": [
+      "PR"
+    ],
+    "EN57-1914": [
+      "PR"
+    ],
+    "EN57-1953": [
+      "PR"
+    ],
+    "EN57-1149": [
+      "SKMT"
+    ],
+    "EN57-880": [
+      "SKMT"
+    ],
+    "EN57-838": [
+      "SKMT"
+    ],
+    "EN71-044": [
+      "SKMT"
+    ],
+    "EN71-046": [
+      "SKMT"
+    ],
+    "EN71-049": [
+      "SKMT"
+    ],
+    "EP08-006": [
+      "IC"
+    ],
+    "EP08-006v2": [
+      "IC"
+    ],
+    "EU07-334": [
+      "IC"
+    ],
+    "EP07-1031": [
+      "IC"
+    ],
+    "EP07-1056": [
+      "IC"
+    ],
+    "EP07-384": [
+      "IC"
+    ],
+    "EU07-324": [
+      "IC"
+    ],
+    "EP07-1008": [
+      "PR"
+    ],
+    "EP07-1009": [
+      "IC"
+    ],
+    "EP07-1025": [
+      "IC"
+    ],
+    "EP07-1038": [
+      "IC"
+    ],
+    "EP07-1039": [
+      "IC"
+    ],
+    "EP07-1043": [
+      "IC"
+    ],
+    "EP07-1054": [
+      "IC"
+    ],
+    "EP07-1055": [
+      "PR"
+    ],
+    "EP07-424": [
+      "IC"
+    ],
+    "EP07-355": [
+      "IC"
+    ],
+    "EP07-356": [
+      "IC"
+    ],
+    "EP07-391": [
+      "IC"
+    ],
+    "EP07-408": [
+      "IC"
+    ],
+    "EP07-444": [
+      "IC"
+    ],
+    "EP07-480": [
+      "IC"
+    ],
+    "EP07-544": [
+      "IC"
+    ],
+    "EU07-368": [
+      "IC"
+    ],
+    "EU07-150": [
+      "IC"
+    ],
+    "EP07-1002": [
+      "IC"
+    ],
+    "EP07-1048": [
+      "IC"
+    ],
+    "EU07-234": [
+      "IC"
+    ],
+    "EU07-409": [
+      "IC",
+      "PKP"
+    ],
+    "SM42-329": [
+      "PR"
+    ],
+    "SM42-329_PLREG": [
+      "PR"
+    ],
+    "SM42-506": [
+      "IC"
+    ],
+    "SN81-001": [
+      "PR"
+    ],
+    "110a_PKPIC_Bcdu_01": [
+      "IC"
+    ],
+    "110a_PKPIC_Bcdu_02": [
+      "IC"
+    ],
+    "111a_PKP_Bdnu_01": [
+      "IC"
+    ],
+    "111a_PKP_Bdnu_02": [
+      "IC"
+    ],
+    "111a_PKP_Bnouz_01": [
+      "IC"
+    ],
+    "111a_PKP_Brdu_01": [
+      "IC"
+    ],
+    "111a_PKPIC_B10ou_0": [
+      "IC"
+    ],
+    "111a_PKPIC_B9nopuvz_01": [
+      "IC"
+    ],
+    "111a_PKPIC_B9nopuvz_02": [
+      "IC"
+    ],
+    "111a_PKPIC_B9ouv_01": [
+      "IC"
+    ],
+    "111a_PKPIC_Bnouz_01": [
+      "IC"
+    ],
+    "111a_PKPIC_B10ou_01": [
+      "IC"
+    ],
+    "111a_PRREG_A9ou_01": [
+      "PR"
+    ],
+    "111a_PRREG_A9ou_02": [
+      "PR"
+    ],
+    "111a_PRREG_A9ouy_01": [
+      "PR"
+    ],
+    "111a_PRREG_B10_01": [
+      "PR"
+    ],
+    "111a_PRREG_Bbnopuvz_01": [
+      "PR"
+    ],
+    "111a_PRREG_Bbnopuvz_02": [
+      "PR"
+    ],
+    "112a_PKP_A9nou_01": [
+      "IC"
+    ],
+    "112a_PKP_A9ou_02": [
+      "IC"
+    ],
+    "112a_PKP_Adnu_01": [
+      "IC"
+    ],
+    "112a_PKP_Adu_01": [
+      "IC"
+    ],
+    "112a_PKPIC_A9ou_01": [
+      "IC"
+    ],
+    "112a_PKPIC_A9ou_02": [
+      "IC"
+    ],
+    "112a_PRREG_A9ou_01": [
+      "PR"
+    ],
+    "112a_PRREG_A9ou_02": [
+      "PR"
+    ],
+    "113a_PKP_WRbd_01": [
+      "IC"
+    ],
+    "113a_PKPIC_WRbd_01": [
+      "IC"
+    ],
+    "113a_PLPREG_Wro_01": [
+      "PR"
+    ],
+    "120a_PRREG_B11p_01": [
+      "PR"
+    ],
+    "120a_PRREG_B11p_02": [
+      "PR"
+    ],
+    "120a_PRREG_B11pv_01": [
+      "PR"
+    ],
+    "120a_PRREG_B51p_01": [
+      "PR"
+    ],
+    "120a_PRREG_B51p_02": [
+      "PR"
+    ],
+    "120a_PRREG_B51p_03": [
+      "PR"
+    ],
+    "120a_PRREG_B51p_04": [
+      "PR"
+    ],
+    "120a_PRREG_B9pv_01": [
+      "PR"
+    ],
+    "154a_PKP_B10mnouz_01": [
+      "IC"
+    ],
+    "154a_PKPIC_B10mnouz_01": [
+      "IC"
+    ],
+    "154a_PKPIC_B10mnouz_02": [
+      "IC"
+    ],
+    "158a_PKPIC_A9mnopuz_01": [
+      "IC"
+    ],
+    "159a_PKPIC_B9mnopuz_01": [
+      "IC"
+    ],
+    "612a_PKPIC_BD4osuv_01": [
+      "IC"
+    ],
+    "Bau84_CD_B10nou_01": [
+      "IC",
+      "KŚ"
+    ],
+    "Bau84_CD_B249_01": [
+      "IC",
+      "KŚ"
+    ],
+    "Bau84_PKP_B10nou_02": [
+      "IC",
+      "KŚ"
+    ],
+    "Bau84_PKPIC_B10nou_01": [
+      "IC"
+    ],
+    "Bau84_PKPIC_B10nou_02": [
+      "IC"
+    ],
+    "Gor77_PKP_Bhp_01": [
+      "PR"
+    ],
+    "Gor77_PKP_Bhp_02": [
+      "PR"
+    ],
+    "Gor77_PKP_Bhp_03": [
+      "PR"
+    ],
+    "Gor89_CD_Bmto_01": [
+      "IC"
+    ],
+    "Gor89_CD_Bmto_02": [
+      "IC"
+    ],
+    "Gor89_PKP_B16mnopux_01": [
+      "IC",
+      "PR"
+    ],
+    "Gor89_PKP_B16mnopux_02": [
+      "IC",
+      "PR"
+    ],
+    "Gor89_PKP_B16mnopux_03": [
+      "IC",
+      "PR"
+    ],
+    "Gor89_PKP_B16mnopux_04": [
+      "IC",
+      "PR"
+    ],
+    "Gor89_PKP_B16mnopux_05": [
+      "PR"
+    ],
+    "Gor89_PKP_B16mnopux_06": [
+      "PR"
+    ],
+    "111a_PKP_Bwxz_01": [
+      "PKP"
+    ],
+    "110a_PKP_Bcwxz_01": [
+      "PKP"
+    ],
+    "101a_PKP_Bhixt_01": [
+      "PKP"
+    ],
+    "102a_PKP_Bh_01": [
+      "PKP"
+    ],
+    "112a_A9ou_511-6": [
+      "PKP"
+    ],
+    "112a_A9ouy_172-5": [
+      "PKP"
+    ],
+    "112a_A9ouy_501-7": [
+      "PKP"
+    ],
+    "112a_PKP_Awxz_01": [
+      "PKP"
+    ],
+    "113a_PKP_BJwxz_01": [
+      "PKP"
+    ],
+    "120a_PKP_Bwix_01": [
+      "PKP"
+    ],
+    "504a_PKP_Sk_01": [
+      "PKP"
+    ],
+    "Bau84_PKP_As_01": [
+      "PKP"
+    ],
+    "EU07-305": [
+      "IC"
+    ],
+    "EU07-380": [
+      "IC"
+    ],
+    "EU07-498": [
+      "IC"
+    ],
+    "EP07-338": [
+      "IC"
+    ],
+    "EP07-374": [
+      "IC"
+    ],
+    "EP07-376": [
+      "IC"
+    ],
+    "EP07-381": [
+      "IC"
+    ],
+    "EP07-383": [
+      "IC"
+    ]
+  },
+  "WagonRules": {
+    "101a_PKP_Bhixt_01": {
+      "PR": [
+        "R",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "102a_PKP_Bh_01": {
+      "PR": [
+        "R",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "102a_SKPL_B8pv_01": {
+      "SKPL": [
+        "Os",
+        "OsP"
+      ]
+    },
+    "102a_SKPL_B8pv_02": {
+      "SKPL": [
+        "Os",
+        "OsP"
+      ]
+    },
+    "110a_PKPIC_Bcdu_01": {
+      "IC": [
+        "IC",
+        "TLK"
+      ]
+    },
+    "110a_PKPIC_Bcdu_02": {
+      "IC": [
+        "IC",
+        "TLK"
+      ]
+    },
+    "110a_PKP_Bcwxz_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_Grafitti_1": {
+      "PR": [
+        "R",
+        "RP"
+      ],
+      "IC": [],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKPIC_B10ou_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ]
+    },
+    "111a_PKPIC_B9nopuvz_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ]
+    },
+    "111a_PKPIC_B9nopuvz_02": {
+      "IC": [
+        "TLK",
+        "IC"
+      ]
+    },
+    "111a_PKPIC_Bnouz_01": {
+      "IC": [
+        "TLK"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKP_Bdnu_01": {
+      "IC": [
+        "TLK"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKP_Bdnu_02": {
+      "IC": [
+        "TLK"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKP_Bnouz_01": {
+      "IC": [
+        "TLK"
+      ],
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKP_Brdu_01": {
+      "IC": [
+        "TLK"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PKP_Bwxz_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "111a_PRREG_A9ou_01": {
+      "PR": [
+        "iR"
+      ]
+    },
+    "111a_PRREG_A9ou_02": {
+      "PR": [
+        "iR"
+      ]
+    },
+    "111a_PRREG_A9ouy_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "111a_PRREG_B10_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "111a_PRREG_Bbnopuvz_01": {
+      "PR": [
+        "R",
+        "RP"
+      ]
+    },
+    "111a_PRREG_Bbnopuvz_02": {
+      "PR": [
+        "R",
+        "RP"
+      ]
+    },
+    "112a_A9ou_511-6": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_A9ouy_172-5": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_A9ouy_501-7": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PKPIC_A9ou_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ]
+    },
+    "112a_PKPIC_A9ou_02": {
+      "IC": [
+        "TLK"
+      ]
+    },
+    "112a_PKP_A9nou_01": {
+      "IC": [
+        "TLK",
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PKP_A9ou_02": {
+      "IC": [
+        "TLK",
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PKP_Adnu_01": {
+      "IC": [
+        "TLK",
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PKP_Adu_01": {
+      "IC": [
+        "TLK",
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PKP_Awxz_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "112a_PRREG_A9ou_01": {
+      "PR": [
+        "iR",
+        "RP"
+      ]
+    },
+    "112a_PRREG_A9ou_02": {
+      "PR": [
+        "iR",
+        "RP"
+      ]
+    },
+    "113a_PKPIC_WRbd_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ]
+    },
+    "113a_PKP_BJwxz_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "113a_PKP_WRbd_01": {
+      "IC": [
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "RP",
+        "iR"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "113a_PLPREG_Wro_01": {
+      "PR": [
+        "R",
+        "RP",
+        "iR"
+      ]
+    },
+    "120a_PKP_Bwix_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "120a_PRREG_B11p_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B11p_02": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B11pv_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B51p_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B51p_02": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B51p_03": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B51p_04": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "120a_PRREG_B9pv_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ]
+    },
+    "154a_PKPIC_B10mnouz_01": {
+      "IC": [
+        "IC",
+        "EIC",
+        "TLK"
+      ]
+    },
+    "154a_PKPIC_B10mnouz_02": {
+      "IC": [
+        "EIC",
+        "IC",
+        "TLK"
+      ]
+    },
+    "154a_PKP_B10mnouz_01": {
+      "IC": [
+        "IC",
+        "EIC"
+      ]
+    },
+    "158a_PKPIC_A9mnopuz_01": {
+      "IC": [
+        "EIC",
+        "IC"
+      ]
+    },
+    "159a_PKPIC_B9mnopuz_01": {
+      "IC": [
+        "EIC",
+        "IC"
+      ]
+    },
+    "209c_PKP_DS_01": {
+      "IC": [
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "504a_PKP_Sk_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "609a_PKPIC_BD4osuv_01": {
+      "IC": [
+        "IC",
+        "TLK",
+        "EIC"
+      ]
+    },
+    "609a_PKP_BDrdsu_01": {
+      "IC": [
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Bau84_CD_B10nou_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ],
+      "CD": [
+        "P"
+      ]
+    },
+    "Bau84_CD_B249_01": {
+      "IC": [
+        "TLK",
+        "IC"
+      ],
+      "CD": [
+        "P"
+      ]
+    },
+    "Bau84_PKPIC_B10nou_01": {
+      "IC": [
+        "TLK"
+      ]
+    },
+    "Bau84_PKPIC_B10nou_02": {
+      "IC": [
+        "TLK"
+      ]
+    },
+    "Bau84_PKP_As_01": {
+      "IC": [
+        "ICN"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Bau84_PKP_B10nou_01": {
+      "IC": [
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Bau84_PKP_B10nou_02": {
+      "IC": [
+        "ICN"
+      ],
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Gor77_PKP_Bhp_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Gor77_PKP_Bhp_02": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Gor77_PKP_Bhp_03": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "TUR": [
+        "Turystyczny"
+      ]
+    },
+    "Gor89_CD_Bmto_01": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "CD": [
+        "Os"
+      ]
+    },
+    "Gor89_CD_Bmto_02": {
+      "PR": [
+        "R",
+        "iR",
+        "RP"
+      ],
+      "CD": [
+        "Os"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_01": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_02": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_03": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_04": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_05": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    },
+    "Gor89_PKP_B16mnopux_06": {
+      "PR": [
+        "iR",
+        "R",
+        "RP"
+      ]
+    }
+  },
+  "Traction": {
+    "201E-955": {
+      "Owner": "CTL",
+      "Kind": "loco"
+    },
+    "4E-069": {
+      "Owner": "DLA",
+      "Kind": "loco"
+    },
+    "EP07-1002": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1008": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "EP07-1009": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1025": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1031": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1038": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1039": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1043": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1048": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1054": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-1055": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "EP07-1056": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-135": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-174": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-242": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-334": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "EP07-335": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-338": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-356": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-370": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-374": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-376": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-381": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-383": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-384": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-385": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-389": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-391": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-394v2": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-395": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-408": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-408v2": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-424": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-444": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-480": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-500": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP07-554": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EP08-338v2": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "ET22-468": {
+      "Owner": "CTL",
+      "Kind": "loco"
+    },
+    "ET22-5151": {
+      "Owner": "POLTRANS",
+      "Kind": "loco"
+    },
+    "ET22-5281": {
+      "Owner": "ALZA",
+      "Kind": "loco"
+    },
+    "ET22-5331": {
+      "Owner": "POLTRANS",
+      "Kind": "loco"
+    },
+    "EU07-001": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-015": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-019": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-032": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-036": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-072": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-077": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-088": {
+      "Owner": "ECCO",
+      "Kind": "loco"
+    },
+    "EU07-123E": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-141": {
+      "Owner": "ECCO",
+      "Kind": "loco"
+    },
+    "EU07-145": {
+      "Owner": "TRACKTEC",
+      "Kind": "loco"
+    },
+    "EU07-147": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-148": {
+      "Owner": "ITL",
+      "Kind": "loco"
+    },
+    "EU07-150": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-1518": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-167": {
+      "Owner": "ECCO",
+      "Kind": "loco"
+    },
+    "EU07-171": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-172": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-182": {
+      "Owner": "DLA",
+      "Kind": "loco"
+    },
+    "EU07-195": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-222": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "EU07-228": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-234": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-237E": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-240": {
+      "Owner": "ZIK",
+      "Kind": "loco"
+    },
+    "EU07-242": {
+      "Owner": "INDUSTRIAL",
+      "Kind": "loco"
+    },
+    "EU07-305": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-307": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-308": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-324": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-334": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-368": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-380": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-409": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-418": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-421": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-475": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-475v2": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-476": {
+      "Owner": "ORION",
+      "Kind": "loco"
+    },
+    "EU07-498": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07-512": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-515": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-536": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "EU07-545": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "EU07E-082": {
+      "Owner": "MAJKOL",
+      "Kind": "loco"
+    },
+    "EU07E-083": {
+      "Owner": "MAJKOL",
+      "Kind": "loco"
+    },
+    "SM42-2612": {
+      "Owner": "DLA",
+      "Kind": "loco"
+    },
+    "SM42-329": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SM42-329_PLREG": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SM42-368": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "SM42-506": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "SM42-2648": {
+      "Owner": "PPMT",
+      "Kind": "loco"
+    },
+    "SM42-820": {
+      "Owner": "PKPE",
+      "Kind": "loco"
+    },
+    "SU45-018": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-023": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "SU45-034": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-056": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-061": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-064": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-066": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-073": {
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    "SU45-079": {
+      "Owner": "KSK",
+      "Kind": "loco"
+    },
+    "SU45-089": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SU45-115": {
+      "Owner": "SKPL",
+      "Kind": "loco"
+    },
+    "SU45-137": {
+      "Owner": "PR",
+      "Kind": "loco"
+    },
+    "SN81-001": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "2EN57-038+1715": {
+      "Owner": "KM",
+      "Kind": "unit"
+    },
+    "2EN57-1542+1747": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "2EN57-694+716": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-001": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-038": {
+      "Owner": "KM",
+      "Kind": "unit"
+    },
+    "EN57-1072": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1101": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1149": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "EN57-1337": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1466": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1542": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1715": {
+      "Owner": "KM",
+      "Kind": "unit"
+    },
+    "EN57-1747": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1777": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1786": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1914": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-1953": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-694": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-716": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-765": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-838": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "EN57-880": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "EN57-952": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN57-961": {
+      "Owner": "KD",
+      "Kind": "unit"
+    },
+    "EN57-986": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-005": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-006": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-009": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-010": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-014": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-016": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-028": {
+      "Owner": "PR",
+      "Kind": "unit"
+    },
+    "EN71-044": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "EN71-046": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "EN71-049": {
+      "Owner": "SKMT",
+      "Kind": "unit"
+    },
+    "CTLR4C-001": {
+      "Owner": "R4C",
+      "Kind": "loco"
+    },
+    "M62-1151": {
+      "Owner": "PPMT",
+      "Kind": "loco"
+    },
+    "M62-1242": {
+      "Owner": "LOTOS",
+      "Kind": "loco"
+    },
+    "M62-1769": {
+      "Owner": "LOTOS",
+      "Kind": "loco"
+    },
+    "M62-2006": {
+      "Owner": "LOTOS",
+      "Kind": "loco"
+    },
+    "ST44-1038": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "ST44-1099": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "ST44-1101": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "ST44-1102": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    "ST44-1103": {
+      "Owner": "PKPC",
+      "Kind": "loco"
+    }
+  },
+  "Prefixes": [
+    {
+      "Prefix": "EP08",
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "EP09",
+      "Owner": "IC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "ET22",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "ET41",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "SM42",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "SU45",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "SP45",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    },
+    {
+      "Prefix": "ST44",
+      "Owner": "PKPC",
+      "Kind": "loco"
+    }
+  ],
+  "Overrides": [
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "911"
+      ],
+      "Name": "Bajkowy"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "DB",
+      "Prefixes": [
+        "80643",
+        "80645",
+        "80647",
+        "80649",
+        "80651",
+        "80653",
+        "80655",
+        "80641",
+        "80659"
+      ],
+      "Name": "Stadttore-Linie"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KD",
+      "Prefixes": [
+        "69"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KD",
+      "OperatorOverwrite": "KD",
+      "Prefixes": [
+        "693"
+      ],
+      "Name": "DKA"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "PR",
+      "Prefixes": [
+        "775"
+      ],
+      "Name": "PKM4"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "4061",
+        "4062",
+        "4063",
+        "4085",
+        "4065",
+        "4066",
+        "4067",
+        "4068"
+      ],
+      "Name": "S1"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "4310",
+        "3410"
+      ],
+      "Name": "S3 Gibki Cug"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "404",
+        "405"
+      ],
+      "Name": "S4"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "4010",
+        "4011"
+      ],
+      "Name": "S41 Sprinter"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "94850",
+        "94752",
+        "94801",
+        "94754",
+        "94703",
+        "94805",
+        "94756",
+        "94707",
+        "94758",
+        "94809",
+        "94860",
+        "94811",
+        "94713",
+        "94672",
+        "94864",
+        "94815",
+        "94866",
+        "94717",
+        "94768",
+        "94917",
+        "94721",
+        "94770",
+        "94872",
+        "94723",
+        "94774",
+        "94725",
+        "94776",
+        "94727",
+        "94878",
+        "94729",
+        "94880",
+        "94782",
+        "94831",
+        "94733",
+        "94884",
+        "94786",
+        "94835",
+        "94737",
+        "94888",
+        "94839"
+      ],
+      "Name": "S5"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "94124",
+        "94111",
+        "94113",
+        "94115"
+      ],
+      "Name": "S5 Sprinter"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "4012",
+        "4013",
+        "4014",
+        "4015"
+      ],
+      "Name": "S9"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "43108",
+        "43109",
+        "34108",
+        "34109"
+      ],
+      "Name": "Sprinter Ornak"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "94140",
+        "94146"
+      ],
+      "Name": "Kubalonka"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "94163",
+        "94122"
+      ],
+      "Name": "Czarna Wisełka"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KŚ",
+      "Prefixes": [
+        "94161",
+        "94120"
+      ],
+      "Name": "Czantoria"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KMŁ",
+      "Prefixes": [
+        "3320",
+        "3321",
+        "3322",
+        "3323",
+        "3324",
+        "3325",
+        "3326",
+        "3330",
+        "3331",
+        "3332",
+        "3333",
+        "3334",
+        "3335",
+        "3336"
+      ],
+      "Name": "SKA1"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KMŁ",
+      "Prefixes": [
+        "39146",
+        "39145"
+      ],
+      "Name": "Luxtorpeda"
+    },
+    {
+      "Operator": "SKMT",
+      "OperatorOverwrite": "SKMT",
+      "Prefixes": [
+        "593",
+        "594",
+        "595",
+        "596",
+        "597",
+        "598",
+        "953",
+        "954",
+        "955",
+        "956",
+        "957",
+        "958"
+      ],
+      "Name": "S1"
+    },
+    {
+      "Operator": "IC",
+      "OperatorOverwrite": "RJ",
+      "Prefixes": [
+        "34012",
+        "34013",
+        "43012",
+        "43013"
+      ],
+      "Name": "Regiojet"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "PR",
+      "Prefixes": [
+        "309",
+        "332",
+        "335",
+        "337",
+        "392",
+        "398"
+      ],
+      "Name": "Podkarpacka Kolej Aglomeracyjna"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "19101",
+        "91112",
+        "91113"
+      ],
+      "Name": "Syrena"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "19108",
+        "19109",
+        "91108",
+        "91109"
+      ],
+      "Name": "Powidoki"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "19110",
+        "91100"
+      ],
+      "Name": "Fabrykant"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "19112",
+        "19113",
+        "91110",
+        "91111"
+      ],
+      "Name": "Pogonowski"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "19116",
+        "19117",
+        "91116",
+        "91117"
+      ],
+      "Name": "Anders"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "91106",
+        "91107",
+        "99116",
+        "99117"
+      ],
+      "Name": "Marszałek"
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "ŁKA",
+      "Prefixes": [
+        "1120",
+        "1121",
+        "1122",
+        "1123",
+        "1124",
+        "1125",
+        "1126",
+        "1128",
+        "1136",
+        "1137",
+        "1138",
+        "1139",
+        "1140",
+        "1141",
+        "1142",
+        "1143",
+        "1144",
+        "1145",
+        "1146",
+        "1147",
+        "1148",
+        "1149",
+        "1150",
+        "1151",
+        "1152",
+        "1153",
+        "1154",
+        "1156",
+        "1157",
+        "1158",
+        "1159",
+        "1167",
+        "1168",
+        "1169",
+        "1170",
+        "1171",
+        "1172",
+        "1173",
+        "1188",
+        "1189",
+        "1220",
+        "1221",
+        "1223",
+        "1224",
+        "1236",
+        "1237",
+        "1920",
+        "1921",
+        "1922",
+        "1926",
+        "1927",
+        "1939",
+        "1953",
+        "1976",
+        "2120",
+        "2121",
+        "2122",
+        "2136",
+        "2137",
+        "2139",
+        "2220",
+        "2221",
+        "2222",
+        "2223",
+        "2225",
+        "2226",
+        "2229",
+        "7105",
+        "9178",
+        "9927",
+        "9928",
+        "9939",
+        "9947",
+        "9948",
+        "9949",
+        "9990",
+        "9991",
+        "9992",
+        "9993",
+        "9994",
+        "9995",
+        "9996",
+        "9997",
+        "9998"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1930",
+        "1931",
+        "1933",
+        "1937",
+        "1938",
+        "1995",
+        "1996",
+        "1997",
+        "1998",
+        "1999",
+        "9130",
+        "9131",
+        "9132",
+        "9137",
+        "9138",
+        "9195",
+        "9196",
+        "9197",
+        "9198",
+        "9199",
+        "9331",
+        "9395"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1067",
+        "1068",
+        "1185",
+        "1186",
+        "1187",
+        "1980",
+        "1982",
+        "1983",
+        "1985",
+        "1986",
+        "1987",
+        "1988",
+        "1989",
+        "9180",
+        "9181",
+        "9182",
+        "9185",
+        "9186",
+        "9187",
+        "9188",
+        "9189"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1066",
+        "1069"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1940",
+        "1941",
+        "1942",
+        "1943",
+        "1944",
+        "1945",
+        "1947",
+        "1948",
+        "1949",
+        "2140",
+        "2145",
+        "2146",
+        "2149",
+        "9140",
+        "9141",
+        "9142",
+        "9144",
+        "9145",
+        "9146",
+        "9147",
+        "9148",
+        "9149",
+        "9154",
+        "9328",
+        "9340",
+        "9341",
+        "9342",
+        "9344",
+        "9345",
+        "9346",
+        "9347",
+        "9349",
+        "9354"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1534",
+        "1535",
+        "1536",
+        "5134",
+        "5135",
+        "5136"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1098",
+        "1099",
+        "1198",
+        "1199",
+        "1970",
+        "1972",
+        "1974",
+        "9170",
+        "9171",
+        "9172",
+        "9174",
+        "9370",
+        "9372",
+        "9374"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1060",
+        "1061",
+        "1062",
+        "1063",
+        "1064",
+        "1065",
+        "107",
+        "1090",
+        "1091",
+        "1092",
+        "1093",
+        "1094",
+        "1095",
+        "1160",
+        "1161",
+        "1162",
+        "1163",
+        "1164",
+        "1165",
+        "1174",
+        "1175",
+        "1176",
+        "1177",
+        "1178",
+        "1179",
+        "119",
+        "196"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1957",
+        "1958",
+        "1959",
+        "9158",
+        "9159"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1923",
+        "1924",
+        "9123",
+        "9124"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1270",
+        "1271",
+        "1272",
+        "1273",
+        "1956",
+        "2171",
+        "2172",
+        "2173",
+        "9156",
+        "9355"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "2940",
+        "2941",
+        "2942",
+        "2943",
+        "2945",
+        "2946",
+        "2947"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1260",
+        "1261",
+        "1262",
+        "1263",
+        "1264",
+        "1990",
+        "1991",
+        "1992",
+        "2161",
+        "2162",
+        "2163",
+        "2164",
+        "9190",
+        "9191",
+        "9192"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "2930",
+        "2931",
+        "2932",
+        "2935",
+        "2936",
+        "2937"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "2950",
+        "2951",
+        "2955",
+        "2956"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1960",
+        "5541",
+        "5542"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1540",
+        "1541",
+        "1542",
+        "1543",
+        "1560",
+        "1561",
+        "5140",
+        "5142",
+        "5143",
+        "5160",
+        "5161",
+        "9160"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "5985",
+        "9585"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1915",
+        "9115"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "19300",
+        "19301",
+        "19992",
+        "19993",
+        "91994",
+        "91995"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "1011",
+        "1012",
+        "1112",
+        "9112",
+        "9316"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "91124",
+        "91125"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "19458",
+        "19459"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "19124",
+        "19125"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "11109",
+        "11142",
+        "99100",
+        "99101"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "11908"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "99102",
+        "99103"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "21726",
+        "21727"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "12124",
+        "12125",
+        "19900",
+        "19901",
+        "21126",
+        "21127",
+        "21650",
+        "21651",
+        "52120",
+        "52121",
+        "91928",
+        "91929"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "51160",
+        "51162",
+        "51164",
+        "93150",
+        "93151"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "15111",
+        "51126",
+        "51130",
+        "51138",
+        "91426",
+        "91427",
+        "93100",
+        "93101",
+        "93600",
+        "93601"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "15140",
+        "15141",
+        "15142",
+        "15143",
+        "15161",
+        "15163"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "51140",
+        "51141",
+        "51142",
+        "51143"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "KM",
+      "OperatorOverwrite": "KM",
+      "Prefixes": [
+        "9311",
+        "9312",
+        "9313",
+        "9314",
+        "9315",
+        "9711",
+        "9712",
+        "9713",
+        "9714",
+        "9715"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "PR",
+      "OperatorOverwrite": "KMŁ",
+      "Prefixes": [
+        "395"
+      ],
+      "Name": "SKA2"
+    }
+  ],
+  "Trains": [
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "111",
+        "117",
+        "1016",
+        "1017"
+      ],
+      "Name": "Żubr"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1000",
+        "1001",
+        "1100",
+        "1101"
+      ],
+      "Name": "Narew"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1002",
+        "1003",
+        "1102",
+        "1103"
+      ],
+      "Name": "Zamenhof"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1012",
+        "1013",
+        "1112",
+        "1113"
+      ],
+      "Name": "Bocian"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1022",
+        "1023",
+        "1122",
+        "1123"
+      ],
+      "Name": "Skaryna"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1026",
+        "1027",
+        "1126",
+        "1127"
+      ],
+      "Name": "Podlasie"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1030",
+        "1031",
+        "1130",
+        "1131"
+      ],
+      "Name": "Radziwiłł"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1032",
+        "1033",
+        "1134",
+        "1135",
+        "1734",
+        "1735"
+      ],
+      "Name": "Starzyński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1036",
+        "1037",
+        "1136",
+        "1137"
+      ],
+      "Name": "Niemcewicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1050",
+        "1051",
+        "1150",
+        "1151"
+      ],
+      "Name": "Kraszewski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1212",
+        "1213",
+        "2112",
+        "2113"
+      ],
+      "Name": "Czechowicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1216",
+        "1217",
+        "2116",
+        "2117"
+      ],
+      "Name": "Inka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1240",
+        "1241",
+        "2140",
+        "2141"
+      ],
+      "Name": "Banach"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1300",
+        "1301",
+        "1304",
+        "1305",
+        "1306",
+        "1307",
+        "1500",
+        "1501",
+        "1502",
+        "1503",
+        "1604",
+        "1605",
+        "1802",
+        "1803",
+        "1850",
+        "1851",
+        "3100",
+        "3101",
+        "3102",
+        "3103",
+        "3104",
+        "3105",
+        "3108",
+        "3109",
+        "3144",
+        "3145",
+        "3502",
+        "3503",
+        "3506",
+        "3507",
+        "3508",
+        "3509",
+        "3510",
+        "3511",
+        "3552",
+        "3553",
+        "3554",
+        "3555",
+        "3800",
+        "3801",
+        "3852",
+        "3853",
+        "4500",
+        "4501",
+        "4502",
+        "4503",
+        "4506",
+        "4507",
+        "4508",
+        "4509",
+        "4852",
+        "4853",
+        "5100",
+        "5101",
+        "5102",
+        "5103",
+        "5300",
+        "5301",
+        "5302",
+        "5303",
+        "5306",
+        "5307",
+        "5308",
+        "5309",
+        "5310",
+        "5311",
+        "5352",
+        "5353",
+        "5354",
+        "5355",
+        "5400",
+        "5401",
+        "5402",
+        "5403",
+        "5404",
+        "5405",
+        "5406",
+        "5407",
+        "6104",
+        "6105",
+        "8102",
+        "8103",
+        "8150",
+        "8151",
+        "8300",
+        "8301",
+        "8352",
+        "8353",
+        "8452",
+        "8453"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1302",
+        "1303",
+        "1308",
+        "1309",
+        "1400",
+        "1401",
+        "3106",
+        "3107",
+        "3504",
+        "3505",
+        "4100",
+        "4101",
+        "4504",
+        "4505"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1312",
+        "1313",
+        "3112",
+        "3113",
+        "30100",
+        "30101",
+        "33100",
+        "33101"
+      ],
+      "Name": "Malinowski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1320",
+        "1321",
+        "3120",
+        "3121"
+      ],
+      "Name": "Karłowicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1322",
+        "1323",
+        "3122",
+        "3123"
+      ],
+      "Name": "Kinga"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1328",
+        "1329",
+        "3128",
+        "3129"
+      ],
+      "Name": "Reymont"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1330",
+        "1331",
+        "3130",
+        "3131"
+      ],
+      "Name": "San"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1336",
+        "1337",
+        "3136",
+        "3137"
+      ],
+      "Name": "Witos"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1338",
+        "1339",
+        "3138",
+        "3139"
+      ],
+      "Name": "Wisłok"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1350",
+        "1351",
+        "3150",
+        "3151"
+      ],
+      "Name": "Tatry"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1356",
+        "1357"
+      ],
+      "Name": "Morskie Oko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1410",
+        "1411",
+        "4110",
+        "4111"
+      ],
+      "Name": "Ondraszek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1420",
+        "1421",
+        "4120",
+        "4121",
+        "9902"
+      ],
+      "Name": "Daszyński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1422",
+        "1423",
+        "4122",
+        "4123"
+      ],
+      "Name": "Korfanty"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1424",
+        "1425",
+        "4124",
+        "4125"
+      ],
+      "Name": "Chemik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1428",
+        "1429",
+        "4128",
+        "4129"
+      ],
+      "Name": "Pilecki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1460",
+        "1461",
+        "4160",
+        "4161"
+      ],
+      "Name": "Beskidy"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1508",
+        "1509",
+        "2540",
+        "2541",
+        "5108",
+        "5109",
+        "5240",
+        "5241"
+      ],
+      "Name": "Spichlerz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1510",
+        "1511",
+        "5110",
+        "5111"
+      ],
+      "Name": "Lazur"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1512",
+        "1513",
+        "5112",
+        "5113"
+      ],
+      "Name": "Słowiniec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1514",
+        "1515",
+        "1544",
+        "1545",
+        "5114",
+        "5115",
+        "5144",
+        "5145"
+      ],
+      "Name": "Żeglarz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1516",
+        "1517",
+        "5116",
+        "5117"
+      ],
+      "Name": "Wybrzeże"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1518",
+        "1519",
+        "5118",
+        "5119"
+      ],
+      "Name": "Katamaran"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1520",
+        "1521",
+        "5320"
+      ],
+      "Name": "Warmia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1522",
+        "1523",
+        "5122",
+        "5123"
+      ],
+      "Name": "Mazury"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1528",
+        "1529",
+        "5128",
+        "5129"
+      ],
+      "Name": "Kociewie"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1530",
+        "1531",
+        "5130",
+        "5131"
+      ],
+      "Name": "Brda"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1538",
+        "1539",
+        "5138",
+        "5139"
+      ],
+      "Name": "Kuter"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1540",
+        "1541",
+        "5140",
+        "5141"
+      ],
+      "Name": "Jantar"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1542",
+        "1543",
+        "5142",
+        "5143"
+      ],
+      "Name": "Delfin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1546",
+        "1547",
+        "5146",
+        "5147"
+      ],
+      "Name": "Meduza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1548",
+        "1549",
+        "5148",
+        "5149"
+      ],
+      "Name": "Sandacz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1552",
+        "1553"
+      ],
+      "Name": "Laguna"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1563"
+      ],
+      "Name": "Sielawa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1599",
+        "5198"
+      ],
+      "Name": "Morena"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1600",
+        "1601"
+      ],
+      "Name": "Panorama"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1602",
+        "1603"
+      ],
+      "Name": "Ślęża"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1610",
+        "1611",
+        "6110",
+        "6111"
+      ],
+      "Name": "Viadrina"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1612",
+        "1613",
+        "6112",
+        "6113"
+      ],
+      "Name": "Lech"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1614",
+        "1615",
+        "5602",
+        "5603",
+        "6114",
+        "6115",
+        "6502",
+        "6503"
+      ],
+      "Name": "Mamry"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1618",
+        "1619",
+        "6118",
+        "6119",
+        "6506",
+        "6507"
+      ],
+      "Name": "Niegocin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1620",
+        "1621",
+        "6120",
+        "6121"
+      ],
+      "Name": "Asnyk"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1622",
+        "1623",
+        "6122",
+        "6123"
+      ],
+      "Name": "Baczyński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1624",
+        "1625",
+        "6124",
+        "6125"
+      ],
+      "Name": "Krasiński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1626",
+        "1627",
+        "6126",
+        "6127"
+      ],
+      "Name": "Leśmian"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1628",
+        "1629",
+        "6128",
+        "6129"
+      ],
+      "Name": "Mickiewicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1630",
+        "1631",
+        "6130",
+        "6131"
+      ],
+      "Name": "Nałkowska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1632",
+        "1633",
+        "6132",
+        "6133"
+      ],
+      "Name": "Dąbrowska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1638",
+        "1639",
+        "5638",
+        "5639",
+        "6138",
+        "6139",
+        "6538",
+        "6539"
+      ],
+      "Name": "Orzeszkowa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1640",
+        "1641",
+        "1650",
+        "1651",
+        "6140",
+        "6141",
+        "6150",
+        "6151",
+        "60151"
+      ],
+      "Name": "Śnieżka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1642",
+        "1643",
+        "6142",
+        "6143"
+      ],
+      "Name": "Fredro"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1644",
+        "1645",
+        "6144",
+        "6145"
+      ],
+      "Name": "Łużyce"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1646",
+        "1647",
+        "6146",
+        "6147"
+      ],
+      "Name": "Konopnicka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1648",
+        "1649",
+        "6148",
+        "6149"
+      ],
+      "Name": "Oleńka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1652",
+        "1653",
+        "6152",
+        "6153"
+      ],
+      "Name": "Porazińska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1700",
+        "1701",
+        "2700",
+        "2701",
+        "7200",
+        "7201",
+        "78101",
+        "87100"
+      ],
+      "Name": "Strzelecki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1704",
+        "1705",
+        "7104",
+        "7105"
+      ],
+      "Name": "Krzywousty"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1706",
+        "1707",
+        "5606",
+        "5607",
+        "7106",
+        "7107",
+        "7506",
+        "7507"
+      ],
+      "Name": "Ukiel"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1710",
+        "1711",
+        "1760",
+        "1761",
+        "7110",
+        "7111",
+        "78103",
+        "87102"
+      ],
+      "Name": "Lubuszanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1712",
+        "1713"
+      ],
+      "Name": "Kliński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1756",
+        "1757"
+      ],
+      "Name": "Portal"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1800",
+        "1801",
+        "8100",
+        "8101"
+      ],
+      "Name": "Chrobry"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1804",
+        "1805",
+        "8104",
+        "8105"
+      ],
+      "Name": "Bolesław Prus"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1806",
+        "1807",
+        "8106",
+        "8107"
+      ],
+      "Name": "Rybak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1808",
+        "1809",
+        "8108",
+        "8109"
+      ],
+      "Name": "Galaktyka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1810",
+        "1811",
+        "8110",
+        "8111"
+      ],
+      "Name": "Gałczyński"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1812",
+        "1813",
+        "8112",
+        "8113"
+      ],
+      "Name": "Podlasiak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1814",
+        "1815",
+        "8114",
+        "8115"
+      ],
+      "Name": "Pobrzeże"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1820",
+        "1821",
+        "8120",
+        "8121"
+      ],
+      "Name": "Włókniarz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1830",
+        "1831",
+        "8130",
+        "8131"
+      ],
+      "Name": "Staszic"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1852",
+        "1853",
+        "8152",
+        "8153"
+      ],
+      "Name": "Latarnik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1854",
+        "1855",
+        "8154",
+        "8155"
+      ],
+      "Name": "Błękitna Fala"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1856",
+        "1857",
+        "8156",
+        "8157"
+      ],
+      "Name": "Parsęta"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1900",
+        "1901",
+        "9100",
+        "9101"
+      ],
+      "Name": "Zosia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1902",
+        "1903",
+        "9102",
+        "9103"
+      ],
+      "Name": "Jagna"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1904",
+        "1905"
+      ],
+      "Name": "Telimena"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1906",
+        "1907",
+        "9106",
+        "9107"
+      ],
+      "Name": "Prząśniczka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1908",
+        "1909",
+        "9108",
+        "9109"
+      ],
+      "Name": "Uszatek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "1910",
+        "1911",
+        "1990",
+        "1991",
+        "9110",
+        "9111"
+      ],
+      "Name": "Tuwim"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2300",
+        "2301",
+        "3200",
+        "3201"
+      ],
+      "Name": "Jagiełło"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2302",
+        "2303",
+        "2402",
+        "2403",
+        "3202",
+        "3203",
+        "4202",
+        "4203"
+      ],
+      "Name": "Jadwiga"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2304",
+        "2305",
+        "3204",
+        "3205",
+        "4204",
+        "4205"
+      ],
+      "Name": "Morcinek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2306",
+        "2307",
+        "2406",
+        "2407",
+        "3206",
+        "3207"
+      ],
+      "Name": "Sztygar"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2520",
+        "2521",
+        "5220",
+        "5221"
+      ],
+      "Name": "Kopernik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2522",
+        "2523",
+        "5222",
+        "5223"
+      ],
+      "Name": "Rejewski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2524",
+        "2525",
+        "5224",
+        "5225",
+        "8224",
+        "8225"
+      ],
+      "Name": "Kujawiak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2526",
+        "2527",
+        "2826",
+        "2827",
+        "5226",
+        "5227"
+      ],
+      "Name": "Kochanowski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2600",
+        "2601",
+        "6200",
+        "6201"
+      ],
+      "Name": "Łempicka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2602",
+        "2603",
+        "6202",
+        "6203"
+      ],
+      "Name": "Bolko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2606",
+        "2607",
+        "6206",
+        "6207"
+      ],
+      "Name": "Stryjeńska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2620",
+        "2621",
+        "6220",
+        "6221"
+      ],
+      "Name": "Łysica"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2704",
+        "2705",
+        "7204",
+        "7205"
+      ],
+      "Name": "Zielonogórzanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2706",
+        "2707",
+        "7206",
+        "7207"
+      ],
+      "Name": "Warta"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2802",
+        "2803",
+        "7700",
+        "7701",
+        "7702",
+        "7703",
+        "8202",
+        "8203"
+      ],
+      "Name": "Górski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "2820",
+        "2821",
+        "8220",
+        "8221"
+      ],
+      "Name": "Koziołek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3061"
+      ],
+      "Name": "Podgórze"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3124",
+        "3125"
+      ],
+      "Name": "Łokietek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3156",
+        "3157"
+      ],
+      "Name": "Morskie Oko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3178",
+        "9904",
+        "9905",
+        "33000",
+        "33012",
+        "33015",
+        "33027"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3360"
+      ],
+      "Name": "Pogórze"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3400",
+        "3401",
+        "4300",
+        "4301"
+      ],
+      "Name": "Żylica"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3402",
+        "3403",
+        "4302",
+        "4303"
+      ],
+      "Name": "Dębowiec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3404",
+        "3405",
+        "4304",
+        "4305"
+      ],
+      "Name": "Baltazar"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3406",
+        "4206",
+        "4207"
+      ],
+      "Name": "Błatnia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3522",
+        "3523",
+        "5321",
+        "5322"
+      ],
+      "Name": "Nida"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3524",
+        "3525",
+        "5324",
+        "5325"
+      ],
+      "Name": "Żeromski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3526",
+        "3527",
+        "5326",
+        "5327"
+      ],
+      "Name": "Sienkiewicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3528",
+        "3529",
+        "5238",
+        "5239"
+      ],
+      "Name": "Kolberg"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3530",
+        "3531",
+        "5330",
+        "5331"
+      ],
+      "Name": "Kormoran"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3532",
+        "3533"
+      ],
+      "Name": "Orłowicz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3534",
+        "3535",
+        "5332",
+        "5333"
+      ],
+      "Name": "Kazimierz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3538",
+        "3539",
+        "5338",
+        "5339",
+        "20101",
+        "22100"
+      ],
+      "Name": "Bystrzyca"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3540",
+        "3541",
+        "5340",
+        "5341"
+      ],
+      "Name": "Neptun"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3550",
+        "3551",
+        "5350",
+        "5351"
+      ],
+      "Name": "Kaszub"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3560",
+        "3561",
+        "5360",
+        "5361"
+      ],
+      "Name": "Witkacy"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3600",
+        "3601",
+        "6300",
+        "6301"
+      ],
+      "Name": "Siemiradzki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3602",
+        "3603",
+        "6302",
+        "6303"
+      ],
+      "Name": "Wyspiański"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3604",
+        "3605",
+        "6304",
+        "6305"
+      ],
+      "Name": "Grottger"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3616",
+        "3617",
+        "3864",
+        "3865",
+        "7316",
+        "7317",
+        "8364",
+        "8365"
+      ],
+      "Name": "Fałat"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3718",
+        "3719",
+        "3818",
+        "3819",
+        "7318",
+        "7319",
+        "8318",
+        "8319"
+      ],
+      "Name": "Mehoffer"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3720",
+        "3721",
+        "7320",
+        "7321",
+        "8370",
+        "8371"
+      ],
+      "Name": "Cegielski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3723",
+        "3725",
+        "7324",
+        "7325"
+      ],
+      "Name": "Wybicki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3802",
+        "3803"
+      ],
+      "Name": "Chełmoński 132 Saxonia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3804",
+        "3805",
+        "8304",
+        "8305"
+      ],
+      "Name": "Malczewski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3806",
+        "3807",
+        "8306",
+        "8307"
+      ],
+      "Name": "Zefir"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3808",
+        "3809"
+      ],
+      "Name": "Wyczółkowski 134 Via Regia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3810",
+        "3811",
+        "8310",
+        "8311"
+      ],
+      "Name": "Kossak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3812",
+        "3813",
+        "8312",
+        "8313"
+      ],
+      "Name": "Szkuner"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3814",
+        "3815",
+        "8314",
+        "8315"
+      ],
+      "Name": "Matejko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3816",
+        "3817",
+        "8316",
+        "8317"
+      ],
+      "Name": "Gwarek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3820",
+        "3821",
+        "8320",
+        "8321"
+      ],
+      "Name": "Barbakan"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3822",
+        "3823",
+        "8322",
+        "8323"
+      ],
+      "Name": "Sukiennice"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3828",
+        "3829",
+        "8328",
+        "8329"
+      ],
+      "Name": "Lubomirski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3830",
+        "3831",
+        "8330",
+        "8331"
+      ],
+      "Name": "Ślązak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3834",
+        "3835",
+        "8034",
+        "8334",
+        "8335",
+        "8835"
+      ],
+      "Name": "Zamoyski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3836",
+        "3837",
+        "8336",
+        "8337"
+      ],
+      "Name": "Noteć"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "3850",
+        "3851",
+        "8350",
+        "8351"
+      ],
+      "Name": "Posejdon"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4510",
+        "4511",
+        "5410",
+        "5411",
+        "60100",
+        "60101",
+        "66100",
+        "66101"
+      ],
+      "Name": "Heweliusz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4512",
+        "4513",
+        "5412",
+        "5413",
+        "5442",
+        "5443"
+      ],
+      "Name": "Artus"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4520",
+        "4521",
+        "5420",
+        "5421"
+      ],
+      "Name": "Hutnik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4522",
+        "4523",
+        "5422",
+        "5423"
+      ],
+      "Name": "Doker"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4524",
+        "4525",
+        "5424",
+        "5425"
+      ],
+      "Name": "Skarbek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4542",
+        "4543"
+      ],
+      "Name": "Artys"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4550",
+        "4551",
+        "5450",
+        "5451"
+      ],
+      "Name": "Wysocki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "4850",
+        "4851",
+        "8450",
+        "8451"
+      ],
+      "Name": "Fregata"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5132",
+        "5133"
+      ],
+      "Name": "Zatoka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5500",
+        "5501",
+        "5502",
+        "5503"
+      ],
+      "Name": "Powiśle"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5600",
+        "5601",
+        "6500",
+        "6501"
+      ],
+      "Name": "Lednica"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5604",
+        "5605",
+        "6504",
+        "6505"
+      ],
+      "Name": "Mieszko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5608",
+        "5609",
+        "6508",
+        "6509"
+      ],
+      "Name": "Pomorzanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5620",
+        "5621",
+        "6520",
+        "6521"
+      ],
+      "Name": "Słowacki"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5700",
+        "5701",
+        "7500",
+        "7501"
+      ],
+      "Name": "Bałtyk"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5702",
+        "5703",
+        "7502",
+        "7503"
+      ],
+      "Name": "Drwęca"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5704",
+        "5705",
+        "7504",
+        "7505"
+      ],
+      "Name": "Bachus"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5708",
+        "5709",
+        "7508",
+        "7509"
+      ],
+      "Name": "Jeziorak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5710",
+        "5711",
+        "7510",
+        "7511"
+      ],
+      "Name": "Pojezierze"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5712",
+        "5713",
+        "7512",
+        "7513"
+      ],
+      "Name": "Stoczniowiec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5714",
+        "5715",
+        "7514",
+        "7515"
+      ],
+      "Name": "Gopło"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "5716",
+        "5717",
+        "7616",
+        "7617"
+      ],
+      "Name": "Ryś"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "6100",
+        "6101"
+      ],
+      "Name": "Panorama"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "6102",
+        "6103"
+      ],
+      "Name": "Ślęża"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "6810",
+        "6811",
+        "6850",
+        "6851",
+        "8610",
+        "8611",
+        "8650",
+        "8651"
+      ],
+      "Name": "Merkury"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "6812",
+        "6813",
+        "8612",
+        "8613"
+      ],
+      "Name": "Bosman"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "8140",
+        "8141"
+      ],
+      "Name": "Kokos"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "8162",
+        "8163"
+      ],
+      "Name": "Obieżyświat"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "8302",
+        "8303"
+      ],
+      "Name": "Chełmoński 133 Saxonia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "8308",
+        "8309"
+      ],
+      "Name": "Wyczółkowski 135 Via Regia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "9112",
+        "9113"
+      ],
+      "Name": "Boryna"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "9900",
+        "9901"
+      ],
+      "Name": "Ostatni Gwizdek!"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10132",
+        "10133"
+      ],
+      "Name": "Mały Powstaniecc"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10140",
+        "10141",
+        "11132",
+        "11133"
+      ],
+      "Name": "Pietryna"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10271",
+        "10290"
+      ],
+      "Name": "Poleski"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10273"
+      ],
+      "Name": "Rodunin"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10292"
+      ],
+      "Name": "Radunin"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10480",
+        "10481",
+        "10493"
+      ],
+      "Name": "Leśna"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10482",
+        "10483",
+        "10488",
+        "10489"
+      ],
+      "Name": "Orlanka"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "10484",
+        "10485",
+        "10490"
+      ],
+      "Name": "Nurzec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "11100",
+        "11101"
+      ],
+      "Name": "Nieśpieszny"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "11124",
+        "11125"
+      ],
+      "Name": "Mały Powstaniec"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "11200"
+      ],
+      "Name": "Podlaski Żubr"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "11200",
+        "11201",
+        "19206",
+        "19207"
+      ],
+      "Name": "Świąteczny pociąg Tyskie"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "11203"
+      ],
+      "Name": "Zachód Słońca"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "11245"
+      ],
+      "Name": "Neccko"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "11420"
+      ],
+      "Name": "Necko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "12010",
+        "12011",
+        "21010",
+        "21011"
+      ],
+      "Name": "Kyiv Express"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13000",
+        "13001",
+        "31000",
+        "31001"
+      ],
+      "Name": "Hańcza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13102",
+        "13103",
+        "31102",
+        "31103"
+      ],
+      "Name": "Marszałek Piłsudski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13140",
+        "13141"
+      ],
+      "Name": "Góral"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13142",
+        "13143"
+      ],
+      "Name": "Industrialny"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13144",
+        "13145"
+      ],
+      "Name": "Roztocze"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "13160",
+        "13161",
+        "31160",
+        "31161"
+      ],
+      "Name": "Szpiglasowy Wierch"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "14000",
+        "14001",
+        "14006",
+        "14007",
+        "14008",
+        "14009",
+        "41000",
+        "41001",
+        "41006",
+        "41007",
+        "41008",
+        "41009"
+      ],
+      "Name": "Silesia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "14002",
+        "14003",
+        "41002",
+        "41003"
+      ],
+      "Name": "Polonia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "14004",
+        "14005",
+        "41004",
+        "41005"
+      ],
+      "Name": "Batory"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "14010",
+        "14011",
+        "41010",
+        "41011"
+      ],
+      "Name": "Chopin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "14012",
+        "14013",
+        "41012",
+        "41013"
+      ],
+      "Name": "Sobieski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "15100",
+        "15101",
+        "51100",
+        "51101"
+      ],
+      "Name": "Orzyc"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "15102",
+        "15103",
+        "51102",
+        "51103"
+      ],
+      "Name": "Omulew"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "15104",
+        "15105",
+        "51104",
+        "51105"
+      ],
+      "Name": "Rytm"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "15110",
+        "15111",
+        "51110",
+        "51111"
+      ],
+      "Name": "Biebrza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "15144",
+        "15145"
+      ],
+      "Name": "Kuracjusz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "16140",
+        "16141"
+      ],
+      "Name": "Krasnal"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "16142",
+        "16143"
+      ],
+      "Name": "Vratislavia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "16170",
+        "16171",
+        "61170",
+        "61171"
+      ],
+      "Name": "Karkonosze"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "17000",
+        "17001",
+        "17002",
+        "17003",
+        "17004",
+        "17005",
+        "17006",
+        "17007",
+        "17008",
+        "17009",
+        "17010",
+        "17011",
+        "17012",
+        "17013",
+        "71000",
+        "71001",
+        "71002",
+        "71003",
+        "71004",
+        "71005",
+        "71006",
+        "71007",
+        "71008",
+        "71009",
+        "71010",
+        "71011",
+        "71012",
+        "71013"
+      ],
+      "Name": "Berlin-Warszawa-Express"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "17140",
+        "17141"
+      ],
+      "Name": "Malta"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "17502",
+        "17503",
+        "71504",
+        "71505"
+      ],
+      "Name": "Prosna"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "17510",
+        "17511",
+        "71502",
+        "71503"
+      ],
+      "Name": "Lutynia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "18000",
+        "18001",
+        "81000",
+        "81001"
+      ],
+      "Name": "Wigry"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "18106",
+        "18107",
+        "58106",
+        "58107",
+        "81106",
+        "81107",
+        "85106",
+        "85107"
+      ],
+      "Name": "Gryf"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "18141"
+      ],
+      "Name": "Książe"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "18144",
+        "18145"
+      ],
+      "Name": "Latarnik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19000",
+        "91001"
+      ],
+      "Name": "Jaćwing"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "19051",
+        "19052"
+      ],
+      "Name": "Kolejowy Galop"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19132",
+        "19133",
+        "91132",
+        "91133"
+      ],
+      "Name": "Korczak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19140",
+        "19141"
+      ],
+      "Name": "Mazur"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19142",
+        "19143"
+      ],
+      "Name": "Zegrzyk"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19144",
+        "19145"
+      ],
+      "Name": "Łodzianin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "19146",
+        "19147"
+      ],
+      "Name": "Świder"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "21308",
+        "21309",
+        "31208",
+        "31209"
+      ],
+      "Name": "Smok Wawelski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "22008",
+        "22011",
+        "22013",
+        "22014",
+        "33002",
+        "33004",
+        "33006",
+        "33021",
+        "33023",
+        "33025"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "22019",
+        "22020"
+      ],
+      "Name": "Wisłok"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "23110",
+        "23111",
+        "32110",
+        "32111"
+      ],
+      "Name": "Kasztelan"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "23112",
+        "23113",
+        "32112",
+        "32113"
+      ],
+      "Name": "Hetman"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "28170",
+        "28171",
+        "82170",
+        "82171"
+      ],
+      "Name": "Uznam"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30110",
+        "30111",
+        "33110",
+        "33111"
+      ],
+      "Name": "Wetlina"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30112",
+        "30113",
+        "33107",
+        "33112",
+        "33113",
+        "33128",
+        "33129"
+      ],
+      "Name": "Bieszczady"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30140",
+        "30145",
+        "33104",
+        "33105",
+        "35104",
+        "35105",
+        "53104",
+        "53105"
+      ],
+      "Name": "Małopolska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30161",
+        "33160"
+      ],
+      "Name": "Połoniny"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30167"
+      ],
+      "Name": "Gierymski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30170",
+        "30171",
+        "33170",
+        "33171",
+        "35170",
+        "35171",
+        "53170",
+        "53171"
+      ],
+      "Name": "Karpaty"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "30173",
+        "33172",
+        "78172",
+        "78173",
+        "87172",
+        "87173"
+      ],
+      "Name": "Przemyślanin"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "30415",
+        "30442"
+      ],
+      "Name": "Niedźwiadek"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "30419",
+        "30446"
+      ],
+      "Name": "Rzeszowianin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "31140",
+        "31141"
+      ],
+      "Name": "Sawa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "31144",
+        "31145"
+      ],
+      "Name": "Metropolita"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "31148",
+        "31149"
+      ],
+      "Name": "Sadownik"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "33106",
+        "33108",
+        "33109",
+        "33161",
+        "33162"
+      ],
+      "Name": "Oscypek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "33114",
+        "33115",
+        "33116",
+        "33117"
+      ],
+      "Name": "Łysogórzanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34002",
+        "34003",
+        "43002",
+        "43003",
+        "46004",
+        "46005",
+        "64004",
+        "64005"
+      ],
+      "Name": "Porta Moravica"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34004",
+        "34005",
+        "43004",
+        "43005"
+      ],
+      "Name": "Comenius"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34006",
+        "34007",
+        "43006",
+        "43007",
+        "47000",
+        "47001",
+        "74000",
+        "74001"
+      ],
+      "Name": "Danubius"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34008",
+        "34009",
+        "43008",
+        "43009"
+      ],
+      "Name": "Cracovia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34010",
+        "34011",
+        "43010",
+        "43011"
+      ],
+      "Name": "Prater"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34012",
+        "34013",
+        "43012",
+        "43013"
+      ],
+      "Name": "Olza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34014",
+        "34015",
+        "43014",
+        "43015"
+      ],
+      "Name": "Carpatia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "34101",
+        "43100",
+        "43101"
+      ],
+      "Name": "Hajer"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "35190",
+        "35191",
+        "50191",
+        "53190",
+        "53191",
+        "55190"
+      ],
+      "Name": "Korsarz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "35202",
+        "35203"
+      ],
+      "Name": "Pociąg Wypełniony Muzyką"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "36100",
+        "36101",
+        "63100",
+        "63101"
+      ],
+      "Name": "Planty"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "36102",
+        "36103",
+        "63102",
+        "63103"
+      ],
+      "Name": "Sudety"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "36106",
+        "36107",
+        "63106",
+        "63107"
+      ],
+      "Name": "Szczeliniec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "36160",
+        "36161",
+        "63160"
+      ],
+      "Name": "Boznańska"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37000",
+        "37001",
+        "73000",
+        "73001"
+      ],
+      "Name": "Galicja"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37002",
+        "37003",
+        "73002",
+        "73003"
+      ],
+      "Name": "Wawel"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37004",
+        "37005",
+        "73004",
+        "73005"
+      ],
+      "Name": "Odra"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37010",
+        "37011",
+        "73010",
+        "73011"
+      ],
+      "Name": "Ursa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37100",
+        "37101",
+        "73100",
+        "73101"
+      ],
+      "Name": "Spodek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37102",
+        "37103",
+        "38102",
+        "38103",
+        "73102",
+        "73103",
+        "83102",
+        "83103"
+      ],
+      "Name": "Pułaski"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37104",
+        "37105",
+        "37154",
+        "37155",
+        "73104",
+        "73105",
+        "73154",
+        "73155"
+      ],
+      "Name": "Kozica"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37150",
+        "37151",
+        "38160",
+        "38161",
+        "73150",
+        "73151",
+        "83160",
+        "83161"
+      ],
+      "Name": "Halny"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "37160",
+        "37161",
+        "73160",
+        "73161"
+      ],
+      "Name": "Krasnolud"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "38106",
+        "38107",
+        "83106",
+        "83107"
+      ],
+      "Name": "Osterwa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "38170",
+        "38171",
+        "83170",
+        "83171"
+      ],
+      "Name": "Ustronie"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "38172",
+        "38173",
+        "83172",
+        "83173"
+      ],
+      "Name": "Podhalanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "38190",
+        "38191",
+        "83190",
+        "83191"
+      ],
+      "Name": "Bursztyn"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "38194",
+        "38195",
+        "83194",
+        "83195"
+      ],
+      "Name": "Wolin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "40001",
+        "44000"
+      ],
+      "Name": "Moravia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "40406",
+        "40407",
+        "40416",
+        "40417"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "43201",
+        "44002",
+        "99138",
+        "99139"
+      ],
+      "Name": ""
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "45070",
+        "45071",
+        "50171",
+        "54070",
+        "54071",
+        "55170"
+      ],
+      "Name": "Wydmy"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "45102",
+        "45103",
+        "54102",
+        "54103"
+      ],
+      "Name": "Flisak"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "46050",
+        "46051"
+      ],
+      "Name": "Malinka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "48190",
+        "48191",
+        "84190",
+        "84191"
+      ],
+      "Name": "Pirat"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "50108",
+        "50109",
+        "55108",
+        "55109",
+        "58108",
+        "58109",
+        "85108",
+        "85109",
+        "85158",
+        "85159"
+      ],
+      "Name": "Stańczyk"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "50150",
+        "50151",
+        "55150",
+        "55151"
+      ],
+      "Name": "Sarbsko"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "50152",
+        "50153",
+        "55123",
+        "55125"
+      ],
+      "Name": "Gardno"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "50161",
+        "55160"
+      ],
+      "Name": "Dominika"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "51144",
+        "51145"
+      ],
+      "Name": "Warszawiak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "55100",
+        "55101"
+      ],
+      "Name": "Hanza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "55102",
+        "55103"
+      ],
+      "Name": "Krzyżak"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "55140",
+        "55141",
+        "55142",
+        "55143"
+      ],
+      "Name": "Kurier"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "56000",
+        "56001",
+        "56002",
+        "56003",
+        "56004",
+        "56005",
+        "56070",
+        "56071",
+        "65000",
+        "65001",
+        "65002",
+        "65003",
+        "65004",
+        "65005",
+        "65070",
+        "65071"
+      ],
+      "Name": "Baltic Express"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "56160",
+        "56161",
+        "65160",
+        "65161"
+      ],
+      "Name": "Czarodziej"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "57000",
+        "57001",
+        "75000",
+        "75001"
+      ],
+      "Name": "Gedania"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "57140",
+        "57141",
+        "75140",
+        "75141"
+      ],
+      "Name": "Węglarz"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "58050",
+        "58051",
+        "85050",
+        "85051"
+      ],
+      "Name": "Rybitwa"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "58100",
+        "58101",
+        "85100",
+        "85101"
+      ],
+      "Name": "Albatros"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "58102",
+        "58103",
+        "85102",
+        "85103"
+      ],
+      "Name": "Żuławy"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "58104",
+        "58105",
+        "85104",
+        "85105"
+      ],
+      "Name": "Bryza"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "58110",
+        "58111",
+        "85110",
+        "85111"
+      ],
+      "Name": "Bory Tucholskie"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "58112",
+        "58113",
+        "85112",
+        "85113"
+      ],
+      "Name": "Krajna"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "58315",
+        "85322"
+      ],
+      "Name": "Barnim"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "60002",
+        "60003"
+      ],
+      "Name": "Saxonia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "60008",
+        "60009"
+      ],
+      "Name": "Via Regia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "61140",
+        "61141"
+      ],
+      "Name": "Varsovia"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "61142",
+        "61143"
+      ],
+      "Name": "Magistrala"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "61154",
+        "61155"
+      ],
+      "Name": "Roztocze"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "64052",
+        "64053",
+        "64054",
+        "64055"
+      ],
+      "Name": "Malinka"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "64510"
+      ],
+      "Name": "Ignacy"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "66105",
+        "66116"
+      ],
+      "Name": "Miedzianka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "66150"
+      ],
+      "Name": "Snieżka"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "67106",
+        "67107",
+        "67232",
+        "67233",
+        "76108",
+        "76109"
+      ],
+      "Name": "Kamieńczyk"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "67140",
+        "67141",
+        "76140",
+        "76141"
+      ],
+      "Name": "Franek"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "68102",
+        "68103",
+        "68152",
+        "68153",
+        "80152",
+        "80153",
+        "86102",
+        "86103",
+        "86152",
+        "86153",
+        "88152",
+        "88153"
+      ],
+      "Name": "Swarożyc"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "68151",
+        "86150"
+      ],
+      "Name": "Promenada"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "70400",
+        "70401",
+        "79610",
+        "79611"
+      ],
+      "Name": "Łącza"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "70402",
+        "70403",
+        "79600",
+        "79601"
+      ],
+      "Name": "Malta"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "70404",
+        "70405",
+        "79602",
+        "79603"
+      ],
+      "Name": "Gęśnik"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "70406",
+        "70407",
+        "79604",
+        "79605"
+      ],
+      "Name": "Rusałka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "71140",
+        "71141"
+      ],
+      "Name": "Nadwiślański Świt"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78090",
+        "78091",
+        "87092",
+        "87093"
+      ],
+      "Name": "Riviera"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78105",
+        "87104"
+      ],
+      "Name": "Bogdanka"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78107",
+        "87106"
+      ],
+      "Name": "Goplana"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78109",
+        "87108"
+      ],
+      "Name": "Wielkopolanin"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78110",
+        "78111"
+      ],
+      "Name": "Korsarz"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78115",
+        "87116"
+      ],
+      "Name": "Cybina"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "78117",
+        "87110"
+      ],
+      "Name": "Posnania"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78130",
+        "78131",
+        "87130",
+        "87131",
+        "87420",
+        "87421"
+      ],
+      "Name": "Merkury"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78400",
+        "78401",
+        "87404",
+        "87405"
+      ],
+      "Name": "Meduza"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78531",
+        "87530"
+      ],
+      "Name": "Ujście Warty"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78535",
+        "87534"
+      ],
+      "Name": "Wilda"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78941",
+        "87944"
+      ],
+      "Name": "Muszelka"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78943",
+        "87930"
+      ],
+      "Name": "Radew"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78945",
+        "87950"
+      ],
+      "Name": "Kotwica"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78947"
+      ],
+      "Name": "Gwda"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "78949",
+        "87940"
+      ],
+      "Name": "Trygław"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "80213"
+      ],
+      "Name": "Sztorm"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "81140",
+        "81141"
+      ],
+      "Name": "Stołeczny"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "81142",
+        "81143"
+      ],
+      "Name": "Syrena"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "81144",
+        "81145"
+      ],
+      "Name": "Porta Varsovia"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "87510",
+        "87511"
+      ],
+      "Name": "Regalice"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "88100",
+        "88101",
+        "89100",
+        "89101"
+      ],
+      "Name": "Portowiec"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "88140",
+        "88141",
+        "88142",
+        "88143"
+      ],
+      "Name": "Paprzykarz"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "90100",
+        "90101",
+        "90112",
+        "90113"
+      ],
+      "Name": "Motława"
+    },
+    {
+      "Operator": "IC",
+      "Numbers": [
+        "99100",
+        "99101"
+      ],
+      "Name": "Historyk"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66535",
+        "66574"
+      ],
+      "Name": "Azuryt"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67751",
+        "76704",
+        "76709"
+      ],
+      "Name": "Barycz"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66547",
+        "76500"
+      ],
+      "Name": "Bornit"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60402",
+        "60405",
+        "60444",
+        "60449"
+      ],
+      "Name": "Borowa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60205",
+        "60222"
+      ],
+      "Name": "Borsuk"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66136",
+        "66533",
+        "66543"
+      ],
+      "Name": "Chalkozyn"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69518",
+        "69555"
+      ],
+      "Name": "Henryk Pobożny"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66853",
+        "66878"
+      ],
+      "Name": "Izery"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66822",
+        "66827"
+      ],
+      "Name": "Jawornik"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60269",
+        "60277"
+      ],
+      "Name": "Kalenica"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "76706",
+        "76708",
+        "76713",
+        "76717"
+      ],
+      "Name": "Karaś"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69900",
+        "69901"
+      ],
+      "Name": "Karolina"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69730",
+        "69731",
+        "69755",
+        "69759"
+      ],
+      "Name": "Karp"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66586"
+      ],
+      "Name": "Katanga"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69120"
+      ],
+      "Name": "KD Sprinter Antracyt"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60123",
+        "66112"
+      ],
+      "Name": "KD Sprinter Błędne Skały"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69146"
+      ],
+      "Name": "KD Sprinter Boleslavia"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67101",
+        "76104"
+      ],
+      "Name": "KD Sprinter Bóbr"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66108",
+        "66109",
+        "66117"
+      ],
+      "Name": "KD Sprinter Bystrzyca"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66156"
+      ],
+      "Name": "KD Sprinter Ceramik"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66103",
+        "66105"
+      ],
+      "Name": "KD Sprinter Charlotta"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69105",
+        "69116"
+      ],
+      "Name": "KD Sprinter Chełmiec"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69124"
+      ],
+      "Name": "KD Sprinter Chybotek"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66130",
+        "66145"
+      ],
+      "Name": "KD Sprinter Cuprum"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66161"
+      ],
+      "Name": "KD Sprinter Czocha"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69118"
+      ],
+      "Name": "KD Sprinter Górnik"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66107",
+        "66110",
+        "66111",
+        "66113"
+      ],
+      "Name": "KD Sprinter Grodno"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60120",
+        "60124",
+        "69157"
+      ],
+      "Name": "KD Sprinter Iglica"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67053",
+        "76110"
+      ],
+      "Name": "KD Sprinter Jan Wyżykowski"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66134",
+        "66143"
+      ],
+      "Name": "KD Sprinter Jerzy Wilhelm"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69148",
+        "69155"
+      ],
+      "Name": "KD Sprinter Kaczawa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67103",
+        "76102"
+      ],
+      "Name": "KD Sprinter Kepler"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        " ",
+        "69107",
+        "69110"
+      ],
+      "Name": "KD Sprinter Książ"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69151",
+        "69169",
+        "69177"
+      ],
+      "Name": "KD Sprinter Łużyce"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66141"
+      ],
+      "Name": "KD Sprinter Malachit"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69159",
+        "69160"
+      ],
+      "Name": "KD Sprinter Nysa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69153",
+        "69162"
+      ],
+      "Name": "KD Sprinter Skora"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60121",
+        "66114"
+      ],
+      "Name": "KD Sprinter Szczeliniec"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69103",
+        "69114"
+      ],
+      "Name": "KD Sprinter Szklarka"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69101",
+        "69122"
+      ],
+      "Name": "KD Sprinter Szrenica"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69112"
+      ],
+      "Name": "KD Sprinter Sztygar"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66132",
+        "67051"
+      ],
+      "Name": "KD Sprinter Tadeusz Zastawnik"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67001",
+        "76002"
+      ],
+      "Name": "KD Sprinter Telemann"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69126"
+      ],
+      "Name": "KD Sprinter Trójgarb"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66116"
+      ],
+      "Name": "KD Sprinter Twierdza"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67003",
+        "76000"
+      ],
+      "Name": "KD Sprinter Witelon"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69412",
+        "69457"
+      ],
+      "Name": "Konrad Głogowski"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69507",
+        "69513"
+      ],
+      "Name": "Kwisa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66576"
+      ],
+      "Name": "Malachit"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "76506"
+      ],
+      "Name": "Odra"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "76710",
+        "76711"
+      ],
+      "Name": "Okoń"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69005",
+        "69007",
+        "69024",
+        "69026"
+      ],
+      "Name": "Pociąg Do Kultury"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66861",
+        "66876"
+      ],
+      "Name": "Radon"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60248",
+        "60250",
+        "69906",
+        "69913"
+      ],
+      "Name": "Radunia"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69285"
+      ],
+      "Name": "Rudawy"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69830",
+        "69831"
+      ],
+      "Name": "Skalniak"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69295"
+      ],
+      "Name": "Sokoliki"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66201",
+        "66820"
+      ],
+      "Name": "Strzegomka"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "67753",
+        "67755",
+        "67759",
+        "76712",
+        "76715"
+      ],
+      "Name": "Sum"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60700",
+        "60701",
+        "67767",
+        "76702",
+        "76705"
+      ],
+      "Name": "Szczupak"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60275",
+        "60279",
+        "60283",
+        "60287",
+        "60293"
+      ],
+      "Name": "Ślęża"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60670"
+      ],
+      "Name": "Śnieżnik"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "66545",
+        "66582"
+      ],
+      "Name": "Tadeusz Glazór"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69751",
+        "69753",
+        "76716",
+        "76718",
+        "76723",
+        "76727"
+      ],
+      "Name": "Widawa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69201",
+        "69213",
+        "69215"
+      ],
+      "Name": "Wielka Sowa"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60217",
+        "60223",
+        "60257",
+        "60263"
+      ],
+      "Name": "Wieżyca"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "60650",
+        "60651",
+        "60652",
+        "69613"
+      ],
+      "Name": "Wilczka"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69205",
+        "69209",
+        "69211"
+      ],
+      "Name": "Wilhelm Rotkiewicz"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69422",
+        "69451"
+      ],
+      "Name": "Zimnica"
+    },
+    {
+      "Operator": "KD",
+      "Numbers": [
+        "69573"
+      ],
+      "Name": "Żak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "12132",
+        "12135",
+        "21120",
+        "21121",
+        "25120",
+        "25121"
+      ],
+      "Name": "Kamienna"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "11154",
+        "11159",
+        "11163"
+      ],
+      "Name": "Łukowiak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19110",
+        "19111",
+        "91110",
+        "91111"
+      ],
+      "Name": "Czyżyk"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19140",
+        "19141",
+        "91140",
+        "91141"
+      ],
+      "Name": "Bzura"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19124",
+        "19129",
+        "91120",
+        "91121"
+      ],
+      "Name": "Mazovia"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "12128",
+        "12137",
+        "21122",
+        "21125"
+      ],
+      "Name": "Radomiak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19160",
+        "19161",
+        "93160",
+        "93161"
+      ],
+      "Name": "Bolimek"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "15129",
+        "51128"
+      ],
+      "Name": "Działdowiak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19100",
+        "19101",
+        "91100",
+        "91101"
+      ],
+      "Name": "Kurpiak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "11156",
+        "11160",
+        "11161"
+      ],
+      "Name": "Łukowianka"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19122",
+        "19125",
+        "91122",
+        "91125"
+      ],
+      "Name": "Mazoviak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19152",
+        "19155",
+        "91150",
+        "91151"
+      ],
+      "Name": "Wiedenka"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "12126",
+        "12133",
+        "21126",
+        "21133"
+      ],
+      "Name": "Radomianka"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "99107",
+        "99108"
+      ],
+      "Name": "Czeremszak"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "15139",
+        "51136"
+      ],
+      "Name": "Ciechan"
+    },
+    {
+      "Operator": "KM",
+      "Numbers": [
+        "19120",
+        "19121",
+        "91124",
+        "91129"
+      ],
+      "Name": "Siemowit"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40105",
+        "40122"
+      ],
+      "Name": "S1 Brynica"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40113",
+        "40128"
+      ],
+      "Name": "S1 Jura"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40101",
+        "40126"
+      ],
+      "Name": "S1 Kłodnica"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40109"
+      ],
+      "Name": "S1 Pogoria"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40107",
+        "40120"
+      ],
+      "Name": "S1 Przemsza"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40103",
+        "40124"
+      ],
+      "Name": "S1 Rawa"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "40111"
+      ],
+      "Name": "S1 Warta"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94131"
+      ],
+      "Name": "S1/S5 Rachowiec"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94165"
+      ],
+      "Name": "S1/S6 Czantoria"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "34054",
+        "34059",
+        "34060",
+        "34061",
+        "43060",
+        "43061",
+        "43062",
+        "43064",
+        "43065",
+        "43069"
+      ],
+      "Name": "S3 Gibki Cug"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94104",
+        "94113"
+      ],
+      "Name": "S5 Góral"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94100",
+        "94119"
+      ],
+      "Name": "S5 Magurka"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94102"
+      ],
+      "Name": "S5 Reksio"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94111"
+      ],
+      "Name": "S5 Skrzyczne"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94106",
+        "94115"
+      ],
+      "Name": "S5 Soła"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94150"
+      ],
+      "Name": "S5/S1 Rachowiec"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "34050",
+        "34051",
+        "43051"
+      ],
+      "Name": "S51 Ornak"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94163",
+        "94962"
+      ],
+      "Name": "S6 Czarna Wisełka"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94124"
+      ],
+      "Name": "S6/S1 Czantoria"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "44130",
+        "44139"
+      ],
+      "Name": "S71 Vladislavia"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94142",
+        "94145",
+        "94148",
+        "94157"
+      ],
+      "Name": "S75 Salmopol"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94140",
+        "94141",
+        "94146",
+        "94153"
+      ],
+      "Name": "S76 Kubalonka"
+    },
+    {
+      "Operator": "KŚ",
+      "Numbers": [
+        "94120",
+        "94121",
+        "94166",
+        "94173"
+      ],
+      "Name": "S77 Stożek"
+    },
+    {
+      "Operator": "PR",
+      "Numbers": [
+        "13126"
+      ],
+      "Name": "Jan Matejko"
+    }
+  ]
+}

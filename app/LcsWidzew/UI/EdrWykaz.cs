@@ -31,14 +31,18 @@ public class WykazPociagow : DockPanel
         WstPrzyjazd = EdrWindow.Pedzel(255, 0, 255), WstOdjazd = EdrWindow.Pedzel(0, 255, 0), WstPrzejazd = EdrWindow.Pedzel(0, 255, 255),
         // „Rodz.” – czas potwierdzony: zielony – człowiek, bordowy – automatycznie (urządzenie), srebrny – dyspozytor
         RodzUrzadzenie = EdrWindow.Pedzel(128, 0, 0), RodzCzlowiek = EdrWindow.Pedzel(0, 128, 0), RodzDyspozytor = EdrWindow.Pedzel(192, 192, 192),
-        Opoznienie = EdrWindow.Pedzel(128, 0, 0), Zaznaczony = EdrWindow.Pedzel(51, 153, 255), Link = EdrWindow.Pedzel(0x1A, 0x4F, 0xC4);
+        Opoznienie = EdrWindow.Pedzel(128, 0, 0), Zaznaczony = EdrWindow.Pedzel(51, 153, 255), Link = EdrWindow.Pedzel(0x1A, 0x4F, 0xC4),
+        // oznaczenia z legendy (E9d): TN, TWR, przesyłka nadzwyczajna, POCIĄG STÓJ, POCIĄG STÓJ z prognozą
+        FlagaTN = EdrWindow.Pedzel(0xD8, 0x8A, 0x9A), FlagaTWR = EdrWindow.Pedzel(0xF0, 0x70, 0x40), FlagaPN = EdrWindow.Pedzel(0xE8, 0xD0, 0x40), FlagaStoj = EdrWindow.Pedzel(0xF0, 0xB0, 0xB0), FlagaStojPr = EdrWindow.Pedzel(0xE8, 0x70, 0x50);
     readonly EdrWindow okno;
     readonly ComboBox posterunek = new() { Width = 380, Margin = new Thickness(0, 0, 12, 4), FontWeight = FontWeights.Bold, FontSize = 14 };
     readonly TextBox filtr = new() { Width = 90, Margin = new Thickness(4, 0, 0, 0), Background = Brushes.White }, czestotliwosc = new() { Width = 34, Text = "3", Background = Brushes.White, Margin = new Thickness(4, 0, 12, 0) },
         zakres = new() { Width = 34, Text = "6", Background = Brushes.White, Margin = new Thickness(4, 0, 12, 0) },
         uwEksp = Uwagi(), uwWlasne = Uwagi(), uwPrzew = Uwagi();
     readonly CheckBox biezace = new() { Content = "Dane\nbieżące", IsChecked = true, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) },
-        daty = new() { Content = "Prezentuj daty", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
+        daty = new() { Content = "Prezentuj daty", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) },
+        // „Pokaż szlaki” (E9e, jak w EDR.exe): przy kierunku – szlak (dziennik ruchu) w nawiasie
+        szlaki = new() { Content = "Pokaż szlaki", IsChecked = false, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0), ToolTip = "Przy „Z kierunku” i „W kierunku” – szlak (dziennik ruchu) w nawiasie" };
     readonly TextBlock czas = new() { Background = Brushes.White, Padding = new Thickness(4, 1, 4, 1), MinWidth = 120 }, infoZ = new() { Foreground = Link }, infoDo = new() { Foreground = Link }, infoP = new() { Foreground = Link },
         infoN = new() { Foreground = Link }, info = new() { Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 0), FontSize = 11, TextWrapping = TextWrapping.Wrap };
     readonly Hyperlink potwLink = new(), pocLink = new();
@@ -66,7 +70,9 @@ public class WykazPociagow : DockPanel
         Background = Tlo;
         // pasek nad wykazem (jak na zrzucie EDR): posterunek, odświeżanie, czas pobrania; numer pociągu, filtry, daty; uwagi; informacje dodatkowe
         gora = new Grid { Margin = new Thickness(4, 3, 4, 3) };
-        gora.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); gora.ColumnDefinitions.Add(new ColumnDefinition());
+        // druga kolumna (informacje dodatkowe) – najmniej 240 px, żeby w wąskim oknie (dzienniki z prawej) tekst nie zawijał się po znaku
+        gora.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); gora.ColumnDefinitions.Add(new ColumnDefinition { MinWidth = 240 });
+        gora.ClipToBounds = true;
         var lewa = new StackPanel();
         static TextBlock E(string t) => new() { Text = t, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
         var r1 = new StackPanel { Orientation = Orientation.Horizontal };
@@ -84,7 +90,7 @@ public class WykazPociagow : DockPanel
         r2.Children.Add(gumka);
         Link2(r2, potwLink, () => { potwFiltr = (potwFiltr + 1) % 3; potwLink.Inlines.Clear(); potwLink.Inlines.Add("Potwierdzenie: " + Potwierdzenia[potwFiltr]); }, "Potwierdzenie: wszystkie", "Klik – filtr wg potwierdzenia czasu przejazdu: wszystkie / potwierdzone / niepotwierdzone");
         Link2(r2, pocLink, () => { pocFiltr = (pocFiltr + 1) % 3; pocLink.Inlines.Clear(); pocLink.Inlines.Add("Pociągi: " + Pociagi[pocFiltr]); }, "Pociągi: wszystkie", "Klik – filtr: wszystkie / kursujące (K) / niekursujące (NK)");
-        r2.Children.Add(daty);
+        r2.Children.Add(daty); r2.Children.Add(szlaki);
         var opis = new Button { Content = "Opis oznaczeń", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(20, 0, 0, 0) };
         opis.Click += (a, e) => new LegendaEdr { Owner = okno }.Show();
         r2.Children.Add(opis);
@@ -118,6 +124,7 @@ public class WykazPociagow : DockPanel
         zakres.TextChanged += (a, e) => { podpis = null; pobrano = null; okno.Odswiez(true); };
         biezace.Click += (a, e) => { pobrano = null; okno.Odswiez(true); };
         daty.Click += (a, e) => Godziny();
+        szlaki.Click += (a, e) => { podpis = null; pobrano = null; okno.Odswiez(true); };
         SetDock(gora, Dock.Top); Children.Add(gora);
 
         grid = new DataGrid
@@ -133,10 +140,10 @@ public class WykazPociagow : DockPanel
         Kolumna("+/-", nameof(EdrPociag.PrzOdch), NagBordo, Krem, "Odchylenie przyjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
         godziny.Add(Kolumna("Przyjazd rzecz.", nameof(EdrPociag.PrzRzeczD), NagOliwka, Krem));
         Kolumna("Rodz.", nameof(EdrPociag.Rodz), NagBordo, Krem, "Kategoria pociągu wg Ir-11; tło – czas przejazdu potwierdzony: zielone – przez człowieka, czerwone – automatycznie, szare – przez dyspozytora", rodz: true, wysrodkuj: true);
-        Kolumna("Nr poc.", nameof(EdrPociag.NrNieparzysty), NagTurkus, NrNieparzysty, "Numer pociągu nieparzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
-        Kolumna("Z kierunku post.", nameof(EdrPociag.ZKierunku), NagTurkus, KolZ, "Z kierunku posterunku; szary pasek z prawej – przyjęcie wpisane do dziennika", wysrodkuj: true, wpisany: nameof(EdrPociag.Przyjety));
-        Kolumna("Nr poc.", nameof(EdrPociag.NrParzysty), NagZielony, NrParzysty, "Numer pociągu parzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku", gruby: true, wysrodkuj: true);
-        Kolumna("W kierunku post.", nameof(EdrPociag.WKierunku), NagZielony, KolW, "W kierunku posterunku; szary pasek z lewej – wyprawienie wpisane do dziennika", wysrodkuj: true, wpisany: nameof(EdrPociag.Wyprawiony), zLewej: true);
+        Kolumna("Nr poc.", nameof(EdrPociag.NrNieparzysty), NagTurkus, NrNieparzysty, "Numer pociągu nieparzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku; żółty – przesyłka nadzwyczajna", gruby: true, wysrodkuj: true, flagi: new[] { (nameof(EdrPociag.PN), FlagaPN) });
+        Kolumna("Z kierunku post.", nameof(EdrPociag.ZKierunku), NagTurkus, KolZ, "Z kierunku posterunku; szary pasek z prawej – przyjęcie wpisane do dziennika; różowy – towary niebezpieczne (TN)", wysrodkuj: true, wpisany: nameof(EdrPociag.Przyjety), flagi: new[] { (nameof(EdrPociag.TN), FlagaTN) });
+        Kolumna("Nr poc.", nameof(EdrPociag.NrParzysty), NagZielony, NrParzysty, "Numer pociągu parzysty; dwuklik – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku; żółty – przesyłka nadzwyczajna", gruby: true, wysrodkuj: true, flagi: new[] { (nameof(EdrPociag.PN), FlagaPN) });
+        Kolumna("W kierunku post.", nameof(EdrPociag.WKierunku), NagZielony, KolW, "W kierunku posterunku; szary pasek z lewej – wyprawienie wpisane do dziennika; pomarańczowy – towary wysokiego ryzyka (TWR)", wysrodkuj: true, wpisany: nameof(EdrPociag.Wyprawiony), zLewej: true, flagi: new[] { (nameof(EdrPociag.TWR), FlagaTWR) });
         Kolumna("Tor", nameof(EdrPociag.TorRzecz), NagTor, KolTor, "Tor, na który pociąg wjechał", wysrodkuj: true);
         Kolumna("Nr L.", nameof(EdrPociag.Linia), NagNrL, KolW, "Numer linii kolejowej", wysrodkuj: true);
         Kolumna("P. zam.", nameof(EdrPociag.PZam), NagPost, BezPostoju, "Postój zamówiony wg rozkładu [min]", postoj: Postoj, wysrodkuj: true);
@@ -145,7 +152,7 @@ public class WykazPociagow : DockPanel
         Kolumna("P T", nameof(EdrPociag.PT), NagPT, KolPT, "Peron (cyfry rzymskie) i tor stacyjny (cyfry arabskie) wg rozkładu", wysrodkuj: true);
         godziny.Add(Kolumna("Odjazd plan.", nameof(EdrPociag.OdjPlanD), NagOliwka, Krem));
         Kolumna("+/-", nameof(EdrPociag.OdjOdch), NagBordo, Krem, "Odchylenie odjazdu od rozkładu [min] – bordowe tło: opóźnienie", opozn: true, wysrodkuj: true);
-        godziny.Add(Kolumna("Odjazd rzecz.", nameof(EdrPociag.OdjRzeczD), NagOliwka, Krem));
+        godziny.Add(Kolumna("Odjazd rzecz.", nameof(EdrPociag.OdjRzeczD), NagOliwka, Krem, "Odjazd rzeczywisty; różowy – POCIĄG STÓJ, czerwony – POCIĄG STÓJ z prognozą", flagi: new[] { (nameof(EdrPociag.Stoj), FlagaStoj), (nameof(EdrPociag.StojPrognoza), FlagaStojPr) }));
         Kolumna("Stacja początkowa", nameof(EdrPociag.StacjaPocz), NagStacja, Krem, wysrodkuj: true);
         Kolumna("Stacja końcowa", nameof(EdrPociag.StacjaKonc), NagStacja, Krem, wysrodkuj: true);
         Kolumna("Przewoźnik", nameof(EdrPociag.Przewoznik), NagStacja, Krem, wysrodkuj: true, szer: 1);
@@ -162,7 +169,19 @@ public class WykazPociagow : DockPanel
         var mp = M("Przyjmij pociąg", "przyj"); var mw = M("Wypraw pociąg", "wypr");
         M("Przyjmij z innego szlaku", "przyjinny"); M("Wypraw na inny szlak", "wyprinny");
         menu.Items.Add(new Separator());
-        M("Pociąg STÓJ", null); M("Zgłoszenie gotowości", null); M("Analiza pociągu", null);
+        // polecenia na pociągu jak w EDR.exe (E9d): dane lokalne pociągu w EDR – niczego nie zmieniają w ruchu
+        MenuItem M2(string t, Action<EdrPociag> a) { var m = new MenuItem { Header = t }; m.Click += (s, e) => { if (Wybrany is EdrPociag p) a(p); }; menu.Items.Add(m); return m; }
+        var mStoj = M2("Poc. STÓJ + Prognoza…", p => new OknoStoj(okno, post, p) { Owner = okno }.ShowDialog());
+        M2("Wprowadzanie godzin…", p => new OknoGodzin(okno, post, p) { Owner = okno }.ShowDialog());
+        M2("Zgłoszenie gotowości…", p => new OknoGotowosci(okno, post, p) { Owner = okno }.ShowDialog());
+        M2("Analiza pociągu…", p => new OknoAnalizy(okno, post, p) { Owner = okno }.ShowDialog());
+        M2("Towary niebezpieczne / TWR…", p => new OknoLadunku(okno, post, p) { Owner = okno }.ShowDialog());
+        M2("Uwagi własne…", p => new OknoTekstu(okno, "Uwagi lokalne - " + p.Nr, "Uwagi własne wyświetlane w opisie pociągu i nad wykazem pociągów:", p.UwagiWlasne, v => okno.Wyslij(new EdrPolecenie { Rodzaj = "uwagi", Pole = "wlasne", Wartosc = v, Klucz = p.Klucz, Post = post })) { Owner = okno }.ShowDialog());
+        M2("Edytuj lokalny opis pociągu…", p => new OknoOpisuLok(okno, post, p) { Owner = okno }.ShowDialog());
+        menu.Items.Add(new Separator());
+        M2("Dodaj dane lokalne…", p => new OknoPociaguLok(okno, post, null) { Owner = okno }.ShowDialog());
+        var mEdLok = M2("Edytuj dane lokalne…", p => { if (okno.Dane?.PociagiLok.FirstOrDefault(x => "lok:" + x.Id == p.Klucz) is EdrPociagLok x) new OknoPociaguLok(okno, post, x) { Owner = okno }.ShowDialog(); });
+        var mUsLok = M2("Usuń dane lokalne…", p => { if (MessageBox.Show(okno, $"Usunąć pociąg lokalny {p.Nr} z wykazu?", "Usuń dane lokalne", MessageBoxButton.YesNo) == MessageBoxResult.Yes) okno.Wyslij(new EdrPolecenie { Rodzaj = "usunlokalny", Post = post, Klucz = p.Klucz[4..] }); });
         // dyspozytor (w symulatorze: administrator / instruktor): potwierdzenie czasu przejazdu
         var sepD = new Separator(); menu.Items.Add(sepD);
         var md = new MenuItem { Header = "Potwierdź czas przejazdu (dyspozytor)" };
@@ -173,6 +192,8 @@ public class WykazPociagow : DockPanel
             var p = Wybrany;
             mp.IsEnabled = p != null && okno.DziennikSzlaku(post, p.ZSzlak) != null;
             mw.IsEnabled = p != null && okno.DziennikSzlaku(post, p.WSzlak) != null;
+            mStoj.Header = p?.Stoj == true ? "Odwołaj pociąg STÓJ / Prognoza…" : "Poc. STÓJ + Prognoza…";
+            mEdLok.IsEnabled = mUsLok.IsEnabled = p?.Lokalny == true;
             sepD.Visibility = md.Visibility = admin ? Visibility.Visible : Visibility.Collapsed;
             md.Header = p?.Potw == "dyspozytor" ? "Cofnij potwierdzenie dyspozytora" : "Potwierdź czas przejazdu (dyspozytor)";
         };
@@ -247,7 +268,7 @@ public class WykazPociagow : DockPanel
     /// Kolumna wykazu: kolorowy nagłówek z białym napisem, tło komórek kolumny; wstęga (przyjazd / odjazd / przejazd wg legendy)
     /// przykrywa tło całego wiersza, zaznaczenie – niebieskie.
     /// </summary>
-    DataGridTextColumn Kolumna(string naglowek, string pole, Brush nag, Brush tlo, string opis = null, bool znak = false, bool gruby = false, bool wysrodkuj = false, bool opozn = false, bool rodz = false, bool nr = false, double szer = 0, Brush postoj = null, string wpisany = null, bool zLewej = false)
+    DataGridTextColumn Kolumna(string naglowek, string pole, Brush nag, Brush tlo, string opis = null, bool znak = false, bool gruby = false, bool wysrodkuj = false, bool opozn = false, bool rodz = false, bool nr = false, double szer = 0, Brush postoj = null, string wpisany = null, bool zLewej = false, (string Pole, Brush Tlo)[] flagi = null)
     {
         var hs = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
         hs.Setters.Add(new Setter(Control.BackgroundProperty, new LinearGradientBrush(Rozjasnij(nag), ((SolidColorBrush)nag).Color, 90)));
@@ -276,6 +297,8 @@ public class WykazPociagow : DockPanel
             cs.Triggers.Add(new DataTrigger { Binding = new Binding(pole) { Converter = new Parzystosc() }, Value = 1, Setters = { new Setter(Control.BackgroundProperty, NrNieparzysty) } });
             cs.Triggers.Add(new DataTrigger { Binding = new Binding(pole) { Converter = new Parzystosc() }, Value = 2, Setters = { new Setter(Control.BackgroundProperty, NrParzysty) } });
         }
+        // oznaczenia z danych lokalnych pociągu wg legendy (E9d): TN, TWR, przesyłka nadzwyczajna, POCIĄG STÓJ (z prognozą)
+        foreach (var (fp, fb) in flagi ?? Array.Empty<(string, Brush)>()) cs.Triggers.Add(new DataTrigger { Binding = new Binding(fp), Value = true, Setters = { new Setter(Control.BackgroundProperty, fb), new Setter(Control.ForegroundProperty, Brushes.Black) } });
         // wstęga = pasek zaznaczenia: tylko zaznaczony pociąg (kliknięty albo aktualny – zaznaczenie przeskakuje samo), kolor wg stanu pociągu
         cs.Triggers.Add(new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true, Setters = { new Setter(Control.BackgroundProperty, Zaznaczony), new Setter(Control.ForegroundProperty, Brushes.White) } });
         foreach (var (w, b) in new[] { ("przyjazd", WstPrzyjazd), ("odjazd", WstOdjazd), ("przejazd", WstPrzejazd) })
@@ -357,7 +380,15 @@ public class WykazPociagow : DockPanel
             .Where(x => f == "" || x.Nr.Contains(f) || x.NrWyj.Contains(f))
             .Where(x => potwFiltr == 0 || x.Potwierdzony == (potwFiltr == 1))
             .Where(x => pocFiltr == 0 || x.Kursuje == (pocFiltr == 1)).ToList();
-        var nowy = string.Join("\n", l.Select(p => string.Join("|", p.Klucz, p.Nr, p.NrWyj, p.ZKierunku, p.WKierunku, p.Tor, p.TorRzecz, p.PrzPlan, p.PrzRzecz, p.OdjPlan, p.OdjRzecz, p.Stan, p.Wstega, p.Potw, p.Kursuje, p.UwagiEksp, p.UwagiPrzew, p.UwagiWlasne, p.Przyjety, p.Wyprawiony)));
+        if (szlaki.IsChecked == true)
+            l = l.Select(x =>
+            {
+                var c = x.Kopia();
+                string S(string kier, string szl) => szl != null && okno.DziennikSzlaku(post, szl) is EdrDziennik dz && kier != "" ? $"{kier} ({dz.Nazwa})" : kier;
+                c.ZKierunku = S(x.ZKierunku, x.ZSzlak); c.WKierunku = S(x.WKierunku, x.WSzlak);
+                return c;
+            }).ToList();
+        var nowy = string.Join("\n", l.Select(p => string.Join("|", p.Klucz, p.Nr, p.NrWyj, p.ZKierunku, p.WKierunku, p.Tor, p.TorRzecz, p.PrzPlan, p.PrzRzecz, p.OdjPlan, p.OdjRzecz, p.Stan, p.Wstega, p.Potw, p.Kursuje, p.UwagiEksp, p.UwagiPrzew, p.UwagiWlasne, p.Przyjety, p.Wyprawiony, p.Stoj, p.Prognoza, p.TN, p.TWR, p.PN, p.Gotowy)));
         info.Text = $"Pociągów: {l.Count}, na stacji: {l.Count(x => x.NaStacji)}, odjechało: {l.Count(x => x.Stan == "odjechał")}. Dwuklik w numer pociągu – wpis w dzienniku, przeciągnięcie na dziennik – wpis w tym dzienniku, PPM – polecenia.";
         if (nowy == podpis) return;
         podpis = nowy;
@@ -387,6 +418,8 @@ public class WykazPociagow : DockPanel
         if (grid.SelectedItem != null) grid.ScrollIntoView(grid.SelectedItem);
     }
     public string Posterunek => post;
+    /// <summary>Pociągi widoczne w wykazie (po filtrach) – eksport do CSV.</summary>
+    public List<EdrPociag> Widoczne => lista;
     public EdrPociag Pociag(string nr) => wszystkie.FirstOrDefault(x => x.Nr == nr || x.NrWyj == nr);
 }
 

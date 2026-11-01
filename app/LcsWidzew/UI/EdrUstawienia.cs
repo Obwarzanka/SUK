@@ -21,7 +21,7 @@ public class UstawieniaDziennika : Window
     {
         var u = (biezace ? d.Biezace : d.Ustawienia).Kopia();
         Title = $"{nazwaPosterunku.ToUpperInvariant()} – Ustawienia {(biezace ? "bieżące" : "zasadnicze")} dziennika ruchu";
-        Width = 940; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Width = 1010; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = EdrWindow.Pedzel(0xE9, 0xE9, 0xE9); FontFamily = new FontFamily("Segoe UI"); FontSize = 12; ShowInTaskbar = false;
         var sp = new StackPanel { Margin = new Thickness(14) };
         TextBlock Et(string t) => new() { Text = t, Foreground = Brushes.DimGray, FontSize = 11, Margin = new Thickness(0, 6, 0, 0) };
@@ -60,7 +60,7 @@ public class UstawieniaDziennika : Window
         sp.Children.Add(opcje);
 
         var tory = new UniformGrid { Columns = Math.Max(1, u.Tory.Count), Margin = new Thickness(0, 12, 0, 0) };
-        var pola = new List<(EdrTorUstawienia T, ComboBox Strona, ComboBox Status, ComboBox Rodzaj, ComboBox Zas, ComboBox Pod)>();
+        var pola = new List<(EdrTorUstawienia T, ComboBox Strona, ComboBox Status, ComboBox Rodzaj, ComboBox Zas, ComboBox Pod, ComboBox Tr)>();
         foreach (var t in u.Tory)
         {
             var g = new StackPanel { Margin = new Thickness(4) };
@@ -75,22 +75,25 @@ public class UstawieniaDziennika : Window
             g.Children.Add(Et("Zasadniczy kierunek ruchu")); var zas = Lista(Kierunki, Indeks(t.Zasadniczy)); g.Children.Add(zas);
             g.Children.Add(Et("Rodzaj urządzenia SRK")); g.Children.Add(new TextBlock { Text = t.Urzadzenie ?? "", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, MaxWidth = 380, HorizontalAlignment = HorizontalAlignment.Left });
             g.Children.Add(Et("Prowadzenie dziennika ruchu jak dla")); var pod = Lista(Edr.Podstawy, Array.IndexOf(Edr.Podstawy, t.Podstawa)); g.Children.Add(pod);
-            pola.Add((t, str, sta, rod, zas, pod));
+            // trakcja elektryczna (E9a): zmieniają ją telefonogramy 31 / 32
+            var trak = new[] { "", "Załączona", "Wyłączona" };
+            g.Children.Add(Et(biezace ? "Bieżący stan trakcji elektrycznej" : "Trakcja elektryczna")); var tr = Lista(new[] { "– (bez sieci / nie podano)", "Załączona", "Wyłączona" }, Array.IndexOf(trak, t.Trakcja ?? "")); g.Children.Add(tr);
+            pola.Add((t, str, sta, rod, zas, pod, tr));
             tory.Children.Add(new GroupBox { Header = $"Tor szlakowy{(t.Strona != "" ? " " + t.Strona : "")}", Content = g, Margin = new Thickness(0, 0, 8, 0) });
         }
         sp.Children.Add(tory);
 
         // posterunki dróżników przejazdowych (podręcznik EDR, Rys. 24) – kolumna 8 dziennika
         var drg = new Grid { Margin = new Thickness(4) };
-        var drPola = new List<(EdrDroznik X, TextBox Km, TextBox Nr, TextBox Naz, TextBox Ozn, ComboBox Wg, ComboBox Dla, CheckBox Wd)>();
-        string[] wgSz = { "Jednotorowych", "Dwu i więcej torowych" }, dla = { "W obu kierunkach", "Z posterunku sąsiedniego", "DO posterunku sąsiedniego" };
+        var drPola = new List<(EdrDroznik X, TextBox Km, TextBox Nr, TextBox Naz, TextBox Ozn, ComboBox Wg, ComboBox Dla, CheckBox Rg, CheckBox Wd)>();
+        string[] wgSz = EdrDroznik.WgSzlakow, dla = EdrDroznik.DlaPociagowL;
         void Dr()
         {
             drg.Children.Clear(); drg.RowDefinitions.Clear(); drg.ColumnDefinitions.Clear(); drPola.Clear();
-            foreach (var w in new[] { 70.0, 60, 120, 90, 150, 170, 60, 60 }) drg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+            foreach (var w in new[] { 70.0, 60, 120, 90, 120, 110, 90, 60, 60 }) drg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
             drg.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             int c = 0;
-            foreach (var h in new[] { "Km na linii", "Numer na linii", "Nazwa", "Oznaczenie w dzienniku ruchu", "Powiadamianie – według szlaku", "Dla pociągów", "W dzienniku ruchu", "" })
+            foreach (var h in new[] { "Km na linii", "Numer na linii", "Nazwa", "Oznaczenie w dzienniku ruchu", "Według szlaku (Jednotorowych – ukośnik, Dwutorowych – godzina)", "Dla pociągów", "Rejestrowanie godziny (np. zamknięcia rogatek)", "W dzienniku ruchu", "" })
             { var t = new TextBlock { Text = h, FontSize = 10.5, Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap }; Grid.SetColumn(t, c++); drg.Children.Add(t); }
             int r = 0;
             foreach (var x in u.Droznicy)
@@ -100,23 +103,24 @@ public class UstawieniaDziennika : Window
                 var km = new TextBox { Text = x.Km }; var nr = new TextBox { Text = x.Numer }; var naz = new TextBox { Text = x.Nazwa }; var ozn = new TextBox { Text = x.Oznaczenie };
                 var wg = new ComboBox { FontSize = 11 }; foreach (var y in wgSz) wg.Items.Add(y); wg.SelectedItem = x.WgSzlaku;
                 var dl = new ComboBox { FontSize = 11 }; foreach (var y in dla) dl.Items.Add(y); dl.SelectedItem = x.DlaPociagow;
+                var rg = new CheckBox { IsChecked = x.RejestrujGodzine, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
                 var wd = new CheckBox { IsChecked = x.WDzienniku, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-                K(0, km); K(1, nr); K(2, naz); K(3, ozn); K(4, wg); K(5, dl); K(6, wd);
-                var us = new Button { Content = "Usuń", FontSize = 11 }; var xx = x; us.Click += (a, e) => { ZbierzDr(); u.Droznicy.Remove(xx); Dr(); }; K(7, us);
-                drPola.Add((x, km, nr, naz, ozn, wg, dl, wd));
+                K(0, km); K(1, nr); K(2, naz); K(3, ozn); K(4, wg); K(5, dl); K(6, rg); K(7, wd);
+                var us = new Button { Content = "Usuń", FontSize = 11 }; var xx = x; us.Click += (a, e) => { ZbierzDr(); u.Droznicy.Remove(xx); Dr(); }; K(8, us);
+                drPola.Add((x, km, nr, naz, ozn, wg, dl, rg, wd));
             }
         }
         void ZbierzDr()
         {
-            foreach (var (x, km, nr, naz, ozn, wg, dl, wd) in drPola)
-            { x.Km = km.Text.Trim(); x.Numer = nr.Text.Trim(); x.Nazwa = naz.Text.Trim(); x.Oznaczenie = ozn.Text.Trim(); x.WgSzlaku = wg.SelectedItem as string ?? wgSz[0]; x.DlaPociagow = dl.SelectedItem as string ?? dla[0]; x.WDzienniku = wd.IsChecked == true; }
+            foreach (var (x, km, nr, naz, ozn, wg, dl, rg, wd) in drPola)
+            { x.Km = km.Text.Trim(); x.Numer = nr.Text.Trim(); x.Nazwa = naz.Text.Trim(); x.Oznaczenie = ozn.Text.Trim(); x.WgSzlaku = wg.SelectedItem as string ?? wgSz[1]; x.DlaPociagow = dl.SelectedItem as string ?? dla[0]; x.RejestrujGodzine = rg.IsChecked == true; x.WDzienniku = wd.IsChecked == true; }
         }
         Dr();
         var drp = new StackPanel(); drp.Children.Add(drg);
         if (!biezace)
         {
             var nowy = new Button { Content = "Utwórz nowy", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(4, 2, 0, 2) };
-            nowy.Click += (a, e) => { ZbierzDr(); u.Droznicy.Add(new EdrDroznik { WgSzlaku = u.Tory.Count > 1 ? "Dwu i więcej torowych" : "Jednotorowych" }); Dr(); };
+            nowy.Click += (a, e) => { ZbierzDr(); u.Droznicy.Add(new EdrDroznik { WgSzlaku = u.Tory.Count > 1 ? "Dwutorowych" : "Jednotorowych" }); Dr(); };
             drp.Children.Add(nowy);
         }
         sp.Children.Add(new GroupBox { Header = "Posterunki dróżników przejazdowych (kolumna 8 dziennika – o jeździe pociągu zawiadomiono dróżników)", Content = drp, Margin = new Thickness(0, 8, 0, 0) });
@@ -133,8 +137,9 @@ public class UstawieniaDziennika : Window
                 u.Parzysty = Kierunek(parz.SelectedIndex);
                 ZbierzDr();
                 u.WymTor = wTor.IsChecked == true; u.WymDw = wDw.IsChecked == true; u.WymOdj = wOdj.IsChecked == true; u.WymPrz = wPrz.IsChecked == true;
-                foreach (var (t, str, sta, rod, zas, pod) in pola)
+                foreach (var (t, str, sta, rod, zas, pod, tr) in pola)
                 {
+                    t.Trakcja = new[] { "", "Załączona", "Wyłączona" }[Math.Max(0, tr.SelectedIndex)];
                     if (str != null) t.Strona = str.SelectedItem as string ?? "";
                     t.Status = sta.SelectedItem as string; t.Rodzaj = rod.SelectedItem as string; t.Zasadniczy = Kierunek(zas.SelectedIndex); t.Podstawa = pod.SelectedItem as string;
                 }

@@ -10,9 +10,12 @@ namespace LcsWidzew.Sim;
 public class EdrPosterunekUst
 {
     public string Kod = "", Nazwa = "";
+    /// <summary>Jednostka organizacyjna (E9e, jak w EDR.exe): zakład IZ i sekcja ISE – w wyciągu „Jednostka: …” i na stopce okna.</summary>
+    public string Zaklad = "", Sekcja = "";
     public List<string> ToryStacyjne = new();
     public List<EdrDziennikUst> Dzienniki = new();
-    public EdrPosterunekUst Kopia() => new() { Kod = Kod, Nazwa = Nazwa, ToryStacyjne = new(ToryStacyjne ?? new()), Dzienniki = (Dzienniki ?? new()).Select(d => d.Kopia()).ToList() };
+    public EdrPosterunekUst Kopia() => new() { Kod = Kod, Nazwa = Nazwa, Zaklad = Zaklad ?? "", Sekcja = Sekcja ?? "", ToryStacyjne = new(ToryStacyjne ?? new()), Dzienniki = (Dzienniki ?? new()).Select(d => d.Kopia()).ToList() };
+    public string Jednostka => string.Join(", ", new[] { Zaklad, Sekcja }.Where(x => !string.IsNullOrWhiteSpace(x)));
 }
 
 /// <summary>
@@ -92,7 +95,7 @@ public partial class Edr
     public static readonly string[] Typy = { "sbl", "blok", "pol", "pol1", "tel" };
 
     /// <summary>Konfigurację posterunków i dzienników zmienia administrator (w symulatorze także instruktor – dyspozytor).</summary>
-    bool Admin(Desk k) => (k?.User?.Role ?? S.User?.Role) is "administrator" or "instruktor";
+    bool Admin(Desk k) => Operator(k) is { } o ? o.Rola == "Koordynator" : (k?.User?.Role ?? S.User?.Role) is "administrator" or "instruktor";
 
     /// <summary>Posterunki ruchu EDR: z konfiguracji albo z układu.</summary>
     public List<EdrPosterunekUst> Posterunki => posterunkiUst ?? DefinicjeZUkladu();
@@ -197,7 +200,7 @@ public partial class Edr
     string SprawdzPosterunki(List<EdrPosterunekUst> l)
     {
         if (l == null || l.Count == 0) return "Dodaj co najmniej jeden posterunek ruchu";
-        foreach (var p in l) { p.Kod = (p.Kod ?? "").Trim(); p.Nazwa = (p.Nazwa ?? "").Trim(); p.Dzienniki ??= new(); p.ToryStacyjne ??= new(); }
+        foreach (var p in l) { p.Kod = (p.Kod ?? "").Trim(); p.Nazwa = (p.Nazwa ?? "").Trim(); p.Zaklad = (p.Zaklad ?? "").Trim(); p.Sekcja = (p.Sekcja ?? "").Trim(); p.Dzienniki ??= new(); p.ToryStacyjne ??= new(); }
         if (l.Any(p => p.Kod == "")) return "Posterunek musi mieć kod";
         if (l.GroupBy(p => p.Kod).FirstOrDefault(g => g.Count() > 1) is { } pg) return $"Kod posterunku {pg.Key} powtarza się";
         var ids = new HashSet<string>();

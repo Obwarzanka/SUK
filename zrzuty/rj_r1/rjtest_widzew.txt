@@ -1,0 +1,17 @@
+RJ: kontrola 15 z 15
+OK   czasy: 05:05:00 ↔ 18300 s, ułamek sekundy, następna doba (25:00:00.5), błędny – odrzucony
+OK   import rozklad.json: 332 pociągów, 456 odcinków, zapis i odczyt bez zmian, Sprawdź – bez błędów
+OK   ic_05: kolejka pociągów z .rj.json taka sama jak z rozkładu (42 pociągów)
+OK   ic_05: wykaz pociągów EDR po 20 min taki sam (118 wierszy)
+OK   ic_05: ruch po 20 min taki sam (6 pociągów w ruchu)
+OK   ic_08: kolejka pociągów z .rj.json taka sama jak z rozkładu (38 pociągów)
+OK   ic_08: wykaz pociągów EDR po 20 min taki sam (87 wierszy)
+OK   ic_08: ruch po 20 min taki sam (6 pociągów w ruchu)
+OK   ic_15: kolejka pociągów z .rj.json taka sama jak z rozkładu (36 pociągów)
+OK   ic_15: wykaz pociągów EDR po 20 min taki sam (83 wierszy)
+OK   ic_15: ruch po 20 min taki sam (5 pociągów w ruchu)
+OK   ic_18: kolejka pociągów z .rj.json taka sama jak z rozkładu (37 pociągów)
+OK   ic_18: wykaz pociągów EDR po 20 min taki sam (97 wierszy)
+OK   ic_18: ruch po 20 min taki sam (5 pociągów w ruchu)
+(brak station.rozklad.json – rozkład pliku układu pominięty)
+OK   zmiana numeru i kategorii w punkcie bez postoju (P2): odcinek 10003 / BBB / PR, bieg z numerem na każdym punkcie, odjazd ze szlakiem D1

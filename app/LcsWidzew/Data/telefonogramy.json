@@ -36,7 +36,7 @@
     { "nr": "28", "tytul": "[28] Otwarcie posterunku.", "tresc": "Posterunek {od} otwarty o godzinie {godz_h} minut {godz_m}.", "pola": [ "godz" ] },
     { "nr": "29", "tytul": "[29] Zamknięcie posterunku.", "tresc": "Posterunek {od} zamknięty o godzinie {godz_h} minut {godz_m}.", "pola": [ "godz" ] },
     { "nr": "30", "tytul": "[30] Żądanie zatrzymania pociągów - przyjechał pociąg bez sygnału końca pociągu.", "tresc": "Zatrzymać pociągi, pociąg {pociag} {przejechal} bez sygnału końca pociągu.", "pola": [ "pociag", "przejechal" ] },
-    { "nr": "31", "tytul": "[31] Wstrzymanie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Tor numer {tor} {od_do} od godziny {godz_h} minut {godz_m} nieprzejezdny dla pociągów z trakcją elektryczną.", "pola": [ "tor", "godz" ] },
-    { "nr": "32", "tytul": "[32] Przywrócenie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Po torze numer {tor} {od_do} od godziny {godz_h} minut {godz_m} przywracam ruch trakcją elektryczną.", "pola": [ "tor", "godz" ] }
+    { "nr": "31", "tytul": "[31] Wstrzymanie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Tor numer {tor} {od_do} od godziny {godz_h} minut {godz_m} nieprzejezdny dla pociągów z trakcją elektryczną.", "pola": [ "tor", "godz" ], "skutek": { "trakcja": "Wyłączona" } },
+    { "nr": "32", "tytul": "[32] Przywrócenie ruchu po torze szlakowym dla pociągów z trakcją elektryczną.", "tresc": "Po torze numer {tor} {od_do} od godziny {godz_h} minut {godz_m} przywracam ruch trakcją elektryczną.", "pola": [ "tor", "godz" ], "skutek": { "trakcja": "Załączona" } }
   ]
 }

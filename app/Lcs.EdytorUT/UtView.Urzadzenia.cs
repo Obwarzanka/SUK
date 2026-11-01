@@ -75,16 +75,18 @@ public partial class UtView
     {
         if (Doc == null) return null;
         string best = null; double bd = 10;
+        var hang = Urzadzenia.Konstrukcje(Doc.P).SelectMany(x => x.M).Select(x => x.Id).ToHashSet();
         foreach (var d in Doc.P.Devices)
         {
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
             var b = ToScreen(BelkaPos(d, p)); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
             var pts = new List<Point> { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) };
-            // sygnalizator: cały rząd komór (wiszący na bramce – od belki, na maszcie – za masztem), żeby chwycić go za dowolną komorę
+            // sygnalizator: cały rząd komór (wiszący na belce – od belki wstecz, na maszcie – za masztem), żeby chwycić go za dowolną komorę
             if (Urzadzenia.Sygnalizator(d))
             {
-                double len = d.MastOrDefault is UtDevice.MastBramka or UtDevice.MastWysiegnik ? HangingLen(d) + 3 : 5 + 2 * UtDevice.ParseLights(d.LightsOrDefault).Count;
-                for (double x = 1; x <= len; x += 1) pts.Add(b + n * (2.4 * k) + dd * (x * k));
+                bool wisi = d.MastOrDefault == UtDevice.MastBramka || hang.Contains(d.Id);
+                double len = wisi ? HangingLen(d) + 3 : 5 + 2 * UtDevice.ParseLights(d.LightsOrDefault).Count;
+                for (double x = 1; x <= len; x += 1) pts.Add(b + n * (2.4 * k) + dd * ((wisi ? -x : x) * k));
             }
             foreach (var q in pts)
             { double dist = (q - s).Length; if (dist < bd) { bd = dist; best = d.Id; } }
@@ -161,8 +163,10 @@ public partial class UtView
     }
 
     /// <summary>
-    /// Semafor wiszący na bramce: komory od górnej (przy belce) do dolnej, pod nimi (dalej od belki) W21 i pasy świetlne – jak na planach
-    /// schematycznych (Semaforek, Łódź Widzew); nazwa za ostatnim elementem.
+    /// Semafor wiszący na bramce: komory od górnej (przy belce) do dolnej, pod nimi (dalej od belki) W21 i pasy świetlne; nazwa za ostatnim
+    /// elementem. Znak jak semafor na maszcie, tylko zawieszony górą: belka przy górnej komorze, komory schodzą od belki wstecz (−x, przeciwnie
+    /// do jazdy) – jak na planie Ig-10 (uwaga właściciela 2026-10-30, wycinek W / V / U / T z ToU, ToT: wcześniej komory szły w stronę jazdy
+    /// i semafor po zawieszeniu odwracał się względem planu). Znaki w komorach i pasach – w tym samym układzie co na maszcie.
     /// </summary>
     static void DrawHangingHeads(DrawingContext dc, UtDevice dv, Func<double, double, Point> P, Action<double, double, double, double, Pen> L, Action<double, double, double, double> Box, Pen pen, Pen thick, Brush ink,
         List<(char C, int Pulse)> lamps, char lit, double x, double Y, double R, double k, double dpi, bool labels, Action<string, double, double, double> T)
@@ -173,7 +177,7 @@ public partial class UtView
         for (int i = lamps.Count - 1; i >= 0; i--)
         {
             var (col, pulse) = lamps[i];
-            double cx = x + R; x += 2 * R;
+            double cx = x - R; x -= 2 * R;
             dc.DrawEllipse(Brushes.White, pen, P(cx, yy), R * k, R * k);
             if (pulse == UtDevice.Nieczynna) { Kreskowana(L, cx, yy, R, pen); continue; }
             var mp = i == litIdx ? thick : pen; double a = R * 0.7;
@@ -193,26 +197,26 @@ public partial class UtView
         }
         if (!string.IsNullOrEmpty(dv.W21) && dv.Kind == UtDevice.Semafor)
         {
-            Box(x, yy - 1, x + 1.6, yy + 1);
+            Box(x - 1.6, yy - 1, x, yy + 1);
             if (labels && k >= 2)
             {
                 var ft = new FormattedText(dv.W21, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Arial"), 1.5 * k, ink, dpi);
-                var cc = P(x + 0.8, yy); var up = P(0, 0) - P(1, 0); up.Normalize();
+                var cc = P(x - 0.8, yy); var up = P(1, 0) - P(0, 0); up.Normalize();
                 double ang = Math.Atan2(up.Y, up.X) * 180 / Math.PI + 90;      // wiszący: góra cyfry w stronę belki
                 dc.PushTransform(new RotateTransform(ang, cc.X, cc.Y));
                 dc.DrawText(ft, new Point(cc.X - ft.Width / 2, cc.Y - ft.Height / 2));
                 dc.Pop();
             }
-            x += 1.6;
+            x -= 1.6;
         }
         // pasy świetlne pod komorami wiszącego semafora (dalej od belki), od komór: pomarańczowy, zielony – jak BSK ss5 w odbiciu
         foreach (var (on, c) in new[] { (dv.StripeP && dv.Kind == UtDevice.Semafor, 'P'), (dv.StripeZ && dv.Kind == UtDevice.Semafor, 'Z') })
         {
             if (!on) continue;
-            Pas(Box, L, pen, c, x, yy);
-            x += PasW;
+            Pas(Box, L, pen, c, x - PasW, yy);
+            x -= PasW;
         }
-        T(dv.Name, x + 0.6, Y, 1);
+        T(dv.Name, x - 0.6, Y, -1);
     }
 
     /// <summary>
@@ -336,8 +340,8 @@ public partial class UtView
             var posts = new List<(Point, Point)>();
             foreach (var c in slupy == 2 ? new[] { lo, hi } : new[] { (strona != 0 ? strona : m.Sum(q => q.Dv.Side)) >= 0 ? hi : lo })
             {
-                posts.Add((Q(along, c), Q(along + len, c)));                                     // słup (w stronę komór)
-                posts.Add((Q(along + len, c - 0.8 * k), Q(along + len, c + 0.8 * k)));          // stopa
+                posts.Add((Q(along, c), Q(along - len, c)));                                     // słup (w stronę komór – wstecz)
+                posts.Add((Q(along - len, c - 0.8 * k), Q(along - len, c + 0.8 * k)));          // stopa
             }
             // belka przesunięta – znaki wiszą na belce, kreskowana linia wzdłuż toru do miejsca semafora (km do zależności) z kreską w poprzek
             var hang = new List<(Point, Point)>();
@@ -465,11 +469,11 @@ public partial class UtView
                 {
                     // bramka (Semaforek, plan Łódź Widzew: L3 / L5, S1 / S3, D / E): semafor wisi na belce – krótki łącznik od belki
                     // (belkę i słupy rysuje DrawGantries, wspólne dla semaforów w tym samym miejscu)
-                    L(0, Y, 1.2, Y); x = 1.2;
+                    L(0, Y, -1.2, Y); x = -1.2;                         // łącznik od belki wstecz (komory schodzą przeciwnie do jazdy)
                 }
                 if (dv.W24 && dv.Kind == UtDevice.Semafor && mast != UtDevice.MastKarzel)
                 {
-                    if (gantry) L(0.3, Y + 0.9, 0.9, Y - 0.9);                     // W24 – kreska ukośna na łączniku przy belce
+                    if (gantry) L(-0.9, Y + 0.9, -0.3, Y - 0.9);                   // W24 – kreska ukośna na łączniku przy belce
                     else L(1.7, Y + 0.9, 2.3, Y - 0.9);                                 // W24 – kreska ukośna na maszcie
                 }
                 if (gantry) { DrawHangingHeads(dc, dv, P, (a, b2, c2, d2, pp) => L(a, b2, c2, d2, pp), Box, pen, thick, ink, lamps, lit, x, Y, R, k, dpi, labels, T); break; }

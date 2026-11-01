@@ -1,3 +1,4 @@
+using System.IO;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -54,6 +55,9 @@ public class WyciagWindow : Window
         var zamknij = new Button { Content = "Zamknij", Width = 100, IsCancel = true }; zamknij.Click += (a, e) => Close();
         var druk = new Button { Content = "Drukuj…", Width = 100, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Wydruk (także do pliku PDF – drukarka „Microsoft Print to PDF”)" }; druk.Click += (a, e) => Drukuj();
         DockPanel.SetDock(zamknij, Dock.Right); dol.Children.Add(zamknij); DockPanel.SetDock(druk, Dock.Right); dol.Children.Add(druk);
+        // zapis wyciągu do pliku (E9e, jak w EDR.exe): PDF ze stron jako obrazów, HTML (strony PNG), CSV (wiersze tabel)
+        foreach (var (t, f) in new (string, Action)[] { ("Zapisz CSV…", ZapiszCsv), ("Zapisz HTML…", ZapiszHtml), ("Zapisz PDF…", ZapiszPdf) })
+        { var b = new Button { Content = t, Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(0, 0, 8, 0) }; b.Click += (a, e) => f(); DockPanel.SetDock(b, Dock.Right); dol.Children.Add(b); }
         var g = new DockPanel();
         DockPanel.SetDock(gora, Dock.Top); g.Children.Add(gora);
         DockPanel.SetDock(dol, Dock.Bottom); g.Children.Add(dol);
@@ -93,7 +97,7 @@ public class WyciagWindow : Window
         dok = rodzaj switch
         {
             "telefoniczny" => Telefoniczny(nazwaPost, EdrWyciag.Telefoniczny(d.Telefoniczny.GetValueOrDefault(post), od, @do), od, @do),
-            "tory" => Tory(nazwaPost, EdrWyciag.ZajetoscTorow(d.Dzienniki.Where(x => x.Post == post), od, @do), od, @do),
+            "tory" => Tory(nazwaPost, EdrWyciag.ZajetoscTorow(d.Dzienniki.Where(x => x.Post == post), od, @do, d.Reczne.Where(x => x.Post == post).ToList()), od, @do),
             _ => dziennik.SelectedIndex >= 0 && dziennik.SelectedIndex < listaDz.Count ? Ruchu(EdrWyciag.Dziennik(listaDz[dziennik.SelectedIndex], nazwaPost, od, @do, historia.IsChecked == true)) : null
         };
         if (dok == null) { blad.Text = "Wybierz dziennik ruchu"; return; }
@@ -124,6 +128,8 @@ public class WyciagWindow : Window
         var p = new Paragraph { Margin = new Thickness(30, 14, 0, 0) };
         p.Inlines.Add(new Run("Wyciąg sporządził: ")); p.Inlines.Add(new Bold(new Run(d?.Uzytkownik ?? "–"))); p.Inlines.Add(new LineBreak());
         p.Inlines.Add(new Run("Stanowisko: ")); p.Inlines.Add(new Bold(new Run(d?.Rola ?? "–"))); p.Inlines.Add(new LineBreak());
+        // jednostka organizacyjna posterunku (E9e, jak „Jednostka:” w wyciągu EDR.exe)
+        if (d?.PosterunkiUst.FirstOrDefault(x => x.Kod == posterunek.SelectedValue as string)?.Jednostka is string jd && jd != "") { p.Inlines.Add(new Run("Jednostka: ")); p.Inlines.Add(new Bold(new Run(jd))); p.Inlines.Add(new LineBreak()); }
         var dz = DateTime.TryParseExact(d?.Data, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t.ToString("yyyy-MM-dd") : d?.Data;
         p.Inlines.Add(new Run("dnia ")); p.Inlines.Add(new Bold(new Run($"{dz} godz. {okno.Teraz}")));
         return p;
@@ -260,6 +266,76 @@ public class WyciagWindow : Window
         foreach (var b in Kopiuj(dok)) kopia.Blocks.Add(b);
         kopia.PageWidth = pd.PrintableAreaWidth; kopia.PageHeight = pd.PrintableAreaHeight;
         pd.PrintDocument(new Stopka(((IDocumentPaginatorSource)kopia).DocumentPaginator, $"{DateTime.Now:yyyy-MM-dd HH:mm}"), Tytul);
+    }
+
+    string Plik(string filtr, string ext)
+    {
+        if (dok == null) { blad.Text = "Najpierw „Pokaż”"; return null; }
+        var d = new Microsoft.Win32.SaveFileDialog { Filter = filtr, FileName = $"{Tytul.Replace(' ', '_')}_{DateTime.Now:yyyyMMdd_HHmm}.{ext}" };
+        return d.ShowDialog() == true ? d.FileName : null;
+    }
+
+    /// <summary>Strony wyciągu (A4, ze stopką jak na wydruku) jako obrazy.</summary>
+    List<System.Windows.Media.Imaging.BitmapSource> Strony(double skala = 2)
+    {
+        var kopia = Nowy();
+        foreach (var b in Kopiuj(dok)) kopia.Blocks.Add(b);
+        var pag = new Stopka(((IDocumentPaginatorSource)kopia).DocumentPaginator, $"{DateTime.Now:yyyy-MM-dd HH:mm}");
+        var l = new List<System.Windows.Media.Imaging.BitmapSource>();
+        for (int i = 0; i < pag.PageCount; i++)
+        {
+            var s = pag.GetPage(i);
+            var rt = new System.Windows.Media.Imaging.RenderTargetBitmap((int)(s.Size.Width * skala), (int)(s.Size.Height * skala), 96 * skala, 96 * skala, PixelFormats.Pbgra32);
+            var tlo = new DrawingVisual(); using (var dc = tlo.RenderOpen()) dc.DrawRectangle(Brushes.White, null, new Rect(s.Size));
+            rt.Render(tlo); rt.Render(s.Visual);
+            l.Add(rt);
+        }
+        return l;
+    }
+
+    void ZapiszPdf() { if (Plik("Dokument PDF (*.pdf)|*.pdf", "pdf") is string f) ZapiszPdfDo(f); }
+
+    /// <summary>Zapis wyciągu do PDF (też zrzuty i testy): liczba stron.</summary>
+    public string ZapiszPdfDo(string f)
+    {
+        if (dok == null) return "brak wyciągu";
+        var s = Strony(); EdrPdf.Zapisz(f, s, 794, 1123);
+        blad.Foreground = Brushes.DarkGreen; blad.Text = $"Zapisano: {f}";
+        return $"PDF {s.Count} str.";
+    }
+
+    void ZapiszHtml()
+    {
+        var f = Plik("Strona HTML (*.html)|*.html", "html"); if (f == null) return;
+        var sb = new System.Text.StringBuilder($"<!doctype html><html lang=\"pl\"><head><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(Tytul)}</title></head><body style=\"background:#888\">");
+        foreach (var s in Strony(1.5))
+        {
+            var e = new System.Windows.Media.Imaging.PngBitmapEncoder(); e.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(s));
+            using var m = new MemoryStream(); e.Save(m);
+            sb.Append($"<p><img style=\"width:794px;background:#fff\" src=\"data:image/png;base64,{Convert.ToBase64String(m.ToArray())}\"></p>");
+        }
+        File.WriteAllText(f, sb.Append("</body></html>").ToString());
+        blad.Foreground = Brushes.DarkGreen; blad.Text = $"Zapisano: {f}";
+    }
+
+    /// <summary>CSV: każdy wiersz tabel wyciągu jako wiersz pliku, akapity poza tabelą – jedna kolumna (separator „;”).</summary>
+    void ZapiszCsv() { if (Plik("Plik CSV (*.csv)|*.csv", "csv") is string f) ZapiszCsvDo(f); }
+
+    public string ZapiszCsvDo(string f)
+    {
+        if (dok == null) return "brak wyciągu";
+        var sb = new System.Text.StringBuilder();
+        static string Tekst(Block b) => new TextRange(b.ContentStart, b.ContentEnd).Text.Replace("\r", " ").Replace("\n", " ").Trim();
+        static string Pole(string x) => x.Contains(';') || x.Contains('"') ? "\"" + x.Replace("\"", "\"\"") + "\"" : x;
+        foreach (var b in dok.Blocks)
+        {
+            if (b is Table t)
+                foreach (var g in t.RowGroups) foreach (var r in g.Rows) sb.Append(string.Join(";", r.Cells.Select(c => Pole(string.Join(" ", c.Blocks.Select(Tekst)))))).Append("\r\n");
+            else if (Tekst(b) is string x && x != "") sb.Append(Pole(x)).Append("\r\n");
+        }
+        File.WriteAllText(f, sb.ToString(), new System.Text.UTF8Encoding(true));
+        blad.Foreground = Brushes.DarkGreen; blad.Text = $"Zapisano: {f}";
+        return $"CSV {sb.ToString().Split('\n').Length - 1} wierszy";
     }
 
     static List<Block> Kopiuj(FlowDocument d)

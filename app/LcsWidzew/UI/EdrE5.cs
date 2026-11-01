@@ -31,62 +31,71 @@ public class OknoEdr : Window
 }
 
 /// <summary>
-/// Powiadomienie dróżników przejazdowych o jeździe pociągu (przycisk nad dziennikiem; podręcznik EDR rozdz. 7.4): wybór wiersza pociągu,
-/// dla dróżnika „jak na linii jednotorowej” – godzina, „dwu- i więcej torowej” – ukośnik. Można też klikać komórki kolumny 8.
+/// Powiadomienie dróżników przejazdowych o jeździe pociągu (przycisk nad dziennikiem; podręcznik EDR rozdz. 7.4, okno jak „Powiadomienia
+/// dróżników przejazdowych” w EDR.exe – E9a): tylko wyprawienia, dróżnicy wymagający powiadomienia dla tego pociągu, „Powiadom wszystkich”,
+/// godzina albo ukośnik wg ustawień dróżnika.
 /// </summary>
 public class OknoDroznikow : OknoEdr
 {
-    public OknoDroznikow(EdrWindow okno, EdrDziennik d) : base("Powiadomienie dróżników przejazdowych", 520)
+    public OknoDroznikow(EdrWindow okno, EdrDziennik d) : base("Powiadomienia dróżników przejazdowych", 560)
     {
         var dr = d.Biezace.Droznicy.Where(x => x.WDzienniku).ToList();
-        Sp.Children.Add(new TextBlock { Text = d.Nazwa, FontWeight = FontWeights.Bold, FontSize = 13 });
+        Sp.Children.Add(new TextBlock { Text = $"Szlak do posterunku: {d.Sasiad}   ({d.Nazwa})", FontWeight = FontWeights.Bold, FontSize = 13 });
         if (dr.Count == 0)
         {
             Sp.Children.Add(Et("Na tym szlaku nie ma posterunków dróżników przejazdowych w dzienniku ruchu. Dodaje się je w ustawieniach zasadniczych dziennika (PPM na nazwie dziennika albo menu Konfiguracja)."));
             Przyciski("Zamknij", () => new CmdResult(true, "")); return;
         }
-        var wiersze = d.Strony.LastOrDefault()?.Wiersze.Where(w => w.Rodzaj is "przyj" or "wypr").ToList() ?? new();
-        Sp.Children.Add(Et("Pociąg (wiersz dziennika na bieżącej stronie):"));
+        var wiersze = d.Strony.LastOrDefault()?.Wiersze.Where(w => w.Rodzaj == "wypr" && !w.Wykreslony).ToList() ?? new();
+        Sp.Children.Add(Et("Nr pociągu (wyprawienie na bieżącej stronie dziennika):"));
         var poc = new ComboBox();
-        foreach (var w in wiersze) poc.Items.Add($"{w.W.Nr} – {(w.Rodzaj == "przyj" ? "przyjęcie" : "wyprawienie")}{(w.Wymagane.Any(p => p.StartsWith("Dr:") && Edr.Wartosc(w.W, p) == "") ? " (do powiadomienia)" : "")}");
-        // domyślnie ostatni pociąg z niepowiadomionym dróżnikiem
-        poc.SelectedIndex = Math.Max(wiersze.FindLastIndex(w => w.Wymagane.Any(p => p.StartsWith("Dr:") && Edr.Wartosc(w.W, p) == "")), wiersze.Count - 1);
+        bool Brak(EdrWiersz w) => w.Wymagane.Any(p => p.StartsWith("Dr:") && Edr.Wartosc(w.W, p) == "");
+        foreach (var w in wiersze) poc.Items.Add($"{w.W.Nr}{(Brak(w) ? " (do powiadomienia)" : "")}");
+        poc.SelectedIndex = Math.Max(wiersze.FindLastIndex(Brak), wiersze.Count - 1);
         Sp.Children.Add(poc);
-        var lista = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        var wszyscy = new Button { Content = "Powiadom wszystkich", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 8, 0, 2) };
+        Sp.Children.Add(wszyscy);
+        var lista = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         Sp.Children.Add(lista);
         var pola = new List<(EdrDroznik X, CheckBox Cb, TextBox Godz)>();
         void Lista()
         {
             lista.Children.Clear(); pola.Clear();
-            if (poc.SelectedIndex < 0) return;
+            if (poc.SelectedIndex < 0) { lista.Children.Add(Et("Brak wyprawień na bieżącej stronie.")); return; }
             var w = wiersze[poc.SelectedIndex];
-            foreach (var x in dr)
+            foreach (var x in dr.Where(x => x.Dotyczy(w.Rodzaj, w.W.Nr)))
             {
                 var r = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
                 var wart = Edr.Wartosc(w.W, "Dr:" + x.Id);
-                var cb = new CheckBox { Content = $"{x.Oznaczenie} – km {x.Km}{(x.Nazwa != "" ? " (" + x.Nazwa + ")" : "")}", Width = 300, IsChecked = wart == "" && x.Dotyczy(w.Rodzaj), IsEnabled = x.Dotyczy(w.Rodzaj), VerticalAlignment = VerticalAlignment.Center };
+                r.Children.Add(new TextBlock { Text = $"{(x.Oznaczenie != "" ? x.Oznaczenie : x.Km)}  {x.Nazwa}", Width = 220, VerticalAlignment = VerticalAlignment.Center });
+                var cb = new CheckBox { Content = "Powiadomiono", IsChecked = wart != "", Width = 120, VerticalAlignment = VerticalAlignment.Center };
                 r.Children.Add(cb);
                 TextBox g = null;
-                if (x.Godzina)
+                if (x.Godzina(d.Tory.Count))
                 {
-                    g = new TextBox { Text = Edr.Godzina(wart) is string gw && gw != "" ? gw : okno.Teraz, Width = 60, ToolTip = "Godzina powiadomienia – kółko myszy: ± minuta (prawa połowa) / ± godzina (lewa)" };
+                    g = new TextBox { Text = Edr.Godzina(wart) is string gw && gw != "" ? gw : "", Width = 60, ToolTip = "Godzina powiadomienia – kółko myszy: ± minuta (prawa połowa) / ± godzina (lewa)" };
                     var gg = g; g.MouseWheel += (a, e) => { e.Handled = true; bool h = e.GetPosition(gg).X < gg.ActualWidth / 2; int k = e.Delta > 0 ? 1 : -1; gg.Text = EdrWindow.Przesun(gg.Text, h ? k : 0, h ? 0 : k, okno.Teraz); };
+                    cb.Checked += (a, e) => { if (gg.Text == "") gg.Text = okno.Teraz; };
+                    g.TextChanged += (a, e) => cb.IsChecked = gg.Text.Trim() != "";
                     r.Children.Add(g);
                 }
                 else r.Children.Add(new TextBlock { Text = "ukośnik „\\”", Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Center });
-                if (!x.Dotyczy(w.Rodzaj)) r.Children.Add(new TextBlock { Text = "  nie dotyczy tego kierunku", Foreground = Brushes.DimGray, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
-                else if (wart != "") r.Children.Add(new TextBlock { Text = $"  powiadomiono: {wart}", Foreground = Brushes.DarkGreen, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
                 lista.Children.Add(r); pola.Add((x, cb, g));
             }
+            if (pola.Count == 0) lista.Children.Add(Et("Brak dróżników wymagających powiadomienia dla tego pociągu."));
         }
+        wszyscy.Click += (a, e) => { foreach (var (x, cb, g) in pola) { cb.IsChecked = true; if (g != null && g.Text.Trim() == "") g.Text = okno.Teraz; } };
         poc.SelectionChanged += (a, e) => Lista(); Lista();
-        Przyciski("Powiadom", () =>
+        Przyciski("OK", () =>
         {
             if (poc.SelectedIndex < 0) return new CmdResult(false, "Brak pociągu");
             var w = wiersze[poc.SelectedIndex];
-            foreach (var (x, cb, g) in pola.Where(p => p.Cb.IsChecked == true))
+            foreach (var (x, cb, g) in pola)
             {
-                var r = okno.Wyslij(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "pole", Wiersz = w.Id, Pole = "Dr:" + x.Id, Wartosc = x.Godzina ? g.Text : "\\" });
+                var v = cb.IsChecked == true ? (g != null ? g.Text : "\\") : "";
+                if (cb.IsChecked == true && g != null && v.Trim() == "") return new CmdResult(false, $"Wpisz godzinę powiadomienia dróżnika {x.Oznaczenie}.");
+                if (v == Edr.Wartosc(w.W, "Dr:" + x.Id)) continue;
+                var r = okno.Wyslij(new EdrPolecenie { Dziennik = d.Id, Rodzaj = "pole", Wiersz = w.Id, Pole = "Dr:" + x.Id, Wartosc = v });
                 if (!r.Ok) return r;
             }
             return new CmdResult(true, "");
@@ -147,7 +156,7 @@ public class OknoSprawdzenia : OknoEdr
     public OknoSprawdzenia(EdrWindow okno, EdrSprawdzenieStan s) : base("Sprawdzenie cykliczne", 460)
     {
         Sp.Children.Add(new TextBlock { Text = s.Nazwa, FontWeight = FontWeights.Bold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
-        Sp.Children.Add(Et($"Co {Czas(s.Okres)}; ostatnio: {(s.Ostatnie != "" ? $"{s.Ostatnie} ({s.Kto})" : "nie wykonano")}; termin: {s.Nastepne}{(s.Stan == "po_terminie" ? " – PO TERMINIE" : "")}"));
+        Sp.Children.Add(Et($"{s.Opis}; ostatnio: {(s.Ostatnie != "" ? $"{s.Ostatnie} ({s.Kto})" : "nie wykonano")}; termin: {s.Nastepne}{(s.Stan == "po_terminie" ? " – PO TERMINIE (bez wykonania)" : "")}"));
         Sp.Children.Add(Et("Uwagi (np. wynik sprawdzenia):"));
         var u = new TextBox { Height = 60, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
         Sp.Children.Add(u);
@@ -157,44 +166,60 @@ public class OknoSprawdzenia : OknoEdr
     internal static string Czas(int min) => min % 60 == 0 ? $"{min / 60} h" : min > 60 ? $"{min / 60} h {min % 60} min" : $"{min} min";
 }
 
-/// <summary>Konfiguracja wymaganych sprawdzeń cyklicznych posterunku (najwyżej cztery przyciski) – menu Konfiguracja.</summary>
+/// <summary>
+/// Konfiguracja wymaganych sprawdzeń posterunku (menu Konfiguracja; E9a jak „Wymagane sprawdzenia” w EDR.exe): rodzaj sprawdzenia, aktywne,
+/// godziny sprawdzeń w dobie (liczba sprawdzeń na dobę), sprawdzenie N minut po przejęciu dyżuru. Najwyżej cztery przyciski.
+/// </summary>
 public class OknoSprawdzenUst : OknoEdr
 {
     static readonly string[] Przyklady = { "Sprawdzenie łączności z posterunkami dróżników przejazdowych", "Sprawdzenie oświetlenia semaforów i wskaźników" };
 
-    public OknoSprawdzenUst(EdrWindow okno, string post, string nazwaPost, List<EdrSprawdzenie> lista) : base($"{nazwaPost} – wymagane sprawdzenia", 640)
+    public OknoSprawdzenUst(EdrWindow okno, string post, string nazwaPost, List<EdrSprawdzenie> lista) : base($"{nazwaPost} – wymagane sprawdzenia", 820)
     {
         var l = lista.Select(x => x.Kopia()).ToList();
-        Sp.Children.Add(Et("Sprawdzenia cykliczne posterunku – przyciski w prawym górnym rogu okna EDR (najwyżej cztery). Okres w minutach; przycisk żółknie 15 min przed terminem, po terminie jest czerwony."));
+        Sp.Children.Add(Et("Sprawdzenia posterunku – przyciski w prawym górnym rogu okna EDR (najwyżej cztery). Termin: godziny sprawdzeń w dobie (GG:MM; GG:MM) i / albo sprawdzenie po przejęciu dyżuru. Przycisk żółknie 15 min przed terminem, po terminie bez wykonania jest czerwony."));
         var tab = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
         Sp.Children.Add(tab);
-        var pola = new List<(EdrSprawdzenie S, TextBox Nazwa, TextBox Okres)>();
+        var pola = new List<(EdrSprawdzenie S, TextBox Nazwa, CheckBox Akt, TextBox Godz, CheckBox Po, TextBox Min)>();
         void Pokaz()
         {
             tab.Children.Clear(); pola.Clear();
+            var nag = new Grid();
+            foreach (var w in new[] { 300.0, 60, 200, 150, 60, 60 }) nag.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+            int c0 = 0; foreach (var h in new[] { "Rodzaj sprawdzenia", "Aktywne", "Godziny HH:mm; HH:mm", "Po przejęciu dyżuru (min)", "", "" }) { var t = new TextBlock { Text = h, FontSize = 10.5, Foreground = Brushes.DimGray }; Grid.SetColumn(t, c0++); nag.Children.Add(t); }
+            tab.Children.Add(nag);
             foreach (var s in l)
             {
-                var r = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
-                var us = new Button { Content = "Usuń", Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(6, 0, 6, 0) };
+                var r = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                foreach (var w in new[] { 300.0, 60, 200, 30, 120, 60 }) r.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                void K(int c, FrameworkElement e) { e.Margin = new Thickness(0, 0, 4, 0); e.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(e, c); r.Children.Add(e); }
+                var na = new TextBox { Text = s.Nazwa }; var akt = new CheckBox { IsChecked = s.Aktywne, HorizontalAlignment = HorizontalAlignment.Center };
+                var go = new TextBox { Text = s.Godziny != "" || s.Okres > 0 || s.PoDyzurze != null ? s.Godziny : "05:00; 17:00", ToolTip = "Godziny sprawdzeń w dobie, np. 05:00; 17:00 (najwyżej 12)" };
+                var po = new CheckBox { IsChecked = s.PoDyzurze != null, HorizontalAlignment = HorizontalAlignment.Center, ToolTip = "Sprawdzenie po przejęciu dyżuru" };
+                var mi = new TextBox { Text = (s.PoDyzurze ?? 5).ToString(), ToolTip = "Ilość minut, po których nastąpi sprawdzenie po przejęciu dyżuru" };
+                var us = new Button { Content = "Usuń", Padding = new Thickness(6, 0, 6, 0) };
                 var ss = s; us.Click += (a, e) => { Zbierz(); l.Remove(ss); Pokaz(); };
-                DockPanel.SetDock(us, Dock.Right); r.Children.Add(us);
-                var ok = new TextBox { Text = s.Okres.ToString(), Width = 60, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Co ile minut" };
-                DockPanel.SetDock(ok, Dock.Right); r.Children.Add(ok);
-                var lab = new TextBlock { Text = "co [min]:", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }; DockPanel.SetDock(lab, Dock.Right); r.Children.Add(lab);
-                var na = new TextBox { Text = s.Nazwa }; r.Children.Add(na);
-                tab.Children.Add(r); pola.Add((s, na, ok));
+                K(0, na); K(1, akt); K(2, go); K(3, po); K(4, mi); K(5, us);
+                tab.Children.Add(r); pola.Add((s, na, akt, go, po, mi));
             }
             if (l.Count == 0) tab.Children.Add(new TextBlock { Text = "(brak – przyciski nie są wyświetlane)", Foreground = Brushes.DimGray });
         }
-        void Zbierz() { foreach (var (s, na, ok) in pola) { s.Nazwa = na.Text.Trim(); s.Okres = int.TryParse(ok.Text, out var m) ? m : 0; } }
+        void Zbierz()
+        {
+            foreach (var (s, na, akt, go, po, mi) in pola)
+            {
+                s.Nazwa = na.Text.Trim(); s.Aktywne = akt.IsChecked == true; s.Godziny = go.Text.Trim(); s.Okres = 0;
+                s.PoDyzurze = po.IsChecked == true ? int.TryParse(mi.Text, out var m) ? m : -1 : null;
+            }
+        }
         var dod = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
         var nowy = new Button { Content = "Utwórz nowy", Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 0, 6, 4) };
-        nowy.Click += (a, e) => { Zbierz(); if (l.Count < 4) { l.Add(new EdrSprawdzenie { Nazwa = "", Okres = 240 }); Pokaz(); } };
+        nowy.Click += (a, e) => { Zbierz(); if (l.Count < 4) { l.Add(new EdrSprawdzenie { Nazwa = "", Godziny = "05:00; 17:00" }); Pokaz(); } };
         dod.Children.Add(nowy);
         foreach (var p in Przyklady)
         {
             var b = new Button { Content = "+ " + p, Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 0, 6, 4), FontSize = 11 };
-            var pp = p; b.Click += (a, e) => { Zbierz(); if (l.Count < 4 && !l.Any(x => x.Nazwa == pp)) { l.Add(new EdrSprawdzenie { Nazwa = pp, Okres = 240 }); Pokaz(); } };
+            var pp = p; b.Click += (a, e) => { Zbierz(); if (l.Count < 4 && !l.Any(x => x.Nazwa == pp)) { l.Add(new EdrSprawdzenie { Nazwa = pp, Godziny = "05:00; 17:00" }); Pokaz(); } };
             dod.Children.Add(b);
         }
         Sp.Children.Add(dod);

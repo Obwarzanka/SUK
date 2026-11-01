@@ -95,36 +95,62 @@ public static class EdrWyciag
     public static List<WyciagTel> Telefoniczny(List<EdrTelefonogram> l, DateTime od, DateTime @do) =>
         (l ?? new()).Where(t => WOkresie(t.Zapisano, od, @do)).Select(t => new WyciagTel
         {
-            Nr = t.Nr + (t.NrOdbiorcy != "" ? " / " + t.NrOdbiorcy : ""),
+            Nr = (t.Nr > 0 ? t.Nr.ToString() : "") + (t.NrOdbiorcy != "" ? " / " + t.NrOdbiorcy : ""),
             Data = Czas(t.Zapisano) is DateTime z ? z.ToString("yyyy-MM-dd", Pl) : t.Data,
-            Tresc = (t.Rodzaj == "okolicznosc" ? "" : $"{(t.Nadaje ? "Nadany" : "Odebrany")} godz. {t.Godz}: ") + t.Tresc + (t.Notatka != "" ? " " + t.Notatka : ""),
-            Czas = t.CzasZak, Strony = t.Rodzaj == "okolicznosc" ? t.Nadal : $"{t.Nadal} / {t.Odebral}", Zmiana = Kol9(t.Zapisano)
+            Tresc = (t.Rodzaj is "okolicznosc" or "sluzbowy" ? "" : $"{(t.Nadaje ? "Nadany" : "Odebrany")} godz. {t.Godz}: ") + t.Tresc + (t.Notatka != "" ? " " + t.Notatka : ""),
+            Czas = t.CzasZak, Strony = t.Rodzaj is "okolicznosc" or "sluzbowy" ? t.Nadal : $"{t.Nadal} / {t.Odebral}", Zmiana = Kol9(t.Zapisano)
         }).ToList();
 
-    /// <summary>Zajętość torów stacyjnych posterunku w okresie: od wpisu „przyjechał” w przyjęciu na tor do „odjechał” w wyprawieniu (data – ze strony doby).</summary>
-    public static List<WyciagTor> ZajetoscTorow(IEnumerable<EdrDziennik> dzienniki, DateTime od, DateTime @do)
+    /// <summary>
+    /// Zajętość torów stacyjnych posterunku w okresie: od wpisu „przyjechał” w przyjęciu na tor do „odjechał” w wyprawieniu (data – ze strony doby),
+    /// a także ręczne zmiany z kontrolki (E9c): pociąg postawiony na torze, przesunięty na inny tor, usunięty z toru – w kolejności czasu.
+    /// </summary>
+    public static List<WyciagTor> ZajetoscTorow(IEnumerable<EdrDziennik> dzienniki, DateTime od, DateTime @do, List<EdrZajetoscReczna> reczne = null)
     {
         var wyn = new List<WyciagTor>();
-        var otwarte = new Dictionary<string, WyciagTor>();
+        var otwarte = new List<(string Tor, WyciagTor T, string Klucz)>();
         DateTime? Kiedy(EdrStrona s, string g)
         {
             var h = Edr.Godzina(g)?.Split(" / ")[0];
             if (string.IsNullOrEmpty(h) || h == "---" || !DateTime.TryParseExact(s.Data, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dz)) return null;
             return dz + TimeSpan.Parse(h, CultureInfo.InvariantCulture);
         }
-        foreach (var (s, r) in dzienniki.SelectMany(d => d.Strony.SelectMany(s => s.Wiersze.Select(r => (s, r)))).OrderBy(x => x.r.Id))
+        static DateTime? Chwila(string x) => DateTime.TryParseExact((x ?? "").Length >= 16 ? x[..16] : x ?? "", "dd-MM-yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
+        string F(DateTime t) => t.ToString("yyyy-MM-dd HH:mm", Pl);
+        void Zamknij(Func<(string Tor, WyciagTor T, string Klucz), bool> warunek, DateTime t) { foreach (var x in otwarte.Where(warunek).ToList()) { x.T.Do = F(t); otwarte.Remove(x); } }
+        void Otworz(string tor, string nr, DateTime t, string klucz) { var w = new WyciagTor { Tor = tor, Pociag = nr, Od = F(t) }; otwarte.Add((tor, w, klucz)); wyn.Add(w); }
+        // zdarzenia: (czas, kolejność, akcja)
+        var zd = new List<(DateTime T, int K, Action A)>();
+        foreach (var (s, r) in dzienniki.SelectMany(d => d.Strony.SelectMany(s => s.Wiersze.Select(r => (s, r)))).Where(x => !x.r.Wykreslony))
         {
             var v = r.W;
             if (r.Rodzaj is "przyj" or "powrot" && v.Tor != "" && Kiedy(s, v.Prz) is DateTime p)
-            {
-                if (otwarte.Remove(v.Tor, out var st)) st.Do = "(brak odjazdu)";
-                var t = new WyciagTor { Tor = v.Tor, Pociag = v.Nr, Od = p.ToString("yyyy-MM-dd HH:mm", Pl) };
-                otwarte[v.Tor] = t; wyn.Add(t);
-            }
+                zd.Add((p, r.Id, () =>
+                {
+                    foreach (var x in otwarte.Where(x => x.Tor == v.Tor && !x.T.Pociag.EndsWith("(ręcznie)")).ToList()) { x.T.Do = "(brak odjazdu)"; otwarte.Remove(x); }
+                    Otworz(v.Tor, v.Nr, p, "w:" + r.Id);
+                }));
             else if (r.Rodzaj == "wypr" && Kiedy(s, v.Odj) is DateTime o)
-                foreach (var k in otwarte.Where(x => Edr.TenSam(x.Value.Pociag, v.Nr) || v.Tor != "" && x.Key == v.Tor).Select(x => x.Key).ToList())
-                { otwarte[k].Do = o.ToString("yyyy-MM-dd HH:mm", Pl); otwarte.Remove(k); }
+                zd.Add((o, r.Id, () => Zamknij(x => Edr.TenSam(x.T.Pociag.Replace(" (ręcznie)", ""), v.Nr) || v.Tor != "" && x.Tor == v.Tor, o)));
         }
+        foreach (var z in reczne ?? new())
+        {
+            if (z.WierszId == 0 && Chwila(z.Data + " " + z.Dodano) is DateTime t0) zd.Add((t0, int.MaxValue - 1, () => Otworz(z.Tor0 ?? z.Tor, z.Nr + " (ręcznie)", t0, "r:" + z.Id)));
+            foreach (var zm in z.Zmiany ?? new())
+            {
+                var cz = zm.Split('|');
+                if (cz.Length != 2 || Chwila(cz[0]) is not DateTime tz) continue;
+                var kl = z.WierszId == 0 ? "r:" + z.Id : "w:" + z.WierszId;
+                zd.Add((tz, int.MaxValue, () =>
+                {
+                    var bylo = otwarte.FirstOrDefault(x => x.Klucz == kl);
+                    if (bylo.T == null) return;
+                    Zamknij(x => x.Klucz == kl, tz);
+                    if (cz[1] != "") Otworz(cz[1], bylo.T.Pociag.EndsWith("(ręcznie)") ? bylo.T.Pociag : bylo.T.Pociag + " (przesunięty)", tz, kl);
+                }));
+            }
+        }
+        foreach (var x in zd.OrderBy(x => x.T).ThenBy(x => x.K)) x.A();
         DateTime D(string x) => DateTime.TryParseExact(x, "yyyy-MM-dd HH:mm", Pl, DateTimeStyles.None, out var t) ? t : DateTime.MaxValue;
         // okres zajętości nachodzi na okres wyciągu
         return wyn.Where(t => D(t.Od) <= @do && (t.Do == "" || t.Do.StartsWith("(") || D(t.Do) >= od)).OrderBy(t => t.Tor, Comparer<string>.Create(Edr.PorownajTory)).ThenBy(t => t.Od).ToList();

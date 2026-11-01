@@ -10,7 +10,7 @@ public class EdrPoleWzoru { public string Id, Etykieta, Rodzaj = "tekst"; public
 /// Skutek wzoru dla stanu bieżącego toru szlakowego z pola „tor” (albo każdego toru): status, rodzaj ruchu, podstawa prowadzenia ruchu
 /// („telefoniczne” – telefoniczne zapowiadanie, „*” – przywrócenie zasadniczego z ustawień dziennika); po przejeździe pociągu z pola „pociag”.
 /// </summary>
-public class EdrSkutekWzoru { public string Status, Rodzaj, Podstawa; public bool WszystkieTory, PoPrzejezdzie; }
+public class EdrSkutekWzoru { public string Status, Rodzaj, Podstawa, Trakcja; public bool WszystkieTory, PoPrzejezdzie; }
 
 /// <summary>Wzór telefonogramu wg Ir-1 (Data/telefonogramy.json): numer, tytuł, treść z polami, pola, skutek dla szlaku.</summary>
 public class EdrWzor { public string Nr, Tytul, Tresc; public List<string> Pola = new(); public EdrSkutekWzoru Skutek; }
@@ -48,7 +48,7 @@ public static class EdrWzory
             {
                 var w = new EdrWzor { Nr = S(e, "nr"), Tytul = S(e, "tytul"), Tresc = S(e, "tresc") ?? "", Pola = e.TryGetProperty("pola", out var pl) ? pl.EnumerateArray().Select(x => x.GetString()).ToList() : new() };
                 if (e.TryGetProperty("skutek", out var sk) && sk.ValueKind == JsonValueKind.Object)
-                    w.Skutek = new EdrSkutekWzoru { Status = S(sk, "status"), Rodzaj = S(sk, "rodzaj"), Podstawa = S(sk, "podstawa"), WszystkieTory = B(sk, "wszystkieTory", false), PoPrzejezdzie = B(sk, "poPrzejezdzie", false) };
+                    w.Skutek = new EdrSkutekWzoru { Status = S(sk, "status"), Rodzaj = S(sk, "rodzaj"), Podstawa = S(sk, "podstawa"), Trakcja = S(sk, "trakcja"), WszystkieTory = B(sk, "wszystkieTory", false), PoPrzejezdzie = B(sk, "poPrzejezdzie", false) };
                 Lista.Add(w);
             }
             if (Sprawdz() is string b) { Blad = b; Lista = new(); }
@@ -120,7 +120,7 @@ public static class EdrWzory
         foreach (var t in d.Biezace.Tory.Where(t => s.WszystkieTory || string.Equals(t.Tor, tor, StringComparison.OrdinalIgnoreCase)))
             l.Add(new EdrZmianaToru
             {
-                Szlak = t.Szlak, Status = s.Status, Rodzaj = s.Rodzaj, Podstawa = s.Podstawa == "telefoniczne" ? Edr.Podstawy[3] : s.Podstawa,
+                Szlak = t.Szlak, Status = s.Status, Rodzaj = s.Rodzaj, Podstawa = s.Podstawa == "telefoniczne" ? Edr.Podstawy[3] : s.Podstawa, Trakcja = s.Trakcja,
                 PoPociagu = s.PoPrzejezdzie ? (pola.GetValueOrDefault("pociag") ?? "").Trim() : null
             });
         return l;
@@ -135,6 +135,7 @@ public static class EdrWzory
         if (s.Status != null) cz.Add("tor " + s.Status.ToLowerInvariant() + (s.PoPrzejezdzie ? " po przyjeździe pociągu" : ""));
         if (s.Rodzaj != null) cz.Add(s.Rodzaj == "*" ? "rodzaj ruchu zasadniczy (z ustawień dziennika)" : "ruch " + s.Rodzaj.ToLowerInvariant());
         if (s.Podstawa != null) cz.Add(s.Podstawa == "*" ? "prowadzenie ruchu zasadnicze (z ustawień dziennika)" : "prowadzenie ruchu jak dla telefonicznego zapowiadania");
+        if (s.Trakcja != null) cz.Add("trakcja elektryczna " + s.Trakcja.ToLowerInvariant());
         return "Zmiana stanu bieżącego szlaku ze wzoru: " + string.Join(", ", cz) + (s.WszystkieTory ? " – wszystkie tory szlakowe" : " – tor z pola „Tor szlakowy nr”") + ".";
     }
 }

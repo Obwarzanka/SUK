@@ -1,0 +1,279 @@
+{
+  "Dzienniki": {
+    "LW|Łódź Chojny|540": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": [
+        {
+          "Szlak": "1C",
+          "Tor": "1",
+          "Strona": "lewy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        },
+        {
+          "Szlak": "2C",
+          "Tor": "2",
+          "Strona": "prawy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        }
+      ]
+    },
+    "LW|Łódź Andrzejów|17": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": [
+        {
+          "Szlak": "1A",
+          "Tor": "1",
+          "Strona": "lewy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        },
+        {
+          "Szlak": "2A",
+          "Tor": "2",
+          "Strona": "prawy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        }
+      ]
+    },
+    "LW|Łódź Olechów|541": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": [
+        {
+          "Szlak": "1O",
+          "Tor": "1",
+          "Strona": "lewy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        },
+        {
+          "Szlak": "2O",
+          "Tor": "2",
+          "Strona": "prawy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        }
+      ]
+    },
+    "LW|Łódź Fabryczna|17": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": [
+        {
+          "Szlak": "1ŁF",
+          "Tor": "1",
+          "Strona": "lewy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        },
+        {
+          "Szlak": "2ŁW",
+          "Tor": "1",
+          "Strona": "prawy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        }
+      ]
+    },
+    "LW|Łódź Fabryczna|485": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": []
+    },
+    "LF|Łódź Widzew|17": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": [
+        {
+          "Szlak": "1ŁF",
+          "Tor": "1",
+          "Strona": "lewy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        },
+        {
+          "Szlak": "2ŁW",
+          "Tor": "1",
+          "Strona": "prawy",
+          "Status": "Otwarty",
+          "Rodzaj": "Dwukierunkowy",
+          "Zasadniczy": 0,
+          "Podstawa": "Samoczynna blokada liniowa",
+          "Urzadzenie": "SBL dwukierunkowa – samoczynna blokada liniowa (wielo- lub jednoodstępowa), zmiana kierunku: Wbl / Pzk"
+        }
+      ]
+    },
+    "LF|Łódź Widzew|485": {
+      "Droznicy": [],
+      "Parzysty": 0,
+      "WymTor": true,
+      "WymDw": false,
+      "WymOdj": true,
+      "WymPrz": true,
+      "Tory": []
+    }
+  },
+  "Numeracja": {},
+  "Sprawdzenia": {},
+  "Posterunki": [
+    {
+      "Kod": "LW",
+      "Nazwa": "Łódź Widzew",
+      "ToryStacyjne": [],
+      "Dzienniki": [
+        {
+          "Id": "LW|Łódź Chojny|540",
+          "Nazwa": "Łódź Chojny L. 540",
+          "Sasiad": "Łódź Chojny",
+          "Linia": "540",
+          "Typ": "sbl",
+          "Szlaki": [
+            "1C",
+            "2C"
+          ],
+          "Tory": [],
+          "Zakladka": 1
+        },
+        {
+          "Id": "LW|Łódź Andrzejów|17",
+          "Nazwa": "Łódź Andrzejów L. 17",
+          "Sasiad": "Łódź Andrzejów",
+          "Linia": "17",
+          "Typ": "sbl",
+          "Szlaki": [
+            "2A",
+            "1A"
+          ],
+          "Tory": [],
+          "Zakladka": 2
+        },
+        {
+          "Id": "LW|Łódź Olechów|541",
+          "Nazwa": "Łódź Olechów L. 541",
+          "Sasiad": "Łódź Olechów",
+          "Linia": "541",
+          "Typ": "sbl",
+          "Szlaki": [
+            "2O",
+            "1O"
+          ],
+          "Tory": [],
+          "Zakladka": 3
+        },
+        {
+          "Id": "LW|Łódź Fabryczna|17",
+          "Nazwa": "Łódź Fabryczna L. 17",
+          "Sasiad": "Łódź Fabryczna",
+          "Linia": "17",
+          "Typ": "sbl",
+          "Szlaki": [
+            "1ŁF",
+            "2ŁW"
+          ],
+          "Tory": [],
+          "Zakladka": 4
+        },
+        {
+          "Id": "LW|Łódź Fabryczna|485",
+          "Nazwa": "Łódź Fabryczna L. 485",
+          "Sasiad": "Łódź Fabryczna",
+          "Linia": "485",
+          "Typ": "sbl",
+          "Szlaki": [],
+          "Tory": [],
+          "Zakladka": 5
+        }
+      ]
+    },
+    {
+      "Kod": "LF",
+      "Nazwa": "Łódź Fabryczna",
+      "ToryStacyjne": [],
+      "Dzienniki": [
+        {
+          "Id": "LF|Łódź Widzew|17",
+          "Nazwa": "Łódź Widzew L. 17",
+          "Sasiad": "Łódź Widzew",
+          "Linia": "17",
+          "Typ": "sbl",
+          "Szlaki": [
+            "1ŁF",
+            "2ŁW"
+          ],
+          "Tory": [],
+          "Zakladka": 1
+        },
+        {
+          "Id": "LF|Łódź Widzew|485",
+          "Nazwa": "Łódź Widzew L. 485",
+          "Sasiad": "Łódź Widzew",
+          "Linia": "485",
+          "Typ": "sbl",
+          "Szlaki": [],
+          "Tory": [],
+          "Zakladka": 2
+        }
+      ]
+    }
+  ],
+  "BezWypadku": {
+    "Tekst": "Czas bez wypadku spow. przez pracownika PLK",
+    "Od": null
+  }
+}

@@ -270,10 +270,11 @@ public class TelefonicznyWidok : DockPanel
     {
         var g = new Grid { Background = Brushes.White }; Kolumny(g);
         void K(int c, UIElement e) { var b = new Border { BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), Child = e, Padding = new Thickness(4, 2, 4, 2) }; Grid.SetColumn(b, c); g.Children.Add(b); }
-        K(0, new TextBlock { Text = t.Nr.ToString(), HorizontalAlignment = HorizontalAlignment.Center });
+        K(0, new TextBlock { Text = t.Nr > 0 ? t.Nr.ToString() : "", HorizontalAlignment = HorizontalAlignment.Center });
         K(1, new TextBlock { Text = t.Data });
         var tr = new StackPanel();
         if (t.Rodzaj == "okolicznosc") tr.Children.Add(new TextBlock { Text = "Inne okoliczności:", FontStyle = FontStyles.Italic, Foreground = Brushes.DimGray, FontSize = 11 });
+        else if (t.Rodzaj == "sluzbowy") tr.Children.Add(new TextBlock { Text = $"Wpis służbowy {t.Godz}:", FontStyle = FontStyles.Italic, Foreground = Brushes.DimGray, FontSize = 11 });
         else tr.Children.Add(new TextBlock { Text = $"{(t.Nadaje ? "Nadany" : "Odebrany")} {t.Godz}{(t.NrOdbiorcy != "" ? $", nr odbiorcy {t.NrOdbiorcy}" : "")}", Foreground = Brushes.DimGray, FontSize = 11 });
         tr.Children.Add(new TextBlock { Text = t.Tresc, TextWrapping = TextWrapping.Wrap, FontWeight = t.Rodzaj == "telefonogram" ? FontWeights.SemiBold : FontWeights.Normal });
         if (t.Notatka != "") tr.Children.Add(new TextBlock { Text = t.Notatka, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, FontSize = 11 });

@@ -13,7 +13,7 @@ namespace LcsWidzew.UI;
 /// U góry wykaz pociągów (etap E2), na dole zakładki z dziennikami ruchu szlaków (po dwa obok siebie).
 /// Godziny: dwuklik – bieżąca godzina, kółko myszy – ± minuta (prawa połowa pola) albo ± godzina (lewa połowa).
 /// </summary>
-public class EdrWindow : Window
+public partial class EdrWindow : Window
 {
     // kolory wg filmu ze stanowiska ISDR: szare tło okna, ciemne nagłówki dziennika, pomarańczowy wiersz niekompletny, granatowy zegar
     internal static readonly Brush Tlo = Pedzel(0xE6, 0xE6, 0xE6), Naglowek = Pedzel(0x3A, 0x3A, 0x3A), Linia = Pedzel(0xC4, 0xC4, 0xC4),
@@ -29,6 +29,9 @@ public class EdrWindow : Window
         bezWypCzas = new() { FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center },
         uzytkownik = new() { Margin = new Thickness(6, 0, 24, 0), FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, komunikat = new() { Foreground = Brushes.Firebrick, Margin = new Thickness(12, 0, 0, 0), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
     readonly MenuItem konfiguracja = new() { Header = "Konfiguracja" };
+    /// <summary>Pole wykazu i dzienników (układ: na dole / z prawej / w osobnym oknie) i napis trybu na stopce (operator / obserwator, jednostka).</summary>
+    readonly Grid srodek = new();
+    TextBlock tryb;
     readonly List<DziennikWidok> widoki = new();
     readonly WykazPociagow wykazPanel;
     /// <summary>Zakładki nad wykazem: „Opis pociągu”, „Trasa pociągu”, „Przewoźnik” – zaznaczony pociąg (szkielet, uwaga właściciela 2026-10-28).</summary>
@@ -76,19 +79,20 @@ public class EdrWindow : Window
         // zegar i sprawdzenia w prawym górnym rogu, obok paska nad wykazem (jak na zrzucie EDR) – pasek wykazu zostawia im miejsce
         var rog = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 4, 0), Children = { sprawdzenia, zegarPole } };
         Grid.SetRowSpan(rog, 2); Panel.SetZIndex(rog, 1);
-        rog.SizeChanged += (a, e) => wykazPanel.MiejsceNaZegar(rog.ActualWidth + 8);
+        rog9 = rog;
+        rog.SizeChanged += (a, e) => { if (uklad9 == "prawo") zakladki.Margin = new Thickness(0, rog.ActualHeight, 0, 0); else wykazPanel.MiejsceNaZegar(rog.ActualWidth + 8); };
         var menu = new Menu { Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Top, FontSize = 12 };
-        foreach (var m in new[] { "Plik" }) menu.Items.Add(new MenuItem { Header = m, IsEnabled = false });
+        menu.Items.Add(MenuPlik());
         // Raporty (podręcznik EDR rozdz. 8): wyciągi
         var raporty = new MenuItem { Header = "Raporty" };
         foreach (var (t, r) in new[] { ("Wyciąg z dziennika ruchu…", "ruchu"), ("Wyciąg z dziennika telefonicznego…", "telefoniczny"), ("Wyciąg z zajętości torów stacyjnych…", "tory") })
         { var mi = new MenuItem { Header = t }; var rr = r; mi.Click += (a, e) => WyciagOkno(rr).Show(); raporty.Items.Add(mi); }
         menu.Items.Add(raporty);
-        menu.Items.Add(new MenuItem { Header = "Dyżury", IsEnabled = false });
+        menu.Items.Add(MenuDyzury());
         konfiguracja.SubmenuOpened += (a, e) => MenuKonfiguracji();
         konfiguracja.Items.Add(new MenuItem { Header = "(brak dzienników)", IsEnabled = false });
         menu.Items.Add(konfiguracja);
-        foreach (var m in new[] { "Widok", "Okna", "Pomoc" }) menu.Items.Add(new MenuItem { Header = m, IsEnabled = false });
+        menu.Items.Add(MenuWidok()); menu.Items.Add(MenuOkna()); menu.Items.Add(MenuPomoc());
         gora.Children.Add(menu);
         g.Children.Add(gora);
 
@@ -100,10 +104,12 @@ public class EdrWindow : Window
         wykaz.Items.Add(new TabItem { Header = "Przewoźnik", Content = przewoznik });
         zakladkiPociagu = wykaz;
         KolumnyTrasy();
+        ZakladkiE9();
         wykazPanel.Wybrano += OpisPociagu;
-        Grid.SetRow(wykaz, 1); g.Children.Add(wykaz);
-        var spl = new GridSplitter { HorizontalAlignment = HorizontalAlignment.Stretch, Background = Linia }; Grid.SetRow(spl, 2); g.Children.Add(spl);
-        Grid.SetRow(zakladki, 3); g.Children.Add(zakladki);
+        wykazPanel.Wybrano += PokazE9;
+        // wykaz i dzienniki w jednym polu: dzienniki na dole, z prawej albo w osobnym oknie (menu Widok, E9e)
+        Grid.SetRow(srodek, 1); Grid.SetRowSpan(srodek, 3); g.Children.Add(srodek);
+        UstawUklad("dol");
         g.Children.Add(rog);
 
         // pasek dolny jak na filmie: użytkownik z lewej, kontrolka torów stacyjnych na środku, tryb z prawej
@@ -113,7 +119,7 @@ public class EdrWindow : Window
         uzytkownik.TextTrimming = komunikat.TextTrimming = TextTrimming.CharacterEllipsis; komunikat.Margin = new Thickness(6, 1, 8, 0);
         stopka.Children.Add(new StackPanel { Children = { uzytkownik, komunikat } });
         Grid.SetColumn(kontrolka, 1); stopka.Children.Add(kontrolka);
-        var tryb = new TextBlock { Text = "TRYB OPERATORA", FontWeight = FontWeights.Bold, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
+        tryb = new TextBlock { Text = "TRYB OPERATORA", FontWeight = FontWeights.Bold, FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, TextAlignment = TextAlignment.Right };
         Grid.SetColumn(tryb, 2); stopka.Children.Add(tryb);
         Grid.SetRow(stopka, 5); g.Children.Add(stopka);
         Content = g;
@@ -132,7 +138,7 @@ public class EdrWindow : Window
         Dane = d;
         zegar.Text = d.Zegar; data.Text = d.Data;
         bezWypTekst.Text = d.BezWypadku?.Tekst ?? ""; bezWypCzas.Text = d.BezWypadkuCzas ?? "";
-        uzytkownik.Text = $"Użytkownik: {d.Uzytkownik ?? "–"}" + (d.ZalogowanyOd != null ? $"      Zalogowany od: {d.ZalogowanyOd}" : "");
+        uzytkownik.Text = $"Użytkownik: {d.Uzytkownik ?? "–"}" + (d.Operator != null ? $" ({d.OperatorRola}, użytkownik lokalny)" : "") + (d.ZalogowanyOd != null ? $"      Zalogowany od: {d.ZalogowanyOd}" : "");
         // posterunek wybrany u góry (lista nad wykazem) wyznacza wszystko: wykaz, dzienniki ruchu, dziennik telefoniczny, kontrolkę torów
         wykazPanel.Pokaz(d, sila);
         var post = wykazPanel.Posterunek;
@@ -140,6 +146,10 @@ public class EdrWindow : Window
         var u = post + "#" + string.Join("|", d.Dzienniki.Where(x => post == null || x.Post == post).Select(x => $"{x.Id}:{x.Zakladka}:{x.Nazwa}:{x.Sasiad}"));
         if (u != uklad) { uklad = u; Uklad(); sila = true; }
         telefoniczny?.Pokaz(d, post);
+        var jedn = d.PosterunkiUst.FirstOrDefault(x => x.Kod == post)?.Jednostka;
+        tryb.Text = (d.Obserwator ? "TRYB OBSERWATORA" : "TRYB OPERATORA") + (string.IsNullOrEmpty(jedn) ? "" : $"{(char)10}Jednostka organizacyjna: {jedn}");
+        tryb.Foreground = d.Obserwator ? Brushes.Firebrick : Brushes.Black;
+        OdswiezE9(d);
         Sprawdzenia(d);
         Kontrolka(d);
         if (!sila && d.Wersja == wersja) return;
@@ -170,7 +180,7 @@ public class EdrWindow : Window
                     Background = t.Zajety ? TorZajety : t.Zarezerwowany ? TorRezerwacja : TorWolny, BorderBrush = Pedzel(0x55, 0x55, 0x55), BorderThickness = new Thickness(0.5), MinWidth = 30, Height = 22,
                     Child = new TextBlock { Text = t.Tor, Foreground = Brushes.White, FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 3, 0) },
                     ToolTip = (t.Pociagi.Count == 0 ? $"Tor {t.Tor} wolny" : $"Tor {t.Tor} {(t.Zajety ? "zajęty" : "zarezerwowany")}:{(char)10}" + string.Join($"{(char)10}", t.Pociagi.Select(Opis)))
-                        + $"{(char)10}(wg dziennika ruchu; PPM – postaw, przesuń albo usuń pociąg)"
+                        + $"{(char)10}(wg dziennika ruchu; PPM – postaw, przesuń albo usuń pociąg; przeciągnięcie na inny tor – przesunięcie)"
                 };
                 // menu kontrolki (jak w EDR.exe): postawienie pociągu na torze, przesunięcie na inny tor, usunięcie z toru
                 var menu = new ContextMenu(); var (pk, tor) = (post, t.Tor);
@@ -191,12 +201,31 @@ public class EdrWindow : Window
                     mp.Items.Add(przes); mp.Items.Add(usun); menu.Items.Add(mp);
                 }
                 b.ContextMenu = menu;
+                // przeciąganie pociągu myszą na inny tor (E9c, jak `StationTrackDrag` w EDR.exe): przesunięcie ostatniego pociągu z toru
+                b.AllowDrop = true;
+                Point? st = null;
+                b.PreviewMouseLeftButtonDown += (a, e) => st = t.Pociagi.Count > 0 ? e.GetPosition(b) : null;
+                b.PreviewMouseMove += (a, e) =>
+                {
+                    if (st is not Point s0 || e.LeftButton != MouseButtonState.Pressed) return;
+                    var dd = e.GetPosition(b) - s0;
+                    if (Math.Abs(dd.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(dd.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+                    st = null;
+                    DragDrop.DoDragDrop(b, new DataObject(FormatToru, pk + "|" + t.Pociagi[^1].Klucz), DragDropEffects.Move);
+                };
+                b.DragOver += (a, e) => { e.Effects = e.Data.GetDataPresent(FormatToru) ? DragDropEffects.Move : DragDropEffects.None; e.Handled = true; };
+                b.Drop += (a, e) =>
+                {
+                    if (e.Data.GetData(FormatToru) is not string s || s.Split('|') is not [var ps, var kl] || ps != pk) return;
+                    Wyslij(new EdrPolecenie { Rodzaj = "torst", Post = pk, Pole = "przesun", Klucz = kl, Wartosc = tor });
+                };
                 kontrolka.Children.Add(b);
             }
         }
     }
 
     internal static readonly Brush TorRezerwacja = Pedzel(255, 165, 0);
+    const string FormatToru = "edr-tor-stacyjny";
 
     void Sprawdzenia(EdrData d)
     {
@@ -213,7 +242,7 @@ public class EdrWindow : Window
             var b = new Button
             {
                 Content = sp, Background = kolor, Foreground = x.Stan == "wkrotce" ? Brushes.Black : Brushes.White, Margin = new Thickness(2, 0, 2, 0), Padding = new Thickness(8, 2, 8, 2), MinHeight = 46,
-                ToolTip = $"{x.Nazwa} (posterunek {d.Posterunki.GetValueOrDefault(x.Post, x.Post)}) – co {OknoSprawdzenia.Czas(x.Okres)}\nostatnio: {(x.Ostatnie != "" ? $"{x.Ostatnie} ({x.Kto})" : "nie wykonano")}, termin: {x.Nastepne}" + (x.Stan == "po_terminie" ? " – PO TERMINIE" : "") + "\nKlik – wykonanie sprawdzenia"
+                ToolTip = $"{x.Nazwa} (posterunek {d.Posterunki.GetValueOrDefault(x.Post, x.Post)}) – {x.Opis}\nostatnio: {(x.Ostatnie != "" ? $"{x.Ostatnie} ({x.Kto})" : "nie wykonano")}, termin: {x.Nastepne}" + (x.Stan == "po_terminie" ? " – PO TERMINIE" : "") + "\nKlik – wykonanie sprawdzenia"
             };
             var xx = x; b.Click += (a, e) => new OknoSprawdzenia(this, xx) { Owner = this }.ShowDialog();
             sprawdzenia.Children.Add(b);
@@ -246,7 +275,10 @@ public class EdrWindow : Window
         var mb = new MenuItem { Header = "Czas bez wypadku…", IsEnabled = Dane != null };
         mb.Click += (a, e) => BezWypadkuOkno().ShowDialog();
         if (Dane?.Admin != true) foreach (var m in new[] { mp, mb }) { m.Header += " (administrator)"; m.ToolTip = "Zmiany zapisuje tylko administrator (rola „administrator” albo „instruktor”)"; }
-        konfiguracja.Items.Add(mp); konfiguracja.Items.Add(mb); konfiguracja.Items.Add(new Separator());
+        var mu = new MenuItem { Header = "Użytkownicy lokalni…", IsEnabled = Dane != null };
+        mu.Click += (a, e) => new OknoUzytkownikow(this) { Owner = this }.ShowDialog();
+        if (Dane?.Admin != true) { mu.Header += " (koordynator)"; mu.ToolTip = "Zmiany zapisuje tylko administrator (koordynator)"; }
+        konfiguracja.Items.Add(mp); konfiguracja.Items.Add(mb); konfiguracja.Items.Add(mu); konfiguracja.Items.Add(new Separator());
         foreach (var d in Dane?.Dzienniki ?? new())
         {
             var m = new MenuItem { Header = $"Ustawienia zasadnicze dziennika: {d.Nazwa}" + (Dane.Posterunki.Count > 1 ? $" ({Dane.Posterunki.GetValueOrDefault(d.Post, d.Post)})" : "") };
@@ -293,6 +325,14 @@ public class EdrWindow : Window
         }
         if (p == null) { opisPociagu.Children.Add(new TextBlock { Text = "Zaznacz pociąg w wykazie.", Foreground = Brushes.DimGray }); trasaPociagu.ItemsSource = null; return; }
         OpisJakEdr(p);
+        // trasa: gotowość do odjazdu i skład rzeczywisty z danych lokalnych pociągu na wybranym posterunku (E9d)
+        var lok = Lok(p);
+        foreach (var t in p.Trasa.Where(t => t.Posterunek == NazwaPost(PostWybrany)))
+        {
+            t.Gotowosc = lok.GotowoscZgl; t.CzasWpisu = lok.GotowoscWpis; t.Maszynista = lok.Maszynista;
+            t.SeriaRz = string.Join(", ", lok.Serie.Zip(lok.NumeryLok, (a, b) => (a + " " + b).Trim()).Where(x => x != "")); t.DlRz = lok.Dlugosc; t.BruttoRz = lok.Brutto;
+            if (lok.Stoj) t.Gwiazdka = "S";
+        }
         trasaPociagu.ItemsSource = p.Trasa;
         W(przewoznik, "Przewoźnik:", p.Przewoznik);
         W(przewoznik, "Uwagi przewoźnika:", p.UwagiPrzew);
@@ -310,6 +350,8 @@ public class EdrWindow : Window
     void OpisJakEdr(EdrPociag p)
     {
         var g = opisPociagu;
+        // lokalny opis pociągu (E9d) uzupełnia pola, których rozkład nie ma
+        var lo = Lok(p); string O(string k, string dom = "") => lo.Opis.GetValueOrDefault(k) is string v && v != "" ? v : dom;
         foreach (var w in new[] { 174.0, 250, 24, 520 }) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         TextBlock Etykieta(string t) => new() { Text = t, FontFamily = OpisCzcionka, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = OpisEtykieta, VerticalAlignment = VerticalAlignment.Center };
         TextBox Pole(string v, double h, double szer = double.NaN, Brush tlo = null) => new()
@@ -328,10 +370,10 @@ public class EdrWindow : Window
         // lewa strona: pola jednowierszowe (krótkie – numery i rodzaj, jak w EDR.exe)
         var lewe = new (string Etykieta, string Wartosc, bool Krotkie)[]
         {
-            ("Numer pociągu:", p.Nr + (p.NrWyj != p.Nr ? " / " + p.NrWyj : ""), true), ("Numer międzynarodowy:", "", true), ("Nazwa pociągu:", p.Nazwa, false),
-            ("Numer zamówienia:", "", true), ("Rodzaj pociągu:", p.Rodz, true), ("Przewoźnik:", p.Przewoznik, false), ("Typ pociągu:", p.Kod == p.Przewoznik ? "" : p.Kod, false),
-            ("Stacja początkowa:", p.StacjaPocz, false), ("Stacja końcowa:", p.StacjaKonc, false), ("Rodzaj rozkładu jazdy:", "", false),
-            ("Nr wniosku:", "", false), ("Data wniosku:", "", false),
+            ("Numer pociągu:", p.Nr + (p.NrWyj != p.Nr ? " / " + p.NrWyj : ""), true), ("Numer międzynarodowy:", O("Miedzynarodowy"), true), ("Nazwa pociągu:", O("Nazwa", p.Nazwa), false),
+            ("Numer zamówienia:", O("Zamowienie"), true), ("Rodzaj pociągu:", p.Rodz, true), ("Przewoźnik:", p.Przewoznik, false), ("Typ pociągu:", O("Typ", p.Kod == p.Przewoznik ? "" : p.Kod), false),
+            ("Stacja początkowa:", p.StacjaPocz, false), ("Stacja końcowa:", p.StacjaKonc, false), ("Rodzaj rozkładu jazdy:", O("RodzajRozkladu"), false),
+            ("Nr wniosku:", O("NrWniosku"), false), ("Data wniosku:", O("DataWniosku"), false),
         };
         for (int i = 0; i < lewe.Length; i++)
         {
@@ -340,9 +382,10 @@ public class EdrWindow : Window
         }
 
         // prawa strona: pola wielowierszowe (etykieta nad polem) i pola wyboru
-        var info = string.Join("; ", new[] { p.Pojazd, p.Dlugosc, p.Kursuje ? "" : "nie kursuje (NK)", string.IsNullOrEmpty(p.Stan) ? "" : "stan: " + p.Stan }.Where(x => !string.IsNullOrEmpty(x)));
+        var info = string.Join("; ", new[] { O("Dodatkowe"), p.Pojazd, p.Dlugosc, p.Kursuje ? "" : "nie kursuje (NK)", string.IsNullOrEmpty(p.Stan) ? "" : "stan: " + p.Stan,
+            lo.Stoj ? $"POCIĄG STÓJ od {lo.StojOd}" : "", lo.GotowoscZgl != "" ? $"gotowość do odjazdu {lo.GotowoscZgl} ({lo.Maszynista})" : "" }.Where(x => !string.IsNullOrEmpty(x)));
         var prawe = new StackPanel();
-        foreach (var (e, v) in new[] { ("Informacje dodatkowe:", info), ("Ładunek:", ""), ("Uwagi przewoźnika:", p.UwagiPrzew), ("Uwagi eksploatacyjne:", p.UwagiEksp), ("Uwagi własne:", p.UwagiWlasne) })
+        foreach (var (e, v) in new[] { ("Informacje dodatkowe:", info), ("Ładunek:", lo.Ladunek), ("Uwagi przewoźnika:", p.UwagiPrzew), ("Uwagi eksploatacyjne:", p.UwagiEksp), ("Uwagi własne:", p.UwagiWlasne) })
         {
             prawe.Children.Add(Etykieta(e));
             var pole = Pole(v, 32); pole.Margin = new Thickness(0, 0, 0, 3); prawe.Children.Add(pole);
@@ -350,10 +393,10 @@ public class EdrWindow : Window
         // pola wyboru jak w EDR.exe – rozkład ich nie podaje, więc są puste (tylko do odczytu)
         var flagi = new Grid { Margin = new Thickness(0, 4, 0, 0) };
         foreach (var w in new[] { 300.0, 133, 87 }) flagi.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
-        foreach (var (t, r, c) in new[] { ("Przekroczona skrajnia", 0, 0), ("Przekroczony nacisk", 1, 0), ("Inne nadzwyczajne", 2, 0), ("TWR", 0, 1), ("TN", 0, 2), ("Zamknięciowy", 3, 0), ("Śledzony", 3, 1) })
+        foreach (var (t, r, c, v) in new[] { ("Przekroczona skrajnia", 0, 0, lo.Skrajnia), ("Przekroczony nacisk", 1, 0, lo.Nacisk), ("Inne nadzwyczajne", 2, 0, lo.PN), ("TWR", 0, 1, lo.TWR), ("TN", 0, 2, lo.TN), ("Zamknięciowy", 3, 0, lo.Zamknieciowy), ("Śledzony", 3, 1, lo.Sledzony) })
         {
             while (flagi.RowDefinitions.Count <= r) flagi.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var cb = new CheckBox { Content = t, IsChecked = false, IsHitTestVisible = false, Focusable = false, FontFamily = OpisCzcionka, FontSize = 12, Foreground = OpisEtykieta, Margin = new Thickness(0, r == 3 ? 8 : 1, 0, 1) };
+            var cb = new CheckBox { Content = t, IsChecked = v, IsHitTestVisible = false, Focusable = false, FontFamily = OpisCzcionka, FontSize = 12, Foreground = OpisEtykieta, Margin = new Thickness(0, r == 3 ? 8 : 1, 0, 1) };
             Grid.SetRow(cb, r); Grid.SetColumn(cb, c); flagi.Children.Add(cb);
         }
         prawe.Children.Add(flagi);
@@ -361,11 +404,14 @@ public class EdrWindow : Window
 
         // pod spodem: wnioskodawca, rezygnacja i data rezygnacji (łososiowe tło jak w EDR.exe)
         int rz = lewe.Length;
-        Wstaw(Etykieta("Wnioskodawca:"), rz, 0); Wstaw(Pole("", 20, 246), rz, 1);
+        Wstaw(Etykieta("Wnioskodawca:"), rz, 0); Wstaw(Pole(O("Wnioskodawca"), 20, 246), rz, 1);
         var rez = new StackPanel { Orientation = Orientation.Horizontal };
-        rez.Children.Add(Pole("", 20, 40, OpisRezygnacja));
+        rez.Children.Add(Pole(O("Rezygnacja"), 20, 40, OpisRezygnacja));
         var dr = Etykieta("Data rezygnacji:"); dr.Margin = new Thickness(18, 0, 6, 0); rez.Children.Add(dr);
-        rez.Children.Add(Pole("", 20, 108, OpisRezygnacja));
+        rez.Children.Add(Pole(O("DataRezygnacji"), 20, 108, OpisRezygnacja));
+        var ed = new Button { Content = "Lokalny opis pociągu…", Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        ed.Click += (a, e) => new OknoOpisuLok(this, PostWybrany, p) { Owner = this }.ShowDialog();
+        Wstaw(ed, rz + 2, 1);
         Wstaw(Etykieta("Rezygnacja:"), rz + 1, 0); Wstaw(rez, rz + 1, 1);
     }
 
@@ -663,6 +709,8 @@ class DziennikWidok
         g.Children.Add(tor);
         // tor zamknięty (stan bieżący, z telefonogramu): czerwony krzyż na ikonie
         if (t.Status == "Zamknięty") g.Children.Add(new TextBlock { Text = "✕", Foreground = EdrWindow.TorZajety, FontWeight = FontWeights.Bold, FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -4, 0, 0) });
+        // trakcja elektryczna wyłączona (telefonogram 31): przekreślona błyskawica nad torem (E9a)
+        if (t.Trakcja == "Wyłączona") g.Children.Add(new TextBlock { Text = "ϟ", Foreground = Brushes.DarkOrange, FontWeight = FontWeights.Bold, FontSize = 13, TextDecorations = TextDecorations.Strikethrough, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -7, 0) });
         if (t.Zajety) g.Children.Add(new TextBlock { Text = t.Ruch < 0 ? "↓" : "↑", Foreground = Jazda, FontWeight = FontWeights.Bold, FontSize = 17, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, -3, 0, 0) });
         var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 6, 0), Background = Brushes.Transparent };
         sp.Children.Add(new TextBlock { Text = t.Kierunek < 0 ? "↓" : t.Kierunek > 0 ? "↑" : "↕", Foreground = Zasadniczy, FontWeight = FontWeights.Bold, FontSize = 15, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 1, 2) });
@@ -672,6 +720,7 @@ class DziennikWidok
         var kier = t.Kierunek < 0 ? "Z posterunku sąsiedniego" : t.Kierunek > 0 ? "DO posterunku sąsiedniego" : "nieustalony (ustawienia dziennika – PPM na nazwie)";
         sp.ToolTip = $"Tor szlakowy {(t.Strona != "" ? t.Strona + " " : "")}{t.Tor} (szlak {t.Szlak}), zasadniczy kierunek ruchu: {kier}" +
             (t.Status == "Zamknięty" ? $"{(char)10}Tor ZAMKNIĘTY (stan bieżący – telefonogram)" : "") +
+            (!string.IsNullOrEmpty(t.Trakcja) ? $"{(char)10}Trakcja elektryczna: {t.Trakcja.ToLowerInvariant()}" : "") +
             (t.Zajety ? $"{(char)10}Zajęty wg dziennika: {string.Join(", ", t.Pociagi)} – jazda {(t.Ruch < 0 ? "do naszego posterunku" : "od naszego posterunku")}" : $"{(char)10}Wolny wg dziennika");
         return sp;
     }
@@ -693,7 +742,7 @@ class DziennikWidok
     {
         foreach (var w in Szer) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 120 });
-        foreach (var x in dr) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(x.Godzina ? 78 : 52) });
+        foreach (var x in dr) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(x.Godzina(d.Tory.Count) ? 78 : 52) });
     }
 
     /// <summary>Nagłówek: Nr pociągu (1 nieparzysty, 2 parzysty), 3–7, kolumna 8 „O jeździe pociągu zawiadomiono dróżników przejazdowych” – po kolumnie na dróżnika (km, oznaczenie).</summary>
@@ -720,7 +769,7 @@ class DziennikWidok
             H(7, "O jeździe poc. zawiad. dróżników", dr.Count, 0, 9.5);
             H(7, "8", dr.Count, 1);
             for (int i = 0; i < dr.Count; i++) H(7 + i, dr[i].Km != "" ? dr[i].Km : dr[i].Oznaczenie, 1, 2);
-            ((FrameworkElement)kol.Children[^(dr.Count + 2)]).ToolTip = "O jeździe pociągu zawiadomiono dróżników przejazdowych: " + string.Join(", ", dr.Select(x => $"{x.Oznaczenie} (km {x.Km}, {(x.Godzina ? "godzina" : "ukośnik")})"));
+            ((FrameworkElement)kol.Children[^(dr.Count + 2)]).ToolTip = "O jeździe pociągu zawiadomiono dróżników przejazdowych: " + string.Join(", ", dr.Select(x => $"{x.Oznaczenie} (km {x.Km}, {(x.Godzina(d.Tory.Count) ? "godzina" : "ukośnik")})"));
         }
     }
 
@@ -729,7 +778,7 @@ class DziennikWidok
     {
         d = nowy;
         dr = d.Biezace.Droznicy.Where(x => x.WDzienniku).ToList();
-        var dp = string.Join("|", dr.Select(x => $"{x.Id}:{x.Km}:{x.Oznaczenie}:{x.WgSzlaku}"));
+        var dp = string.Join("|", dr.Select(x => $"{x.Id}:{x.Km}:{x.Oznaczenie}:{x.WgSzlaku}:{x.RejestrujGodzine}:{d.Tory.Count}"));
         if (dp != drPodpis) { drPodpis = dp; Naglowek(); }
         nazwa.Text = d.Nazwa;
         ikony.Children.Clear();
@@ -787,6 +836,7 @@ class DziennikWidok
             var pole = PoleKolumny[c];
             string tekst = c is 0 or 1 ? (c == kn ? v.Nr : "") : Edr.Wartosc(v, pole);
             if (c == 6 && v.Lewy) tekst = "Po torze lewym" + (tekst != "" ? "; " + tekst : "");
+            if (c == 6 && !string.IsNullOrEmpty(v.Zad)) tekst = $"Żądanie pozwolenia {v.Zad}" + (tekst != "" ? "; " + tekst : "");
             if (c == 6 && w.Wykreslony) tekst += (tekst != "" ? "; " : "") + "Wykreślono: " + v.Wykreslono;
             bool brak = !w.Wykreslony && (c is 0 or 1 ? c == kn : true) && w.Wymagane.Contains(pole) && Edr.Wartosc(v, pole) == "";
             g.Children.Add(Komorka(w, c, pole, tekst, brak ? EdrWindow.Brak : tlo));
@@ -795,10 +845,10 @@ class DziennikWidok
         for (int i = 0; i < dr.Count; i++)
         {
             var x = dr[i]; var pole = "Dr:" + x.Id; var wart = Edr.Wartosc(v, pole);
-            bool dotyczy = w.Rodzaj != "powrot" && x.Dotyczy(w.Rodzaj);
+            bool dotyczy = w.Rodzaj != "powrot" && x.Dotyczy(w.Rodzaj, v.Nr);
             var tl = !dotyczy ? NieDotyczy : !w.Wykreslony && w.Wymagane.Contains(pole) && wart == "" ? EdrWindow.Brak : tlo;
-            if (!dotyczy) { var bn = new Border { Background = tl, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), ToolTip = $"Dróżnik {x.Oznaczenie}: nie dotyczy pociągów w tym kierunku" }; Grid.SetColumn(bn, 7 + i); g.Children.Add(bn); continue; }
-            if (x.Godzina) { var kb = Komorka(w, 7 + i, pole, wart, tl, true); kb.ToolTip = $"Dróżnik {x.Oznaczenie} (km {x.Km}) – godzina powiadomienia. " + kb.ToolTip; g.Children.Add(kb); continue; }
+            if (!dotyczy) { var bn = new Border { Background = tl, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), ToolTip = $"Dróżnik {x.Oznaczenie}: nie dotyczy (powiadomienie tylko przy wyprawieniu{(x.DlaPociagow != "Wszystkich" ? ", dla pociągów " + x.DlaPociagow.ToLowerInvariant() : "")})" }; Grid.SetColumn(bn, 7 + i); g.Children.Add(bn); continue; }
+            if (x.Godzina(d.Tory.Count)) { var kb = Komorka(w, 7 + i, pole, wart, tl, true); kb.ToolTip = $"Dróżnik {x.Oznaczenie} (km {x.Km}) – godzina powiadomienia. " + kb.ToolTip; g.Children.Add(kb); continue; }
             var bu = new Border { Background = tl, BorderBrush = EdrWindow.Linia, BorderThickness = new Thickness(0, 0, 1, 1), ToolTip = $"Dróżnik {x.Oznaczenie} (km {x.Km}) – klik: ukośnik „\\” (powiadomiono)",
                 Child = new TextBlock { Text = wart, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(2, 3, 2, 3), FontWeight = FontWeights.Bold } };
             bu.MouseLeftButtonDown += (a, e) => { e.Handled = true; if (!w.Wykreslony) Ustaw(w, pole, wart == "" ? "\\" : ""); };
@@ -853,15 +903,23 @@ class DziennikWidok
             menu.Items.Add(Pozycja("Nie dotyczy (---)", () => Ustaw(w, pole, "---")));
             menu.Items.Add(Pozycja("Wyczyść", () => Ustaw(w, pole, "")));
             menu.Items.Add(new Separator());
-            menu.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w)));
+            Dodatkowe(menu, w);
             b.ContextMenu = menu;
         }
         else
         {
-            b.ToolTip = "Dwuklik – zmiana wpisu; PPM – wykreślenie wpisu";
-            var menu = new ContextMenu(); menu.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w))); b.ContextMenu = menu;
+            b.ToolTip = "Dwuklik – zmiana wpisu; PPM – żądanie pozwolenia / data wpisu, historia wpisu, wykreślenie" + (w.W.DataWpisu != "" ? $"{(char)10}Data wpisu: {w.W.DataWpisu}" : "");
+            var menu = new ContextMenu(); Dodatkowe(menu, w); b.ContextMenu = menu;
         }
         return b;
+    }
+
+    /// <summary>PPM na wierszu (E9b / E9c, jak menu dodatkowe numeru pociągu w EDR.exe): żądanie pozwolenia / data wpisu, historia wpisu, wykreślenie.</summary>
+    void Dodatkowe(ContextMenu menu, EdrWiersz w)
+    {
+        if (w.Rodzaj is "przyj" or "wypr") menu.Items.Add(Pozycja("Żądanie pozwolenia / data wpisu…", () => new OknoPolDodatkowych(okno, d, w) { Owner = okno }.ShowDialog()));
+        menu.Items.Add(Pozycja("Historia wpisu…", () => new OknoHistoriiWpisu(d, w) { Owner = okno }.Show()));
+        menu.Items.Add(Pozycja("Wykreśl wpis…", () => Wykresl(w)));
     }
 
     static readonly Brush Telefonogram = EdrWindow.Pedzel(0xF2, 0xCF, 0x96), NieDotyczy = EdrWindow.Pedzel(0xD8, 0xD8, 0xD8);
@@ -991,6 +1049,13 @@ class OknoPociagu : Window
         sp.Children.Add(g);
         sp.Children.Add(new TextBlock { Text = "Uwagi", Margin = new Thickness(0, 6, 0, 2) });
         var uw = new TextBox { Height = 70, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        // szablony uwag jazdy po zamkniętym torze (E9c, jak w EDR.exe): „[Szlakowy]” – numer toru szlakowego, „[...]” – do uzupełnienia
+        var szab = new ComboBox { Margin = new Thickness(0, 0, 0, 3), ToolTip = "Szablon uwag – jazda po zamkniętym torze (wstawia tekst do uwag)" };
+        szab.Items.Add("(szablon uwag – jazda po zamkniętym torze)");
+        foreach (var t in Edr.SzablonyJazdy(okno.NazwaPost(d.Post), d.Sasiad)) szab.Items.Add(t);
+        szab.SelectedIndex = 0;
+        szab.SelectionChanged += (a, e) => { if (szab.SelectedIndex > 0) { uw.Text = (string)szab.SelectedItem + (uw.Text != "" ? " " + uw.Text : ""); uw.Focus(); uw.CaretIndex = uw.Text.IndexOf("[", StringComparison.Ordinal) is int i and >= 0 ? i : 0; } };
+        sp.Children.Add(szab);
         sp.Children.Add(uw);
         var blad = new TextBlock { Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         sp.Children.Add(blad);

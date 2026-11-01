@@ -115,6 +115,20 @@ public static partial class Test
             w.DoUndo();
             Ok(d.P.Posts.Count == 0 && d.P.Tracks.All(t => t.Post == null), "Ctrl+Z – bez posterunku");
         }
+        // jeden klik w tor stacji – „Posterunek z tej stacji” (bez zaznaczania semaforów; długie stacje – uwaga właściciela 2026-10-30)
+        w.View.Select(t2.Id);
+        var bSt = Find<Button>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Posterunek z tej stacji (4 torów)") == true);
+        Ok(bSt != null && Find<TextBlock>(w.TrackPanel, x => x.Text.StartsWith("semafory wjazdowe stacji: A, B") || x.Text.StartsWith("semafory wjazdowe stacji: B, A")) != null,
+            "panel toru 2: „Posterunek z tej stacji (4 torów)” – semafory wjazdowe A, B znalezione same");
+        if (bSt != null)
+        {
+            var kody = new Queue<string>(new[] { "MJ", "Mijanka" }); w.AskNameForTest = _ => kody.Dequeue();
+            Click(bSt); w.AskNameForTest = null;
+            Ok(d.P.Posts.SingleOrDefault() is UtPost ps && d.P.Tracks.All(t => t.Post == ps.Id), $"jeden klik w tor – posterunek MJ ze wszystkimi torami ({w.LastMessage})");
+            w.DoUndo();
+        }
+        w.View.SelectDevice(Dev("B").Id);
+        Ok(Find<Button>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Posterunek z tej stacji (4 torów)") == true) != null, "panel semafora wjazdowego B: „Posterunek z tej stacji (4 torów)”");
 
         // --- posterunek: Shift + prostokąt przez całą mijankę, „+ posterunek”
         w.View.FitPoints(new[] { a, b, Go(a, lineAz + 90, 5), Go(b, lineAz + 90, 5) });

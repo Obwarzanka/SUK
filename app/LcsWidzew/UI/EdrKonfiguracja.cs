@@ -17,7 +17,7 @@ public class OknoPosterunkow : Window
     readonly EdrWindow okno;
     readonly ObservableCollection<Post> posty = new();
     readonly ListBox lista = new() { Width = 260, Margin = new Thickness(0, 0, 10, 0), DisplayMemberPath = nameof(Post.Opis) };
-    readonly TextBox kod = Pole(90), nazwa = Pole(320), tory = Pole(320);
+    readonly TextBox kod = Pole(90), nazwa = Pole(320), tory = Pole(320), zaklad = Pole(260), sekcja = Pole(260);
     readonly DataGrid dzienniki = new()
     {
         AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, CanUserSortColumns = false, HeadersVisibility = DataGridHeadersVisibility.Column,
@@ -35,7 +35,7 @@ public class OknoPosterunkow : Window
     /// <summary>Posterunek w edycji; dzienniki jako wiersze tabeli (szlaki i tory – po przecinku).</summary>
     class Post
     {
-        public string Kod = "", Nazwa = "", Tory = "";
+        public string Kod = "", Nazwa = "", Tory = "", Zaklad = "", Sekcja = "";
         public ObservableCollection<Dz> Dzienniki = new();
         public string Opis => $"{Kod} – {Nazwa}";
     }
@@ -64,7 +64,7 @@ public class OknoPosterunkow : Window
         var zWpisami = d?.Dzienniki.Where(x => x.Strony.Any(s => s.Wiersze.Any(w => w.Rodzaj != "tekst"))).Select(x => x.Id).ToHashSet() ?? new();
         foreach (var p in d?.PosterunkiUst ?? new())
         {
-            var pp = new Post { Kod = p.Kod, Nazwa = p.Nazwa, Tory = string.Join(", ", p.ToryStacyjne ?? new()) };
+            var pp = new Post { Kod = p.Kod, Nazwa = p.Nazwa, Tory = string.Join(", ", p.ToryStacyjne ?? new()), Zaklad = p.Zaklad ?? "", Sekcja = p.Sekcja ?? "" };
             foreach (var x in p.Dzienniki)
                 pp.Dzienniki.Add(new Dz { Id = x.Id, Nazwa = x.Nazwa, Sasiad = x.Sasiad, Linia = x.Linia, Typ = x.Typ, Szlaki = string.Join(", ", x.Szlaki), Tory = string.Join(", ", x.Tory), Zakladka = x.Zakladka, MaWpisy = zWpisami.Contains(x.Id) });
             posty.Add(pp);
@@ -126,6 +126,13 @@ public class OknoPosterunkow : Window
         var r2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
         r2.Children.Add(new TextBlock { Text = "Tory stacyjne (po przecinku, puste – z układu):", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }); r2.Children.Add(tory);
         prawa.Children.Add(r2);
+        // jednostka organizacyjna (E9e, jak „Przypisanie posterunku do IZ / ISE” w EDR.exe) – w wyciągu „Jednostka: …”
+        var r3 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        r3.Children.Add(new TextBlock { Text = "Zakład IZ:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }); r3.Children.Add(zaklad);
+        r3.Children.Add(new TextBlock { Text = "Sekcja ISE:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }); r3.Children.Add(sekcja);
+        prawa.Children.Add(r3);
+        zaklad.TextChanged += (a, e) => { if (!wypelnianie && wybrany != null) wybrany.Zaklad = zaklad.Text; };
+        sekcja.TextChanged += (a, e) => { if (!wypelnianie && wybrany != null) wybrany.Sekcja = sekcja.Text; };
         kod.TextChanged += (a, e) => { if (!wypelnianie && wybrany != null) { wybrany.Kod = kod.Text.Trim(); Odswiez(); } };
         nazwa.TextChanged += (a, e) => { if (!wypelnianie && wybrany != null) { wybrany.Nazwa = nazwa.Text.Trim(); Odswiez(); } };
         tory.TextChanged += (a, e) => { if (!wypelnianie && wybrany != null) wybrany.Tory = tory.Text; };
@@ -176,7 +183,7 @@ public class OknoPosterunkow : Window
         dzienniki.CommitEdit(DataGridEditingUnit.Row, true);
         wybrany = p;
         wypelnianie = true;
-        kod.Text = p?.Kod ?? ""; nazwa.Text = p?.Nazwa ?? ""; tory.Text = p?.Tory ?? "";
+        kod.Text = p?.Kod ?? ""; nazwa.Text = p?.Nazwa ?? ""; tory.Text = p?.Tory ?? ""; zaklad.Text = p?.Zaklad ?? ""; sekcja.Text = p?.Sekcja ?? "";
         wypelnianie = false;
         dzienniki.ItemsSource = p?.Dzienniki;
         prawa.IsEnabled = p != null;
@@ -196,7 +203,7 @@ public class OknoPosterunkow : Window
         dzienniki.CommitEdit(DataGridEditingUnit.Row, true);
         var l = posty.Select(p => new EdrPosterunekUst
         {
-            Kod = p.Kod, Nazwa = p.Nazwa, ToryStacyjne = Lista(p.Tory),
+            Kod = p.Kod, Nazwa = p.Nazwa, ToryStacyjne = Lista(p.Tory), Zaklad = p.Zaklad, Sekcja = p.Sekcja,
             Dzienniki = p.Dzienniki.Select(x => new EdrDziennikUst { Id = x.Id, Nazwa = x.Nazwa, Sasiad = x.Sasiad, Linia = x.Linia, Typ = x.Typ ?? "sbl", Szlaki = Lista(x.Szlaki), Tory = Lista(x.Tory), Zakladka = x.Zakladka }).ToList()
         }).ToList();
         var r = okno.Wyslij(new EdrPolecenie { Rodzaj = "posterunki", Posterunki = l });

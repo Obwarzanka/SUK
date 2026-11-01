@@ -27,6 +27,8 @@
   <ItemGroup>
     <!-- Tabor i fizyka jazdy (PLAN_EDYTOR_TABORU.md, B2) – warstwa świata, bez WPF. -->
     <ProjectReference Include="..\Lcs.Tabor\Lcs.Tabor.csproj" />
+    <!-- Rozkład jazdy <układ>.rj.json (PLAN_EDYTOR_RJ.md, R1) – wspólny z edytorem rozkładu jazdy. -->
+    <ProjectReference Include="..\Lcs.RozkladJazdy\Lcs.RozkladJazdy.csproj" />
   </ItemGroup>
 
 </Project>
