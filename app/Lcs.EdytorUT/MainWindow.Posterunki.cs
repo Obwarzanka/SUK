@@ -85,6 +85,71 @@ public partial class MainWindow
         return post;
     }
 
+    /// <summary>
+    /// Posterunek z zaznaczonych semaforów wjazdowych: funkcja „wjazdowy” (gdy pusta), tory od semaforów do środka stacji
+    /// (<see cref="Posterunki.ZSemaforow"/>) – jedna zmiana z cofaniem.
+    /// </summary>
+    public UtPost NewPostFromSignals(List<string> sem)
+    {
+        var tory = Posterunki.ZSemaforow(Doc.P, sem);
+        return CreatePost(tory.Tory, tory.Uwagi, sem, Doc.P.Devices.Where(d => sem.Contains(d.Id)).Select(d => d.Name).ToList());
+    }
+
+    /// <summary>
+    /// Posterunek ze stacji, w której leży tor <paramref name="track"/> (klik w jeden tor albo semafor – bez zaznaczania wszystkiego):
+    /// tory do semaforów wjazdowych, szlaków i innych posterunków (<see cref="Posterunki.ZeStacji"/>); <paramref name="sem"/> – semafor,
+    /// od którego liczyć (dostaje funkcję „wjazdowy”, gdy pusta).
+    /// </summary>
+    public UtPost NewPostFromStation(string track, string sem = null)
+    {
+        var (tory, uw, sems) = sem != null ? Stacja(sem) : Posterunki.ZeStacji(Doc.P, track);
+        return CreatePost(tory, uw, sem != null ? new List<string> { sem } : new(), sems.Select(d => d.Name).ToList());
+    }
+
+    /// <summary>Stacja od semafora: jego tor do środka stacji, granice – on i semafory wjazdowe projektu.</summary>
+    (List<string> Tory, List<string> Uwagi, List<UtDevice> Semafory) Stacja(string sem)
+    {
+        var (tory, uw) = Posterunki.ZSemaforow(Doc.P, new[] { sem });
+        var set = tory.ToHashSet();
+        var sems = Doc.P.Devices.Where(d => d.Kind == UtDevice.Semafor && set.Contains(d.Track) && (d.Id == sem || d.Funkcja == UtDevice.FWjazdowy)).ToList();
+        return (tory, uw, sems);
+    }
+
+    /// <summary>Przycisk posterunku ze stacji z podglądem: ile torów i które semafory wjazdowe program znalazł.</summary>
+    void StationPostButton(StackPanel P, string track, string sem = null)
+    {
+        var (tory, uw, sems) = sem != null ? Stacja(sem) : Posterunki.ZeStacji(Doc.P, track);
+        if (tory.Count == 0) return;
+        string kto = sems.Count > 0 ? string.Join(", ", sems.Select(d => d.Name)) : "brak – ustaw funkcję „wjazdowy”";
+        P.Children.Add(SmallBtn($"Posterunek z tej stacji ({tory.Count} torów)…", () => NewPostFromStation(track, sem),
+            $"Tory od {(sem != null ? "tego semafora" : "tego toru")} po rozjazdach do semaforów wjazdowych ({kto}), szlaków i innych posterunków – w nowy posterunek; Ctrl+Z cofa"));
+        P.Children.Add(new TextBlock { Text = $"semafory wjazdowe stacji: {kto}" + (uw.Count > 0 ? " – " + string.Join("; ", uw) : ""), Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
+    }
+
+    UtPost CreatePost(List<string> toryList, List<string> uwagi, List<string> sem, List<string> nazwySem)
+    {
+        var tory = (Tory: toryList, Uwagi: uwagi);
+        if (tory.Tory.Count == 0) { Message("Posterunek: brak torów stacji"); return null; }
+        var kod = AskName("Nowy posterunek", $"Kod posterunku (np. LW) – przedrostek nazw w symulatorze; torów: {tory.Tory.Count}, semafory wjazdowe: {(nazwySem.Count > 0 ? string.Join(", ", nazwySem) : "brak")}", "");
+        if (string.IsNullOrEmpty(kod)) return null;
+        if (Doc.P.Posts.Any(x => x.Kod == kod)) { Message($"Kod posterunku {kod} jest już zajęty"); return null; }
+        var nazwa = AskName("Nowy posterunek", "Nazwa posterunku (np. Łódź Widzew)", kod);
+        if (nazwa == null) return null;
+        var post = new UtPost { Kod = kod, Nazwa = nazwa };
+        int fn = 0;
+        Doc.Change("Posterunek z semaforów wjazdowych", p =>
+        {
+            p.Posts.Add(post);
+            foreach (var t in p.Tracks.Where(t => tory.Tory.Contains(t.Id))) t.Post = post.Id;
+            foreach (var d in p.Devices.Where(d => sem.Contains(d.Id) && string.IsNullOrEmpty(d.Funkcja))) { d.Funkcja = UtDevice.FWjazdowy; fn++; }
+        });
+        View.ClearMulti(); View.SelectObj(Kontrola.KPosterunek, post.Id);
+        PostExpander.IsExpanded = true;
+        Message($"Posterunek {PostName(post)}: torów {tory.Tory.Count}" + (nazwySem.Count > 0 ? $", semafory wjazdowe {string.Join(", ", nazwySem)}" : "") + (fn > 0 ? $"; funkcja „wjazdowy” – {fn}" : "")
+            + (tory.Uwagi.Count > 0 ? " – UWAGA: " + string.Join("; ", tory.Uwagi) : "") + " (Ctrl+Z cofa)");
+        return post;
+    }
+
     /// <summary>Nowy szlak z końców; <paramref name="tory"/> – tory szlaku (z panelu toru) tracą posterunek.</summary>
     void OnSzlakPlace(UtLineEnd a, UtLineEnd b) => OnSzlakPlace(a, b, null);
     void OnSzlakPlace(UtLineEnd a, UtLineEnd b, List<string> tory)
@@ -262,6 +327,17 @@ public partial class MainWindow
             st.SelectedIndex = Math.Clamp(l.Stawnosc - 2, 0, 2);
             st.SelectionChanged += (s, e) => { if (st.SelectedIndex >= 0) Ch("Stawność SBL", y => y.Stawnosc = st.SelectedIndex + 2); };
             P.Children.Add(st);
+        }
+        if (l.Konce.Count == 2)
+        {
+            P.Children.Add(Label("Pociągi parzyste jadą (EDR – parzystość numeru w dzienniku ruchu)"));
+            var par = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+            par.Items.Add("nie ustalono");
+            par.Items.Add($"od końca 1 do końca 2 ({Szlaki.Opis(p, l.Konce[0])} → {Szlaki.Opis(p, l.Konce[1])})");
+            par.Items.Add($"od końca 2 do końca 1 ({Szlaki.Opis(p, l.Konce[1])} → {Szlaki.Opis(p, l.Konce[0])})");
+            par.SelectedIndex = Math.Clamp(l.Parzysty, 0, 2);
+            par.SelectionChanged += (s, e) => { if (par.SelectedIndex >= 0) Ch("Kierunek parzysty szlaku", y => y.Parzysty = par.SelectedIndex); };
+            P.Children.Add(par);
         }
         for (int i = 0; i < l.Konce.Count; i++)
         {

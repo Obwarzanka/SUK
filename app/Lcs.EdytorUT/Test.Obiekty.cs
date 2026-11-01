@@ -208,6 +208,53 @@ public static partial class Test
         var l = UtDocument.Load(d.Path);
         Ok(l.P.Obiekty.Count == 10 && l.P.Obiekty.First(x => x.Id == wk.Id).Tory?.Count == 1 && UtDocument.Serialize(l.P) == UtDocument.Serialize(d.P), "zapis i odczyt: 10 obiektów, wiadukt z torem dołożonym – projekt identyczny");
 
+        // --- nastawnia (Ig-10 zał. 8 s. 35–39): klik OD, klik DO po stronie budynku, panel, zmiana rodzaju, warstwa „budynek”
+        w.AskNameForTest = _ => names.Count > 0 ? names.Dequeue() : "";
+        Kind(Obiekty.NastawniaPrefix + "n_k"); names.Enqueue("Ab");
+        Look(r1.At(466).P, 0.12);
+        w.View.SimClick(S(r1.At(460).P)); w.View.SimClick(S(r1.At(472).P + Element.Right(r1.At(472).Az) * (8 * k)));
+        w.AskNameForTest = null;
+        var na = d.P.Obiekty.Last();
+        Ok(na.Kind == "nastawnia_n_k" && na.Name == "Ab" && na.Side == 1 && Math.Abs(na.Len - 12) < 0.5 && na.Offset == Obiekty.NastawniaOdsun && na.Width == 6,
+            $"nastawnia parterowa komputerowa Ab po prawej toru 1: {na.Len:0.0} m, {na.Offset:0} m od osi, głębokość {na.Width:0} m");
+        var nm = r1.At(466); var wnetrze = nm.P + Element.Right(nm.Az) * ((na.Offset + 3) * k);
+        w.SetTool(UtTool.Wskaz);
+        Ok(w.View.HitObj(S(wnetrze)) == (Kontrola.KObiekt, na.Id) && w.View.HitObj(S(nm.P + Element.Right(nm.Az) * (2 * k))) != (Kontrola.KObiekt, na.Id),
+            "klik w budynek nastawni trafia w nią, klik między torem a budynkiem – nie");
+        w.View.SelectObj(Kontrola.KObiekt, na.Id);
+        Ok(Find<TextBlock>(w.TrackPanel, x => x.Text == "Oznaczenie nastawni (Ig-10 zał. 1)") != null && Find<TextBlock>(w.TrackPanel, x => x.Text == "Przy czym (opis)") == null, "panel nastawni: oznaczenie wg Ig-10 zał. 1, bez pola „przy czym”");
+        Type(Find<TextBox>(w.TrackPanel, x => x.Text == "6"), "10");
+        Ok(d.P.Obiekty.Last().Width == 10 && d.UndoName == "Głębokość nastawni", "panel: głębokość budynku 10 m");
+        var kb = Find<ComboBox>(w.TrackPanel, _ => true); kb.SelectedIndex = Array.FindIndex(Obiekty.Kinds, x => x.Key == Obiekty.NastawniaPrefix + "p_e");
+        na = d.P.Obiekty.Last();
+        Ok(na.Kind == "nastawnia_p_e" && Obiekty.Pietrowa(na.Kind) && Obiekty.Urzadzenia(na.Kind) == 'e' && na.Width == 10 && na.Offset == Obiekty.NastawniaOdsun, "zmiana rodzaju na piętrową elektryczną – wymiary zostają");
+        Ok(!Obiekty.Check(d.P, Topologia.Routes(d.P)).Any(x => x.Id == na.Id), "„Sprawdź” – nastawnia bez uwag (nie nakłada się z murem ani przejściem)");
+        w.SetLayer("budynek", false);
+        Ok(w.View.HitObj(S(wnetrze)) == null && w.View.Shown("budowle"), "warstwa „budynek” ukryta – nastawni nie da się kliknąć, budowle zostają");
+        w.SetLayer("budynek", true);
+        Ok(w.SaveDoc(false) && UtDocument.Load(d.Path).P.Obiekty.Last() is var nl && nl.Kind == na.Kind && nl.Width == 10 && nl.Name == "Ab", "zapis i odczyt nastawni");
+
+        // wiadukt drogowy z dwiema jezdniami na osobnych ustrojach (plan stacji właściciela, ul. Przybyszewskiego) – z panelu
+        var wd = d.P.Obiekty.First(x => x.Name == "WD-1");
+        w.View.SelectObj(Kontrola.KObiekt, wd.Id);
+        // pole pod etykietą
+        TextBox Pole(string etykieta)
+        {
+            var ch = w.TrackPanel.Children.Cast<UIElement>().ToList();
+            int i = ch.FindIndex(x => x is TextBlock tb && tb.Text.StartsWith(etykieta));
+            return i < 0 ? null : ch.Skip(i + 1).OfType<TextBox>().FirstOrDefault();
+        }
+        Type(Pole("Liczba ustrojów"), "2");
+        Type(Pole("Szerokość jednego ustroju"), "8");
+        Type(Pole("Odstęp między ustrojami"), "4");
+        wd = d.P.Obiekty.First(x => x.Id == wd.Id);
+        var wdp = r1.At(wd.S0); var miedzy = wdp.P; var wUstr = wdp.P + Element.Dir(wdp.Az) * ((wd.Width + wd.OdstepUstrojow) / 2 * k);
+        Ok(wd.Ustroje == 2 && wd.Width == 8 && wd.OdstepUstrojow == 4 && w.View.HitObj(S(wUstr)) == (Kontrola.KObiekt, wd.Id),
+            $"wiadukt drogowy WD-1: 2 ustroje po 8 m, odstęp 4 m – z panelu, klik na ustroju trafia w obiekt ({wd.Ustroje} × {wd.Width} m, odstęp {wd.OdstepUstrojow}; trafienie {w.View.HitObj(S(wUstr))}; pola: {string.Join(" | ", All<TextBox>(w.TrackPanel).Select(x => x.Text))})");
+        var skw = Find<CheckBox>(w.TrackPanel, x => (x.Content as string)?.StartsWith("Skrzydełka wspólne") == true); skw.IsChecked = true; Click(skw);
+        Ok(d.P.Obiekty.First(x => x.Id == wd.Id).SkrzydlaWspolne && d.UndoName == "Skrzydełka wiaduktu", "skrzydełka wspólne z panelu");
+        Ok(UtDocument.Deserialize(UtDocument.Serialize(d.P)).Obiekty.First(x => x.Id == wd.Id) is var wl && wl.Ustroje == 2 && wl.OdstepUstrojow == 4 && wl.SkrzydlaWspolne, "zapis i odczyt ustrojów");
+
         // --- zrzuty do akceptacji znaków: całość, wiadukt na łuku pod dwoma torami, tunel i wiadukt nad torem, obiekty poprzeczne, mur, katalog
         if (shot != null)
         {
@@ -218,8 +265,14 @@ public static partial class Test
             Look(Go(r1.At(340).P, lineAz + 110, 2.5), 0.25); await Settle(w); Save(w, Shot("przepust_wiadukt_drog"));
             Look(Go(r1.At(215).P, lineAz + 110, 2.5), 0.3); await Settle(w); Save(w, Shot("most_mur"));
             Look(Go(r1.At(640).P, lineAz + 110, 2.5), 0.2); await Settle(w); Save(w, Shot("przejscie_wiadukt_tor"));
+            w.SetSchemat(false); Look(r1.At(380).P, 0.08); await Settle(w); Save(w, Shot("wiadukt_dwa_ustroje")); w.SetSchemat(true);
+            Look(Go(r1.At(466).P, lineAz + 90, 5), 0.1); await Settle(w); Save(w, Shot("nastawnia"));
+            Look(Go(r1.At(466).P, lineAz + 90, 5), 0.6); await Settle(w); Save(w, Shot("nastawnia_daleko"));
+            w.SetSchemat(false);
+            Look(Go(r1.At(466).P, lineAz + 90, 10), 0.04); await Settle(w); Save(w, Shot("nastawnia_teren"));
+            w.SetSchemat(true);
             var sw = w.OpenSymbols(); await w.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-            Ok(sw.CardCount == Symbole.All.Count && Symbole.All.Count(x => x.Id.StartsWith("ob_")) == 11, $"katalog Symbole Ig-10: {Symbole.All.Count(x => x.Id.StartsWith("ob_"))} znaków obiektów inżynieryjnych");
+            Ok(sw.CardCount == Symbole.All.Count && Symbole.All.Count(x => x.Id.StartsWith("ob_")) == 19, $"katalog Symbole Ig-10: {Symbole.All.Count(x => x.Id.StartsWith("ob_"))} znaków obiektów inżynieryjnych");
             sw.Height = 1000; sw.Width = 1120; await Settle(w);
             if (Find<ScrollViewer>(sw, _ => true) is ScrollViewer sv) { sv.UpdateLayout(); sv.ScrollToEnd(); sv.UpdateLayout(); }
             await w.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);

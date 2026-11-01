@@ -36,6 +36,9 @@ public class UtLine
     public string Typ { get; set; } = Sbl;
     /// <summary>Stawność SBL: 2, 3 albo 4 (KOMPUTERY.pdf 1.6.1).</summary>
     public int Stawnosc { get; set; } = 3;
+    /// <summary>Kierunek pociągów o numerach parzystych (EDR wymusza parzystość numeru w dzienniku ruchu):
+    /// 0 – nie ustalono, 1 – od końca 1 do końca 2, 2 – od końca 2 do końca 1. Ustala projektant.</summary>
+    public int Parzysty { get; set; }
     /// <summary>Dwa końce szlaku.</summary>
     public List<UtLineEnd> Konce { get; set; } = new();
 
@@ -407,6 +410,7 @@ public static class Szlaki
     public static List<(bool Error, string Text, string Track, double S, string Id)> Check(UtProject p, Dictionary<string, SzlakDroga> drogi)
     {
         var res = new List<(bool, string, string, double, string)>();
+        Dictionary<string, TrasaResult> rt = null; OdcinkiResult odc = null;
         foreach (var l in p.Lines)
         {
             var nm = $"szlak {(l.Numer.Length > 0 ? l.Numer : "(bez numeru)")}";
@@ -433,11 +437,69 @@ public static class Szlaki
                 res.Add((false, $"{nm}: semafor {sd.Name} na szlaku – funkcja powinna być „odstępowy”", sd.Track, sd.S, l.Id));
             if (!l.Samoczynna && d.Semafory.Any(x => x.Funkcja == UtDevice.FOdstepowy))
                 res.Add((false, $"{nm}: semafory odstępowe na szlaku bez SBL ({UtLine.Typy.First(x => x.Key == l.Typ).Name})", tr, s0, l.Id));
+            // jak Odcinki.Check – dopóki odcinki nie są projektowane, bez uwag
+            if (l.Samoczynna && p.Sections.Count > 0 && d.Semafory.Any(x => x.Funkcja == UtDevice.FOdstepowy))
+            {
+                rt ??= Topologia.Routes(p); odc ??= Odcinki.Compute(p, rt);
+                foreach (var (sd, nast) in OdstepyBezGranicy(p, l, d, rt, odc))
+                    res.Add((false, $"{nm}: między semaforem odstępowym {sd.Name} a {(nast != null ? "semaforem " + nast.Name : "końcem szlaku")} brak granicy odcinka (licznik osi, złącze) – odstęp nie ma osobnej kontroli niezajętości", sd.Track, sd.S, l.Id));
+            }
         }
         // semafor odstępowy poza szlakami
         foreach (var sd in p.Devices.Where(x => x.Kind == UtDevice.Semafor && x.Funkcja == UtDevice.FOdstepowy))
             if (At(p, drogi, sd.Track, sd.S) == null) res.Add((false, $"semafor odstępowy {sd.Name} nie leży na żadnym szlaku", sd.Track, sd.S, null));
         return res;
+    }
+
+    /// <summary>
+    /// Odstępy SBL bez osobnej kontroli niezajętości. Odstęp (Dz.U. 2015 poz. 360) to tor od semafora odstępowego do następnego semafora
+    /// tego samego kierunku (albo do końca szlaku); komputer zależności liczy go od pierwszej granicy odcinka za semaforem, więc w odstępie
+    /// musi leżeć granica odcinka (licznik osi, złącze) – od 0,5 m przed semaforem do 0,5 m przed następnym. Bez niej odstęp zlewa się
+    /// z poprzednim. Wynik: semafor odstępowy i następny semafor tego kierunku (null – koniec szlaku).
+    /// </summary>
+    static IEnumerable<(UtDevice Sem, UtDevice Nast)> OdstepyBezGranicy(UtProject p, UtLine l, SzlakDroga d, Dictionary<string, TrasaResult> r, OdcinkiResult odc)
+    {
+        if (d.Kawalki.Count == 0 || l.Konce.Count == 0) yield break;
+        XY P(string tr, double s) => r.TryGetValue(tr, out var rr) && rr.Elements.Count > 0 ? rr.At(Math.Clamp(s, 0, rr.Length)).P : new XY(0, 0);
+        static double Dist(XY a, XY b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+        // kawałki w kolejności drogi od końca 1, z kierunkiem przejścia (From → To) i odległością od początku drogi
+        var e0 = l.Konce[0];
+        XY prev;
+        if (e0.Semafor != null && p.Devices.FirstOrDefault(x => x.Id == e0.Semafor) is UtDevice s0) prev = P(s0.Track, s0.S);
+        else if (e0.Track != null && r.TryGetValue(e0.Track, out var r0)) prev = P(e0.Track, e0.S ?? (e0.AtStart ? 0 : r0.Length));
+        else yield break;
+        var kaw = new List<(string Track, double From, double To, double D0, double D1)>(); double len = 0;
+        foreach (var k in d.Kawalki)
+        {
+            bool odS0 = Dist(P(k.Track, k.S0), prev) <= Dist(P(k.Track, k.S1), prev);
+            double from = odS0 ? k.S0 : k.S1, to = odS0 ? k.S1 : k.S0, dl = k.S1 - k.S0;
+            kaw.Add((k.Track, from, to, len, len + dl));
+            len += dl; prev = P(k.Track, to);
+        }
+        int CompAt(double dd)
+        {
+            var k = kaw.FirstOrDefault(x => dd >= x.D0 && dd <= x.D1); if (k.Track == null) return -1;
+            return odc.At(k.Track, k.From + Math.Sign(k.To - k.From) * (dd - k.D0));
+        }
+        // semafory odstępowe: miejsce na drodze i kierunek działania względem drogi
+        var sem = new List<(UtDevice Dev, double D, int Kier)>();
+        foreach (var sd in d.Semafory.Where(x => x.Funkcja == UtDevice.FOdstepowy && x.Dir != 0))
+            if (kaw.FirstOrDefault(x => x.Track == sd.Track && sd.S >= Math.Min(x.From, x.To) && sd.S <= Math.Max(x.From, x.To)) is { Track: not null } k)
+                sem.Add((sd, k.D0 + Math.Abs(sd.S - k.From), sd.Dir * Math.Sign(k.To - k.From)));
+        const double Delta = 0.5;
+        foreach (int kier in new[] { 1, -1 })
+        {
+            // u – odległość w kierunku jazdy od początku szlaku tego kierunku
+            double U(double dd) => kier > 0 ? dd : len - dd;
+            var ciag = sem.Where(x => x.Kier == kier).OrderBy(x => U(x.D)).ToList();
+            for (int i = 0; i < ciag.Count; i++)
+            {
+                double ua = U(ciag[i].D) - Delta, ub = (i + 1 < ciag.Count ? U(ciag[i + 1].D) : len) - Delta;
+                if (ub - ua < 1) continue;                                 // dwa semafory w jednym miejscu
+                int ca = CompAt(U(Math.Max(ua, 0.01))), cb = CompAt(U(ub));
+                if (ca >= 0 && ca == cb) yield return (ciag[i].Dev, i + 1 < ciag.Count ? ciag[i + 1].Dev : null);
+            }
+        }
     }
 }
 
@@ -448,8 +510,123 @@ public static class Posterunki
     public static UtPost Of(UtProject p, string track) =>
         p.Tracks.FirstOrDefault(t => t.Id == track)?.Post is string pid ? p.Posts.FirstOrDefault(x => x.Id == pid) : null;
 
-    /// <summary>Grupa nazw (nazwy semaforów i numery rozjazdów nie mogą się powtarzać w obrębie posterunku): id posterunku toru albo „”.</summary>
-    public static string Grupa(UtProject p, string track) => p.Tracks.FirstOrDefault(t => t.Id == track)?.Post ?? "";
+    /// <summary>
+    /// Grupa nazw (nazwy semaforów, numery rozjazdów i nazwy odcinków nie mogą się powtarzać w obrębie posterunku): id posterunku toru.
+    /// Obszar bez posterunków – jedna grupa „”; gdy posterunki są, tor jeszcze nieprzypisany ma własną grupę – nie wiadomo, do której stacji
+    /// należy, więc nie blokuje nazw innych stacji (uwaga właściciela 2026-10-30: wiele posterunków na jednym UT).
+    /// </summary>
+    public static string Grupa(UtProject p, string track) =>
+        p.Tracks.FirstOrDefault(t => t.Id == track)?.Post ?? (p.Posts.Count > 0 ? "?" + track : "");
+
+    /// <summary>
+    /// Tory posterunku z jego semaforów wjazdowych (zlecenie właściciela 2026-10-30: „zaznacz semafory wjazdowe – posterunek sam się
+    /// wytwarza”): od każdego semafora w stronę jego działania (do stacji), po stykach torów (rozjazdy, łączniki, końce torów), bez
+    /// przechodzenia za zaznaczone semafory, bez wchodzenia na drogi szlaków i na tory innych posterunków. Tor z semaforem wchodzi cały.
+    /// Uwagi: tory innego posterunku na drodze, szlak, semafor zwrócony na zewnątrz.
+    /// </summary>
+    public static (List<string> Tory, List<string> Uwagi) ZSemaforow(UtProject p, IReadOnlyCollection<string> semafory, string postId = null,
+        Dictionary<string, TrasaResult> r = null, List<Styk> styki = null)
+    {
+        // stacja po stronie, w którą działają semafory; gdy stamtąd nie ma dokąd iść (semafory odwrócone w UT) – po drugiej stronie
+        var sel = p.Devices.Where(d => semafory.Contains(d.Id)).ToList();
+        var w = Obszar(p, sel.Select(d => (d.Track, (double?)(d.S + d.Dir))).ToList(), semafory, postId, r, styki);
+        if (w.Tory.Count <= sel.Select(d => d.Track).Distinct().Count())
+        {
+            var w2 = Obszar(p, sel.Select(d => (d.Track, (double?)(d.S - d.Dir))).ToList(), semafory, postId, r, styki);
+            if (w2.Tory.Count > w.Tory.Count) w = w2;
+        }
+        return (w.Tory, w.Uwagi);
+    }
+
+    /// <summary>
+    /// Stacja z jednego toru (uwaga właściciela 2026-10-30: „na długich stacjach ciężko zaznaczyć wszystko”): od toru <paramref name="track"/>
+    /// (albo od toru semafora) po stykach do semaforów wjazdowych projektu (funkcja „wjazdowy”), szlaków i torów innych posterunków.
+    /// Semafory – semafory wjazdowe na torach stacji (do opisu przed utworzeniem posterunku).
+    /// </summary>
+    public static (List<string> Tory, List<string> Uwagi, List<UtDevice> Semafory) ZeStacji(UtProject p, string track, string postId = null)
+    {
+        var w = Obszar(p, new List<(string, double?)> { (track, null) }, Array.Empty<string>(), postId, null, null);
+        var uw = w.Uwagi;
+        if (w.Granice.Count == 0) uw.Add("nie znaleziono semaforów wjazdowych – ustaw im funkcję „wjazdowy” albo zaznacz je (Shift + klik)");
+        return (w.Tory, uw, w.Granice);
+    }
+
+    /// <summary>
+    /// Tory od miejsc <paramref name="start"/> (tor i km – po której stronie semafora zacząć; null – kawałek toru z największą liczbą
+    /// połączeń, czyli zwykle strona stacji) po stykach. Granice: semafory <paramref name="semafory"/> i wszystkie z funkcją „wjazdowy” –
+    /// dzielą tor w swoim km niezależnie od kierunku (uwaga właściciela 2026-10-30: część semaforów wjazdowych stoi w UT odwrotnie);
+    /// semafor wjazdowy działający od stacji na zewnątrz – uwaga. Dalej: drogi szlaków i tory innych posterunków.
+    /// Granice – semafory na granicy osiągniętego obszaru.
+    /// </summary>
+    static (List<string> Tory, List<string> Uwagi, List<UtDevice> Granice) Obszar(UtProject p, List<(string Track, double? S)> start,
+        IReadOnlyCollection<string> semafory, string postId, Dictionary<string, TrasaResult> r, List<Styk> styki)
+    {
+        r ??= Topologia.Routes(p); styki ??= Topologia.Styki(p, r);
+        var uw = new List<string>();
+        var sem = p.Devices.Where(d => (semafory.Contains(d.Id) || d.Kind == UtDevice.Semafor && d.Funkcja == UtDevice.FWjazdowy) && r.ContainsKey(d.Track)).ToList();
+        var drogi = Szlaki.Drogi(p, r, styki);
+        // kawałki torów między semaforami wjazdowymi: numer kawałka = liczba semaforów przed km
+        var bar = sem.GroupBy(d => d.Track).ToDictionary(g => g.Key, g => g.Select(d => d.S).OrderBy(x => x).ToList());
+        int Seg(string tr, double s) => bar.TryGetValue(tr, out var b) ? b.Count(v => v < s) : 0;
+        double Dl(string tr) => r[tr].Length;
+        // długość kawałka i toru [m]
+        double Kaw(string tr, int i)
+        {
+            if (!bar.TryGetValue(tr, out var b)) return Dl(tr);
+            double a = i == 0 ? 0 : Math.Clamp(b[i - 1], 0, Dl(tr)), e = i >= b.Count ? Dl(tr) : Math.Clamp(b[i], 0, Dl(tr));
+            return Math.Max(0, e - a);
+        }
+        // styki toru: km na nim, tor sąsiedni, km na sąsiednim
+        List<(double S, string U, double Y)> Styki(string t) =>
+            styki.Where(x => x.Track == t).Select(x => (x.AtStart ? 0 : Dl(t), x.Other, x.OtherS))
+                .Concat(styki.Where(x => x.Other == t).Select(x => (x.OtherS, x.Track, x.AtStart ? 0 : Dl(x.Track)))).ToList();
+        var seen = new HashSet<(string, int)>(); var q = new Queue<(string T, int G)>();
+        foreach (var (t0, s0) in start)
+        {
+            if (!r.ContainsKey(t0)) continue;
+            // bez km – najdłuższy kawałek toru między semaforami (tor między dwoma wjazdowymi to tor stacji)
+            int g0 = s0 is double sv ? Seg(t0, sv) : bar.TryGetValue(t0, out var b0) ? Enumerable.Range(0, b0.Count + 1).OrderByDescending(i => Kaw(t0, i)).First() : 0;
+            if (seen.Add((t0, g0))) q.Enqueue((t0, g0));
+        }
+        var inni = new HashSet<string>();
+        while (q.Count > 0)
+        {
+            var (t, g) = q.Dequeue();
+            foreach (var (s, u, y) in Styki(t))
+            {
+                if (Seg(t, s) != g || !r.ContainsKey(u)) continue;
+                var key = (u, Seg(u, y)); if (seen.Contains(key)) continue;
+                var tu = p.Tracks.FirstOrDefault(x => x.Id == u); if (tu == null) continue;
+                if (tu.Post != null && tu.Post != postId) { inni.Add(u); continue; }
+                // droga szlaku – posterunek się tu kończy (szlak zaczyna się za semaforem wjazdowym)
+                double y1 = Math.Clamp(y + (y < 0.01 ? 1 : -1), 0, Dl(u));
+                if (Szlaki.At(p, drogi, u, y1) != null) continue;
+                seen.Add(key); q.Enqueue(key);
+            }
+        }
+        // semafory na granicy obszaru; kierunek do środka stacji = w stronę osiągniętego kawałka
+        var gran = new List<UtDevice>(); var odwr = new List<string>();
+        foreach (var d in sem)
+        {
+            int k = Seg(d.Track, d.S + 1e-6);     // kawałek za semaforem (rosnący km)
+            bool przed = seen.Contains((d.Track, k - 1)), za = seen.Contains((d.Track, k));
+            if (przed == za) continue;              // nie na granicy (oba albo żaden kawałek w obszarze)
+            gran.Add(d);
+            if ((za ? 1 : -1) != d.Dir) odwr.Add(d.Name);
+        }
+        if (odwr.Count > 0) uw.Add($"semafory {string.Join(", ", odwr)} działają od stacji na zewnątrz – jeśli to wjazdowe tej stacji, odwróć ich kierunek w panelu");
+        if (inni.Count > 0) uw.Add($"tory innego posterunku na drodze ({inni.Count}) – zostają przy swoim posterunku");
+        foreach (var d in sem.Where(d => semafory.Contains(d.Id) && d.Funkcja is not (null or "" or UtDevice.FWjazdowy)))
+            uw.Add($"semafor {d.Name} ma funkcję „{d.Funkcja}”, nie „wjazdowy”");
+        // tor do posterunku, gdy po stronie stacji leży co najmniej 50 m albo połowa jego długości (kilkumetrowy kawałek przed semaforem
+        // wjazdowym na torze szlaku nie ciągnie całego toru); tory startu – zawsze
+        var tory = seen.GroupBy(x => x.Item1).Where(g => start.Any(s => s.Track == g.Key) || g.Sum(x => Kaw(g.Key, x.Item2)) >= Math.Min(50, Dl(g.Key) / 2) - 0.01)
+            .Select(g => g.Key).ToList();
+        return (tory, uw, gran);
+    }
+
+    /// <summary>Dwie rzeczy na torach <paramref name="a"/> i <paramref name="b"/> w tej samej grupie nazw (<see cref="Grupa"/>).</summary>
+    public static bool TaGrupa(UtProject p, string a, string b) => Grupa(p, a) == Grupa(p, b);
 
     /// <summary>Kontrola: kod pusty / powtórzony, tory bez posterunku (gdy posterunki są), posterunek bez torów.</summary>
     public static List<(bool Error, string Text, string Track, string Id)> Check(UtProject p, Dictionary<string, SzlakDroga> drogi, Dictionary<string, TrasaResult> r)

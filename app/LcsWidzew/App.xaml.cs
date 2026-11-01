@@ -89,6 +89,8 @@ public partial class App : Application
         bool logiProba = Zdejmij(args, "--logi-proba", false) != null;
         string tryb = args.Contains("--selftest") ? "selftest" : args.Contains("--trasy") ? "trasy" : args.Contains("--screenshot") ? "zrzut" : "pulpit";
         StartLogow(logiKatalog, tryb, logiProba);
+        // EDR: dzienniki zapisywane do pliku obok układu tylko w pracy na pulpicie (selftest, zrzuty i testy nie zostawiają plików obok układu)
+        Sim.Edr.ZapisDziennikow = tryb == "pulpit" && !args.Contains("--edrtest") && !args.Contains("--rjtest") && !args.Contains("--rj-import");
         int si = args.IndexOf("--station");
         if (si >= 0 && si + 1 < args.Count) { StationPath = Path.GetFullPath(args[si + 1]); args.RemoveRange(si, 2); }
         var A = args.ToArray();
@@ -108,6 +110,33 @@ public partial class App : Application
             else if (A.Length > 3 && A[3].StartsWith("tylko:")) Sim.SelfTest.RunScenario(StationPath, A[1], A[2], A[3][6..], coreOptions);
             else if (A.Length > 2) Sim.SelfTest.RunScenario(StationPath, A[1], A[2], options: coreOptions);
             else Sim.SelfTest.Run(StationPath, A.Length > 1 ? A[1] : "selftest.txt", coreOptions);
+            Shutdown();
+            return;
+        }
+        // rozkład jazdy <układ>.rj.json (PLAN_EDYTOR_RJ.md, R1): test zgodności i import z dzisiejszych źródeł
+        if (A.Length > 0 && A[0] == "--rjtest")
+        {
+            Sim.RozkladRJTest.Run(StationPath, A.Length > 1 ? A[1] : "rjtest.txt", CreateSimulatorOptions(), A.Length > 2 ? A[2].Split(',') : null);
+            Shutdown();
+            return;
+        }
+        if (A.Length > 0 && A[0] == "--rj-import")
+        {
+            // --rj-import wynik.rj.json [rozklad|plik]: rozklad – Data/rozklad.json (albo rozklad_ic.json) obok układu, plik – <układ>.rozklad.json
+            var cel = A.Length > 1 ? A[1] : Lcs.RozkladJazdy.RjDokument.PlikDla(StationPath);
+            var sim0 = new Sim.Simulator(Model.Station.Load(StationPath), options: CreateSimulatorOptions());
+            Lcs.RozkladJazdy.RjDokument d;
+            if (A.Length > 2 && A[2] == "plik") d = Sim.Rozklad.ImportPliku(Sim.RozkladPlik.Wczytaj(StationPath) ?? new(), Path.GetFileName(Sim.RozkladPlik.PlikDla(StationPath)));
+            else d = Sim.Rozklad.ImportRozkladu(sim0, new[] { "rozklad.json", "rozklad_ic.json" }.Select(f => Path.Combine(sim0.DataDirectory, f)).First(File.Exists));
+            d.Zapisz(cel);
+            var bledy = string.Join("; ", d.Sprawdz());
+            File.WriteAllText(cel + ".txt", $"Pociągów: {d.Pociagi.Count}; Sprawdź: {(bledy != "" ? bledy : "bez błędów")}");
+            Shutdown();
+            return;
+        }
+        if (A.Length > 0 && A[0] == "--edrtest")
+        {
+            Sim.EdrTest.Run(StationPath, A.Length > 1 ? A[1] : "edrtest.txt", CreateSimulatorOptions());
             Shutdown();
             return;
         }

@@ -138,6 +138,7 @@ public partial class MainWindow
         foreach (var p in proj?.Where(p => p.Od == sig && !raw.Any(r => TablicaPrzebiegow.Pasuje(p, r))) ?? Enumerable.Empty<ObrPrzebieg>())
             if (TablicaPrzebiegow.Droga(m, p) is RouteDef wr) raw.Add(wr);
         raw = TablicaPrzebiegow.Porzadek(raw).ToList();
+        WlasnyPanel(sp, sig);
         sp.Children.Add(new TextBlock { Text = $"Przebiegi od {Stacja.Lbl(sig)}", FontWeight = FontWeights.SemiBold, FontSize = 14, Margin = new Thickness(0, 10, 0, 2) });
         if (raw.Count == 0) { sp.Children.Add(Note("Od tego sygnalizatora nie ma przebiegów w układzie.")); return; }
         sp.Children.Add(Note(proj == null
@@ -155,7 +156,6 @@ public partial class MainWindow
         var t = Btn("Testuj", (s, e) => TestujOd(sig), "Każdy przebieg z tablicy od tego sygnalizatora osobno: polecenie dyżurnego w stanie zasadniczym, do 30 s – czy dochodzi do sygnału zezwalającego");
         t.Margin = new Thickness(6, 0, 0, 0); row.Children.Add(t);
         sp.Children.Add(row);
-        WlasnyPanel(sp, sig);
         sp.Children.Add(Note("Całą tablicę widać w oknie „Przebiegi…” (F6). Zależności specjalne (droga ochronna, sprzeczne, dopuszczone) – w symulatorze, „Tablica przebiegów”."));
     }
 

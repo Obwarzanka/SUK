@@ -70,34 +70,34 @@ public static partial class Test
         var od = Odcinki.Compute(d.P);
         Ok(od.Count == 8 && Kontrola.Run(d.P).All(u => !u.Text.Contains("odcink")), $"podział na 8 kawałków między granicami; bez nazw odcinków – „Sprawdź” jeszcze ich nie wymaga ({od.Count})");
 
-        // --- nazwy odcinków narzędziem Odcinek (podpowiedzi: numer toru, z + numery rozjazdów)
+        // --- nazwy odcinków narzędziem Odcinek (podpowiedzi: It + numer toru, Iz + numery rozjazdów)
         w.SetTool(UtTool.Odcinek);
         Ok(w.View.Tool == UtTool.Odcinek && w.LastMessage.StartsWith("Odcinek:"), "narzędzie Odcinek (O) z opisem na pasku stanu");
         var asked = new List<string>(); w.AskNameForTest = def => { asked.Add(def); return null; };
         Click1(t1, 150); Click1(t1, 450); Click1(t1, 700); Click1(t2, 150); Click1(t2, 580); Click1(t2, 720); Click1(t2, 900); Click1(sid, rs.Length - 30);
-        Ok(asked.SequenceEqual(new[] { "1", "z1/2", "1a", "2", "2a", "z3", "2b", "3" }), $"podpowiedzi nazw: {string.Join(", ", asked)}");
+        Ok(asked.SequenceEqual(new[] { "It1", "Iz1/2", "It1a", "It2", "It2a", "Iz3", "It2b", "It3" }), $"podpowiedzi nazw: {string.Join(", ", asked)}");
         Ok(d.P.Sections.Count == 8 && Odcinki.Check(d.P, Odcinki.Compute(d.P)).Count == 0, "8 odcinków nazwanych, każdy kawałek toru ma odcinek, bez uwag");
         int nsec = d.P.Sections.Count;
         Click1(t2, 440);
-        Ok(d.P.Sections.Count == nsec && w.LastMessage.Contains("należy już do odcinka z1/2") && w.View.SelectedObj is (Kontrola.KOdcinek, _), "klik na torze 2 w obrębie łącznika – ten sam odcinek z1/2 (zaznaczony), bez nowego");
+        Ok(d.P.Sections.Count == nsec && w.LastMessage.Contains("należy już do odcinka Iz1/2") && w.View.SelectedObj is (Kontrola.KOdcinek, _), "klik na torze 2 w obrębie łącznika – ten sam odcinek Iz1/2 (zaznaczony), bez nowego");
         w.AskNameForTest = null;
         od = Odcinki.Compute(d.P);
-        var sz = d.P.Sections.First(x => x.Name == "z1/2"); int cz = od.CompOf[sz.Id];
+        var sz = d.P.Sections.First(x => x.Name == "Iz1/2"); int cz = od.CompOf[sz.Id];
         var link = d.P.Tracks.First(x => x.Id == d.P.Turnouts.First(z => z.Number == "1").Branch);
         double expLen = 220 + 220 + w.View.Geometry(link).Length;
-        Ok(Math.Abs(od.Length(cz) - expLen) < 0.05 && od.Of(cz).Count() == 3, $"odcinek z1/2: tor 1 km 300–520, tor łączący, tor 2 km 300–520 = {od.Length(cz):0.00} m (wzór {expLen:0.00} m)");
+        Ok(Math.Abs(od.Length(cz) - expLen) < 0.05 && od.Of(cz).Count() == 3, $"odcinek Iz1/2: tor 1 km 300–520, tor łączący, tor 2 km 300–520 = {od.Length(cz):0.00} m (wzór {expLen:0.00} m)");
         Ok(Find<TextBlock>(w.TrackPanel, x => x.Text.Contains("odcinek zwrotnicowy (rozjazdy 1, 2)")) != null, "panel odcinka: odcinek zwrotnicowy (rozjazdy 1, 2), granice, długość");
         Find<ComboBox>(w.TrackPanel, c => c.Items.Contains("obwód torowy")).SelectedIndex = 1;
-        Ok(d.P.Sections.First(x => x.Name == "z1/2").Kind == UtSection.ObwodTorowy, "rodzaj kontroli niezajętości z panelu: obwód torowy");
-        // usunięcie licznika między odcinkami 2a i z3 – odcinki się łączą, „Sprawdź” to zgłasza; Ctrl+Z
+        Ok(d.P.Sections.First(x => x.Name == "Iz1/2").Kind == UtSection.ObwodTorowy, "rodzaj kontroli niezajętości z panelu: obwód torowy");
+        // usunięcie licznika między odcinkami It2a i Iz3 – odcinki się łączą, „Sprawdź” to zgłasza; Ctrl+Z
         var lo650 = d.P.Devices.First(x => x.Kind == UtDevice.LicznikOsi && x.Track == t2.Id && Math.Abs(x.S - 650) < 0.5);
         w.SetTool(UtTool.Wskaz); w.View.SelectDevice(lo650.Id); w.DeleteSelection();
         var ch = Kontrola.Run(d.P);
-        Ok(ch.Any(u => u.Error && u.Text.Contains("odcinki 2a, z3 nie są rozdzielone")), "bez licznika km 650 – „odcinki 2a, z3 nie są rozdzielone”");
+        Ok(ch.Any(u => u.Error && u.Text.Contains("odcinki It2a, Iz3 nie są rozdzielone")), "bez licznika km 650 – „odcinki It2a, Iz3 nie są rozdzielone”");
         w.DoUndo();
         Ok(Odcinki.Check(d.P, Odcinki.Compute(d.P)).Count == 0, "Ctrl+Z – licznik wrócił, odcinki rozdzielone");
         // przesunięcie nazwy odcinka myszą (we Wskaż) w obrębie kawałka
-        var s1 = d.P.Sections.First(x => x.Name == "1"); var lp = w.View.Geometry(t1).At(150).P; Look(lp, 0.4);
+        var s1 = d.P.Sections.First(x => x.Name == "It1"); var lp = w.View.Geometry(t1).At(150).P; Look(lp, 0.4);
         w.View.SimClick(S(lp)); // klik na torze – zaznacza tor, nie przesuwa
         Ok(w.View.SelectedTrack == t1.Id, "Wskaż: klik na osi toru zaznacza tor (nazwa odcinka leży pod torem)");
 

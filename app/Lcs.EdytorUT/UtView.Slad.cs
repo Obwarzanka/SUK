@@ -34,8 +34,10 @@ public partial class UtView
     /// <summary>Odległość kliknięcia od linii OSM, przy której punkt idzie na linię [px].</summary>
     const double NetSnapPx = 12;
 
-    static readonly Pen OsmPen = FrozenPen(Color.FromRgb(0xff, 0x6a, 0x00), 1.3), SladPen = FrozenPen(Color.FromArgb(0xb0, 0xff, 0x40, 0x00), 4);
-    static readonly Brush OsmNode = Frozen(Color.FromRgb(0xff, 0x6a, 0x00)), SladDot = Frozen(Color.FromRgb(0xb0, 0x20, 0x00));
+    /// <summary>Sieć OSM fioletowa z białą obwódką – dawniej pomarańczowa (ff6a00) ginęła w pomarańczowym pasie OpenRailwayMap rysowanym
+    /// dokładnie pod nią (właściciel 2026-10-28: „oś toru nie zawsze się pokazuje” – widać ją było tylko na napisach numerów torów).</summary>
+    static readonly Pen OsmPen = FrozenPen(Color.FromRgb(0x7a, 0x10, 0xc8), 1.4), OsmHalo = FrozenPen(Color.FromArgb(0xe0, 0xff, 0xff, 0xff), 3.6), SladPen = FrozenPen(Color.FromArgb(0xb0, 0xff, 0x40, 0x00), 4);
+    static readonly Brush OsmNode = Frozen(Color.FromRgb(0x7a, 0x10, 0xc8)), SladDot = Frozen(Color.FromRgb(0xb0, 0x20, 0x00));
 
     bool PaintMode => tool == UtTool.Slad || (tool == UtTool.LukPunkty && fitArc != null);
     bool painting2; XY lastPaint;
@@ -142,7 +144,14 @@ public partial class UtView
     {
         if (SladPreview?.A is not UtAlign a) return "";
         var luki = a.Els.Where(e => !e.Prosta).Select(e => e.Luk ? $"R {Math.Abs(e.R0):0}" : $"L {e.Len:0}");
-        return $"Tor po śladzie (propozycja): {a.Els.Count} elementów ({string.Join(" | ", luki)}), odchyłka średnia {SladPreview.Rms * 100:0.#} cm, największa {SladPreview.Max * 100:0.#} cm" +
+        var prz = SladPreview.Przeskoki ?? new();
+        var es = prz.Where(p => p.Es).ToList(); var odj = prz.Where(p => !p.Es).ToList();
+        return (es.Count > 0 ? $"UWAGA: ślad przeskakuje na sąsiedni tor – tor skręca esem jak przez połączenie torów: {string.Join("; ", es.Select(Slad.Opis))}. " +
+                               "Cofnij ślad (Backspace) do miejsca przed przeskokiem i klikaj gęściej po jednym torze albo z Ctrl na osi toru. " : "") +
+               (odj.Count > 0 ? $"UWAGA: tor odchodzi od śladu – {string.Join("; ", odj.Select(Slad.Opis))}: ślad przeskakuje tam na sąsiedni tor albo łuk nie został rozpoznany. " +
+                                "Sprawdź na zdjęciu; przy łuku wpisz mniejszą bazę krzywizny albo podziel ślad na krótsze kawałki. " : "") +
+               $"Tor po śladzie (propozycja): {a.Els.Count} elementów ({string.Join(" | ", luki)}), odchyłka średnia {SladPreview.Rms * 100:0.#} cm, największa {SladPreview.Max * 100:0.#} cm" +
+               (SladPreview.Baza > 0 && Math.Abs(SladPreview.Baza - SladBazaUzyta) > 0.5 ? $", łuki rozpoznane przy bazie {SladPreview.Baza:0} m (lepiej pasuje niż {SladBazaUzyta:0} m)" : "") +
                (SladPreview.Pominiete.Count > 0 ? $", pominięte odstające punkty: {SladPreview.Pominiete.Count}" : "") +
                (SladPreview.Rms > 0.1 ? " – ślad mało dokładny (np. OSM): R przybliżony, krzywych przejściowych z niego nie widać; po utworzeniu popraw łuki Łukiem z punktów na zdjęciu (J, malowanie)" : "");
     }
@@ -199,37 +208,64 @@ public partial class UtView
     void OsmAuto()
     {
         if (Test.Running && !OsmAutoTest) return;
-        if (!osmTimerInit) { osmTimerInit = true; osmTimer.Tick += async (s, e) => { osmTimer.Stop(); if (OsmWanted && !osmBusy && !OsmCovers()) await OsmPobierz(); }; }
-        if (OsmWanted && !OsmCovers()) { osmTimer.Stop(); osmTimer.Start(); }
+        if (!osmTimerInit) { osmTimerInit = true; osmTimer.Tick += async (s, e) => { osmTimer.Stop(); osmTimer.Interval = OsmDelay; if (OsmWanted && !osmBusy && !OsmCovers()) await OsmPobierz(); }; }
+        if (!OsmWanted) return;
+        OsmFromDisk();
+        if (!OsmCovers()) { osmTimer.Stop(); osmTimer.Interval = OsmDelay; osmTimer.Start(); }
     }
+    static readonly TimeSpan OsmDelay = TimeSpan.FromMilliseconds(700);
+    /// <summary>Ponowienie po błędzie Overpass (przeciążony serwer) – bez ruchu mapy [s]; test skraca.</summary>
+    public double OsmRetrySec = 15;
+
+    /// <summary>Sieć z dysku (<see cref="OsmSiec.CacheFile"/>), gdy w tej sesji nic jeszcze nie pobrano; w teście – nie.</summary>
+    void OsmFromDisk()
+    {
+        if (Osm != null || osmDiskTried || Test.Running) return;
+        osmDiskTried = true;
+        Osm = OsmSiec.Load(OsmSiec.CacheFile);
+        if (Osm != null) InvalidateVisual();
+    }
+    bool osmDiskTried;
 
     /// <summary>Test: samo dobieranie sieci także w teście (bez sieci – zamiennik <see cref="OsmFetchForTest"/>).</summary>
     public bool OsmAutoTest;
     /// <summary>Test: zamiast Overpass – sieć dla prostokąta.</summary>
     public Func<XY, XY, OsmSiec> OsmFetchForTest;
-    bool OsmWanted => Osm != null && (OsmShown || tool is UtTool.Slad or UtTool.LukPunkty);
+    /// <summary>Sieć potrzebna na ekranie – także przed pierwszym udanym pobraniem (dawniej warunek Osm != null: po nieudanym pierwszym
+    /// pobraniu – widok ponad 5 km, błąd Overpass – sieć nie dobierała się już nigdy, linie były tylko w części obszarów).</summary>
+    bool OsmWanted => OsmShown || tool is UtTool.Slad or UtTool.LukPunkty;
 
     /// <summary>Sieć OSM dla widoku (Overpass), dołączona do pobranej; liczba dróg albo −1 przy błędzie.</summary>
     public async Task<int> OsmPobierz()
     {
+        OsmFromDisk();
         var (a, b) = ViewBox();
         double k = Geo.ScaleFactor(a);
         if (XY.Dist(a, b) / k > 8000) { DraftInfo?.Invoke("Sieć OSM: przybliż widok (najwyżej ok. 5 km) i pobierz jeszcze raz"); return -1; }
         if (OsmCovers()) return Osm.Ways.Count;
         if (osmBusy) return Osm?.Ways.Count ?? -1;
         osmBusy = true;
-        DraftInfo?.Invoke("Sieć OSM: pobieranie osi torów z OpenStreetMap…");
+        DraftInfo?.Invoke("Sieć OSM: pobieranie osi torów z OpenStreetMap (do kilkunastu sekund)…");
+        bool failed = false;
         try
         {
             var s = OsmFetchForTest != null ? OsmFetchForTest(a, b) : await OsmPunkty.Siec(a, b, CancellationToken.None);
             s.Areas.Add((a, b));
             (Osm ??= new OsmSiec()).Merge(s);
+            if (OsmFetchForTest == null && !Test.Running)
+                try { Osm.Save(OsmSiec.CacheFile); } catch (Exception) { }   // bez zapisu – i tak widać w tej sesji
             DraftInfo?.Invoke($"Sieć OSM: {s.Ways.Count} dróg kolejowych w widoku ({OsmPunkty.Attribution})");
             InvalidateVisual();
             return s.Ways.Count;
         }
-        catch (Exception ex) { DraftInfo?.Invoke("Sieć OSM: " + Pobieranie.Reason(ex)); return -1; }
-        finally { osmBusy = false; }
+        catch (Exception ex) { failed = true; DraftInfo?.Invoke($"Sieć OSM: {Pobieranie.Reason(ex)} – ponowię za {OsmRetrySec:0} s"); return -1; }
+        finally
+        {
+            osmBusy = false;
+            // w czasie pobierania mapa mogła się przesunąć (wtedy pobieranie było pominięte) – dobranie reszty; po błędzie – ponowienie
+            if (osmTimerInit && OsmWanted && !OsmCovers())
+            { osmTimer.Stop(); osmTimer.Interval = failed ? TimeSpan.FromSeconds(OsmRetrySec) : OsmDelay; osmTimer.Start(); }
+        }
     }
 
     void DrawOsm(DrawingContext dc)
@@ -244,7 +280,7 @@ public partial class UtView
                 if (Math.Max(p.X, q.X) < 0 || Math.Min(p.X, q.X) > w || Math.Max(p.Y, q.Y) < 0 || Math.Min(p.Y, q.Y) > h) continue;
                 c.BeginFigure(p, false, false); c.LineTo(q, true, false);
             }
-        g.Freeze(); dc.DrawGeometry(null, OsmPen, g);
+        g.Freeze(); dc.DrawGeometry(null, OsmHalo, g); dc.DrawGeometry(null, OsmPen, g);
         if (mpp < 0.6)
             foreach (var p0 in Osm.Nodes.Values)
             {
@@ -269,17 +305,29 @@ public partial class UtView
             // granice elementów
             foreach (var e in r.Elements.Skip(1)) { var p = ToScreen(e.Start); dc.DrawEllipse(Brushes.White, new Pen(Blue, 1.5), p, 3.5, 3.5); }
             var red = new Pen(Red, 1.6);
+            var prz = SladPreview.Przeskoki ?? new();
+            bool InPrz(int i) => prz.Any(p => i >= p.I0 && i <= p.I1);
+            // tor i ślad się rozchodzą (przeskok na sąsiedni tor, nierozpoznany łuk) – cały odcinek śladu na czerwono, jeden opis
+            var thick = new Pen(Red, 5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            foreach (var p in prz)
+            {
+                if (p.I1 >= SladPts.Count) continue;
+                var g = new StreamGeometry();
+                using (var c = g.Open()) { c.BeginFigure(ToScreen(SladPts[p.I0]), false, false); for (int i = p.I0 + 1; i <= p.I1; i++) c.LineTo(ToScreen(SladPts[i]), true, false); }
+                g.Freeze(); dc.DrawGeometry(null, thick, g);
+                Label(dc, p.Es ? $"przeskok na sąsiedni tor? {p.S1 - p.S0:0} m, es w bok o {p.Max:0.0} m" : $"tor odchodzi od śladu: {p.S1 - p.S0:0} m, do {p.Max:0.0} m", ToScreen(SladPts[(p.I0 + p.I1) / 2]) + new Vector(9, -18), Red, dpi);
+            }
             foreach (var i in SladPreview.Pominiete)
             {
                 if (i >= SladPts.Count) continue; var q = ToScreen(SladPts[i]);
                 dc.DrawLine(red, q + new Vector(-5, -5), q + new Vector(5, 5)); dc.DrawLine(red, q + new Vector(-5, 5), q + new Vector(5, -5));
-                Label(dc, $"pominięty {SladPreview.Dev[i] * 100:0} cm", q + new Vector(7, -16), Red, dpi);
+                if (!InPrz(i)) Label(dc, $"pominięty {SladPreview.Dev[i] * 100:0} cm", q + new Vector(7, -16), Red, dpi);
             }
         }
         if (tool == UtTool.Slad && hover is XY hv)
         {
             if (!Mods.HasFlag(ModifierKeys.Control) && NetAt(ToScreen(hv)) is var (q, _, _)) dc.DrawEllipse(null, SnapPen, ToScreen(q), 6, 6);
-            Label(dc, SladBusy ? "liczę…" : SladPreview != null ? "Enter – utwórz tor" : SladPts.Count == 0 ? "klik przy linii OSM albo na osi toru" : $"{SladPts.Count} pkt, {Len(SladLen)}", ToScreen(hv) + new Vector(12, 8), DraftInk, dpi);
+            Label(dc, SladBusy ? "liczę…" : SladPreview?.Przeskoki?.Count > 0 ? "tor i ślad się rozchodzą – sprawdź; Enter – utwórz mimo to, Esc – odrzuć" : SladPreview != null ? "Enter – utwórz tor" : SladPts.Count == 0 ? "klik przy linii OSM albo na osi toru" : $"{SladPts.Count} pkt, {Len(SladLen)}", ToScreen(hv) + new Vector(12, 8), DraftInk, dpi);
         }
     }
 }

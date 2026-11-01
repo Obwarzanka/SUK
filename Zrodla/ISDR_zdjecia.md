@@ -103,3 +103,99 @@ robić nic innego niż opisano. Kody ISDR spoza § 12 są więc dopuszczalne jak
   (np. SD Brenna 1, ASDEK/PM/GM/GH/OK: prędkość, liczba osi, długość, przekroczenia GML/GMP/GMR/GHL/GHP), przyciski F1–F10.
 - Panel łączności „DROG.” (wywołanie 1–3, nasłuch, głośność) – nad pulpitem.
 - Monitor instruktora (z lewej).
+
+## 7. Filmy z 2026-10-27 (Anastazów, symulacja 26.10.2026 08:00–08:03)
+
+Klatki: `Zrodla/ISDR_klatki/f1_*` (film `20261027_111725.mp4`, EDR), `f2_*` (`20261027_111842.mp4`, pulpit),
+`f3_*` (`20261027_111957.mp4`, blokada liniowa). Opisane jest to, co widać; rzeczy niepewne – do potwierdzenia przez właściciela.
+
+### 7.1 Zwrotnica – polecenie z panelu (`f2_01`–`f2_03`)
+
+- Klik na zwrotnicy 22: **turkusowy kwadrat** na iglicy, panel „22” z przyciskami `PLUS` `MINUS` `ZMK` `OZM…` (ucięte),
+  w drugim wierszu `MINUSBZ` `KSR` `KSRP` `O…` (ucięte).
+- Po wyborze MINUS: kwadrat **zielony**, panel „MINUS 22” + **Wyślij** (jak przy przebiegu). Po wysłaniu: „MINUS 22 - Odebrane - przyjęte” (zielony napis).
+- ZDARZENIA (od najstarszego): `Polecenie wysłane : MINUS` → `Polecenie ruchowe zostało przyjęte : MINUS` →
+  `Polecenie poprawne : MINUS` (kategoria „Polecenia zwykłe”, operator **ZSP**) → `w czasie przestawiania (chwilowy brak kontroli)` →
+  po ok. 2 s `położenie MINUS` („Zwykłe zdarzenia”, operator „-”).
+- Zwrotnica jest rysowana **tylko w ułożonej drodze** – po MINUS 22 widać przerwę między torem przy P a zwrotnicą.
+
+### 7.2 Przebieg z punktem pośrednim W → L → F (`f2_04`–`f2_08`)
+
+- Klik na semaforze wjazdowym W: W w turkusowej ramce, **turkusowe kółka na wszystkich możliwych końcach / punktach**
+  (A, D, E, F, G, K, L); panel „W”: `STOP` `OSTOP` `SZ` `SZI` (SZI czerwony).
+- Najazd na F: **żółty obrys odcinka** 2a (podgląd) – to samo co na klatce 3 filmu z 2026-10-20.
+- Klik L, potem F: L w **żółtej** ramce (punkt pośredni), F w turkusowej; panel „W L F” → `POCIĄG`.
+  Turkusowe kwadraty widać też na zwrotnicach 23 i 25 (znaczenie do potwierdzenia).
+- Po Wyślij: „POCIĄG W L F - Odebrane - przyjęte”; w Historii wiersze „POCIĄG W L F” i „MINUS 22” (Przyjęcie / Realizacja: Odebrane / Przyjęte).
+- Przebieg ułożony po ok. 5 s:
+  - droga **zielona** W → 27 → 23 → 22 → 21 → tor 4 → 11 → 2a → F; W i L **zielone**, F czerwony (koniec);
+  - **ochrona boczna:** zwrotnice 25 i 26 z **żółtą kreską** na torze (`położenie PLUS – zamknięta w ochronie`),
+    semafory K, P, N przechodzą na **czerwone** (`sygnalizator zastopowany w ochronie bocznej`);
+  - zdarzenia: `zwrotnica utwierdzona w przebiegu w pozycji PLUS` (27), `wyświetla wolna droga dla pociągu` (L, W),
+    „Blokada liniowa 2B”: `kierunek ustawiony na wjazd` – kierunek blokady zmienia się sam przy nastawianiu wjazdu;
+  - typ obiektu „Przebieg”, obiekt „W|L|F”.
+- Przebieg złożony zachowuje się jak **dwa przebiegi**: klik W i L daje panel „W L”: `POCIĄG` `ZD` `ZDP` (czerwony) `OPS` `ZDPP`.
+  Po zwolnieniu znika tylko część W → L (W, P, N – `wyświetla stan podstawowy`, zwrotnice 21–27 – `położenie PLUS/MINUS`),
+  a część L → F zostaje zielona.
+
+### 7.3 SSS / OSSS i diagnostyka (`f2_09`, `f2_10`)
+
+- Klik na nazwie stacji „ANASTAZÓW”: nazwa w **zielonej ramce**, pod obrazem **panel diagnostyki**:
+  KOMPUTER ZALEŻNOŚCIOWY 1 2 [T], SERWER EBISCREEN300 1 2, STC2-1…STC2-6 (PLC L P, UOS I II), SZR (SIEĆ 1, SIEĆ 2, AGREGAT, 24V),
+  przyciski Komp. / Rozdz. / Nastaw. (zielone = sprawne).
+- Po SSS wszystkie sygnalizatory, także tarcze (1, 2, 3, 11, 21, 22, 1k…), mają **magentowe strzałki** = zastopowany.
+  Zdarzenia `zastopowany` dla W, TM1, TM2, TM3, TM4, TM11, TM21, TM22 (tarcze manewrowe w dzienniku jako **TM + numer**);
+  L (wolna droga) – `wyświetla stan aktywny czerwony`.
+- Po OSSS (ok. 7 s później): `wyświetla stan podstawowy`. **L zostaje czerwony**, choć droga L → F jest nadal zielona –
+  zastopowanie kasuje sygnał zezwalający, odwołanie go nie przywraca.
+
+### 7.4 Sygnał zastępczy SZI → SZ (`f2_11`, `f2_12`)
+
+- SZI na W: wpisy w kategorii „Polecenia specjalne” (wysłane, przyjęte, poprawne : SZI).
+- SZ wysłane po **8 s** (08:02:14 → 08:02:22); zdarzenie `wyświetla sygnał zastępczy`.
+- Symbol W przy SZ: **biały trójkąt** (na kolejnych klatkach raz w ramce, raz bez – prawdopodobnie miga).
+
+### 7.5 Okno „Kolejki w systemie” – numery pociągów (`f2_13`)
+
+- Klik na polu numeru pociągu (3321, tor 2): pole w żółtej ramce i okno **„Kolejki w systemie”**:
+  „Pokaż wszystkie kolejki”, lista kolejek (**An tor 2a, An tor 6, An tor 4, An tor 2, An tor 1, An tor 3,
+  An <-> Br tor 2, An <-> Br tor 1**), numery w kolejce (3321), przyciski **Dodaj, Usuń, Przesuń**, **Anuluj, OK**.
+- Numer pociągu jest przypisany do kolejki toru stacyjnego albo toru szlaku; dyżurny może go dopisać, usunąć i przesunąć.
+
+### 7.6 Blokada liniowa – panel i AZK (`f3_01`–`f3_04`)
+
+- Klik na strzałce kierunku (2B, 1B): strzałka w żółtej ramce, panel `WBL` `OWBL` `PZK` `ZWBL` `AZK` `AZKP` `STOP` `OPS` `WTAB` / `KTAB`.
+- Podpowiedź przy AZK: **„Awaryjna zmiana kierunku blokady - inicjacja”** (AZK czerwone – specjalne).
+- AZK 1B → Wyślij → „AZK 1B - Odebrane - przyjęte”; zdarzenia „Blokada liniowa 1B” („Polecenia specjalne”), potem
+  `kierunek ustawiony na wyjazd`. Strzałka 1B zamienia się w **żółty prostokąt** (zmiana kierunku w toku? – do potwierdzenia).
+- WBL, OWBL, PZK, ZWBL, AZKP, WTAB, KTAB – znaczenie do podania przez właściciela.
+
+### 7.7 EDR – działanie (`f1_01`–`f1_07`, uzupełnia § 5)
+
+- **„Ustawienia bieżące dziennika ruchu”** (szlak do Dobrocin): linia **jednotorowa**, tor szlakowy 1 „Otwarty”, „Dwukierunkowy”,
+  zasadniczy kierunek „Nieustalony”, parzysty „DO posterunku sąsiedniego”, nieparzysty „Z posterunku sąsiedniego”,
+  urządzenie srk **„Półsamoczynna przekaźnikowa blokada liniowa typu Eap”**, prowadzenie dziennika „Jednoodstępowa (półsamoczynna)”,
+  wymagane: tor stacyjny, droga wolna, pociąg odjechał, pociąg przyjechał.
+- Na dole **pasek 1–6** (zielone / czerwone kwadraty – kontrolka zajętości torów stacyjnych, wg podręcznika EDR: `EDR_notatki.md` § 4) i „TRYB OPERATORA”; zalogowany Jan Kowalski, jednostka ZSP.
+- PPM na pociągu w wykazie: **Przyjmij pociąg, Wypraw pociąg, Przyjmij z innego szlaku, Wypraw na inny szlak, Pociąg STÓJ,
+  Zgłoszenie gotowości, Analiza pociągu**.
+- Wyprawienie 33221 do Brenny: wiersz w dzienniku szlaku (tor 1, „Poc. odjechał” 08:00) najpierw pomarańczowy do zatwierdzenia, potem szary.
+- „Przyjęcie pociągu – Pociąg Z DOBROCINY”: Nr pociągu (niep.), Tor stacyjny, Droga wolna / Pociąg odjechał / Pociąg przyjechał,
+  „Powrót ze szlaku”, Uwagi, Zapisz / Anuluj.
+- **Telefonogram do dziennika ruchu**: Nadaję / Odbieram, data i godzina, Nadał / Odebrał, wzór z listy
+  (np. „[9] Żądanie wstrzymania wyprawiania pociągów” → „Nie wyprawiać pociągów od 08:00 aż do odwołania”), dodatkowa notatka.
+- **Dziennik telefoniczny**: Nr kol., Data, Adres i treść, Czas zakończenia, Nadał / odebrał; „Rejestruj telefonogram”, „Rejestruj inne okoliczności”.
+
+### 7.8 Wnioski dla symulatora (propozycje – do decyzji właściciela)
+
+1. Panel zwrotnicy: PLUS, MINUS, ZMK, OZM…, MINUSBZ, KSR, KSRP (+ ucięte), ten sam schemat „wybór → Wyślij → Odebrane – przyjęte”. **ZROBIONE 2026-10-27** (bez KSRP – znaczenie nieznane).
+2. Każde polecenie: trzy wpisy w ZDARZENIACH (wysłane, przyjęte, poprawne) z operatorem, potem skutek bez operatora. **ZROBIONE 2026-10-27.**
+3. Przebieg z punktem pośrednim (żółta ramka) = przebiegi składowe nastawiane jednym poleceniem, zwalniane osobno.
+4. Ochrona boczna na obrazie: żółta kreska na zwrotnicy zamkniętej w ochronie, czerwony semafor ochronny. **ZROBIONE 2026-10-27.**
+5. Zwrotnica rysowana tylko w ułożonej gałęzi. **Było już zrobione** (przerwa przed iglicą w nieczynnej gałęzi).
+6. Zastopowanie = magenta; SSS obejmuje tarcze; OSSS nie przywraca sygnału zezwalającego.
+7. Sygnał zastępczy = biały (migający) trójkąt; SZ dopiero po SZI.
+8. Nastawienie wjazdu sam ustawia kierunek blokady; AZK – awaryjna zmiana kierunku (specjalne).
+9. Kolejki numerów pociągów (tory stacyjne i szlakowe), okno Dodaj / Usuń / Przesuń.
+10. Klik na nazwie stacji – panel diagnostyki komputera zależnościowego i zasilania.
+11. Tarcze manewrowe w dzienniku jako „TM<numer>”.

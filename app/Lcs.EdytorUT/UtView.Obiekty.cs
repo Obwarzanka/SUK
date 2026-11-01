@@ -32,6 +32,34 @@ public partial class UtView
         public const double MurGrub = 1, MurKrok = 10, MurKreska = 0.5;
         /// <summary>Linia 0,18 mm, kreskowanie: kreska 1 mm, odstęp 1 mm.</summary>
         public const double Linia = 0.18, Kreska = 1, Odstep = 1;
+        /// <summary>
+        /// Nastawnia (s. 35–39): obrys 0,5 mm, piętrowa – druga ściana 1 mm wewnątrz, kreskowanie co 1 mm, belka 1 mm grubości 2 mm od ściany
+        /// od strony toru, kropka średnicy 1 mm 1 mm nad belką. Najmniejszy znak (gdy budynek w skali jest mniejszy): 10 × 6 mm, piętrowa 10 × 8 mm;
+        /// belka – 0,6 długości wnętrza (z rysunku załącznika).
+        /// </summary>
+        public const double NastLinia = 0.5, NastSciana = 1, NastKrok = 1, NastBelka = 1, NastBelkaOd = 2, NastKropka = 1, NastKropkaOd = 1,
+            NastDl = 10, NastGl = 6, NastGlP = 8, NastBelkaDl = 0.6;
+    }
+
+    /// <summary>
+    /// Obrys nastawni na ekranie: prostokąt wg kierunku toru w połowie km od–do, ściana od strony toru w odległości <see cref="UtObiekt.Offset"/>,
+    /// głębokość <see cref="UtObiekt.Width"/>; nie mniejszy niż znak Ig-10. Narożniki: przy torze OD, przy torze DO, dalej DO, dalej OD;
+    /// Along – w stronę rosnącego km, Out – od toru.
+    /// </summary>
+    (Point[] C, Vector Along, Vector Out)? NastawniaRect(UtObiekt o, double delta = 0)
+    {
+        var t = Track(o.Track); if (t == null) return null;
+        var r = Geometry(t); if (r.Elements.Count == 0) return null;
+        var (p, az) = r.At(Math.Clamp((o.Lo + o.Hi) / 2 + delta, 0, r.Length));
+        var c = ToScreen(p);
+        // px na metr osobno wzdłuż i w poprzek toru (w Schemacie w poprzek ×4)
+        var along = ToScreen(p + Element.Dir(az) * r.K) - c; double ppm = along.Length; if (ppm < 1e-9) return null;
+        along /= ppm;
+        var outv = ToScreen(p + Element.Right(az) * (o.Side * r.K)) - c; double ppmOut = outv.Length; if (ppmOut < 1e-9) return null;
+        outv /= ppmOut;
+        double k = PxPerMm, half = Math.Max(o.Len * ppm, Wym.NastDl * k) / 2, dep = Math.Max(o.Width * ppmOut, (Obiekty.Pietrowa(o.Kind) ? Wym.NastGlP : Wym.NastGl) * k);
+        var n0 = c + outv * (o.Offset * ppmOut);
+        return (new[] { n0 - along * half, n0 + along * half, n0 + along * half + outv * dep, n0 - along * half + outv * dep }, along, outv);
     }
 
     /// <summary>Rodzaj obiektu dla narzędzia Obiekt.</summary>
@@ -134,6 +162,24 @@ public partial class UtView
         return (c, u, new Vector(-u.Y, u.X), A, B, az);
     }
 
+    /// <summary>Połowa rzeczywistej szerokości obiektu poprzecznego (światło, w poprzek osi przeszkody) w px; 0 dla przepustu.</summary>
+    static double ObPolSzer(UtObiekt o, Point c, Point B) =>
+        o.Kind == Obiekty.Przepust || o.Reach <= 0 ? 0 : o.Width / 2 * (B - c).Length / o.Reach;
+
+    /// <summary>
+    /// Ustroje wiaduktu drogowego (osobne jezdnie obok siebie) w poprzek osi drogi [px]: przesunięcie środka i połowa szerokości.
+    /// Jeden ustrój – znak Ig-10 albo rzeczywista szerokość; kilka – rzeczywiste szerokości z odstępem, każdy nie węższy niż 1,5 mm.
+    /// </summary>
+    List<(double Off, double Half)> UstrojeWiad(UtObiekt o, Point c, Point B)
+    {
+        double k = PxPerMm, M0 = Math.Max(3, Wym.WiadDrogBok * k);
+        int n = Math.Clamp(o.Ustroje, 1, 6);
+        if (n == 1) return new() { (0, Math.Max(M0, ObPolSzer(o, c, B))) };
+        double ppm = o.Reach > 0 ? (B - c).Length / o.Reach : 0;
+        double half = Math.Max(Math.Max(3, 1.5 * k), o.Width / 2 * ppm), krok = Math.Max(2 * half + Math.Max(2, 0.5 * k), (o.Width + o.OdstepUstrojow) * ppm);
+        return Enumerable.Range(0, n).Select(i => ((i - (n - 1) / 2.0) * krok, half)).ToList();
+    }
+
     /// <summary>Obrys obiektu na ekranie (trafianie, zaznaczanie prostokątem).</summary>
     List<Point> ObiektPoly(UtObiekt o, double delta = 0)
     {
@@ -141,11 +187,13 @@ public partial class UtView
         if (inf.Pol == Obiekty.Pol.Poprzeczny)
         {
             if (ObCross(o, delta) is not var (c, u, v, A, B, _)) return null;
-            double w = Math.Max(6, (o.Kind == Obiekty.WiaduktDrog ? Wym.WiadDrogBok : Wym.Bok) * k);
+            double w = Math.Max(Math.Max(6, (o.Kind == Obiekty.WiaduktDrog ? Wym.WiadDrogBok : Wym.Bok) * k), ObPolSzer(o, c, B));
+            if (o.Kind == Obiekty.WiaduktDrog) w = Math.Max(6, UstrojeWiad(o, c, B).Max(x => Math.Abs(x.Off) + x.Half));
             var ea = A; var eb = B;
             if (o.Kind == Obiekty.WiaduktDrog) { double h = Math.Max((B - c).Length, Wym.WiadBok * k); ea = c - u * h; eb = c + u * h; }
             return new() { ea + v * w, eb + v * w, eb - v * w, ea - v * w };
         }
+        if (Obiekty.Nastawnia(o.Kind)) return NastawniaRect(o, delta)?.C.ToList();
         var sm = ObSamples(o, delta); if (sm == null || sm.Count < 2) return null;
         if (inf.Pol == Obiekty.Pol.ZBoku)
         {
@@ -170,18 +218,22 @@ public partial class UtView
 
     public (string Kind, string Id)? HitObiekt(Point s)
     {
-        if (Doc == null || !Shown("budowle")) return null;
+        if (Doc == null) return null;
         foreach (var o in Doc.P.Obiekty)
-            if (ObiektPoly(o) is List<Point> poly && Inside(poly, s)) return (Kontrola.KObiekt, o.Id);
+            if (Shown(ObLayer(o)) && ObiektPoly(o) is List<Point> poly && Inside(poly, s)) return (Kontrola.KObiekt, o.Id);
         return null;
     }
+
+    /// <summary>Warstwa obiektu: nastawnia – „budynek”, reszta – „budowle”.</summary>
+    public static string ObLayer(UtObiekt o) => Obiekty.Nastawnia(o.Kind) ? "budynek" : "budowle";
 
     // ------------------------------------------------------------------ rysowanie
     void DrawObiekty(DrawingContext dc, double dpi)
     {
-        if (Doc == null || !Shown("budowle")) return;
+        if (Doc == null) return;
         foreach (var o in Doc.P.Obiekty)
         {
+            if (!Shown(ObLayer(o))) continue;
             bool sel = SelectedObj is (Kontrola.KObiekt, var id) && id == o.Id;
             DrawObiekt(dc, o, sel ? Blue : DevInk, DragDelta(Kontrola.KObiekt, o.Id), dpi, true);
         }
@@ -194,6 +246,7 @@ public partial class UtView
             {
                 var r = Geometry(t); double s1 = Math.Clamp(r.Nearest(h, 0.2).S, 0, r.Length);
                 var tmp = new UtObiekt { Kind = ObKind, Track = ft, S0 = Math.Min(fs, s1), S1 = Math.Max(fs, s1), Side = DragDir(ft, s1, ToScreen(h)).Side };
+                if (Obiekty.Nastawnia(ObKind)) { tmp.Offset = Obiekty.NastawniaOdsun; tmp.Width = inf.Width; }
                 DrawObiekt(dc, tmp, Red, 0, dpi, false);
                 Label(dc, $"{inf.Name}: {Math.Abs(s1 - fs):0.#} m" + (inf.Pol == Obiekty.Pol.ZBoku ? $" po {(tmp.Side > 0 ? "prawej" : "lewej")}" : "") + " – klik: koniec", ToScreen(h) + new Vector(12, 10), Red, dpi);
             }
@@ -233,7 +286,52 @@ public partial class UtView
         }
         var inf = Obiekty.Info(o.Kind);
         Point labelAt; Vector labelN;
-        if (inf.Pol == Obiekty.Pol.Poprzeczny)
+        if (Obiekty.Nastawnia(o.Kind))
+        {
+            // s. 35–39: obrys (piętrowa – podwójny), kreskowanie wg urządzeń, belka od strony toru i kropka nad nią
+            if (NastawniaRect(o, delta) is not var (C, al, ou)) return;
+            var bold = new Pen(ink, Math.Max(1.2, Wym.NastLinia * k)) { LineJoin = PenLineJoin.Miter };
+            Poly(bold, C.Append(C[0]));
+            var In = C;
+            if (Obiekty.Pietrowa(o.Kind))
+            {
+                double i = M(Wym.NastSciana, 2.5);
+                In = new[] { C[0] + (al + ou) * i, C[1] + (-al + ou) * i, C[2] - (al + ou) * i, C[3] + (al - ou) * i };
+                Poly(bold, In.Append(In[0]));
+            }
+            var dirs = Obiekty.Urzadzenia(o.Kind) switch
+            {
+                'm' => new[] { al + ou },
+                'e' => new[] { al + ou, al - ou },
+                'k' => new[] { al, ou },
+                _ => Array.Empty<Vector>(),
+            };
+            if (dirs.Length > 0)
+            {
+                var clip = new StreamGeometry();
+                using (var g = clip.Open()) { g.BeginFigure(In[0], true, true); g.PolyLineTo(In.Skip(1).ToList(), false, false); }
+                clip.Freeze(); dc.PushClip(clip);
+                var mid = new Point((In[0].X + In[2].X) / 2, (In[0].Y + In[2].Y) / 2); double diag = (In[2] - In[0]).Length / 2 + 1, step = M(Wym.NastKrok, 3);
+                foreach (var d0 in dirs)
+                {
+                    var d = d0; d.Normalize(); var n = new Vector(-d.Y, d.X);
+                    for (double x = -Math.Floor(diag / step) * step; x <= diag; x += step) Poly(pen, new[] { mid + n * x - d * diag, mid + n * x + d * diag });
+                }
+                dc.Pop();
+            }
+            // belka i kropka na tle papieru (żeby kreskowanie ich nie przecinało)
+            double inLen = (In[1] - In[0]).Length, bl = Math.Max(M(2), inLen * Wym.NastBelkaDl), bt = M(Wym.NastBelka, 2), kr = M(Wym.NastKropka, 2) / 2;
+            var b0 = new Point((In[0].X + In[1].X) / 2, (In[0].Y + In[1].Y) / 2) + ou * (M(Wym.NastBelkaOd, 4) + bt / 2);
+            var bar = new[] { b0 - al * bl / 2 - ou * bt / 2, b0 + al * bl / 2 - ou * bt / 2, b0 + al * bl / 2 + ou * bt / 2, b0 - al * bl / 2 + ou * bt / 2 };
+            var bg = new StreamGeometry();
+            using (var g = bg.Open()) { g.BeginFigure(bar[0], true, true); g.PolyLineTo(bar.Skip(1).ToList(), false, false); }
+            bg.Freeze();
+            dc.DrawGeometry(ink, new Pen(paper, Math.Max(1, 0.5 * k)), bg);
+            var dot = b0 + ou * (bt / 2 + M(Wym.NastKropkaOd, 2) + kr);
+            dc.DrawEllipse(ink, new Pen(paper, Math.Max(1, 0.5 * k)), dot, kr, kr);
+            labelAt = new Point((C[2].X + C[3].X) / 2, (C[2].Y + C[3].Y) / 2); labelN = ou;
+        }
+        else if (inf.Pol == Obiekty.Pol.Poprzeczny)
         {
             if (ObCross(o, delta) is not var (c, u, v, A, B, az)) return;
             switch (o.Kind)
@@ -248,21 +346,34 @@ public partial class UtView
                 case Obiekty.WiaduktDrog:
                 {
                     // s. 44: prostokąt nad torami (boki wzdłuż drogi), krawędzie drogi kreskowane przez prostokąt, tor pod spodem przerywany
-                    double w = M(Wym.WiadDrogBok), h = Math.Max((B - c).Length, M(Wym.WiadBok));
-                    var ea = c - u * h; var eb = c + u * h;
-                    var tr = Geometry(Track(o.Track)); double ds = Math.Max(1, w / Math.Max(1e-6, (ToScreen(tr.At(Math.Min(tr.Length, o.S0 + 1)).P) - c).Length));
+                    // bok: wymiar znaku Ig-10, a gdy obiekt w skali jest szerszy – rzeczywista szerokość
+                    // kilka ustrojów (osobne jezdnie) – każdy własny prostokąt ze skrzydełkami, tor pod spodem przerywany pod wszystkimi
+                    var us = UstrojeWiad(o, c, B);
+                    double wAll = us.Max(x => Math.Abs(x.Off) + x.Half), h = Math.Max((B - c).Length, M(Wym.WiadBok));
+                    var tr = Geometry(Track(o.Track)); double ds = Math.Max(1, wAll / Math.Max(1e-6, (ToScreen(tr.At(Math.Min(tr.Length, o.S0 + 1)).P) - c).Length));
                     var ax = new List<Point>(); for (int i = -6; i <= 6; i++) ax.Add(ToScreen(tr.At(Math.Clamp(o.S0 + delta + ds * i / 6, 0, tr.Length)).P));
                     UnderTrack(ax);
-                    Poly(pen, new[] { ea + v * w, eb + v * w, eb - v * w, ea - v * w, ea + v * w });
-                    foreach (var sv in new[] { -1.0, 1.0 }) Poly(dash, new[] { ea - u * M(5) + v * (sv * M(Wym.WiadDrogKraw)), eb + u * M(5) + v * (sv * M(Wym.WiadDrogKraw)) });
-                    foreach (var (e, sg) in new[] { (ea, -1.0), (eb, 1.0) })
-                        foreach (var sv in new[] { -1.0, 1.0 }) Poly(pen, new[] { e + v * (sv * w), e + v * (sv * (w + M(Wym.WiadSkrzOdch, 2))) + u * (sg * M(Wym.WiadSkrzDl)) });
+                    for (int iu = 0; iu < us.Count; iu++)
+                    {
+                        var (off, w) = us[iu];
+                        var cc = c + v * off; var ea = cc - u * h; var eb = cc + u * h;
+                        double kr = Math.Min(M(Wym.WiadDrogKraw), w * 0.7);
+                        Poly(pen, new[] { ea + v * w, eb + v * w, eb - v * w, ea - v * w, ea + v * w });
+                        foreach (var sv in new[] { -1.0, 1.0 }) Poly(dash, new[] { ea - u * M(5) + v * (sv * kr), eb + u * M(5) + v * (sv * kr) });
+                        foreach (var (e, sg) in new[] { (ea, -1.0), (eb, 1.0) })
+                            foreach (var sv in new[] { -1.0, 1.0 })
+                            {
+                                // skrzydełka wspólne – tylko na skrajnych krawędziach całego wiaduktu
+                                if (o.SkrzydlaWspolne && (sv < 0 ? iu > 0 : iu < us.Count - 1)) continue;
+                                Poly(pen, new[] { e + v * (sv * w), e + v * (sv * (w + M(Wym.WiadSkrzOdch, 2))) + u * (sg * M(Wym.WiadSkrzDl)) });
+                            }
+                    }
                     break;
                 }
                 default:
                 {
                     // tunel pod linią, przejścia (s. 42, 43): prostokąt wzdłuż osi przeszkody; kładka – ciągły ze schodami na końcach
-                    double w = M(Wym.Bok);
+                    double w = Math.Max(M(Wym.Bok), ObPolSzer(o, c, B));
                     bool kl = o.Kind == Obiekty.Kladka;
                     foreach (var sv in new[] { -1.0, 1.0 }) Poly(kl ? pen : dash, new[] { A + v * (sv * w), B + v * (sv * w) });
                     Poly(pen, new[] { A + v * w, A - v * w }); Poly(pen, new[] { B + v * w, B - v * w });

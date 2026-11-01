@@ -59,6 +59,8 @@ public sealed class SimulatorRuntime(string stationPath, string scenario, ILogge
     {
         ["station"] = stationPath, ["dependencies"] = Path.ChangeExtension(stationPath, ".zaleznosci.json"),
         ["timetable"] = RozkladPlik.PlikDla(stationPath), ["gtfs"] = Path.Combine(Path.GetDirectoryName(stationPath)!, "rozklad.json"),
+        // rozkład jazdy <układ>.rj.json (PLAN_EDYTOR_RJ.md, R1)
+        ["timetableRj"] = Lcs.RozkladJazdy.RjDokument.PlikDla(stationPath),
         ["signals"] = Path.Combine(AppContext.BaseDirectory, "Data", "sygnaly_ie1.json"),
         ["stock"] = TaborPlik.SciezkaWspolna(), ["stationStock"] = TaborPlik.PlikUkladu(stationPath)
     };

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text.Json;
 using Lcs.Model;
 
@@ -25,12 +26,99 @@ public static class OsmPunkty
     /// <summary>Węzły dróg kolejowych (rail, light_rail, narrow_gauge, tram) w prostokącie PUWG 1992 – w PUWG.</summary>
     public static async Task<List<XY>> Nodes(XY a, XY b, CancellationToken ct) => (await Siec(a, b, ct)).Nodes.Values.ToList();
 
-    /// <summary>Drogi kolejowe w prostokącie PUWG 1992 – węzły i kolejność węzłów w drogach.</summary>
+    /// <summary>
+    /// Drogi kolejowe w prostokącie PUWG 1992 – węzły i kolejność węzłów w drogach. Najpierw API OpenStreetMap (<see cref="SiecApi"/>),
+    /// potem Overpass: 2026-10-28 Overpass na 7 zapytań odpowiedział raz (po 35–55 s), API – w 5 s.
+    /// </summary>
     public static async Task<OsmSiec> Siec(XY a, XY b, CancellationToken ct)
     {
+        try { return await SiecApi(a, b, ct); }
+        catch (Exception) when (!ct.IsCancellationRequested) { }
         var q = Query(a, b);
-        var data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3);
+        byte[] data;
+        try { data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3); }
+        catch (Exception) when (!ct.IsCancellationRequested) { data = await Pobieranie.Retry(() => Pobieranie.Get(OverpassZapas + "?data=" + Uri.EscapeDataString(q), ct), ct, 2); }
         return ParseSiec(data);
+    }
+
+    public const string OsmApi = "https://api.openstreetmap.org/api/0.6/map";
+    /// <summary>Największy kawałek zapytania API [°] (ok. 1,7 × 1,7 km) – API zwraca wszystkie dane obszaru (limit 50 000 węzłów).</summary>
+    const double ApiLat = 0.015, ApiLon = 0.025;
+
+    /// <summary>
+    /// Sieć z API OpenStreetMap (<c>/api/0.6/map</c>): prostokąt dzielony na kawałki, po 3 naraz; kawałek ponad limit (400) – na cztery.
+    /// Z odpowiedzi tylko drogi <c>railway</c> = rail, light_rail, narrow_gauge, tram (jak w <see cref="Query"/>); API daje drogi w całości.
+    /// </summary>
+    public static async Task<OsmSiec> SiecApi(XY a, XY b, CancellationToken ct)
+    {
+        var (la1, lo1) = Geo.ToWgs84(a); var (la2, lo2) = Geo.ToWgs84(b);
+        double s = Math.Min(la1, la2), n = Math.Max(la1, la2), w = Math.Min(lo1, lo2), e = Math.Max(lo1, lo2);
+        int ny = Math.Max(1, (int)Math.Ceiling((n - s) / ApiLat)), nx = Math.Max(1, (int)Math.Ceiling((e - w) / ApiLon));
+        var res = new OsmSiec();
+        using var gate = new SemaphoreSlim(3);
+        async Task Part(double s0, double w0, double n0, double e0, int depth)
+        {
+            byte[] data;
+            await gate.WaitAsync(ct);
+            try
+            {
+                var url = string.Format(CultureInfo.InvariantCulture, "{0}?bbox={1:0.000000},{2:0.000000},{3:0.000000},{4:0.000000}", OsmApi, w0, s0, e0, n0);
+                data = await Pobieranie.Retry(() => Pobieranie.Get(url, ct), ct, 3);
+            }
+            catch (System.Net.Http.HttpRequestException h) when (h.StatusCode == System.Net.HttpStatusCode.BadRequest && depth < 3)
+            {
+                gate.Release();
+                double ms = (s0 + n0) / 2, mw = (w0 + e0) / 2;
+                await Task.WhenAll(Part(s0, w0, ms, mw, depth + 1), Part(s0, mw, ms, e0, depth + 1), Part(ms, w0, n0, mw, depth + 1), Part(ms, mw, n0, e0, depth + 1));
+                return;
+            }
+            catch { gate.Release(); throw; }
+            gate.Release();
+            var part = ParseApi(data);
+            lock (res) res.Merge(part);
+        }
+        var parts = new List<Task>();
+        for (int i = 0; i < ny; i++) for (int j = 0; j < nx; j++)
+            parts.Add(Part(s + (n - s) * i / ny, w + (e - w) * j / nx, s + (n - s) * (i + 1) / ny, w + (e - w) * (j + 1) / nx, 0));
+        await Task.WhenAll(parts);
+        return res;
+    }
+
+    /// <summary>Odpowiedź API OpenStreetMap (XML <c>osm</c>): drogi kolejowe i ich węzły (PUWG 1992).</summary>
+    public static OsmSiec ParseApi(byte[] xml)
+    {
+        var res = new OsmSiec();
+        var nodes = new Dictionary<long, (double Lat, double Lon)>();
+        using var r = System.Xml.XmlReader.Create(new MemoryStream(xml), new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Prohibit });
+        List<long> nd = null; bool rail = false;
+        while (r.Read())
+        {
+            if (r.NodeType == System.Xml.XmlNodeType.Element)
+            {
+                switch (r.Name)
+                {
+                    case "node":
+                        if (long.TryParse(r.GetAttribute("id"), out var id) && double.TryParse(r.GetAttribute("lat"), NumberStyles.Float, CultureInfo.InvariantCulture, out var la)
+                            && double.TryParse(r.GetAttribute("lon"), NumberStyles.Float, CultureInfo.InvariantCulture, out var lo)) nodes[id] = (la, lo);
+                        break;
+                    case "way": nd = new(); rail = false; if (r.IsEmptyElement) nd = null; break;
+                    case "nd": if (nd != null && long.TryParse(r.GetAttribute("ref"), out var rf)) nd.Add(rf); break;
+                    case "tag":
+                        if (nd != null && r.GetAttribute("k") == "railway" && r.GetAttribute("v") is "rail" or "light_rail" or "narrow_gauge" or "tram") rail = true;
+                        break;
+                }
+            }
+            else if (r.NodeType == System.Xml.XmlNodeType.EndElement && r.Name == "way")
+            {
+                if (nd != null && rail && nd.Count > 1 && nd.All(nodes.ContainsKey))
+                {
+                    res.Ways.Add(nd.ToArray());
+                    foreach (var x in nd) if (!res.Nodes.ContainsKey(x)) { var (la, lo) = nodes[x]; res.Nodes[x] = Geo.ToPuwg92(la, lo); }
+                }
+                nd = null;
+            }
+        }
+        return res;
     }
 
     /// <summary>Słupki km (<c>railway=milestone</c>) w prostokącie PUWG 1992 z numerem linii z torów OSM obok (<see cref="KilometrazOsm"/>).</summary>
@@ -43,6 +131,22 @@ public static class OsmPunkty
         try { data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3); }
         catch (Exception) when (!ct.IsCancellationRequested) { data = await Pobieranie.Retry(() => Pobieranie.Get(OverpassZapas + "?data=" + Uri.EscapeDataString(q), ct), ct, 2); }
         return KilometrazOsm.Parse(data);
+    }
+
+    /// <summary>
+    /// Sygnalizatory, zwrotnice, wykolejnice i kozły (<c>railway=signal|switch|derail|buffer_stop</c>) w prostokącie PUWG 1992 z drogami,
+    /// na których leżą (kierunek „forward”), i tory z numerem (<c>railway:track_ref</c>) – <see cref="UrzadzeniaOsm"/>.
+    /// </summary>
+    public static async Task<OsmUrzadzenia> Urzadzenia(XY a, XY b, CancellationToken ct)
+    {
+        var (la1, lo1) = Geo.ToWgs84(a); var (la2, lo2) = Geo.ToWgs84(b);
+        var bb = string.Format(CultureInfo.InvariantCulture, "({0:0.000000},{1:0.000000},{2:0.000000},{3:0.000000})", Math.Min(la1, la2), Math.Min(lo1, lo2), Math.Max(la1, la2), Math.Max(lo1, lo2));
+        const string rail = "[\"railway\"~\"^(rail|light_rail|narrow_gauge)$\"]";
+        var q = $"[out:json][timeout:25];node[\"railway\"~\"^(signal|switch|derail|buffer_stop)$\"]{bb}->.n;.n out;(way(bn.n){rail};way{rail}[\"railway:track_ref\"]{bb};);out geom;";
+        byte[] data;
+        try { data = await Pobieranie.Retry(() => Pobieranie.Get(Overpass + "?data=" + Uri.EscapeDataString(q), ct), ct, 3); }
+        catch (Exception) when (!ct.IsCancellationRequested) { data = await Pobieranie.Retry(() => Pobieranie.Get(OverpassZapas + "?data=" + Uri.EscapeDataString(q), ct), ct, 2); }
+        return UrzadzeniaOsm.Parse(data);
     }
 
     /// <summary>Węzły z odpowiedzi Overpass (JSON) – w PUWG 1992.</summary>
@@ -95,6 +199,41 @@ public class OsmSiec
         foreach (var w in o.Ways) if (have.Add(string.Join(",", w))) Ways.Add(w);
         Areas.AddRange(o.Areas);
         adj = null;
+    }
+
+    /// <summary>Pobrana sieć na dysku (wspólna dla projektów) – raz pobrany obszar widać bez Overpass, który bywa przeciążony
+    /// (2026-10-28: na 7 prób jedna odpowiedź po 35 s, reszta – przekroczenie czasu albo 502).</summary>
+    public static string CacheFile = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LcsEdytorUT", "osm", "siec.json");
+
+    public void Save(string file)
+    {
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file));
+        var o = new
+        {
+            nodes = Nodes.Select(kv => new[] { kv.Key, kv.Value.X, kv.Value.Y }).ToList(),
+            ways = Ways,
+            areas = Areas.Select(r => new[] { r.A.X, r.A.Y, r.B.X, r.B.Y }).ToList(),
+        };
+        var tmp = file + ".tmp";
+        File.WriteAllBytes(tmp, JsonSerializer.SerializeToUtf8Bytes(o));
+        File.Move(tmp, file, true);
+    }
+
+    /// <summary>Sieć z pliku; null – brak pliku albo plik uszkodzony.</summary>
+    public static OsmSiec Load(string file)
+    {
+        try
+        {
+            if (!File.Exists(file)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllBytes(file));
+            var r = doc.RootElement; var s = new OsmSiec();
+            foreach (var n in r.GetProperty("nodes").EnumerateArray()) s.Nodes[(long)n[0].GetDouble()] = new XY(n[1].GetDouble(), n[2].GetDouble());
+            foreach (var w in r.GetProperty("ways").EnumerateArray()) s.Ways.Add(w.EnumerateArray().Select(x => x.GetInt64()).ToArray());
+            foreach (var a in r.GetProperty("areas").EnumerateArray()) s.Areas.Add((new XY(a[0].GetDouble(), a[1].GetDouble()), new XY(a[2].GetDouble(), a[3].GetDouble())));
+            s.Ways.RemoveAll(w => w.Any(n => !s.Nodes.ContainsKey(n)));
+            return s;
+        }
+        catch (Exception) { return null; }
     }
 
     /// <summary>Prostokąt (dowolne narożniki) w całości w pobranych obszarach – w przybliżeniu: jego środek i narożniki.</summary>

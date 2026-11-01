@@ -56,12 +56,15 @@ public class Rejestrator
 
     public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System")
     {
-        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = uzytkownik()?.Name ?? "", Zrodlo = zrodlo };
+        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = OperatorWpisu(kategoria, typ, zrodlo), Zrodlo = zrodlo };
         Events.Add(e);
         EventAdded?.Invoke(e);
         ZdarzeniaRejestratora.Wpis(log, L, e, obiekt);   // bez I/O: tylko wpis do ograniczonej kolejki logów
         return e;
     }
+
+    /// <summary>Operator wpisu jak w ISDR: polecenia i działania dyżurnego z operatorem, samoczynne skutki w urządzeniach („położenie MINUS”) bez.</summary>
+    string OperatorWpisu(string kategoria, string typ, string zrodlo) => zrodlo != "PC" && typ != "Użytkownik" && kategoria is "Zdarzenie" or "Ruch" ? "" : uzytkownik()?.Name ?? "";
 
     /// <summary>Alarm (Ie-104 § 7): lista z potwierdzeniem i znacznikiem trwania stanu alarmowego.</summary>
     public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null)

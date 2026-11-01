@@ -40,8 +40,6 @@ public partial class Simulator
     /// <see cref="WejscieCyklu"/> każdego KZ według mapy własności, ta sama treść dla wszystkich odbiorców.
     /// </summary>
     public readonly RejestrWejscCyklu Wejscia;
-    /// <summary>Jedna bramka wykonania planów KZ; nigdy nie należy do obliczającej kopii.</summary>
-    public readonly BramkaWyjsc Wyjscia;
     /// <summary>Numer cyklu świata (cycleId wejść KZ): rośnie o 1 na początku każdego <see cref="Tick"/>; 0 – przed pierwszym cyklem.</summary>
     public long NrCyklu { get; private set; }
 
@@ -57,9 +55,8 @@ public partial class Simulator
         Otoczenie = new Otoczenie(this);
         Kz = new KomputerZaleznosci(this);
         Wejscia = new RejestrWejscCyklu(this, Kz, options?.WejscieCykluLogger);
-        Wyjscia = new BramkaWyjsc(this, options?.PlanWyjsciaLogger);
         Urzadzenia = new Urzadzenia(this);
-        _ = Sygnaly.Tab; // dane projektowe ładuje świat, zanim dopuści bierne Evaluate (bez I/O)
+        Edr = new Edr(this);
         if (routes) Kz.BuildRouteTable();
     }
 
@@ -135,12 +132,12 @@ public partial class Simulator
     public readonly Otoczenie Otoczenie;
     /// <summary>Urządzenia przytorowe i karty sterowników (Sim/Urzadzenia/).</summary>
     public readonly Urzadzenia Urzadzenia;
+    /// <summary>Elektroniczny dziennik ruchu (Sim/Edr/, PLAN_EDR.md).</summary>
+    public readonly Edr Edr;
 
     public void Tick(double dt)
     {
         Wejscia.PozaOdbiorca();
-        Wyjscia.SprawdzGotowosc();
-        Kz.PozaPropozycja();
         T += dt; NrCyklu++;
         Nadrzedny.Tick();
         Urzadzenia.Tick(); Kz.UpdateBlocks();
@@ -149,6 +146,7 @@ public partial class Simulator
         Kz.UpdateSignals(); Kz.UpdateRoutes(); Kz.SignalCodes();
         Nadrzedny.Pip.Tick();
         Rej.UpdateAlarms();
+        Edr.Tick();
     }
 
 }

@@ -14,7 +14,7 @@ public partial class MainWindow
 {
     public readonly StackPanel SladPanel = new() { Margin = new Thickness(0, 0, 0, 6), Visibility = Visibility.Collapsed };
     public readonly CheckBox OsmBox = new() { Content = "sieć torów OSM (linie) – do śladu i łuków", Margin = new Thickness(0, 0, 0, 4),
-        ToolTip = "Osie torów z OpenStreetMap jako linie (pomarańczowe) – klik przy linii w narzędziu Ślad biegnie po niej; w Łuku z punktów Shift + klik dwa razy – węzły z odcinka. W narzędziach Ślad i Łuk z punktów widać je zawsze" };
+        ToolTip = "Osie torów z OpenStreetMap jako linie (fioletowe z białą obwódką) – klik przy linii w narzędziu Ślad biegnie po niej; w Łuku z punktów Shift + klik dwa razy – węzły z odcinka. W narzędziach Ślad i Łuk z punktów widać je zawsze" };
     public readonly Button OsmBtn = new() { Content = "Pobierz sieć OSM z widoku", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 0, 8), HorizontalAlignment = HorizontalAlignment.Left,
         ToolTip = "Overpass API: drogi kolejowe w widoku (do ok. 5 km); kolejne obszary dołączają się" };
     public readonly TextBox SladBazaBox = new() { Width = 50, Text = "", VerticalContentAlignment = VerticalAlignment.Center,
@@ -22,7 +22,7 @@ public partial class MainWindow
 
     void InitSlad()
     {
-        OsmBox.Click += (s, e) => { View.OsmShown = OsmBox.IsChecked == true; if (View.OsmShown && View.Osm == null && !Test.Running) _ = View.OsmPobierz(); View.InvalidateVisual(); };
+        OsmBox.Click += (s, e) => { View.OsmShown = OsmBox.IsChecked == true; if (View.OsmShown && !Test.Running) _ = View.OsmPobierz(); View.InvalidateVisual(); };
         OsmBtn.Click += async (s, e) => { await View.OsmPobierz(); View.InvalidateVisual(); };
         View.SladChanged += () => { RefreshSladPanel(); UpdateKrzyw(); };
         View.ToolChanged += () =>

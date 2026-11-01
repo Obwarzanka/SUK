@@ -1,0 +1,728 @@
+{
+  "Wersja": 1,
+  "Dzienniki": [
+    {
+      "Id": "LW|Łódź Chojny|540",
+      "Post": "LW",
+      "Nazwa": "Łódź Chojny L. 540",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 1,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 2,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LW|Łódź Andrzejów|17",
+      "Post": "LW",
+      "Nazwa": "Łódź Andrzejów L. 17",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 3,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 4,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LW|Łódź Olechów|541",
+      "Post": "LW",
+      "Nazwa": "Łódź Olechów L. 541",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 5,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 6,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": false,
+              "Id": 16,
+              "Rodzaj": "przyj",
+              "Tekst": null,
+              "Wersje": [
+                {
+                  "Nr": "1511/0",
+                  "Tor": "1",
+                  "Dw": "",
+                  "Odj": "05:00",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 05:00:18",
+                  "Pole": null,
+                  "T": 18.39999999999999,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "05:00"
+                  },
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": [
+                "Nr",
+                "Tor",
+                "Odj",
+                "Prz"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LW|Łódź Fabryczna|17",
+      "Post": "LW",
+      "Nazwa": "Łódź Fabryczna L. 17",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 7,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 8,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": false,
+              "Id": 15,
+              "Rodzaj": "wypr",
+              "Tekst": null,
+              "Wersje": [
+                {
+                  "Nr": "1516/7",
+                  "Tor": "6",
+                  "Dw": "",
+                  "Odj": "15:03",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 15:03:03",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "15:03"
+                  },
+                  "Wykreslono": null
+                },
+                {
+                  "Nr": "1516/7",
+                  "Tor": "6",
+                  "Dw": "",
+                  "Odj": "15:04",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 15:03:11",
+                  "Pole": "Odj",
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "15:03"
+                  },
+                  "Wykreslono": null
+                },
+                {
+                  "Nr": "1516/7",
+                  "Tor": "6",
+                  "Dw": "",
+                  "Odj": "15:06",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 15:03:25",
+                  "Pole": "Odj",
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "15:03"
+                  },
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": [
+                "Nr",
+                "Tor",
+                "Odj",
+                "Prz"
+              ]
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 17,
+              "Rodzaj": "wypr",
+              "Tekst": null,
+              "Wersje": [
+                {
+                  "Nr": "1511/0",
+                  "Tor": "1",
+                  "Dw": "",
+                  "Odj": "05:00",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 05:00:28",
+                  "Pole": null,
+                  "T": 28.90000000000014,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "05:00"
+                  },
+                  "Wykreslono": null
+                },
+                {
+                  "Nr": "1511/0",
+                  "Tor": "1",
+                  "Dw": "",
+                  "Odj": "05:00",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 05:00:47",
+                  "Pole": "Wykreślenie",
+                  "T": 47.2000000000004,
+                  "Dr": {},
+                  "Wpis": {
+                    "Odj": "05:00"
+                  },
+                  "Wykreslono": "ss"
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": [
+                "Nr",
+                "Tor",
+                "Odj",
+                "Prz"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LW|Łódź Fabryczna|485",
+      "Post": "LW",
+      "Nazwa": "Łódź Fabryczna L. 485",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 9,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 10,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LF|Łódź Widzew|17",
+      "Post": "LF",
+      "Nazwa": "Łódź Widzew L. 17",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 11,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 12,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "LF|Łódź Widzew|485",
+      "Post": "LF",
+      "Nazwa": "Łódź Widzew L. 485",
+      "Prowadzi": "Dyżurny ruchu",
+      "Zdany": false,
+      "Strony": [
+        {
+          "Doba": 0,
+          "Data": "28-10-2026",
+          "Wiersze": [
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 13,
+              "Rodzaj": "tekst",
+              "Tekst": "Północ dnia 28-10-2026",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": null,
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            },
+            {
+              "Pierwszy": false,
+              "Kompletny": true,
+              "Id": 14,
+              "Rodzaj": "tekst",
+              "Tekst": "Dyżur przyjął Dyżurny ruchu dnia 28-10-2026 o godzinie 06:00",
+              "Wersje": [
+                {
+                  "Nr": "",
+                  "Tor": "",
+                  "Dw": "",
+                  "Odj": "",
+                  "Prz": "",
+                  "Uwagi": "",
+                  "Zad": "",
+                  "DataWpisu": "",
+                  "Lewy": false,
+                  "Kto": "Dyżurny ruchu",
+                  "Zmiana": "28-10-2026 06:00:00",
+                  "Pole": null,
+                  "T": -1000000000,
+                  "Dr": {},
+                  "Wpis": {},
+                  "Wykreslono": null
+                }
+              ],
+              "Tel": null,
+              "Para": 0,
+              "Wymagane": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "Telefoniczny": {},
+  "Historia": [
+    {
+      "Czas": "28-10-2026 05:00:18",
+      "Kto": "Dyżurny ruchu",
+      "Czynnosc": "Przyjęcie pociągu",
+      "Obiekt": "Łódź Olechów L. 541",
+      "Opis": "Przyjęcie pociągu 1511/0 zapisane w dzienniku Łódź Olechów L. 541"
+    },
+    {
+      "Czas": "28-10-2026 05:00:28",
+      "Kto": "Dyżurny ruchu",
+      "Czynnosc": "Wyprawienie pociągu",
+      "Obiekt": "Łódź Fabryczna L. 17",
+      "Opis": "Wyprawienie pociągu 1511/0 zapisane w dzienniku Łódź Fabryczna L. 17"
+    },
+    {
+      "Czas": "28-10-2026 05:00:47",
+      "Kto": "Dyżurny ruchu",
+      "Czynnosc": "Wykreślenie wpisu",
+      "Obiekt": "Łódź Fabryczna L. 17",
+      "Opis": "Wpis pociągu 1511/0 wykreślony: ss"
+    }
+  ],
+  "Lokalne": {},
+  "Uslugi": [],
+  "PociagiLok": []
+}

@@ -19,8 +19,8 @@ public partial class UtView
     public static readonly (string Key, string Name)[] Warstwy =
     {
         ("tory", "układ torowy (osie torów, kozły)"), ("rozjazdy", "rozjazdy i skrzyżowania"), ("sygnalizator", "sygnalizator (semafory, tarcze)"),
-        ("wskazniki", "wskaźniki (W4, W5, W17)"), ("wykolejnica", "wykolejnica"), ("licznik osi", "licznik osi"), ("zlacze", "złącze izolowane"),
-        ("odcinki", "odcinki kontroli niezajętości"), ("peron", "peron"), ("drogi", "drogi (przejazdy)"), ("budowle", "budowla (mosty, wiadukty, tunele, przepusty, mury)"), ("kilometraz", "kilometraż (km, hm)"),
+        ("wskazniki", "wskaźniki (W4, W5, W8, W9, W17)"), ("wykolejnica", "wykolejnica"), ("licznik osi", "licznik osi"), ("zlacze", "złącze izolowane"),
+        ("odcinki", "odcinki kontroli niezajętości"), ("peron", "peron"), ("drogi", "drogi (przejazdy)"), ("budowle", "budowla (mosty, wiadukty, tunele, przepusty, mury)"), ("budynek", "budynek (nastawnie)"),("kilometraz", "kilometraż (km, hm)"),
         ("opis", "opis (pochylenia niwelety, numery)"), ("podklady", "podkłady (ortofotomapa, grafiki)"),
     };
     public readonly HashSet<string> Hidden = new();
@@ -28,7 +28,7 @@ public partial class UtView
     public static string LayerOf(string devKind) => devKind switch
     {
         UtDevice.Semafor or UtDevice.TarczaOstrz or UtDevice.TarczaMan => "sygnalizator",
-        UtDevice.W4 or UtDevice.W5 or UtDevice.Ukres => "wskazniki",
+        UtDevice.W4 or UtDevice.W5 or UtDevice.W8 or UtDevice.W9 or UtDevice.Ukres => "wskazniki",
         UtDevice.Wykolejnica => "wykolejnica",
         UtDevice.LicznikOsi => "licznik osi",
         UtDevice.Zlacze => "zlacze",

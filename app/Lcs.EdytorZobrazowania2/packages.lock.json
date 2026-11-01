@@ -10,11 +10,15 @@
       "lcs.core": {
         "type": "Project",
         "dependencies": {
+          "Lcs.RozkladJazdy": "[0.1.0, )",
           "Lcs.Tabor": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.13, )"
         }
       },
       "lcs.model": {
+        "type": "Project"
+      },
+      "lcs.rozkladjazdy": {
         "type": "Project"
       },
       "lcs.tabor": {

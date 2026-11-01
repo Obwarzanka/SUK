@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Rozkład jazdy w formacie <układ>.rj.json (PLAN_EDYTOR_RJ.md, R1): bez WPF, wspólny dla symulatora i edytora rozkładu jazdy. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Lcs.RozkladJazdy</RootNamespace>
+    <AssemblyTitle>Rozkład jazdy LCS</AssemblyTitle>
+    <Product>SUK</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

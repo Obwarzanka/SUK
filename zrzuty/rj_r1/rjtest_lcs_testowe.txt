@@ -1,0 +1,5 @@
+RJ: kontrola 3 z 3
+OK   czasy: 05:05:00 ↔ 18300 s, ułamek sekundy, następna doba (25:00:00.5), błędny – odrzucony
+(brak rozklad.json / rozklad_ic.json obok układu – rozkład dobowy pominięty)
+OK   plik układu lcs_testowe.rozklad.json: kolejka z .rj.json (względny) taka sama (6 pociągów)
+OK   zmiana numeru i kategorii w punkcie bez postoju (P2): odcinek 10003 / BBB / PR, bieg z numerem na każdym punkcie, odjazd ze szlakiem D1

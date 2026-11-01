@@ -11,9 +11,9 @@ namespace LcsWidzew.Sim;
 
 public class SecInd { public bool TrainOcc, Closed, NoData; public string Fault, LockType, Lock; public double? TimeRel; public List<string> Shared; }
 public class MoveInd { public string Target; public double Started; }
-public class SwInd { public string Pos = "+", Lock; public MoveInd Moving; public bool Stopped, Rozpr, NoCtrl, Frozen, NoData, Local; }
-public class SigInd { public string Sig; public Aspect Aspect; public bool Closed, LampFault, FailAlarm, NoData, Dark; public string Route, RouteEnd; public double SzLeft; /** <summary>Przebieg od tego sygnalizatora w trakcie nastawiania (zwrotnice się przekładają).</summary> */ public bool Setting; /** <summary>Sygnał zastępczy z W24 (NSZ).</summary> */ public bool W24; }
-public class DerInd { public bool On; public bool? MovingTo; public string Lock; }
+public class SwInd { public string Pos = "+", Lock; public MoveInd Moving; public bool Stopped, Rozpr, NoCtrl, Frozen, NoData, Local; /** <summary>Zamknięta w ochronie bocznej nastawionego przebiegu (ISDR: żółta kreska na torze przy zwrotnicy).</summary> */ public bool Flank; }
+public class SigInd { public string Sig; public Aspect Aspect; public bool Closed, LampFault, FailAlarm, NoData, Dark; public string Route, RouteEnd; public double SzLeft; /** <summary>Przebieg od tego sygnalizatora w trakcie nastawiania (zwrotnice się przekładają).</summary> */ public bool Setting; /** <summary>Sygnał zastępczy z W24 (NSZ).</summary> */ public bool W24; /** <summary>Zastopowany w ochronie bocznej nastawionego przebiegu (ISDR: czerwony).</summary> */ public bool Flank; }
+public class DerInd { public bool On; public bool? MovingTo; public string Lock; public bool Flank; }
 public class ReqInd { public int EndIdx; }
 public class BlockInd
 {
@@ -110,9 +110,9 @@ public partial class Simulator : IPulpitSource
         // i utwierdzeniu: do tego czasu odcinki, zwrotnice i sygnalizator końcowy jak bez przebiegu
         bool Shown(string uid) => uid != null && (!Routes.TryGetValue(uid, out var rr) || rr.State != "setting");
         foreach (var (k, s) in Secs) I.Secs[k] = new SecInd { TrainOcc = s.TrainOcc, Closed = s.Closed, NoData = s.NoData, Fault = s.Fault, LockType = Shown(s.Lock) ? s.LockType : null, Lock = Shown(s.Lock) ? s.Lock : null, TimeRel = s.TimeRel, Shared = s.Shared.Count == 0 ? null : s.Shared.Where(Shown).ToList() };
-        foreach (var (k, w) in Sws) I.Sws[k] = new SwInd { Pos = w.Pos, Lock = Shown(w.Lock) ? w.Lock : null, Moving = w.Moving == null ? null : new MoveInd { Target = w.Moving.Target, Started = w.Moving.Started }, Stopped = w.Stopped, Rozpr = w.Rozpr, NoCtrl = w.NoCtrl, Frozen = w.Frozen, NoData = w.NoData, Local = w.Local };
-        foreach (var (k, s) in Sigs) I.Sigs[k] = new SigInd { Aspect = s.Aspect, Closed = s.Closed, LampFault = s.LampFault, FailAlarm = s.FailAlarm, NoData = s.NoData, Dark = s.Dark, Sig = s.Sig, Route = Shown(s.Route) ? s.Route : null, RouteEnd = Shown(s.RouteEnd) ? s.RouteEnd : null, SzLeft = s.SzUntil - T, Setting = s.Route != null && !Shown(s.Route), W24 = s.W24 };
-        foreach (var (k, x) in Ders) I.Ders[k] = new DerInd { On = x.On, MovingTo = x.MovingTo, Lock = Shown(x.Lock) ? x.Lock : null };
+        foreach (var (k, w) in Sws) I.Sws[k] = new SwInd { Pos = w.Pos, Lock = Shown(w.Lock) ? w.Lock : null, Moving = w.Moving == null ? null : new MoveInd { Target = w.Moving.Target, Started = w.Moving.Started }, Stopped = w.Stopped, Rozpr = w.Rozpr, NoCtrl = w.NoCtrl, Frozen = w.Frozen, NoData = w.NoData, Local = w.Local, Flank = w.Flank.Any(Shown) };
+        foreach (var (k, s) in Sigs) I.Sigs[k] = new SigInd { Aspect = s.Aspect, Closed = s.Closed, LampFault = s.LampFault, FailAlarm = s.FailAlarm, NoData = s.NoData, Dark = s.Dark, Sig = s.Sig, Route = Shown(s.Route) ? s.Route : null, RouteEnd = Shown(s.RouteEnd) ? s.RouteEnd : null, SzLeft = s.SzUntil - T, Setting = s.Route != null && !Shown(s.Route), W24 = s.W24, Flank = s.Flank.Any(Shown) };
+        foreach (var (k, x) in Ders) I.Ders[k] = new DerInd { On = x.On, MovingTo = x.MovingTo, Lock = Shown(x.Lock) ? x.Lock : null, Flank = x.Flank.Any(Shown) };
         foreach (var (k, b) in Blocks)
             I.Blocks[k] = new BlockInd
             {

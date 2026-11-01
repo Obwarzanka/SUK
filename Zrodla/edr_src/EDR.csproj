@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>EDR</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>True</UseWindowsForms>
+    <TargetFramework>net40</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="EdrLocal.Assets.app.ico" />
+    <None Remove="EdrLocal.SepeBridge.js" />
+    <None Remove="EdrLocal.Vehicles.json" />
+    <None Remove="EdrLocal.Td2Identity.json" />
+    <None Remove="EdrLocal.Assets.app.png" />
+    <None Remove="EdrLocal.Assets.crossing.png" />
+    <None Remove="EdrLocal.Assets.dispatch.png" />
+    <None Remove="EdrLocal.Assets.info.png" />
+    <None Remove="EdrLocal.Assets.receive.png" />
+    <None Remove="EdrLocal.Assets.settings.png" />
+    <None Remove="EdrLocal.Assets.telephone.png" />
+    <None Remove="EdrLocal.Dependencies.Microsoft.Web.WebView2.Core.dll" />
+    <None Remove="EdrLocal.Dependencies.Microsoft.Web.WebView2.WinForms.dll" />
+    <None Remove="EdrLocal.Dependencies.x64.WebView2Loader.dll" />
+    <None Remove="EdrLocal.Dependencies.x86.WebView2Loader.dll" />
+    <None Remove="EdrLocal.Dependencies.WebView2-LICENSE.txt" />
+    <EmbeddedResource Include="EdrLocal.Assets.app.ico" LogicalName="EdrLocal.Assets.app.ico" />
+    <EmbeddedResource Include="EdrLocal.SepeBridge.js" LogicalName="EdrLocal.SepeBridge.js" />
+    <EmbeddedResource Include="EdrLocal.Vehicles.json" LogicalName="EdrLocal.Vehicles.json" />
+    <EmbeddedResource Include="EdrLocal.Td2Identity.json" LogicalName="EdrLocal.Td2Identity.json" />
+    <EmbeddedResource Include="EdrLocal.Assets.app.png" LogicalName="EdrLocal.Assets.app.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.crossing.png" LogicalName="EdrLocal.Assets.crossing.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.dispatch.png" LogicalName="EdrLocal.Assets.dispatch.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.info.png" LogicalName="EdrLocal.Assets.info.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.receive.png" LogicalName="EdrLocal.Assets.receive.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.settings.png" LogicalName="EdrLocal.Assets.settings.png" />
+    <EmbeddedResource Include="EdrLocal.Assets.telephone.png" LogicalName="EdrLocal.Assets.telephone.png" />
+    <EmbeddedResource Include="EdrLocal.Dependencies.Microsoft.Web.WebView2.Core.dll" LogicalName="EdrLocal.Dependencies.Microsoft.Web.WebView2.Core.dll" />
+    <EmbeddedResource Include="EdrLocal.Dependencies.Microsoft.Web.WebView2.WinForms.dll" LogicalName="EdrLocal.Dependencies.Microsoft.Web.WebView2.WinForms.dll" />
+    <EmbeddedResource Include="EdrLocal.Dependencies.x64.WebView2Loader.dll" LogicalName="EdrLocal.Dependencies.x64.WebView2Loader.dll" />
+    <EmbeddedResource Include="EdrLocal.Dependencies.x86.WebView2Loader.dll" LogicalName="EdrLocal.Dependencies.x86.WebView2Loader.dll" />
+    <EmbeddedResource Include="EdrLocal.Dependencies.WebView2-LICENSE.txt" LogicalName="EdrLocal.Dependencies.WebView2-LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Core" />
+    <Reference Include="Microsoft.Web.WebView2.WinForms" />
+    <Reference Include="Microsoft.Web.WebView2.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+</Project>

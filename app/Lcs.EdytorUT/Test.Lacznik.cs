@@ -85,6 +85,45 @@ public static partial class Test
         var typ = Katalog.Find("Rz 60E1-190-1:9");
         Ok(cb != null && cb.Contains($"{typ.A + typ.B - 10:0.##} m w stronę malejącego km") && cb.Contains("10 m w stronę rosnącego"),
             $"rozjazd na początku łuku: „{cb}”");
+
+        // łącznik między torami nierównoległymi (zgłoszenie właściciela 2026-10-29: „łącznik 62/61: tory nie są równoległe (5,17°)”):
+        // tor A prosty, tor B zbiega się z nim pod kątem 5° – przeciągnięcie z A na B daje łącznik z łukiem wyrównującym we wstawce
+        var q0 = Go(o, lineAz + 90, 400);
+        w.SetTool(UtTool.Tor); w.View.Mode = UtView.TorMode.Prosta;
+        var qa = Go(q0, lineAz, 400); var bs = Go(q0, lineAz - 90, 25); var be = Go(bs, lineAz + 5, 250);
+        Look(Go(q0, lineAz, 150), 1.5);
+        w.View.SimClick(S(q0)); w.View.SimClick(S(qa)); w.View.SimClick(S(qa), MouseButton.Right);
+        var tA = d.P.Tracks.Last();
+        w.View.SimClick(S(bs)); w.View.SimClick(S(be)); w.View.SimClick(S(be), MouseButton.Right);
+        var tB = d.P.Tracks.Last();
+        var rA = w.View.Geometry(tA); var rB = w.View.Geometry(tB);
+        Ok(tA.Id != tB.Id && rA.Ok && rB.Ok, "tor A prosty i tor B zbiegający się z nim pod kątem 5°");
+        w.SetTool(UtTool.Rozjazd); w.RzTypeBox.SelectedItem = "Rz 60E1-300-1:9";
+        var pa = rA.At(50).P; Look(Go(pa, lineAz, 60), 0.4);
+        w.View.SimDrag(S(pa), S(rB.At(rB.Nearest(Go(q0, lineAz, 150)).S).P));
+        var n1 = d.P.Turnouts.FirstOrDefault(x => x.Track == tA.Id); var n2 = n1 == null ? null : d.P.Turnouts.FirstOrDefault(x => x.Id == n1.Partner);
+        Ok(n1 != null && n2 != null && n2.Track == tB.Id, $"łącznik między torami nierównoległymi przeciągnięciem ({w.LastMessage})");
+        if (n1 != null && n2 != null)
+        {
+            var e1 = Rozjazdy.Geometry(d.P, n1); var e2 = Rozjazdy.Geometry(d.P, n2); var eqn = Rozjazdy.Equalizer(e1, e2);
+            var ln = d.P.Tracks.First(x => x.Id == n1.Branch); var rln = w.View.Geometry(ln);
+            var u1 = Rozjazdy.Check(d.P, n1); var u2 = Rozjazdy.Check(d.P, n2);
+            Ok(eqn is var (_, dvn, rxn) && dvn * 180 / Math.PI > 3 && rxn >= Rozjazdy.MinRDiv && rln.Ok && u1.Count == 0 && u2.Count == 0 && w.LastMessage.Contains("łuk wyrównujący"),
+                $"tor łączący z łukiem wyrównującym {(eqn?.Dev ?? 0) * 180 / Math.PI:0.##}°, R {eqn?.R:0} m, bez uwag ({string.Join("; ", u1.Concat(u2))})");
+            // drugi rozjazd innego typu z panelu – łącznik zostaje, łuk wyrównujący bierze różnicę kątów
+            w.SetTool(UtTool.Wskaz); w.View.SelectTurnout(n2.Id);
+            var tbx = Find<System.Windows.Controls.ComboBox>(w.TrackPanel, x => x.Items.Contains("Rz 60E1-500-1:12"));
+            tbx.SelectedItem = "Rz 60E1-500-1:12";
+            n1 = d.P.Turnouts.First(x => x.Id == n1.Id); n2 = d.P.Turnouts.First(x => x.Id == n2.Id);
+            var eq2 = Rozjazdy.Equalizer(Rozjazdy.Geometry(d.P, n1), Rozjazdy.Geometry(d.P, n2));
+            Ok(n1.Type == "Rz 60E1-300-1:9" && n2.Type == "Rz 60E1-500-1:12" && n1.Partner == n2.Id && eq2 is var (_, _, rx2) && rx2 >= Rozjazdy.MinRDiv && w.View.Geometry(d.P.Tracks.First(x => x.Id == n1.Branch)).Ok,
+                $"drugi rozjazd łącznika 1:12, pierwszy 1:9 – łuk wyrównujący {(eq2?.Dev ?? 0) * 180 / Math.PI:0.##}°, R {eq2?.R:0} m ({string.Join("; ", Rozjazdy.Check(d.P, n1).Concat(Rozjazdy.Check(d.P, n2)))})");
+            if (shotRails != null)
+            {
+                w.View.Select(null); w.View.FitPoints(new[] { e1.PR, e2.PR, e1.KRMain, e2.KRMain });
+                await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_lacznik_nierownolegly.png"));
+            }
+        }
         await Task.CompletedTask;
     }
 }

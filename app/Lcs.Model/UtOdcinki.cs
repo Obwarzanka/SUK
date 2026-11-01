@@ -250,8 +250,8 @@ public static class Odcinki
     }
 
     /// <summary>
-    /// Podpowiedź nazwy odcinka (projektant wpisuje swoją): w odcinku z rozjazdami – „z” + numery rozjazdów, na torze z numerem –
-    /// numer toru; nazwa zajęta – z kolejną literą.
+    /// Podpowiedź nazwy odcinka (projektant wpisuje swoją): w odcinku z rozjazdami – „Iz” + numery rozjazdów (odcinek izolowany zwrotnicowy),
+    /// na torze z numerem – „It” + numer toru (odcinek izolowany torowy); nazwa zajęta – z kolejną literą.
     /// </summary>
     static bool SamePost(UtProject p, UtSection a, UtSection b) => Posterunki.Grupa(p, a.Track) == Posterunki.Grupa(p, b.Track);
 
@@ -259,14 +259,15 @@ public static class Odcinki
     {
         var rz = comp >= 0 ? Turnouts(p, o, comp).Select(t => t.Number).Where(n => n.Length > 0).ToList() : new();
         string baseName;
-        if (rz.Count > 0) baseName = "z" + string.Join("/", rz.OrderBy(x => x.Length).ThenBy(x => x));
+        var k = comp >= 0 ? o.Of(comp).OrderByDescending(x => x.Len).FirstOrDefault() : null;
+        if (rz.Count > 0) baseName = "Iz" + string.Join("/", rz.OrderBy(x => x.Length).ThenBy(x => x));
         else
         {
-            var k = comp >= 0 ? o.Of(comp).OrderByDescending(x => x.Len).FirstOrDefault() : null;
             var t = k != null ? p.Tracks.FirstOrDefault(x => x.Id == k.Track) : null;
-            baseName = t != null && t.Number.Length > 0 ? t.Number : "o1";
+            baseName = t != null && t.Number.Length > 0 ? "It" + t.Number : "o1";
         }
-        var used = p.Sections.Select(s => s.Name).ToHashSet();
+        // nazwy zajęte w posterunku odcinka (inne posterunki mogą mieć te same)
+        var used = p.Sections.Where(s => k == null || Posterunki.TaGrupa(p, s.Track, k.Track)).Select(s => s.Name).ToHashSet();
         if (!used.Contains(baseName)) return baseName;
         foreach (var c in "abcdefghijk") if (!used.Contains(baseName + c)) return baseName + c;
         for (int i = 2; ; i++) if (!used.Contains(baseName + "_" + i)) return baseName + "_" + i;

@@ -89,7 +89,7 @@ public partial class Trains
         {
             var nx = S.NextInTerrain(node, dir, from); if (nx == null) break;
             var len = S.L.Edges[nx.Edge].Len;
-            l.Add((dist, len, Poch(nx.Edge, node), EdgeLimit(nx.Edge)));
+            l.Add((dist, len, Poch(nx.Edge, node), EdgeLimit(nx.Edge, node)));
             dist += len; from = nx.Edge; node = S.L.Other(nx.Edge, node);
         }
         return l;
@@ -102,7 +102,7 @@ public partial class Trains
         if (t.SzLimit) vmax = Math.Min(vmax, VSz / 3.6);
         if (t.Shunt) vmax = Math.Min(vmax, VShunt / 3.6);
         double pod = 1e4, pos = 0, tail = t.Head - t.Len;
-        foreach (var sg in t.Segs) { double a = pos, b = pos + sg.Len; pos = b; if (sg.E != null && b > tail && a < t.Head) pod = Math.Min(pod, EdgeLimit(sg.E)); }
+        foreach (var sg in t.Segs) { double a = pos, b = pos + sg.Len; pos = b; if (sg.E != null && b > tail && a < t.Head) pod = Math.Min(pod, EdgeLimit(sg.E, sg.From, b < t.Head - 0.01)); }
         var przed = Przed(t).Select(k => new Maszynista.Przed(k.Od, k.Len, k.I, k.Lim)).ToList();
         return Maszynista.Docelowa(t.Fiz, t.Jaz.V, Math.Min(vmax, pod), przed, la.D, siec);
     }

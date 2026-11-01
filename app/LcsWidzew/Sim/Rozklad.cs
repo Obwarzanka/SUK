@@ -61,11 +61,22 @@ public partial class Rozklad
     public void Load(string key)
     {
         nr = 1;
+        // rozkład jazdy <układ>.rj.json (PLAN_EDYTOR_RJ.md, R1): względny – zamiast ruchu podstawowego, dobowy – zamiast rozkładu rzeczywistego
+        var rj = WczytajRj();
         // rozkład układu z pliku <układ>.rozklad.json – zamiast wbudowanego ruchu podstawowego (Sim/RozkladPlik.cs)
-        var plik = key == "podstawowy" ? RozkladPlik.Wczytaj(S.L.SourcePath) : null;
-        Queue = plik ?? (key == "manewry" ? Locos() : key.StartsWith("ic_") ? RealTimetable(int.Parse(key[3..]), 3) : BaseTimetable());
+        var plik = key == "podstawowy" ? (rj?.Wzgledny == true ? ZRjWzgledny(rj) : RozkladPlik.Wczytaj(S.L.SourcePath)) : null;
+        Queue = plik ?? (key == "manewry" ? Locos() : key.StartsWith("ic_") ? (rj is { Wzgledny: false } ? ZRj(rj, int.Parse(key[3..]), 3) : RealTimetable(int.Parse(key[3..]), 3)) : BaseTimetable());
         if (plik == null && (key == "podstawowy" || key.StartsWith("ic_"))) Queue.AddRange(Locos().Take(1));
         Queue = Queue.Where(q => q.StartSec != null ? S.L.Sections.ContainsKey(q.StartSec) : S.L.Blocks.ContainsKey(q.From) && !S.L.Blocks[q.From].Internal).ToList();
+    }
+
+    /// <summary>Plik <c>&lt;układ&gt;.rj.json</c> obok układu (null – brak albo błędny; błąd – w zdarzeniach, rozkład jak bez pliku).</summary>
+    Lcs.RozkladJazdy.RjDokument WczytajRj()
+    {
+        var f = Lcs.RozkladJazdy.RjDokument.PlikDla(S.L.SourcePath);
+        if (f == null || !File.Exists(f)) return null;
+        try { return Lcs.RozkladJazdy.RjDokument.Wczytaj(f); }
+        catch (Exception ex) { S.Log("Zdarzenie", $"Nie wczytano rozkładu {Path.GetFileName(f)}: {ex.Message} – rozkład jak bez pliku", "System", ""); return null; }
     }
 
     public void Enqueue(string from, string cat, string num, string to, bool stop)

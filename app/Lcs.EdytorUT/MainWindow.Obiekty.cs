@@ -30,10 +30,12 @@ public partial class MainWindow
     void OnObiektPlace(string track, double s0, double s1, double angle, double reach, int side)
     {
         var inf = Obiekty.Info(View.ObKind);
-        var name = AskName(char.ToUpper(inf.Name[0]) + inf.Name[1..], "Nazwa albo numer obiektu (może być pusty, przeszkodę wpiszesz w panelu)", "");
+        bool nast = Obiekty.Nastawnia(inf.Key);
+        var name = AskName(char.ToUpper(inf.Name[0]) + inf.Name[1..], nast ? "Oznaczenie nastawni wg Ig-10 zał. 1 (dysponująca – skrót nazwy stacji, wykonawcza – skrót i liczba)" : "Nazwa albo numer obiektu (może być pusty, przeszkodę wpiszesz w panelu)", "");
         if (name == null) return;
         var o = new UtObiekt { Kind = inf.Key, Name = name, Track = track, S0 = s0, S1 = s1, Angle = angle, Reach = reach, Side = side };
         if (inf.Width > 0) o.Width = inf.Width;
+        if (nast) o.Offset = Obiekty.NastawniaOdsun;
         Doc.Change(char.ToUpper(inf.Name[0]) + inf.Name[1..], p => p.Obiekty.Add(o));
         View.SelectObj(Kontrola.KObiekt, o.Id);
         string km = Kilometraz.Text(Doc.P, track, s0);
@@ -79,6 +81,10 @@ public partial class MainWindow
     static void SetKind(UtObiekt x, string key)
     {
         bool was = Obiekty.Info(x.Kind).Pol == Obiekty.Pol.Poprzeczny, now = Obiekty.Info(key).Pol == Obiekty.Pol.Poprzeczny;
+        // nastawnia ↔ ściana: ściana budynku dalej od toru niż ściana oporowa
+        if (Obiekty.Nastawnia(key) && !Obiekty.Nastawnia(x.Kind)) x.Offset = Obiekty.NastawniaOdsun;
+        // zmiana np. parterowej na piętrową – głębokość budynku zostaje
+        if (Obiekty.Nastawnia(key) && Obiekty.Nastawnia(x.Kind)) { x.Kind = key; return; }
         x.Kind = key;
         if (now && !was) { x.S0 = x.S1 = Math.Round((x.Lo + x.Hi) / 2, 2); x.Tory = null; }
         if (!now && was) x.S1 = x.S0 + 20;
@@ -90,22 +96,35 @@ public partial class MainWindow
         var P = TrackPanel; var inf = Obiekty.Info(o.Kind);
         void Ch(string what, Action<UtObiekt> a) => Doc.Change(what, p => { var x = p.Obiekty.FirstOrDefault(q => q.Id == o.Id); if (x != null) a(x); });
         P.Children.Add(Header(char.ToUpper(Obiekty.Opis(o)[0]) + Obiekty.Opis(o)[1..]));
-        P.Children.Add(new TextBlock { Text = "Ig-10 § 4 ust. 1 pkt 15a i 20; " + inf.Ig10, Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, -4, 0, 6) });
+        bool nast = Obiekty.Nastawnia(o.Kind);
+        P.Children.Add(new TextBlock { Text = (nast ? "Ig-10 § 4 ust. 1 pkt 15c i 19; " : "Ig-10 § 4 ust. 1 pkt 15a i 20; ") + inf.Ig10, Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, -4, 0, 6) });
         P.Children.Add(Label("Rodzaj"));
         var kb = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
         foreach (var k in Obiekty.Kinds) kb.Items.Add(k.Name);
         kb.SelectedIndex = Math.Max(0, Array.FindIndex(Obiekty.Kinds, k => k.Key == o.Kind));
         kb.SelectionChanged += (s, e) => { if (kb.SelectedIndex >= 0 && Obiekty.Kinds[kb.SelectedIndex].Key != o.Kind) Ch("Rodzaj obiektu", x => SetKind(x, Obiekty.Kinds[kb.SelectedIndex].Key)); };
         P.Children.Add(kb);
-        Field(P, "Nazwa albo numer", o.Name, n => Ch("Nazwa obiektu", x => x.Name = n));
-        Field(P, inf.Pol == Obiekty.Pol.ZBoku ? "Przy czym (opis)" : inf.Pol == Obiekty.Pol.Poprzeczny ? "Co przechodzi (droga, ciek)" : "Co przekracza (droga, rzeka, linia)", o.Nad, n => Ch("Przeszkoda", x => x.Nad = n), "np. ul. Piłsudskiego, rz. Ner, linia nr 17");
+        Field(P, nast ? "Oznaczenie nastawni (Ig-10 zał. 1)" : "Nazwa albo numer", o.Name, n => Ch("Nazwa obiektu", x => x.Name = n));
+        if (!nast) Field(P, inf.Pol == Obiekty.Pol.ZBoku ? "Przy czym (opis)" : inf.Pol == Obiekty.Pol.Poprzeczny ? "Co przechodzi (droga, ciek)" : "Co przekracza (droga, rzeka, linia)", o.Nad, n => Ch("Przeszkoda", x => x.Nad = n), "np. ul. Piłsudskiego, rz. Ner, linia nr 17");
         if (inf.Pol == Obiekty.Pol.Poprzeczny)
         {
             Field(P, $"Tor {TrNr(o.Track)} – km [m od początku toru]", F(o.S0), t => { if (Num(t) is double v) Ch("Kilometraż obiektu", x => x.S0 = x.S1 = v); });
             if (Kilometraz.Text(Doc.P, o.Track, o.S0) is var km && km.Length > 0) P.Children.Add(new TextBlock { Text = km, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, -2, 0, 6) });
             Field(P, "Kąt osi przeszkody z osią toru [°]", F(o.Angle, "0.#"), t => { if (Num(t) is double v && v > 0 && v < 180) Ch("Kąt obiektu", x => x.Angle = v); });
             Field(P, "Na planie – w obie strony od osi toru [m]", F(o.Reach), t => { if (Num(t) is double v && v >= 2 && v < 500) Ch("Zasięg obiektu", x => x.Reach = v); });
-            Field(P, "Światło / szerokość [m]", F(o.Width), t => { if (Num(t) is double v && v > 0 && v < 200) Ch("Szerokość obiektu", x => x.Width = v); });
+            Field(P, o.Kind == Obiekty.WiaduktDrog && o.Ustroje > 1 ? "Szerokość jednego ustroju [m]" : "Światło / szerokość [m]", F(o.Width), t => { if (Num(t) is double v && v > 0 && v < 200) Ch("Szerokość obiektu", x => x.Width = v); });
+            if (o.Kind == Obiekty.WiaduktDrog)
+            {
+                // osobne ustroje (jezdnie) obok siebie – każdy z własnymi skrzydełkami, jak na planach stacji
+                Field(P, "Liczba ustrojów (osobnych jezdni) – 1 do 6", o.Ustroje.ToString(), t => { if (int.TryParse(t.Trim(), out var n) && n >= 1 && n <= 6) Ch("Ustroje wiaduktu", x => x.Ustroje = n); else Message("Wiadukt: liczba ustrojów 1–6"); });
+                if (o.Ustroje > 1)
+                {
+                    Field(P, "Odstęp między ustrojami [m]", F(o.OdstepUstrojow), t => { if (Num(t) is double v && v >= 0 && v < 100) Ch("Odstęp ustrojów", x => x.OdstepUstrojow = v); });
+                    var sk = new CheckBox { Content = "Skrzydełka wspólne (tylko na skrajnych krawędziach)", IsChecked = o.SkrzydlaWspolne, Margin = new Thickness(0, 0, 0, 6) };
+                    sk.Click += (s, e) => Ch("Skrzydełka wiaduktu", x => x.SkrzydlaWspolne = sk.IsChecked == true);
+                    P.Children.Add(sk);
+                }
+            }
         }
         else
         {
@@ -122,9 +141,14 @@ public partial class MainWindow
                 Field(P, "Szerokość drogi pod wiaduktem [m]", F(o.Width), t => { if (Num(t) is double v && v >= 0 && v < 200) Ch("Szerokość drogi", x => x.Width = v); });
             if (inf.Pol == Obiekty.Pol.ZBoku)
             {
-                Field(P, "Odległość od osi toru [m]", F(o.Offset, "0.00"), t => { if (Num(t) is double v && v > 0.5 && v < 50) Ch("Odległość od osi toru", x => x.Offset = v); });
+                Field(P, nast ? "Od osi toru do ściany nastawni [m]" : "Odległość od osi toru [m]", F(o.Offset, "0.00"), t => { if (Num(t) is double v && v > 0.5 && v < (nast ? 300 : 50)) Ch("Odległość od osi toru", x => x.Offset = v); });
+                if (nast)
+                {
+                    Field(P, "Głębokość budynku (w poprzek toru) [m]", F(o.Width), t => { if (Num(t) is double v && v >= 2 && v < 100) Ch("Głębokość nastawni", x => x.Width = v); });
+                    P.Children.Add(new TextBlock { Text = "Długość budynku = km od – do. Znak nie mniejszy niż w Ig-10 (10 × 6 mm, piętrowa 10 × 8 mm arkusza); belka od strony toru.", Foreground = Brushes.DimGray, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, -2, 0, 6) });
+                }
                 P.Children.Add(new TextBlock { Text = $"po {(o.Side > 0 ? "prawej" : "lewej")} stronie toru (patrząc w stronę rosnącego km toru)", FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
-                P.Children.Add(SmallBtn("Zmień stronę", () => Ch("Strona obiektu", x => x.Side = -x.Side), "Ściana / mur po drugiej stronie toru"));
+                P.Children.Add(SmallBtn("Zmień stronę", () => Ch("Strona obiektu", x => x.Side = -x.Side), nast ? "Nastawnia po drugiej stronie toru" : "Ściana / mur po drugiej stronie toru"));
             }
             else
             {

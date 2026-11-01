@@ -52,7 +52,7 @@ public class LoginWindow : DarkWindow
         sp.Children.Add(T("Użytkownik:"));
         var name = Box("Dyżurny ruchu"); sp.Children.Add(name);
         sp.Children.Add(T("Rola:"));
-        var role = new ComboBox { ItemsSource = new[] { "dyżurny ruchu", "nastawniczy", "instruktor" }, SelectedIndex = 0 }; sp.Children.Add(role);
+        var role = new ComboBox { ItemsSource = new[] { "dyżurny ruchu", "nastawniczy", "instruktor", "administrator" }, SelectedIndex = 0 }; sp.Children.Add(role);
         sp.Children.Add(T("Scenariusz:"));
         var sc = new ComboBox { ItemsSource = Rozklad.Scenarios.Select(s => s.Name).ToList(), SelectedIndex = 0 }; sp.Children.Add(sc);
         var desc = T(Rozklad.Scenarios[0].Desc, 11, Brushes.Gray); sp.Children.Add(desc);

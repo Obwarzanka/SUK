@@ -98,6 +98,7 @@
                 <Button Content="Plan ruchu" Click="Plan_Click"/>
                 <Button Content="Tablica przebiegów" Click="Routes_Click"/>
                 <Button Content="Książka E-1758" Click="Book_Click"/>
+                <Button Content="EDR" Click="Edr_Click" ToolTip="Elektroniczny dziennik ruchu – dzienniki szlaków posterunku (osobne okno, można przenieść na drugi monitor)"/>
                 <Button Content="Instruktor" Click="Instr_Click"/>
                 <Button Content="Plan stacji" Click="PlanSt_Click" ToolTip="Plan schematyczny węzła na żywo: pociągi, sygnały na semaforach, zwrotnice (podgląd terenu dla instruktora i do nauki)"/>
                 <Button Content="Komputer zależności" Click="Kz_Click" ToolTip="Podgląd stanu wewnętrznego komputera zależności (przebiegi, utwierdzenia, liczniki czasu, blokady, łącze ze stanowiskami)"/>

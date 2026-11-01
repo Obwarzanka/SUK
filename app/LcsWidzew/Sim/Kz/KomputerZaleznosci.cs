@@ -15,7 +15,14 @@ public partial class KomputerZaleznosci
 {
     readonly Simulator S;
     Station L => S.L;
-    double T => czasObliczenia ?? S.T;
+    double T => S.T;
+    Urzadzenia Urzadzenia => S.Urzadzenia;
+    Otoczenie Otoczenie => S.Otoczenie;
+    Trains Trains => S.Trains;
+    Stats Stats => S.Stats;
+    EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System") => S.Log(kategoria, text, typ, obiekt, zrodlo);
+    void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null) => S.Alarm(text, typ, obiekt, key, stillActive);
+    void Remark(string text) => S.Remark(text);
     string Clock(double? t = null) => S.Clock(t);
     List<Fwd> Forward(string nid, int dir, string fromEdge) => S.Forward(nid, dir, fromEdge);
 
@@ -154,13 +161,13 @@ public partial class KomputerZaleznosci
                                 cands.Add((sz, "szlak", e2, r2, nn));
                             else if (type == "M")
                             {
-                                // przebieg manewrowy w kierunku szlaku: do semafora wjazdowego (granica przetaczania)
-                                // albo wyjazd manewrowy na szlak – do końca pierwszego odstępu blokady
+                                // przebieg manewrowy w kierunku szlaku: do semafora wjazdowego (granica posterunku)
+                                // albo wyjazd manewrowy na szlak – do wskaźnika W5 (granica przetaczania), gdy stoi za semaforem wjazdowym
                                 var be = L.Blocks[sz].Ends.FirstOrDefault(x => x.Boundary == nn);
                                 if (be != null && be.Outward == s.Dir && s.Type != "wjazdowy")
                                 {
                                     if (L.Signals.ContainsKey(be.EntrySig)) cands.Add((be.EntrySig, "gr", e2, r2, nn));
-                                    cands.Add((sz, "szlakM", e2, r2, nn));
+                                    if (DoW5(nn, s.Dir) is not null) cands.Add((sz, "szlakM", e2, r2, nn));
                                 }
                             }
                             continue;
@@ -188,7 +195,8 @@ public partial class KomputerZaleznosci
                         rd.Id = (type == "P" ? "P " : "M ") + Station.Lbl(s.Name) + "→" + Station.Lbl(c.End) + (type == "M" && s.Type == "wjazdowy" ? " (powrót ze szlaku)" : "") + c.Kind switch { "gr" => " (do semafora wjazdowego)", "szlakM" => " (na szlak)", _ => "" } + (rd.Variant > 0 ? $" (wariant {rd.Variant})" : "");
                         rd.Edges.AddRange(c.Edges);
                         foreach (var eid in c.Edges) { var sc = L.Edges[eid].Sec; if (rd.Secs.Count == 0 || rd.Secs[^1] != sc) rd.Secs.Add(sc); }
-                        if (c.Kind == "szlakM") { var fs = L.Blocks[c.End].FirstSec(s.Dir); rd.Secs.Add(fs); rd.Edges.AddRange(L.Sections[fs].Edges); }
+                        if (c.Kind == "szlakM")
+                            foreach (var eid in DoW5(c.EndNode, s.Dir)) { rd.Edges.Add(eid); var sc = L.Edges[eid].Sec; if (rd.Secs[^1] != sc) rd.Secs.Add(sc); }
                         rd.Sw.AddRange(c.Reqs);
                         rd.Ders.AddRange(L.Derailers.Values.Where(d => rd.Secs.Contains(d.Sec)).Select(d => d.Name));
                         rd.Flank.AddRange(FlankFor(rd));
@@ -296,10 +304,10 @@ public partial class KomputerZaleznosci
     /// </summary>
     void StatusZasilania(bool siec, bool ups, bool agregat, bool nn, bool agregatNieRuszyl)
     {
-        Status("zasilanie", Zasilanie.Id, (siec ? "sieć" : "BRAK SIECI") + (ups ? ", UPS" : ", UPS niesprawny") + (agregat ? ", agregat pracuje" : agregatNieRuszyl ? ", agregat nie ruszył" : "") + (nn ? ", NN załączone" : ", NN odłączone"));
+        Urzadzenia.LogStatus("zasilanie", Zasilanie.Id, (siec ? "sieć" : "BRAK SIECI") + (ups ? ", UPS" : ", UPS niesprawny") + (agregat ? ", agregat pracuje" : agregatNieRuszyl ? ", agregat nie ruszył" : "") + (nn ? ", NN załączone" : ", NN odłączone"));
         var p = Power;
         if (p.Mains && !siec)
-            Alarm(agregatNieRuszyl ? "Zanik zasilania – agregat nie uruchomił się (AGR / automatyk, §23 ust. 2)" : "Zanik zasilania sieciowego – praca z UPS (Ie-20 §23)", "Zasilanie", "SIEĆ", warunek: WarunekAlarmu.BrakSieci);
+            Alarm(agregatNieRuszyl ? "Zanik zasilania – agregat nie uruchomił się (AGR / automatyk, §23 ust. 2)" : "Zanik zasilania sieciowego – praca z UPS (Ie-20 §23)", "Zasilanie", "SIEĆ", stillActive: () => !Power.Mains);
         else if (!p.Mains && siec) Log("Zdarzenie", "Przywrócono zasilanie sieciowe", "Zasilanie", "SIEĆ");
         p.Mains = siec; p.Ups = ups; p.Gen = agregat; p.NN = nn;
     }
@@ -311,10 +319,10 @@ public partial class KomputerZaleznosci
     /// </summary>
     void StatusZwrotnicy(string num, string pol, bool przekladanie, bool przekroczonyCzas)
     {
-        Status("zwrotnica", num, pol != null ? $"kontrola „{pol}”" : przekladanie ? "przekładanie" + (przekroczonyCzas ? ", przekroczony czas" : "") : "brak kontroli");
+        Urzadzenia.LogStatus("zwrotnica", num, pol != null ? $"kontrola „{pol}”" : przekladanie ? "przekładanie" + (przekroczonyCzas ? ", przekroczony czas" : "") : "brak kontroli");
         var w = Sws[num];
         w.Frozen = przekroczonyCzas;
-        if (przekroczonyCzas && w.Moving != null && !w.Moving.Alarmed) { w.Moving.Alarmed = true; Alarm($"Zwrotnica {num}: przestawianie trwa zbyt długo – przestaw do położenia pierwotnego (§24 ust. 6)", "Zwrotnica", num, warunek: WarunekAlarmu.ZwrotnicaWRuchu); }
+        if (przekroczonyCzas && w.Moving != null && !w.Moving.Alarmed) { w.Moving.Alarmed = true; Alarm($"Zwrotnica {num}: przestawianie trwa zbyt długo – przestaw do położenia pierwotnego (§24 ust. 6)", "Zwrotnica", num, stillActive: () => w.Moving != null); }
         if (pol != null)
         {
             w.Pos = pol; w.KsrDone = false;
@@ -328,19 +336,19 @@ public partial class KomputerZaleznosci
         if (!w.KsrDone && SecOcc(L.Switches[num].Sec))
         {
             w.Rozpr = true; w.NoCtrl = false;
-            Alarm($"ROZPRUCIE zwrotnicy {num} – zamknij rozjazd dla ruchu (§22 ust. 2)", "Zwrotnica", num, warunek: WarunekAlarmu.Rozprucie);
+            Alarm($"ROZPRUCIE zwrotnicy {num} – zamknij rozjazd dla ruchu (§22 ust. 2)", "Zwrotnica", num, stillActive: () => w.Rozpr);
         }
         else if (!w.NoCtrl)
         {
             w.NoCtrl = true;
-            Alarm(w.KsrDone ? $"Zwrotnica {num}: brak kontroli po skasowaniu rozprucia – postępuj wg §22 ust. 2" : $"Zwrotnica {num}: niespodziewany brak kontroli położenia", "Zwrotnica", num, warunek: WarunekAlarmu.BrakKontroli);
+            Alarm(w.KsrDone ? $"Zwrotnica {num}: brak kontroli po skasowaniu rozprucia – postępuj wg §22 ust. 2" : $"Zwrotnica {num}: niespodziewany brak kontroli położenia", "Zwrotnica", num, stillActive: () => w.NoCtrl);
         }
     }
 
     /// <summary>Status karty wykolejnicy: założona / zdjęta (null – przekładanie).</summary>
     void StatusWykolejnicy(string name, bool? zalozona)
     {
-        Status("wykolejnica", name, zalozona is bool zz ? (zz ? "założona" : "zdjęta") : "przekładanie");
+        Urzadzenia.LogStatus("wykolejnica", name, zalozona is bool zz ? (zz ? "założona" : "zdjęta") : "przekładanie");
         if (zalozona is not bool z) return;
         var d = Ders[name]; d.On = z;
         if (d.MovingTo == z) d.MovingTo = null;
@@ -352,16 +360,18 @@ public partial class KomputerZaleznosci
         var d = Ders[name];
         if (d.MovingTo == null && d.On == zaloz) return;
         d.MovingTo = zaloz; d.MoveUntil = T + Cfg.SwTime;
-        Efekt(RodzajEfektu.Wykolejnica, name, zaloz ? "1" : "0");
+        Urzadzenia.Wykolejnica(name, zaloz);
     }
 
-    void UpdateSignalsCore()
+    public void UpdateSignals()
     {
         foreach (var (n, s) in Sigs)
         {
             var d = L.Signals[n];
             if (s.Aspect == Aspect.Sz && T >= s.SzUntil) { s.Aspect = Aspect.Stop; Log("Zdarzenie", "Sygnał zastępczy wygasł samoczynnie", "Semafor", n); }
-            if (s.Aspect != Aspect.Sz) s.W24 = false;
+            // W24 (Ie-1 § W24 lit. b): z sygnałem zezwalającym na wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego – semafor z W24 w UT
+            if (s.Aspect == Aspect.Train) s.W24 = d.W24 && Routes.Values.Any(r => r.Start == n && r.Type == "P" && r.EndKind == "szlak" && L.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && b.DefDir != 0 && d.Dir == -b.DefDir);
+            else if (s.Aspect != Aspect.Sz) s.W24 = false;
             if (d.Type == "odstepowy")
             {
                 var bs = Blocks[d.Szlak];
@@ -373,14 +383,14 @@ public partial class KomputerZaleznosci
         }
     }
 
-    Dictionary<string, List<string>> odstepCache = new();
+    readonly Dictionary<string, List<string>> odstepCache = new();
     /// <summary>
     /// Odcinki odstępu blokowego osłanianego semaforem odstępowym (Ie-4 § 3 pkt 44, § 51 ust. 2): tor do następnego semafora
     /// odstępowego albo wjazdowego tego kierunku, z odcinkiem, w którym ten semafor stoi. Liczone od pierwszej granicy odcinka
     /// za semaforem – przy czujniku kilkanaście metrów za semaforem (rozmieszczenie rozproszone, § 51 ust. 17) kawałek między
     /// semaforem a czujnikiem należy do odstępu poprzedniego. Odstęp może mieć kilka odcinków.
     /// </summary>
-    internal List<string> OdstepSecs(string sig)
+    public List<string> OdstepSecs(string sig)
     {
         if (odstepCache.TryGetValue(sig, out var c)) return c;
         var d = L.Signals[sig]; var res = new List<string>();
@@ -398,7 +408,7 @@ public partial class KomputerZaleznosci
         return odstepCache[sig] = res;
     }
 
-    Dictionary<string, string> nextSigCache = new();
+    readonly Dictionary<string, string> nextSigCache = new();
     /// <summary>Następny sygnalizator w kierunku jazdy za semaforem odstępowym (odstępowy albo wjazdowy; null – koniec obszaru).</summary>
     string NextSignal(string sig)
     {
@@ -455,16 +465,15 @@ public partial class KomputerZaleznosci
     /// prędkość przy semaforze × co wskazuje następny semafor. Uzależnienie: zmiana na następnym semaforze zmienia sygnał tego semafora
     /// w tym samym cyklu (np. A: S5 przy B „Stój”, S2 po otwarciu B). SBL czterostawna: S3 – dwa odstępy wolne (następny wskazuje S5).
     /// </summary>
-    void SignalCodesCore()
+    internal void SignalCodes()
     {
         var memo = new Dictionary<string, string>();
-        foreach (var n in porzadek.Sygnaly(L)) // kolejność kart projektu, policzona raz
+        foreach (var (n, d) in L.Signals)
         {
-            var d = L.Signals[n];
             if (!Urzadzenia.MaKarte(d)) continue;
             var kod = Kod(n, memo, 0);
             var s = Sigs[n];
-            if (kod != s.Sig) { s.Sig = kod; Efekt(RodzajEfektu.Sygnal, n, kod); }
+            if (kod != s.Sig) { s.Sig = kod; Urzadzenia.Sygnal(n, kod); }
         }
     }
 
@@ -512,12 +521,12 @@ public partial class KomputerZaleznosci
     /// <summary>Status karty sygnalizatora: sygnał wyświetlany, uszkodzenie światła zezwalającego, brak łączności.</summary>
     void StatusSygnalizatora(string sig, string wyswietlany, bool uszkZezwalajacego, bool brakDanych)
     {
-        Status("sygnalizator", sig, "wyświetla " + (wyswietlany == "" ? "– (ciemny)" : wyswietlany) + (uszkZezwalajacego ? ", uszkodzone światło zezwalające" : "") + (brakDanych ? ", brak łączności" : ""));
+        Urzadzenia.LogStatus("sygnalizator", sig, "wyświetla " + (wyswietlany == "" ? "– (ciemny)" : wyswietlany) + (uszkZezwalajacego ? ", uszkodzone światło zezwalające" : "") + (brakDanych ? ", brak łączności" : ""));
         var s = Sigs[sig];
         s.Wyswietlany = wyswietlany;
         if (s.LampFault && !uszkZezwalajacego) s.FailAlarm = false;
         s.LampFault = uszkZezwalajacego;
-        if (brakDanych && !s.NoData) Alarm($"Sygnalizator {sig}: brak komunikacji z obiektem", "Semafor", sig, warunek: WarunekAlarmu.BrakDanychSygnalu);
+        if (brakDanych && !s.NoData) Alarm($"Sygnalizator {sig}: brak komunikacji z obiektem", "Semafor", sig, stillActive: () => s.NoData);
         s.NoData = brakDanych;
         // sygnał zezwalający nie zapalił się / zgasł w terenie – „Stój” i przebieg wraca do nastawiania (§26 ust. 1)
         if (uszkZezwalajacego && s.Aspect == Aspect.Train && Sygnaly.AspectOf(wyswietlany) == Aspect.Stop && s.Sig != null && Sygnaly.Def(s.Sig)?.V != null)
@@ -526,7 +535,7 @@ public partial class KomputerZaleznosci
             if (s.Route != null && Routes.TryGetValue(s.Route, out var r) && !r.Passed)
             {
                 r.State = "setting";
-                if (!s.FailAlarm) { s.FailAlarm = true; Alarm($"Semafor {sig}: nie wyświetlił sygnału zezwalającego (§26 ust. 1)", "Semafor", sig, warunek: WarunekAlarmu.BrakSygnaluPrzebiegu, przebieg: r.Uid); }
+                if (!s.FailAlarm) { s.FailAlarm = true; Alarm($"Semafor {sig}: nie wyświetlił sygnału zezwalającego (§26 ust. 1)", "Semafor", sig, stillActive: () => Routes.ContainsKey(r.Uid) && !r.Passed && s.Aspect == Aspect.Stop); }
             }
         }
     }
