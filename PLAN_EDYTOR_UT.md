@@ -1,5 +1,7 @@
 # Nowy edytor układu torowego (UT) – plan
 
+**S02A1.01, 2026-11-02:** neutralna specyfikacja źródeł KZ nie zmienia etapu edytora, modelu UT, geometrii, symboli ani obsługi projektowania. Release całego rozwiązania: 0 błędów; pełny izolowany UT **786 OK / 0 błędów**, zobrazowanie **387/0**. Zachowano wcześniejszą próbę UT z przekroczonym limitem czasu; raport `SUK_plan_multiplayer/raporty/S02A1.01.md`. Pakiet Ada pozostaje niezamrożony (`ReadyForAuthors=false`); nie uruchomiono kolejnych kart.
+
 **Regresja integracji S02A.04, 2026-11-02:** edytor UT Release zbudowany; pełny test **786 OK / 0 błędów**. Format UT i narzędzia projektowania bez zmian; granica operatora/ruchu dotyczy wspólnego rdzenia symulatora. Szczegóły w `SUK_plan_multiplayer/raporty/S02A.04.md`.
 
 **Regresja S02A.03, 30.10.2026; zamknięcie 1.11:** pełny test UT **718 OK / 0 błędów**, zobrazowanie **387/0**, Przechyłka **10/0**, Komputerownia **16/0**; scenariusze **24/24**, porównania **36/36**, host **317/317**. Release całego rozwiązania (w tym UT i pulpit): 0 błędów, jedno istniejące ostrzeżenie CS0465. Funkcje, geometria i formaty edytora UT bez zmian. Dane właściciela zachowano. Raport i zrzuty: [S02A.03](SUK_plan_multiplayer/raporty/S02A.03.md).

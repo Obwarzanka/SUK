@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "specVersion": "0.1.0",
+  "jobId": "S02A1.01",
+  "date": "2026-11-02",
+  "readyForAuthors": false,
+  "freezeJobId": "S02A1.04",
+  "hashMode": "SHA-256 raw file bytes, lowercase hex; no line-ending normalization",
+  "audience": "Integrator: rejestr pochodzenia nie jest listą dostępu autorów A/B.",
+  "ie1OwnerSelectedEdition": "uchwała 1041/2025 z 16.12.2025, obowiązuje 17.01.2026, PDF 267 stron",
+  "attachment": {
+    "path": "C:\\Users\\JohnE\\Desktop\\Ie-1_obowiazuje_od_2026-01-17__uz_1041_25__WCAG.pdf",
+    "sha256": "04943b6cf66c5c31b55b9af9c702ed262cde17b7531b8217269510ddaf85dc9b",
+    "sameAs": "IE1"
+  },
+  "sources": [
+    {
+      "id": "IE1",
+      "path": "Zrodla/Ie-1_obowiazuje_od_2026-01-17__uz_1041_25__WCAG.pdf",
+      "role": "norma_wskazana_przez_wlasciciela",
+      "sha256": "04943b6cf66c5c31b55b9af9c702ed262cde17b7531b8217269510ddaf85dc9b",
+      "readPdfPages": [
+        1,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        41,
+        42,
+        43,
+        47,
+        48,
+        153,
+        154,
+        155,
+        156,
+        208,
+        209,
+        210
+      ]
+    },
+    {
+      "id": "IE20",
+      "path": "Zrodla/Ie-20_WCAG.pdf",
+      "role": "instrukcja_obslugi",
+      "sha256": "7544b5a67597b81b5dbdc2fdddda6f325ef4453bfedbb6919dd2c366218ffa51",
+      "readPdfPages": [
+        9,
+        12,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38
+      ]
+    },
+    {
+      "id": "IE104",
+      "path": "Zrodla/Ie-104_2025_WCAG.pdf",
+      "role": "zobrazowanie",
+      "sha256": "cdf969d7e50dafe3da137a4f2157dab40009fcc784374b5b889a086f7ba0735b",
+      "readPdfPages": [
+        5,
+        6,
+        7,
+        32,
+        33,
+        34
+      ]
+    },
+    {
+      "id": "UTK",
+      "path": "Zrodla/KOMPUTERY.pdf",
+      "role": "podrecznik_wtorny_wobec_instrukcji",
+      "sha256": "ba4e78cb91aab6a35d5990be7df9ec171445aabf88afac93dcc2f1e2934e546d",
+      "readPdfPages": [
+        7,
+        21
+      ]
+    },
+    {
+      "id": "NOTATKI",
+      "path": "Zrodla/KOMPUTERY_notatki.md",
+      "role": "notatki_nie_norma",
+      "sha256": "ea2926ae4d977790885c0bc5b480e5ead4091619848b3a296a322b8291d54365",
+      "readPdfPages": []
+    },
+    {
+      "id": "OWNER",
+      "path": "ROZWOJ.md",
+      "role": "decyzje_i_historia_projektu_integrator",
+      "sha256": "87180f10cdc75db595b93c6c9731080f74c434733d6928c1b84d57ae1f4df153",
+      "readPdfPages": []
+    },
+    {
+      "id": "PODZIAL",
+      "path": "PODZIAL_MODULOW.md",
+      "role": "decyzje_i_historia_projektu_integrator",
+      "sha256": "3aae3d2aaa27f8d83c921efbab66b72d33f0df26a054919a77fe22be57338bdf",
+      "readPdfPages": []
+    },
+    {
+      "id": "PLAN23",
+      "path": "SUK_plan_multiplayer/23_KZ_ADA_I_INTEGRACJA.md",
+      "role": "wymagania_projektu_integrator",
+      "sha256": "26c81b91a872ff900ff319c5bb1285565f24dd3ed8cd48c814ce478fc187c3d6",
+      "readPdfPages": []
+    },
+    {
+      "id": "PLAN25",
+      "path": "SUK_plan_multiplayer/25_LOGOWANIE_I_DIAGNOSTYKA.md",
+      "role": "wymagania_projektu_integrator",
+      "sha256": "f0b3245f03a33f3100f3f91a43247fe042e305dda89aa4b2a9e38c0a1577f823",
+      "readPdfPages": []
+    },
+    {
+      "id": "CYCLE",
+      "path": "kontrakty/kz/wejscie_cyklu_v1.schema.json",
+      "role": "odebrany_kontrakt_csharp_nie_abi",
+      "sha256": "0df7eb0527da5d24d1416057028b3ad1cbb5eb73c7c02f26c07829b8c697daf1",
+      "readPdfPages": []
+    },
+    {
+      "id": "OUTPUT",
+      "path": "kontrakty/kz/plan_wyjscia_v1.schema.json",
+      "role": "odebrany_kontrakt_csharp_nie_abi",
+      "sha256": "ac5ea374f439c7f8c22d1447862c00667ff36b1a79302b9323c5116eb37ad89c",
+      "readPdfPages": []
+    },
+    {
+      "id": "OWNERSHIP",
+      "path": "kontrakty/kz/mapa_wlasnosci_v1.schema.json",
+      "role": "odebrany_kontrakt_csharp_nie_abi",
+      "sha256": "908bf56bf541bda9feeb6526d3139b7294fd3fe4dafa92a26cc7f45f46b0a7b8",
+      "readPdfPages": []
+    },
+    {
+      "id": "SIGNALS",
+      "path": "app/LcsWidzew/Data/sygnaly_ie1.json",
+      "role": "dane_referencyjne_warunkowo_zweryfikowane",
+      "sha256": "5b5b5d94427ddf3dbf9bbbc98dc9bd5c63c5ede5217f22a1409e5304b1584886",
+      "readPdfPages": []
+    },
+    {
+      "id": "PREV",
+      "path": "SUK_plan_multiplayer/raporty/S02A.04.md",
+      "role": "raport_odebranego_poprzednika",
+      "sha256": "0cb7c58701b870b64be1be628f66b64f091bc13b7064e8405c65000e98fc1be0",
+      "readPdfPages": []
+    }
+  ],
+  "ownerDecisionThisChat": {
+    "id": "O06",
+    "value": "ZCZ 120 s pozostawione do późniejszego rozstrzygnięcia",
+    "date": "2026-11-02"
+  }
+}

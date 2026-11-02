@@ -114,6 +114,10 @@ Polecenia stanowiska używają migawki operatora i obrazu. Inne stanowisko ani j
 
 Ruch pobiera historyczne zależności przez `AdapterRuchu` z niezmiennej `ProjekcjaRuchu`, publikowanej wyłącznie ze stanu przyjętego przez bramkę. Sygnał widziany przez maszynistę i położenie iglic nadal pochodzą z terenu. Nie zmieniono zasad jazdy ani odłożonego kroku 8. Logi `LcsWidzew.Granice` (4130–4133) zawierają tylko korelację, czas/cykl i liczniki; do 16 szczegółów kontekstu i projekcji na świat, potem zbiorcze podsumowania. Bez danych operatora i treści poleceń. Odbiór: [S02A.04](SUK_plan_multiplayer/raporty/S02A.04.md).
 
+### Neutralna specyfikacja KZ (S02A1.01)
+
+[Specyfikacja źródeł KZ](SUK_plan_multiplayer/specyfikacja_kz/README.md) opisuje reguły, dane sygnałów, znaczenie VSet, granicę wejść/wyjść i wymagania diagnostyki. Zawiera lokalizacje w Ie-1/Ie-20/Ie-104, hashe źródeł oraz jawne otwarte decyzje. ZCZ = 120 s pozostaje do późniejszego rozstrzygnięcia zgodnie z odpowiedzią właściciela z 2.11.2026. Dokumentacja nie zmienia obsługi programu ani danych stacji. Pakiet nie jest jeszcze zamrożony dla autorów Ada A/B (`ReadyForAuthors=false`); kontrakt/ABI i jego odbiór mają osobne karty. Wyniki i ograniczenia: [raport S02A1.01](SUK_plan_multiplayer/raporty/S02A1.01.md).
+
 ### Gra jednoosobowa (S02.02)
 
 Uruchom pulpit jak dotychczas przez `uruchom.bat`. Lokalna gra korzysta z plików układu i scenariusza; nie wymaga konta serwera ani Internetu. Dotychczasowe logowanie dyżurnego służy lokalnej sesji symulatora. Pauza i przyciski tempa działają na wspólnym cyklu o kroku 0,1 s. Polecenia w pauzie, również tuż po uruchomieniu przy czasie 0, otrzymują wynik bez przesuwania czasu.
