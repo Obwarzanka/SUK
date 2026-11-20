@@ -56,5 +56,40 @@ public sealed class ModeForm : ReferenceForm
 		button2.Size = new Size(485, 48);
 		button2.Enabled = true;
 		flowLayoutPanel.Controls.Add(button2);
+		Button button3 = Ui.Button("Lokalnie (ręczny rozkład / CSV)", () =>
+		{
+			Simulator = false;
+			DialogResult = DialogResult.OK;
+			Close();
+		});
+		button3.AutoSize = false;
+		button3.Size = new Size(485, 48);
+		flowLayoutPanel.Controls.Add(button3);
+		Button button4 = Ui.Button("Konfigurator SimRail", () =>
+		{
+			ConfiguratorProvider = "simrail";
+			DialogResult = DialogResult.OK;
+			Close();
+		});
+		button4.AutoSize = false;
+		button4.Size = new Size(240, 40);
+		Button button5 = Ui.Button("Konfigurator TD2", () =>
+		{
+			ConfiguratorProvider = "td2";
+			DialogResult = DialogResult.OK;
+			Close();
+		});
+		button5.AutoSize = false;
+		button5.Size = new Size(240, 40);
+		FlowLayoutPanel configurators = new FlowLayoutPanel
+		{
+			AutoSize = true,
+			WrapContents = false,
+			Margin = Padding.Empty
+		};
+		configurators.Controls.Add(button4);
+		configurators.Controls.Add(button5);
+		flowLayoutPanel.Controls.Add(configurators);
+		ClientSize = new Size(540, 340);
 	}
 }

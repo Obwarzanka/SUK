@@ -30,6 +30,7 @@ public partial class MainWindow
         View.DevicePlace += OnDevicePlace;
         View.DeviceMoved += (id, s) => MoveDevice(id, s, "Przesunięcie urządzenia");
         View.GantryMoved += (id, off) => SetBelkaOff(id, off);
+        View.GantryReach += (id, right, ext) => SetBelkaZasieg(id, right, ext);
         View.DeviceMenu += id => { var cm = BuildDeviceMenu(id); cm.PlacementTarget = View; cm.IsOpen = true; };
     }
 
@@ -44,6 +45,18 @@ public partial class MainWindow
         Doc.Change("Przesunięcie belki", p => { foreach (var x in p.Devices.Where(x => ids.Contains(x.Id))) { x.Konstrukcja = key; x.BelkaOff = Math.Abs(off) < 0.005 ? null : off; } });
         Message($"{(mast == UtDevice.MastWysiegnik ? "Wysięgnik" : "Bramka")} {string.Join("/", m.Select(x => x.Name))}: belka " +
                 (Math.Abs(off) < 0.005 ? "w miejscu semaforów" : $"przesunięta o {F(Math.Abs(off))} m {(off > 0 ? "w stronę jazdy" : "pod prąd")} – semafory zostają w swoim km") + " (Ctrl+Z cofa)");
+    }
+
+    /// <summary>Zasięg belki konstrukcji po prawej / po lewej patrząc w kierunku jazdy [m poza skrajny tor lub semafor; ujemny – krótsza].</summary>
+    public void SetBelkaZasieg(string id, bool right, double ext)
+    {
+        if (Urzadzenia.KonstrukcjaOf(Doc.P, id) is not var (mast, m)) return;
+        var ids = m.Select(x => x.Id).ToHashSet();
+        ext = Math.Round(ext, 2); double? v = Math.Abs(ext) < 0.005 ? null : ext;
+        string key = m.Select(x => x.Konstrukcja).FirstOrDefault(x => !string.IsNullOrEmpty(x)) ?? Guid.NewGuid().ToString("N")[..8];
+        Doc.Change("Zasięg belki", p => { foreach (var x in p.Devices.Where(x => ids.Contains(x.Id))) { x.Konstrukcja = key; if (right) x.BelkaP = v; else x.BelkaL = v; } });
+        Message($"{(mast == UtDevice.MastWysiegnik ? "Wysięgnik" : "Bramka")} {string.Join("/", m.Select(x => x.Name))}: belka {(right ? "po prawej" : "po lewej")} " +
+                (v == null ? "do skrajnego toru / semafora" : $"{F(Math.Abs(ext))} m {(ext > 0 ? "dalej" : "krócej")} niż skrajny tor / semafor") + " (Ctrl+Z cofa)");
     }
 
     /// <summary>Nowy km urządzenia; sygnalizator na wspólnej konstrukcji ciągnie za sobą pozostałe – bramka zostaje w jednym przekroju.</summary>
@@ -250,13 +263,30 @@ public partial class MainWindow
         offRow.Children.Add(offBox);
         if (Math.Abs(Urzadzenia.BelkaOff(m)) > 0.005) offRow.Children.Add(SmallBtn("Zeruj", () => SetBelkaOff(d.Id, 0), "Belka z powrotem w miejscu semaforów"));
         P.Children.Add(offRow);
+        // zasięg belki – jak daleko sięga poza skrajny tor / semafor (tam słup); końce belki można też przeciągać na planie
+        P.Children.Add(Label("Zasięg belki poza skrajny tor [m, − krócej] – przeciągnij koniec belki na planie"));
+        var (extL, extP) = Urzadzenia.BelkaZasieg(m);
+        var extRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+        foreach (var (txt, right, val) in new[] { ("w lewo", false, extL), ("w prawo", true, extP) })
+        {
+            extRow.Children.Add(new TextBlock { Text = txt, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+            var box = new TextBox { Text = F(val), Width = 50, Margin = new Thickness(0, 0, 10, 0), ToolTip = $"Koniec belki (i słup) {txt} patrząc w kierunku jazdy; Enter – zastosuj" };
+            box.KeyDown += (s, e) => { if (e.Key == Key.Enter && Num(box.Text) is double v) SetBelkaZasieg(d.Id, right, v); };
+            extRow.Children.Add(box);
+        }
+        if (Math.Abs(extL) > 0.005 || Math.Abs(extP) > 0.005)
+            extRow.Children.Add(SmallBtn("Zeruj", () => SetAll("Zasięg belki", x => { x.BelkaL = null; x.BelkaP = null; }), "Belka do skrajnych torów / semaforów"));
+        P.Children.Add(extRow);
         var near = Urzadzenia.ToryPrzyKonstrukcji(Doc.P, m);
+        // zaznaczone tory spoza pobliża (np. kliknięte przez pomyłkę) – też na liście, żeby dało się je odznaczyć
+        foreach (var tid in tory.Where(t => near.All(x => x.T.Id != t)))
+            if (Doc.P.Tracks.FirstOrDefault(t => t.Id == tid) is UtTrack ft) near.Insert(0, (ft, Urzadzenia.Pos(Doc.P, m[0]) is var (pf, _, kf) ? Trasa.Compute(ft).Nearest(pf, 0.25).Dist / kf : 0));
         if (near.Count == 0 && tory.Count == 0) return;
         P.Children.Add(Label("Belka także nad torem (bez sygnalizatora)"));
         var trs = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
-        foreach (var (t, dist) in near.Take(6))
+        foreach (var (t, dist) in near.Take(6 + tory.Count))
         {
-            var cb2 = new CheckBox { Content = $"tor {(t.Number.Length > 0 ? t.Number : "(bez numeru)")} ({dist:0.0} m)", IsChecked = tory.Contains(t.Id), Margin = new Thickness(0, 0, 10, 2) };
+            var cb2 = new CheckBox { Content = $"tor {(t.Number.Length > 0 ? t.Number : "(bez numeru)")} ({dist:0.0} m{(dist >= Urzadzenia.NadToremZasieg ? " – nie przechodzi pod belką" : "")})", IsChecked = tory.Contains(t.Id), Margin = new Thickness(0, 0, 10, 2) };
             var tid = t.Id;
             cb2.Click += (s, e) =>
             {

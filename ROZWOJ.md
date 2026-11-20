@@ -2,11 +2,15 @@
 
 **Rozkład jazdy `.rj.json` – R1, 2026-10-30:** plan edytora RJ zaakceptowany z propozycjami z § 9. Nowa biblioteka `app/Lcs.RozkladJazdy` (format `<układ>.rj.json`: pociągi z odcinkami – numer, kategoria Ir-11, przewoźnik – i biegiem przez posterunki), import z `rozklad.json` / `rozklad_ic.json` i `<układ>.rozklad.json` (`--rj-import`), wczytanie w scenariuszach (`ic_*` – dobowy, „Ruch podstawowy” – względny; bez pliku – bez zmian). `--rjtest`: Widzew 15 z 15 (ta sama kolejka, wykaz EDR i ruch w `ic_05/08/15/18`), `lcs_testowe` 3 z 3. Selftest 25 z 26 / 5 z 5, `--edrtest` 136 z 136. Szczegóły `PLAN_EDYTOR_RJ.md` § 10.
 
+**Edytor UT – zasięg belki bramki, 2026-11-02:** właściciel (S1/S3, belka sięgała w ogródki): przyczyną był tor zaznaczony w „Belka także nad torem”, który kończy się ok. 1,7 km od bramki. Taki tor (dalej niż 25 m) jest teraz pomijany na rysunku, widoczny w panelu do odznaczenia i zgłaszany w „Sprawdź”. Nowe: zasięg belki w lewo / w prawo (`BelkaL`, `BelkaP`) – przeciąganie końców belki (uchwyty przy zaznaczonej bramce) albo pola w panelu. Szczegóły w `HISTORIA_EDYTOR_UT.md`, zrzut `zrzuty/EdytorUT_bramka_zasieg.png`.
+
 **Edytor UT – semafor na bramce jak na planie Ig-10, 2026-10-30:** właściciel (wycinek planu W / V / U / T z ToU, ToT): „przed wstawieniem na maszt wyglądało jak na planie, po zrobieniu się obracają”. Komory wiszącego semafora szły od belki w stronę jazdy – odwrotnie niż na maszcie i na planie. Teraz znak jak semafor na maszcie zawieszony górą: belka przy górnej komorze, komory, W21, pasy i nazwa wstecz (przeciwnie do jazdy), słupy bramki też w tę stronę. Dotyczy wszystkich bramek i wspólnych wysięgników (także B1 / B101 / B102). Zrzut `zrzuty/EdytorUT_bramka_komory_wstecz.png`.
 
 **Edytor rozkładu jazdy – plan, 2026-10-29:** właściciel: „Przygotuj plan osobnego edytora rozkładu jazdy (numery, kategorie Ir-11, przewoźnik, zmiany w biegu)”. Plan `PLAN_EDYTOR_RJ.md` (do akceptacji): osobny `EdytorRJ.exe`, plik `<układ>.rj.json` z odcinkami (numer, kategoria Ir-11, przewoźnik) i biegiem przez posterunki, zmiana numeru / kategorii także bez postoju, import z GTFS / PKP IC i `<układ>.rozklad.json`, EDR wg odcinka, usunięcie zaszytych posterunków z `RealTimetable.cs`; etapy R1–R6, pytania w § 9.
 
 **EDR – E9: pozostałe różnice z EDR.exe, 2026-10-28:** właściciel: „wszystko, co wypisałeś, trzeba zmienić / dodać do nas” (porównanie z `Zrodla/edr_src`). Dróżnicy wg EDR.exe (tylko wyprawienie, Jednotorowych – ukośnik, Dwutorowych – godzina, filtr parzystości, rejestrowanie godziny, „Powiadom wszystkich”), sprawdzenia o godzinach doby i po przejęciu dyżuru, trakcja (wzory 31 / 32), ręczne przyjęcie / zdanie dyżuru z sytuacją na szlakach, użytkownicy lokalni z hasłami i tryb obserwatora, historia zmian i wpisu, żądanie pozwolenia / data wpisu, szablony jazdy do km, wiersz wykazu na każdy przejazd, przeciąganie w kontrolce, dane lokalne pociągu (STÓJ + prognoza, godziny, gotowość, analiza, TN / TWR, opis) i zakładki (kody opóźnień, przesyłki, zarządzenie RJ, skomunikowania, TN, usługi), pociągi lokalne i CSV, układ okna (na dole / z prawej / osobne okno), powiększenie, drugie okno, wyciąg do PDF / HTML / CSV, sesja z dziennikami, konfiguracja posterunku do pliku, jednostka IZ / ISE, pytanie „Zachować dane sesji EDR?” przy zamknięciu. Rdzeń `Sim/Edr/EdrE9.cs`, okna `UI/EdrE9.cs`, `UI/EdrPdf.cs`. `--edrtest` 136 z 136, selftest 25 z 26 / 5 z 5. Szczegóły w `PLAN_EDR.md` (E9).
+
+**Edytor UT – oś schematu po linii, 2026-11-02:** właściciel: „schemat a teren się strasznie rozjeżdża”. Przyczyna: oś schematu była prostą z cięciwy najdłuższego toru (tor szlakowy w łuku, 100,7°), a stacja leży pod 95,3°. Rozciągnięcie ×4 robiło z tego skos ok. 20°. Teraz oś biegnie po torach (`OsSchematu`: kilometraż wzdłuż linii i odsunięcie), więc linia leży poziomo także w łukach. Domyślnie to najdłuższy ciąg torów, „Oś wg toru” bierze ciąg od zaznaczonego toru. Podkład wygina się razem z osią. Test `Test.OsLinii.cs` (`--test` 807 OK / 0 błędów), zrzuty `zrzuty/EdytorUT_os_przed_cieciwa.png`, `…_os_linii_stacja.png`, `…_os_linii_obszar.png`, szczegóły w `HISTORIA_EDYTOR_UT.md`. Selftest 25 z 26, 5 z 5.
 
 **Edytor UT – sieć OSM nie zawsze się pokazywała, 2026-10-28:** właściciel (zrzut, tor 16: „czemu oś toru nie zawsze się pokazuje”): cienka pomarańczowa oś to sieć OSM z Overpass (gruba z numerem – kafelki OpenRailwayMap). Dobieranie po ruchu mapy działało tylko, gdy jakaś sieć była już pobrana – po nieudanym pierwszym pobraniu (widok ponad 5 km, błąd Overpass) linii nie było już nigdy. Teraz `UtView.OsmWanted` nie wymaga pobranej sieci; przy włączonym polu „sieć torów OSM (linie)” dobiera się w każdym narzędziu. Test `Test.OsmWidok` – nieudane pierwsze pobranie, potem przesunięcie mapy. `--test` 749 OK / 0 błędów; selftest 25 z 26, 5 z 5.
 
@@ -446,3 +450,17 @@ Komputer zależności zleca przestawienie i czeka na meldunek. Pociągi widzą t
   - obraz poglądowy.
 - Gra sieciowa (Radmin), obszary sterowania, telefon między stanowiskami, podgląd komputera zależności, utrata łączności.
 - Rozkład rzeczywisty z GTFS z obiegiem jednostek ŁKA.
+- **Integracja z SimRail, etap 1 (2026-11-20): tylko podgląd.**
+  - Mod MelonLoadera `SimRailMost` leży poza repozytorium, w `C:\Users\micha\Documents\symulator\SimRailMost`.
+  - Mod nadaje stany posterunku po UDP: protokół „simrail-most” v1, port 47130, komunikaty „stan” (migawka w częściach) i „zmiana”.
+  - W SUK odbiera je `Net/SimRailOdbiornik.cs`, a pokazuje `UI/SimRailWindow.cs` (przycisk „SimRail”).
+  - Mapa nazw SimRail → SUK jest w `<układ>.simrail.json`. Wypełnia ją właściciel.
+  - Dane nie trafiają do KZ. Etap 2 (SimRail jako teren: `Urzadzenia.Osie` zamiast `Trains`) wymaga wypełnionej mapy.
+  - Test okna (sztuczne pakiety UDP, zrzut) robiono poza repozytorium; selftest bez zmian: 25 z 26, kontrola 5 z 5.
+- **Integracja z SimRail, etap 3 (2026-11-20): pulpit zdalny.**
+  - `Net/SimRailSession.cs` to `ILcsSession` bez komputera zależności, jak `RemoteSession`. Meldunki buduje ze stanów gry przez mapę nazw, a `Exec` tłumaczy polecenia na polecenia gry.
+  - Polecenia (Plus, Minus, Stop, oStop, Stój → `IndividualOrder`) idą do moda po UDP 47131. Mod wysyła je przez `RailNetworking.SendRPCCall`, tak jak pulpit EBI.
+  - Okno „SimRail” i sesja korzystają ze wspólnego odbiornika `SimRailOdbiornik.Wspolny`.
+  - Włączanie: `MainWindow.JoinSimRail`, wyłączanie: `Leave`.
+  - Przebiegi (`RouteOrder`) czekają na podsłuch prawdziwego polecenia pulpitu gry.
+  - Test bez gry (udawany mod) robiono poza repozytorium: 16 z 16. Na żywo z grą jeszcze nie sprawdzono.

@@ -17,7 +17,7 @@ namespace Lcs.EdytorUT;
 /// </summary>
 public static class Eksport
 {
-    public record Opcje(bool Schemat, int Scale, double Stretch, int Dpi, string Format, bool WholeProject, XY ViewCenter, double ViewW, double ViewH, IReadOnlyCollection<string> Hidden);
+    public record Opcje(bool Schemat, int Scale, double Stretch, int Dpi, string Format, bool WholeProject, XY ViewCenter, double ViewW, double ViewH, IReadOnlyCollection<string> Hidden, OsSchematu Os = null);
     /// <summary>Strona: obraz, wymiar kartki [mm], przeliczenie świat → piksel strony (do sprawdzenia skali).</summary>
     public record Strona(BitmapSource Image, double WidthMm, double HeightMm, Func<XY, Point> ToPx);
 
@@ -46,20 +46,22 @@ public static class Eksport
     public static List<Strona> Render(UtDocument doc, Opcje o)
     {
         var p = doc.P;
-        double az = o.Schemat ? p.SchematAz() : Math.PI / 2, str = o.Schemat ? Math.Max(1, o.Stretch) : 1;
-        double cosA = Math.Cos(az), sinA = Math.Sin(az);
+        // oś schematu po linii (jak w edytorze) albo Teren – północ u góry
+        var os = o.Schemat ? (o.Os ?? OsSchematu.Dla(p)) : OsSchematu.ProstaAz(Math.PI / 2);
+        double str = o.Schemat ? Math.Max(1, o.Stretch) : 1;
         double mpp = o.Scale * 0.0254 / 96;                       // m układu na DIP (1/96 cala) kartki wzdłuż osi
         // zasięg w osiach widoku (u – wzdłuż, v – w poprzek) [m]
         double minU, maxU, minV, maxV;
         if (o.WholeProject)
         {
             var pts = Extent(p); if (pts.Count == 0) return new();
-            minU = pts.Min(q => q.X * cosA + q.Y * sinA) - 15; maxU = pts.Max(q => q.X * cosA + q.Y * sinA) + 15;
-            minV = pts.Min(q => -q.X * sinA + q.Y * cosA) - 15 / str * 2; maxV = pts.Max(q => -q.X * sinA + q.Y * cosA) + 15 / str * 2;
+            var uv = pts.Select(os.UV).ToList();
+            minU = uv.Min(q => q.U) - 15; maxU = uv.Max(q => q.U) + 15;
+            minV = uv.Min(q => q.V) - 15 / str * 2; maxV = uv.Max(q => q.V) + 15 / str * 2;
         }
         else
         {
-            double uc = o.ViewCenter.X * cosA + o.ViewCenter.Y * sinA, vc = -o.ViewCenter.X * sinA + o.ViewCenter.Y * cosA;
+            var (uc, vc) = os.UV(o.ViewCenter);
             minU = uc - o.ViewW / 2; maxU = uc + o.ViewW / 2; minV = vc - o.ViewH / 2; maxV = vc + o.ViewH / 2;
         }
         double contentW = (maxU - minU) / mpp, contentH = (maxV - minV) * str / mpp;   // [DIP]
@@ -78,11 +80,11 @@ public static class Eksport
             {
                 double u0 = minU - offU + cI * areaW * mpp, v0 = minV - offV + rI * areaH * mpp / str;
                 double uc = u0 + areaW * mpp / 2, vc = v0 + areaH * mpp / str / 2;
-                var center = new XY(cosA * uc - sinA * vc, sinA * uc + cosA * vc);
+                var center = os.World(uc, vc);
                 var view = new UtView { Doc = doc, PrintMode = true, PrintPxPerMm = o.Schemat ? null : DipPerMm };
                 foreach (var h in o.Hidden) view.Hidden.Add(h);
                 view.Hidden.Add("podklady");
-                view.SetMode(o.Schemat, az, str);
+                view.SetMode(o.Schemat, os, str);
                 view.SetView(center, mpp);
                 view.Measure(new Size(areaW, areaH)); view.Arrange(new Rect(0, 0, areaW, areaH));
                 string cap = $"{p.Name} – {(o.Schemat ? $"plan schematyczny, skala 1:{o.Scale} wzdłuż, 1:{o.Scale / str:0} w poprzek" : $"skala 1:{o.Scale}")}" +

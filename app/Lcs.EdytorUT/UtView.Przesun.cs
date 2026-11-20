@@ -32,9 +32,9 @@ public partial class UtView
         if (Doc == null || Busy) return false;
         Vector v = k switch { Key.Left => new(-1, 0), Key.Right => new(1, 0), Key.Up => new(0, -1), Key.Down => new(0, 1), _ => default };
         if (v.Length == 0) return false;
-        if (Dev(SelectedDevice) is UtDevice dv && Urzadzenia.Pos(Doc.P, dv) is var (_, daz, _))
+        if (Dev(SelectedDevice) is UtDevice dv && Urzadzenia.Pos(Doc.P, dv) is var (dp, daz, _))
         {
-            double dd = v * (ScreenDir(daz) * dv.Dir);              // kierunek rosnącego km toru na ekranie
+            double dd = v * (ScreenDir(dp, daz) * dv.Dir);              // kierunek rosnącego km toru na ekranie
             if (Math.Abs(dd) < 0.2) return true;
             DeviceMoved?.Invoke(dv.Id, Math.Round(dv.S + Math.Sign(dd) * (shift ? 1 : 0.1), 3));
             return true;
@@ -43,7 +43,7 @@ public partial class UtView
         {
             var m = t.BranchAtEnd && t.Partner != null ? Doc.P.Turnouts.FirstOrDefault(x => x.Id == t.Partner) ?? t : t;
             var g = Rozjazdy.Geometry(Doc.P, m); if (g == null) return false;
-            var d0 = ScreenDir(g.Az) * m.Dir;                 // kierunek rosnącego kilometrażu toru na ekranie
+            var d0 = ScreenDir(g.PR, g.Az) * m.Dir;                 // kierunek rosnącego kilometrażu toru na ekranie
             double dot = v * d0;
             if (Math.Abs(dot) < 0.2) return true;              // strzałka w poprzek toru – rozjazd jedzie tylko wzdłuż
             TurnoutMoved?.Invoke(m.Id, Math.Round(m.S + Math.Sign(dot) * (shift ? 1 : 0.1), 3));

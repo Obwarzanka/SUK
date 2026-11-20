@@ -37,6 +37,8 @@ public partial class UtView
     {
         public double[] Sig; public TrasaResult Res; public List<(XY P, double Az)> Pts;
         public double X0, Y0, X1, Y1;
+        // ramka we współrzędnych osi widoku (u, v) dla wersji osi UvVer
+        public int UvVer = -1; public double U0, V0, U1, V1;
     }
     readonly Dictionary<string, GeoCache> geo = new();
 
@@ -83,14 +85,35 @@ public partial class UtView
         geo[t.Id] = c; return c;
     }
 
-    /// <summary>Ramka toru na ekranie (z ramki w układzie – przekształcenie jest afiniczne, więc obejmuje całą oś).</summary>
+    /// <summary>
+    /// Ramka toru na ekranie: z ramki we współrzędnych osi (u, v) – ekran jest w nich liniowy. Ramka liczona raz na oś z punktów
+    /// osi toru co najwyżej 5 m (przy osi po linii prosta toru na ekranie może być wygięta).
+    /// </summary>
     Rect ScreenBox(GeoCache c)
     {
         if (c.Pts.Count == 0) return Rect.Empty;
-        var a = ToScreen(new XY(c.X0, c.Y0)); var b = ToScreen(new XY(c.X1, c.Y0)); var d = ToScreen(new XY(c.X0, c.Y1)); var e = ToScreen(new XY(c.X1, c.Y1));
-        double x0 = Math.Min(Math.Min(a.X, b.X), Math.Min(d.X, e.X)), x1 = Math.Max(Math.Max(a.X, b.X), Math.Max(d.X, e.X));
-        double y0 = Math.Min(Math.Min(a.Y, b.Y), Math.Min(d.Y, e.Y)), y1 = Math.Max(Math.Max(a.Y, b.Y), Math.Max(d.Y, e.Y));
+        if (c.UvVer != osVer)
+        {
+            double u0 = double.MaxValue, v0 = double.MaxValue, u1 = double.MinValue, v1 = double.MinValue;
+            foreach (var q in Dense(c.Pts, 5)) { var (u, v) = os.UV(q.P); u0 = Math.Min(u0, u); v0 = Math.Min(v0, v); u1 = Math.Max(u1, u); v1 = Math.Max(v1, v); }
+            c.U0 = u0; c.V0 = v0; c.U1 = u1; c.V1 = v1; c.UvVer = osVer;
+        }
+        double x0 = Cx + (c.U0 - cu) / mpp, x1 = Cx + (c.U1 - cu) / mpp, y0 = Cy + (c.V0 - cv) * stretch / mpp, y1 = Cy + (c.V1 - cv) * stretch / mpp;
         return new Rect(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    /// <summary>Punkty osi zagęszczone tak, żeby odstęp nie przekraczał <paramref name="step"/> [m] (proste mają tylko końce).</summary>
+    static IEnumerable<(XY P, double Az)> Dense(List<(XY P, double Az)> pts, double step)
+    {
+        for (int i = 0; i < pts.Count; i++)
+        {
+            if (i > 0)
+            {
+                var (a, aa) = pts[i - 1]; var (b, ba) = pts[i]; int k = (int)Math.Ceiling(XY.Dist(a, b) / step);
+                for (int j = 1; j < k; j++) yield return (a + (b - a) * (j / (double)k), aa + Math.IEEERemainder(ba - aa, 2 * Math.PI) * j / k);
+            }
+            yield return pts[i];
+        }
     }
 
     /// <summary>Punkt ekranu może leżeć najwyżej <paramref name="px"/> od osi toru (odsiew przed dokładnym szukaniem).</summary>
@@ -231,7 +254,7 @@ public partial class UtView
                 return new(res, $"łuk R {rf:0} (z kursora) {(ang > 0 ? "w prawo" : "w lewo")}, {Math.Abs(ang) * 180 / Math.PI:0.##}°, {Len3(rf * Math.Abs(ang))}", null);
             }
             if (typed is double ls) ang = side * Math.Min(ls / RNow, 170 * Math.PI / 180);
-            else if (Mods.HasFlag(ModifierKeys.Shift) && Doc != null && Budowa.ArcAngleParallel(dv, side, Doc.P.SchematAz()) is var pa && pa != 0) ang = pa;
+            else if (Mods.HasFlag(ModifierKeys.Shift) && Doc != null && Budowa.ArcAngleParallel(dv, side, StationAzAt(dv[^1].P)) is var pa && pa != 0) ang = pa;
             else ang = Budowa.ArcAngleTo(dv, RNow, k, w);
             res = Budowa.Arc(dv, RNow, NewL, ang, k);
             info = $"łuk R {RNow:0.##} {(ang > 0 ? "w prawo" : "w lewo")}, {Math.Abs(ang) * 180 / Math.PI:0.##}°, {Len3(RNow * Math.Abs(ang))}";
@@ -438,7 +461,7 @@ public partial class UtView
             else if (t.Vertices[i].R <= 0 && Bisector(t.Vertices, i) is XY u)
             {
                 // załamanie bez łuku: uchwyt 16 px od wierzchołka do środka kąta – przeciągnięcie tworzy łuk
-                var vs = ToScreen(t.Vertices[i].P); var su = ScreenVec(u); su.Normalize();
+                var vs = ToScreen(t.Vertices[i].P); var su = ScreenVec(t.Vertices[i].P, u); su.Normalize();
                 res.Add((i, ToWorld(vs + su * 16)));
             }
         }
@@ -635,7 +658,7 @@ public partial class UtView
             if (bestS >= 0)
             {
                 var (mp, az) = res.At(bestS);
-                var ps = ToScreen(mp); var d = ScreenDir(az); var n = new Vector(d.Y, -d.X); if (n.Y > 0) n = -n;   // normalna w górę ekranu
+                var ps = ToScreen(mp); var d = ScreenDir(mp, az); var n = new Vector(d.Y, -d.X); if (n.Y > 0) n = -n;   // normalna w górę ekranu
                 var ft = new FormattedText(t.Number, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, UiFont, 12, ink, dpi);
                 var c = ps + n * 10;
                 dc.DrawEllipse(ink, null, new Point(c.X - ft.Width / 2 - 5, c.Y), 2.2, 2.2);
@@ -653,20 +676,33 @@ public partial class UtView
         return res;
     }
 
-    /// <summary>Łamana osi przesunięta o d [m w układzie] w prawo (− w lewo) – na ekranie.</summary>
+    /// <summary>
+    /// Łamana osi przesunięta o d [m w układzie] w prawo (− w lewo) – na ekranie. Przy osi po linii długie proste dzielone co 20 px
+    /// (prosta w terenie jest na schemacie wygięta razem z osią).
+    /// </summary>
     StreamGeometry Line(List<(XY P, double Az)> pts, double d)
     {
         var g = new StreamGeometry();
         using (var c = g.Open())
         {
-            for (int i = 0; i < pts.Count; i++)
+            bool first = true;
+            foreach (var (p, az) in os.Prosta ? pts : Dense(pts, Math.Max(0.5, 20 * mpp)))
             {
-                var (p, az) = pts[i];
                 var s = ToScreen(d == 0 ? p : p + Element.Right(az) * d);
-                if (i == 0) c.BeginFigure(s, false, false); else c.LineTo(s, true, true);
+                if (first) { c.BeginFigure(s, false, false); first = false; } else c.LineTo(s, true, true);
             }
         }
         g.Freeze(); return g;
+    }
+
+    /// <summary>Odcinek w terenie na ekranie: przy osi po linii łamana co 20 px.</summary>
+    public void DrawSegment(DrawingContext dc, Pen pen, XY a, XY b)
+    {
+        if (os.Prosta) { dc.DrawLine(pen, ToScreen(a), ToScreen(b)); return; }
+        int k = Math.Clamp((int)Math.Ceiling(XY.Dist(a, b) / Math.Max(0.5, 20 * mpp)), 1, 400);
+        var g = new StreamGeometry();
+        using (var c = g.Open()) { c.BeginFigure(ToScreen(a), false, false); for (int j = 1; j <= k; j++) c.LineTo(ToScreen(a + (b - a) * (j / (double)k)), true, true); }
+        g.Freeze(); dc.DrawGeometry(null, pen, g);
     }
 
     void DrawTrackEdit(DrawingContext dc, UtTrack t, double dpi)
@@ -679,7 +715,7 @@ public partial class UtView
         foreach (var e in res.Elements.Where(e => e.Kind != ElKind.Prosta))
             foreach (var (p, az) in new[] { e.At(0), e.At(e.Len) })
             {
-                var sp = ToScreen(p); var d = ScreenDir(az); var n = new Vector(-d.Y, d.X) * 6;
+                var sp = ToScreen(p); var d = ScreenDir(p, az); var n = new Vector(-d.Y, d.X) * 6;
                 dc.DrawLine(TickPenT, sp - n, sp + n);
             }
         for (int i = 0; i < v.Count; i++)

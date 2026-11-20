@@ -229,6 +229,36 @@ public static partial class Test
             var zb = Find<System.Windows.Controls.Button>(w.TrackPanel, b => (b.Content as string) == "Zeruj");
             Ok(zb != null, "panel: pole przesunięcia belki i „Zeruj”");
             if (zb != null) { Click(zb); Ok(Urzadzenia.BelkaOff(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M) == 0, "„Zeruj” – belka w miejscu semaforów"); }
+
+            // zasięg belki (właściciel 2026-11-02: „możliwość, jak daleko bramka sięga”): przeciągnięcie końca belki o 5 m na zewnątrz
+            await Settle(w);
+            var b0 = w.View.GantryBeams().First(x => x.Id == beam.Id);
+            double pxm = (w.View.ToScreen(pD + Element.Right(azD) * kD) - w.View.ToScreen(pD)).Length;
+            var u = b0.B - b0.A; double l0 = u.Length; u.Normalize();
+            w.View.SimDrag(b0.B, b0.B + u * (5 * pxm));
+            var (zl, zp) = Urzadzenia.BelkaZasieg(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M);
+            var b1 = w.View.GantryBeams().First(x => x.Id == beam.Id);
+            Ok(d.UndoName == "Zasięg belki" && Math.Abs(Math.Abs(zl) + Math.Abs(zp) - 5) < 0.3 && Math.Abs((b1.B - b1.A).Length - l0 - 5 * pxm) < 0.3 * pxm
+               && Math.Abs(D(sD.Id).S - (sD0 + 5)) < 1e-6, $"koniec belki przeciągnięty: zasięg L {zl:0.0} / P {zp:0.0} m, belka dłuższa o {((b1.B - b1.A).Length - l0) / pxm:0.0} m, semafory bez zmian ({w.LastMessage})");
+            if (shotRails != null) { w.View.SelectDevice(sD.Id); await Settle(w); Save(w, shotRails.Replace("_szyny.png", "_bramka_zasieg.png")); }
+            w.View.SelectDevice(sD.Id);
+            var ex = Find<System.Windows.Controls.TextBox>(w.TrackPanel, b => b.ToolTip is string tt && tt.StartsWith("Koniec belki (i słup) w lewo"));
+            Ok(ex != null, "panel: pola zasięgu belki w lewo / w prawo");
+            if (ex != null) { ex.Text = "-1"; Enter(ex);
+                              Ok(Math.Abs(Urzadzenia.BelkaZasieg(Urzadzenia.KonstrukcjaOf(d.P, sD.Id).Value.M).L + 1) < 1e-9, "pole „w lewo” = −1 – belka krótsza o 1 m"); }
+
+            // tor zaznaczony „belka także nad torem”, a daleko od bramki – pomijany na rysunku, uwaga w kontroli
+            var farT = d.P.Tracks.Select(t => (T: t, R: Trasa.Compute(t))).Where(x => x.R.Elements.Count > 0).FirstOrDefault(x => x.R.Nearest(pD, 0.25).Dist / kD > 100).T;
+            if (farT != null)
+            {
+                var fb1 = w.View.GantryBeams().First(x => x.Id == beam.Id); double lb = (fb1.B - fb1.A).Length;
+                d.Change("Daleki tor", p => { foreach (var x in p.Devices.Where(x => x.Konstrukcja == D(sD.Id).Konstrukcja)) x.NadTorami = new() { farT.Id }; });
+                await Settle(w);
+                var fb2 = w.View.GantryBeams().First(x => x.Id == beam.Id);
+                Ok(Math.Abs((fb2.B - fb2.A).Length - lb) < 0.5 && Urzadzenia.Check(d.P, D(sD.Id)).Any(x => x.Contains("nie przechodzi pod konstrukcją")),
+                   $"daleki tor na liście „nad torem” – belka bez zmian ({(fb2.B - fb2.A).Length - lb:0.0} px), uwaga w kontroli");
+                w.DoUndo();
+            }
         }
     }
 }

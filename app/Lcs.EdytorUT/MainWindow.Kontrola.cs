@@ -125,7 +125,7 @@ public partial class MainWindow
     // ------------------------------------------------------------------ eksport
     /// <summary>Opcje eksportu z bieżącego widoku (Schemat: skala arkusza projektu i rozciągnięcie widoku).</summary>
     public Eksport.Opcje ExportOptions(bool schemat, int scale, int dpi, string format, bool whole) =>
-        new(schemat, scale, schemat ? View.Stretch : 1, dpi, format, whole, View.Center, View.ActualWidth * View.Mpp, View.ActualHeight * View.Mpp / View.Stretch, View.Hidden.ToList());
+        new(schemat, scale, schemat ? View.Stretch : 1, dpi, format, whole, View.Center, View.ActualWidth * View.Mpp, View.ActualHeight * View.Mpp / View.Stretch, View.Hidden.ToList(), schemat && View.Schemat ? View.Os : null);
 
     void OpenExport()
     {

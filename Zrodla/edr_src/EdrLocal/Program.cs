@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -35,7 +35,7 @@ internal static class Program
 		Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("pl-PL");
 		Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("pl-PL");
 		string text = Argument(args, "--data") ?? ((args.Contains("--demo") || Argument(args, "--capture") != null) ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dane") : Path.Combine(DataLocations.Root, "local"));
-		LocalPersistence.Enabled = args.Any((string x) => x.EndsWith("-tests", StringComparison.Ordinal) || x == "--self-test");
+		LocalPersistence.Enabled = true;
 		try
 		{
 			string text2 = Argument(args, "--update199-tests");
@@ -301,7 +301,6 @@ internal static class Program
 			string text54 = Argument(args, "--configurator");
 			if (text54 != null)
 			{
-				LocalPersistence.Enabled = false;
 				return RunConfigurator(text54);
 			}
 			string text55 = Argument(args, "--profiles27-tests");
@@ -415,7 +414,6 @@ internal static class Program
 			{
 				return (!UiTests.Run(text76)) ? 2 : 0;
 			}
-			LocalPersistence.Enabled = false;
 			if (!args.Contains("--demo") && Argument(args, "--capture") == null)
 			{
 				using ModeForm modeForm = new ModeForm();

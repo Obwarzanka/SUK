@@ -63,6 +63,7 @@ public static partial class Test
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "bramka") { log.AppendLine("== bramka (tylko ta część)"); await RunBramka(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "urzosm") { log.AppendLine("== podpowiedzi z OSM (tylko ta część)"); await RunUrzOsm(w, shot); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "kmosm") { log.AppendLine("== kilometraż ze słupków OSM (tylko ta część)"); await RunKmOsm(w, shot); Finish(); return; }
+                if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "os") { log.AppendLine("== oś schematu po linii (tylko ta część)"); await RunOsLinii(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "osm") { log.AppendLine("== sieć OSM w Schemacie (tylko ta część)"); await RunOsmWidok(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "montaz") { log.AppendLine("== montaż (tylko ta część)"); await RunPoprawLuk(w); await RunMontaz(w); Finish(); return; }
                 if (Environment.GetEnvironmentVariable("EDYTOR_UT_TEST") == "metody") { log.AppendLine("== metody budowy łuku (tylko ta część)"); await RunMetodyLuku(w); Finish(); return; }
@@ -74,6 +75,7 @@ public static partial class Test
                 log.AppendLine("== etap 3: tory"); await RunTory(w);
                 log.AppendLine("== etap 4: rozjazdy"); await RunRozjazdy(w);
                 log.AppendLine("== widok schematu (poprawka po etapie 4)"); await RunSchemat(w);
+                log.AppendLine("== oś schematu po linii (łuk, tory, które ją przedłużają)"); await RunOsLinii(w);
                 if (shot != null) { await Settle(w); Save(w, shot); }
                 log.AppendLine("== rozjazdy łukowe i wstawki międzyrozjazdowe"); await RunLukowe(w);
                 log.AppendLine("== łącznik na łuku (łuk wyrównujący)"); await RunLacznik(w);

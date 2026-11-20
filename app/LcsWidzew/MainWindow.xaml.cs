@@ -643,13 +643,32 @@ public partial class MainWindow : Window
         catch (Exception ex) { return "Nie można połączyć: " + (ex.InnerException?.Message ?? ex.Message); }
     }
 
-    /// <summary>Powrót do gry jednoosobowej (rozłączenie stanowiska sieciowego).</summary>
+    /// <summary>Pulpit zdalny SimRail: stany z gry i polecenia do gry (mod SimRailMost), bez własnego komputera zależności.</summary>
+    public string JoinSimRail()
+    {
+        try
+        {
+            var rs = new SimRailSession(Station.Load(App.StationPath), Dispatcher);
+            server?.Dispose(); server = null;
+            serwis?.Dispose(); serwis = null;
+            CloseWorldWindows(); localWorld?.Dispose(); localWorld = null;
+            (ses as RemoteSession)?.Dispose();
+            Bind(rs);
+            BuildTabs(); ShowPage(station.Pages.Count - 1);
+            return null;
+        }
+        catch (Exception ex) { return "Nie można uruchomić pulpitu zdalnego SimRail: " + (ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    /// <summary>Powrót do gry jednoosobowej (rozłączenie stanowiska sieciowego albo pulpitu zdalnego SimRail).</summary>
     public void Leave()
     {
-        if (ses is not RemoteSession rs) return;
-        rs.Dispose();
+        User u;
+        if (ses is RemoteSession rs) { rs.Dispose(); u = rs.Last?.User; }
+        else if (ses is SimRailSession sr) { sr.Dispose(); u = sr.Last?.User; }
+        else return;
         station = layout = Station.Load(App.StationPath); BuildTabs();
-        Start(scenario, rs.Last?.User);
+        Start(scenario, u);
         ShowPage(station.Pages.Count - 1);
     }
 
@@ -1236,6 +1255,14 @@ public partial class MainWindow : Window
     {
         if (sim == null) { MessageBox.Show(this, "Komputer zależności działa na serwerze – podgląd jest dostępny tam.", "Komputer zależności"); return; }
         new KzWindow(() => sim, () => server) { Owner = this }.Show();
+    }
+    SimRailWindow simRailWin;
+    void SimRail_Click(object s, RoutedEventArgs e)
+    {
+        if (simRailWin != null) { simRailWin.Activate(); return; }
+        simRailWin = new SimRailWindow(station) { Owner = this };
+        simRailWin.Closed += (a, b) => simRailWin = null;
+        simRailWin.Show();
     }
     void Score_Click(object s, RoutedEventArgs e) => new ScoreWindow(ses) { Owner = this }.Show();
     void Help_Click(object s, RoutedEventArgs e) => new HelpWindow() { Owner = this }.Show();

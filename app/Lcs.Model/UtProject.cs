@@ -45,10 +45,14 @@ public class UtProject
     /// <summary>Szlaki z blokadą liniową (końce: semafory wjazdowe albo granica obszaru).</summary>
     public List<UtLine> Lines { get; set; } = new();
     /// <summary>
-    /// Oś schematu: azymut [°] kierunku, który w widoku Schemat biegnie w prawo (układ „do poziomu”); null – kierunek najdłuższego toru.
-    /// Tylko widok – geometria się nie zmienia.
+    /// Oś schematu prosta (projekty sprzed 2026-11-02): azymut [°] kierunku, który w widoku Schemat biegnie w prawo; null – brak.
+    /// Edytor ustawia teraz oś po torach (<see cref="AxisTrack"/>); ten azymut działa tylko bez niej. Tylko widok.
     /// </summary>
     public double? AxisAz { get; set; }
+    /// <summary>Oś schematu po linii: tor wyjściowy łańcucha (<see cref="OsSchematu"/>); null – najdłuższy łańcuch torów. Tylko widok.</summary>
+    public string AxisTrack { get; set; }
+    /// <summary>Oś schematu odwrócona (↻ 180°): kilometraż osi rośnie w lewo.</summary>
+    public bool AxisRev { get; set; }
     /// <summary>Ostatni widok edytora (nie podlega cofaniu).</summary>
     public UtViewState View { get; set; } = new();
 

@@ -61,7 +61,7 @@ public partial class UtView
             bool sel = OsmWybrane.Contains(x.Klucz);
             var g = new UtDevice { Kind = x.Kind, Name = x.Name, Track = x.Track, S = x.S, Dir = x.Dir, Side = x.Side };
             if (Urzadzenia.Pos(Doc.P, g) is var (gp, gaz, _))
-                DrawDevice(dc, g, ToScreen(gp), ScreenDir(gaz), DevK, sel ? KmOsmBrush : Brushes.MediumPurple, dpi, false);
+                DrawDevice(dc, g, ToScreen(gp), ScreenDir(gp, gaz), DevK, sel ? KmOsmBrush : Brushes.MediumPurple, dpi, false);
             string kier = UtDevice.KindInfo(x.Kind).Directed && x.Kind != UtDevice.Koziol ? (x.Dir > 0 ? " →" : " ←") : "";
             Label(dc, $"{(x.Name.Length > 0 ? x.Name : x.Opis)}{kier}{(sel ? "" : " ?")}", p + new Vector(8, 6), KmOsmBrush, dpi);
         }

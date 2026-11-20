@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -2095,7 +2095,7 @@ public class Engine
 	public void SetLocalForecast(string id, StopForecastOperation operation, DateTime arrival, DateTime departure)
 	{
 		RequireWrite();
-		if (SimRail != null)
+		if (SimRail != null && State.Trains.Any((Train x) => x.Id == id && (x.SourceProvider == "SimRail" || x.SourceProvider == "TD2")))
 		{
 			throw new InvalidOperationException("Zmianę SimRail musi potwierdzić SEPE.");
 		}

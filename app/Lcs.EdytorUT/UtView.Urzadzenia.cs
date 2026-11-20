@@ -79,7 +79,7 @@ public partial class UtView
         foreach (var d in Doc.P.Devices)
         {
             if (Urzadzenia.Pos(Doc.P, d) is not var (p, az, _)) continue;
-            var b = ToScreen(BelkaPos(d, p)); var dd = ScreenDir(az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
+            var b = ToScreen(BelkaPos(d, p)); var dd = ScreenDir(p, az); var n = new Vector(-dd.Y, dd.X) * d.Side; double k = PxPerMm;
             var pts = new List<Point> { b, b + n * (2.5 * k), b + n * (2.5 * k) + dd * (4 * k) };
             // sygnalizator: cały rząd komór (wiszący na belce – od belki wstecz, na maszcie – za masztem), żeby chwycić go za dowolną komorę
             if (Urzadzenia.Sygnalizator(d))
@@ -139,7 +139,7 @@ public partial class UtView
             var b = ToScreen(BelkaPos(d, p));
             if (b.X < -100 || b.Y < -100 || b.X > ActualWidth + 100 || b.Y > ActualHeight + 100) continue;
             if (d.Id == SelectedDevice && !PrintMode) { double rs = Math.Clamp(1.5 * PxPerMm, 6, 12); dc.DrawEllipse(RzSel, null, b, rs, rs); }
-            DrawDevice(dc, d, b, ScreenDir(az), DevK, DevInk, dpi, LabelsOn, hang.Contains(d0.Id));
+            DrawDevice(dc, d, b, ScreenDir(p, az), DevK, DevInk, dpi, LabelsOn, hang.Contains(d0.Id));
             var notes = Urzadzenia.Check(Doc.P, d0);
             if (notes.Count > 0) { dc.DrawEllipse(null, ErrP, b, 9, 9); ErrLabel(dc, (d.Name.Length > 0 ? d.Name + ": " : "") + string.Join("; ", notes), b, dpi); }
         }
@@ -155,7 +155,7 @@ public partial class UtView
                 var (sk, dir, side) = DevFromDrag(track, km, hs);
                 var g = new UtDevice { Kind = DevKind, Name = Urzadzenia.NextName(Doc.P, DevKind), Track = track, S = sk, Dir = dir, Side = side };
                 if (Urzadzenia.Pos(Doc.P, g) is var (gp, gaz, _))
-                    DrawDevice(dc, g, ToScreen(gp), ScreenDir(gaz), DevK, Red, dpi, true);
+                    DrawDevice(dc, g, ToScreen(gp), ScreenDir(gp, gaz), DevK, Red, dpi, true);
                 if (devFrom == null && UtDevice.KindInfo(DevKind).Directed && DevKind != UtDevice.Koziol)
                     Label(dc, "wciśnij i przeciągnij w stronę jazdy, po stronie urządzenia", hs + new Vector(12, 10), Red, dpi);
             }
@@ -287,7 +287,17 @@ public partial class UtView
     }
 
     /// <summary>Układ konstrukcji na ekranie: belka (dwa końce), słupy (odcinek i stopa), łączniki belka – semafor przy przesuniętej belce.</summary>
-    record GantryLay(List<UtDevice> M, Point B0, Point B1, List<(Point A, Point B)> Posts, List<(Point A, Point B)> Hangers, XY W0, double Az0, double K0, double Off);
+    /// <summary>
+    /// Do przeciągania końców: początek i kierunki układu belki (O, Dir wzdłuż toru, Nrm wzdłuż belki), wyliczone końce bez zasięgu (LoA, HiA
+    /// – wzdłuż Nrm, px), px na metr w poprzek i czy koniec Hi jest po prawej w kierunku jazdy pierwszego członka.
+    /// </summary>
+    record GantryLay(List<UtDevice> M, Point B0, Point B1, List<(Point A, Point B)> Posts, List<(Point A, Point B)> Hangers, XY W0, double Az0, double K0, double Off,
+                     Point O, Vector Dir, Vector Nrm, double LoA, double HiA, double PxM, bool RightHi);
+
+    /// <summary>Przeciąganie końca belki: id pierwszego członka, koniec (true – Hi), bieżący zasięg tego końca [m].</summary>
+    (string Id, bool Hi, double Ext)? gantryEnd;
+    /// <summary>Zasięg belki zmieniony przeciągnięciem końca: id pierwszego członka, po prawej (true) czy po lewej, nowy zasięg [m].</summary>
+    public event Action<string, bool, double> GantryReach;
 
     /// <summary>Przeciąganie belki: członkowie (id pierwszego), chwyt [m wzdłuż toru od miejsca sygnalizatorów], bieżące przesunięcie [m].</summary>
     (string Id, double Grab, double Off)? gantryDrag;
@@ -306,7 +316,7 @@ public partial class UtView
             foreach (var dv in grp)
             {
                 var d = dv; if (devDrag is var (did, _, ds) && did == dv.Id) { d = dv.Copy(); d.S = ds; }
-                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, kk)) { m.Add((ToScreen(p), ScreenDir(az), dv)); w0 ??= (p, az, kk); true0.Add(p); }
+                if (Urzadzenia.Pos(Doc.P, d) is var (p, az, kk)) { m.Add((ToScreen(p), ScreenDir(p, az), dv)); w0 ??= (p, az, kk); true0.Add(p); }
             }
             if (m.Count == 0) continue;
             var dir = m[0].D; var o = m[0].B;
@@ -314,8 +324,8 @@ public partial class UtView
             // kierunek belki to obraz normalnej toru, a położenie członków w układzie (wzdłuż dir, wzdłuż belki)
             var (pw0, az0, k0) = w0.Value;
             double off = gantryDrag is var (gid, _, goff) && gid == grp[0].Id ? goff : Urzadzenia.BelkaOff(grp);
-            var nrm = ToScreen(pw0 + Element.Right(az0) * k0) - ToScreen(pw0); nrm.Normalize();
-            var perp = new Vector(-dir.Y, dir.X); if (nrm * perp < 0) nrm = -nrm;
+            var nrm = ToScreen(pw0 + Element.Right(az0) * k0) - ToScreen(pw0); double pxm = nrm.Length; nrm.Normalize();
+            var perp = new Vector(-dir.Y, dir.X); bool rightHi = true; if (nrm * perp < 0) { nrm = -nrm; rightHi = false; }
             double det = dir.X * nrm.Y - dir.Y * nrm.X;
             (double A, double C) Loc(Point b) { var w = b - o; return ((w.X * nrm.Y - w.Y * nrm.X) / det, (dir.X * w.Y - dir.Y * w.X) / det); }
             double along = m.Average(q => Loc(q.B).A) + Loc(ToScreen(pw0 + Element.Dir(az0) * (off * k0))).A;
@@ -332,9 +342,16 @@ public partial class UtView
             {
                 if (Doc.P.Tracks.FirstOrDefault(t => t.Id == tid) is not UtTrack t) continue;
                 var rt = Geometry(t); if (rt.Elements.Count == 0) continue;
-                double c = Loc(ToScreen(rt.At(rt.Nearest(pw, 0.25).S).P)).C;                 // oś toru pod belką
+                var nr = rt.Nearest(pw, 0.25); if (nr.Dist / k0 >= Urzadzenia.NadToremZasieg) continue;   // tor nie przechodzi pod konstrukcją (uwaga w kontroli)
+                double c = Loc(ToScreen(rt.At(nr.S).P)).C;                                    // oś toru pod belką
                 lo = Math.Min(lo, c - 1.5 * k); hi = Math.Max(hi, c + 1.5 * k);
             }
+            // zasięg belki poza wyliczone końce (projektant – pole w panelu albo przeciągnięcie końca belki); nie krótsza niż 1 m
+            double loA = lo, hiA = hi;
+            var (extL, extP) = Urzadzenia.BelkaZasieg(grp);
+            if (gantryEnd is var (eid, eHi, eExt) && eid == grp[0].Id) { if (eHi == rightHi) extP = eExt; else extL = eExt; }
+            hi += (rightHi ? extP : extL) * pxm; lo -= (rightHi ? extL : extP) * pxm;
+            if (hi - lo < pxm) { double mid = (hi + lo) / 2; lo = mid - pxm / 2; hi = mid + pxm / 2; }
             double len = m.Max(q => HangingLen(q.Dv)) * k + 1 * k;
             Point Q(double a, double c) => o + dir * a + nrm * c;
             var posts = new List<(Point, Point)>();
@@ -353,7 +370,7 @@ public partial class UtView
                     var nn = new Vector(-m[i].D.Y, m[i].D.X) * (1.2 * k);
                     hang.Add((tp - nn, tp + nn));
                 }
-            res.Add(new GantryLay(grp, Q(along, lo), Q(along, hi), posts, hang, pw0, az0, k0, off));
+            res.Add(new GantryLay(grp, Q(along, lo), Q(along, hi), posts, hang, pw0, az0, k0, off, o, dir, nrm, loA, hiA, pxm, rightHi));
         }
         return res;
     }
@@ -367,6 +384,9 @@ public partial class UtView
             dc.DrawLine(pen, g.B0, g.B1);                                                       // belka
             foreach (var (a, b) in g.Posts) dc.DrawLine(pen, a, b);
             foreach (var (a, b) in g.Hangers) dc.DrawLine(dash, a, b);
+            // zaznaczona konstrukcja – uchwyty na końcach belki (przeciągnij: zasięg belki)
+            if (SelectedDevice != null && g.M.Any(x => x.Id == SelectedDevice))
+                foreach (var e in new[] { g.B0, g.B1 }) dc.DrawRectangle(Brushes.White, new Pen(Brushes.DodgerBlue, 1.5), new Rect(e.X - 3.5, e.Y - 3.5, 7, 7));
         }
     }
 
@@ -390,6 +410,15 @@ public partial class UtView
 
     bool PressGantry(Point s)
     {
+        // koniec belki (do 6 px) – zmiana zasięgu; środek – przesunięcie wzdłuż toru
+        foreach (var e in GantryLayout())
+            foreach (var (pt, hi) in new[] { (e.B1, true), (e.B0, false) })
+                if ((pt - s).Length < 6)
+                {
+                    gantryEnd = (e.M[0].Id, hi, EndExt(e, s, hi));
+                    if (SelectedDevice == null || e.M.All(x => x.Id != SelectedDevice)) SelectDevice(e.M[0].Id);
+                    return true;
+                }
         if (HitGantry(s) is not GantryLay g) return false;
         gantryDrag = (g.M[0].Id, AlongM(g, ToWorld(s)) - g.Off, g.Off);
         if (SelectedDevice == null || g.M.All(x => x.Id != SelectedDevice)) SelectDevice(g.M[0].Id);
@@ -402,6 +431,31 @@ public partial class UtView
         var g = GantryLayout().FirstOrDefault(x => x.M[0].Id == id); if (g == null) return;
         gantryDrag = (id, grab, Math.Round(AlongM(g, ToWorld(s)) - grab, 1));
         DraftInfo?.Invoke($"Belka przesunięta o {gantryDrag.Value.Off:0.0} m względem semaforów (semafory zostają)");
+        InvalidateVisual();
+    }
+
+    /// <summary>Zasięg końca belki [m, 0,1 m] dla kursora <paramref name="s"/>: odległość wzdłuż belki od wyliczonego końca, na zewnątrz dodatnia.</summary>
+    static double EndExt(GantryLay g, Point s, bool hi)
+    {
+        var w = s - g.O; double c = (g.Dir.X * w.Y - g.Dir.Y * w.X) / (g.Dir.X * g.Nrm.Y - g.Dir.Y * g.Nrm.X);   // współrzędna wzdłuż belki
+        return Math.Round((hi ? c - g.HiA : g.LoA - c) / g.PxM, 1);
+    }
+
+    void DragGantryEnd(Point s)
+    {
+        var (id, hi, _) = gantryEnd.Value;
+        var g = GantryLayout().FirstOrDefault(x => x.M[0].Id == id); if (g == null) return;
+        gantryEnd = (id, hi, EndExt(g, s, hi));
+        DraftInfo?.Invoke($"Belka {(hi == g.RightHi ? "po prawej" : "po lewej")}: {gantryEnd.Value.Ext:+0.0;−0.0;0} m poza skrajny tor / semafor");
+        InvalidateVisual();
+    }
+
+    void EndGantryEndDrag()
+    {
+        var (id, hi, ext) = gantryEnd.Value;
+        var g = GantryLayout().FirstOrDefault(x => x.M[0].Id == id);
+        gantryEnd = null;
+        if (dragging && g != null) GantryReach?.Invoke(id, hi == g.RightHi, ext);
         InvalidateVisual();
     }
 

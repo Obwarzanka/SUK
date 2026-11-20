@@ -102,6 +102,7 @@
                 <Button Content="Instruktor" Click="Instr_Click"/>
                 <Button Content="Plan stacji" Click="PlanSt_Click" ToolTip="Plan schematyczny węzła na żywo: pociągi, sygnały na semaforach, zwrotnice (podgląd terenu dla instruktora i do nauki)"/>
                 <Button Content="Komputer zależności" Click="Kz_Click" ToolTip="Podgląd stanu wewnętrznego komputera zależności (przebiegi, utwierdzenia, liczniki czasu, blokady, łącze ze stanowiskami)"/>
+                <Button Content="SimRail" Click="SimRail_Click" ToolTip="Podgląd stanów posterunku z gry SimRail (mod SimRailMost, UDP): zajętości z godziną gry i numerami pociągów, mapa nazw SimRail → odcinki SUK"/>
                 <Button Content="Ocena" Click="Score_Click"/>
                 <Button x:Name="BtnNet" Content="Stanowiska / sieć" Click="Net_Click" Background="#3a2a5a" ToolTip="Gra wieloosobowa (Radmin VPN), obszary sterowania posterunków, telefon między stanowiskami"/>
                 <Button Content="Pomoc (F1)" Click="Help_Click"/>

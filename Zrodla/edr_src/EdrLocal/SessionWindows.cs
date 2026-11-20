@@ -202,24 +202,12 @@ internal sealed class SessionWindows : ApplicationContext
 					mainForm.backgroundWriter = null;
 				}
 			}
-			int num2 = default;
-			if (num2 == 0)
+			foreach (MainForm view in all)
 			{
-				goto IL_01bb;
-			}
-			MainForm[] array2 = all;
-			int num3 = 0;
-			goto IL_01d8;
-			IL_01d8:
-			MainForm view = default;
-			if (num3 < array2.Length)
-			{
-				view = array2[num3];
 				if (view.hoursTask != null)
 				{
-					goto IL_01bb;
+					await view.hoursTask;
 				}
-				goto IL_01ca;
 			}
 			if (source.IsDisposed || source.closingSession)
 			{
@@ -236,13 +224,6 @@ internal sealed class SessionWindows : ApplicationContext
 				}
 			}
 			Changed();
-			return;
-			IL_01ca:
-			num3++;
-			goto IL_01d8;
-			IL_01bb:
-			await view.hoursTask;
-			goto IL_01ca;
 		}
 		finally
 		{

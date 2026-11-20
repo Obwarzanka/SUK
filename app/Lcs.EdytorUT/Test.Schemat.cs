@@ -356,9 +356,9 @@ public static partial class Test
         Ok(!w.View.Schemat && Math.Abs(w.View.AxisAz - Math.PI / 2) < 1e-12 && w.View.Stretch == 1, "przełączenie na Teren: północ u góry, 1:1");
         Click(w.SchematBtn);
         Click(Find<Button>(Toolbar(w), x => x.Content as string == "↻ 180°"));
-        Ok(Math.Abs(Ang(w.View.AxisAz - ax - Math.PI)) < 1e-6 && d.P.AxisAz != null, "↻ 180°: schemat obrócony, oś zapisana w projekcie");
+        Ok(Math.Abs(Ang(w.View.AxisAz - ax - Math.PI)) < 1e-6 && d.P.AxisRev, "↻ 180°: schemat obrócony, oś zapisana w projekcie");
         w.DoUndo();
-        Ok(d.P.AxisAz == null && Math.Abs(Ang(w.View.AxisAz - ax)) < 1e-6, "Ctrl+Z – oś wraca do automatycznej");
+        Ok(!d.P.AxisRev && d.P.AxisTrack == null && Math.Abs(Ang(w.View.AxisAz - ax)) < 1e-6, "Ctrl+Z – oś wraca do automatycznej");
         Ok(w.SaveDoc(false), "zapis stacji");
         var re = UtDocument.Load(d.Path);
         Ok(UtDocument.Serialize(re.P) == UtDocument.Serialize(d.P) && re.P.View.Schemat && re.P.View.Stretch == 4 && re.P.Devices.Count == d.P.Devices.Count && d.P.Devices.Count >= 7, $"odczyt: identyczny (z {d.P.Devices.Count} urządzeniami), widok Schemat zapamiętany");

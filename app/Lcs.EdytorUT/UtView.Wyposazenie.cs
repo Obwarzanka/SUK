@@ -167,6 +167,9 @@ public partial class UtView
         return c;
     }
 
+    /// <summary>Kierunek toru na ekranie w kilometrażu s (rosnący km).</summary>
+    Vector DirOn(TrasaResult r, double s) { var (p, az) = r.At(Math.Clamp(s, 0, r.Length)); return ScreenDir(p, az); }
+
     Point? Pt(string track, double s)
     {
         var t = Track(track); if (t == null) return null;
@@ -254,7 +257,7 @@ public partial class UtView
             if (!PrintMode && names.Count > 0)
                 foreach (var se in new[] { k.S0, k.S1 })
                 {
-                    var (bp, baz) = r.At(se); var sp = ToScreen(bp); var d = ScreenDir(baz); var n = new Vector(-d.Y, d.X) * 5;
+                    var (bp, baz) = r.At(se); var sp = ToScreen(bp); var d = ScreenDir(bp, baz); var n = new Vector(-d.Y, d.X) * 5;
                     dc.DrawLine(new Pen(pen.Brush, 1), sp - n, sp + n);
                 }
         }
@@ -278,7 +281,7 @@ public partial class UtView
     Rect? SectionLabelAt(UtSection s)
     {
         if (Pt(s.Track, s.S) is not Point p) return null;
-        var r = Geometry(Track(s.Track)); var d = ScreenDir(r.At(Math.Clamp(s.S, 0, r.Length)).Az); var n = new Vector(-d.Y, d.X); if (n.Y < 0) n = -n;   // w dół ekranu
+        var r = Geometry(Track(s.Track)); var d = DirOn(r, s.S); var n = new Vector(-d.Y, d.X); if (n.Y < 0) n = -n;   // w dół ekranu
         double w = 8 + 6.6 * Math.Max(1, s.Name.Length), hgt = 17;
         var c = p + n * 16;
         return new Rect(c.X - w / 2, c.Y - hgt / 2, w, hgt);
@@ -414,7 +417,7 @@ public partial class UtView
     Point? KmMark(UtKmPoint k)
     {
         if (Pt(k.Track, k.S + DragDelta(Kontrola.KKm, k.Id)) is not Point p) return null;
-        var r = Geometry(Track(k.Track)); var d = ScreenDir(r.At(Math.Clamp(k.S, 0, r.Length)).Az); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
+        var r = Geometry(Track(k.Track)); var d = DirOn(r, k.S); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
         return p + n * 14;
     }
 
@@ -437,7 +440,7 @@ public partial class UtView
                 for (double km = Math.Ceiling(Math.Min(a, b) / step) * step; km <= Math.Max(a, b); km += step)
                 {
                     if (SOfKm(p, tid, line, km, r.Length) is not double s) continue;
-                    var (pt, az) = r.At(s); var sp = ToScreen(pt); var d = ScreenDir(az); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
+                    var (pt, az) = r.At(s); var sp = ToScreen(pt); var d = ScreenDir(pt, az); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
                     if (sp.X < -50 || sp.Y < -50 || sp.X > ActualWidth + 50 || sp.Y > ActualHeight + 50) continue;
                     bool whole = Math.Abs(km / 1000 - Math.Round(km / 1000)) < 1e-6;
                     dc.DrawLine(whole ? new Pen(DevInk, pen.Thickness * 1.6) : pen, sp - n * (1.5 * k), sp + n * (1.5 * k));
@@ -458,7 +461,7 @@ public partial class UtView
             var ink = sel ? Blue : Magenta;
             if (PrintMode) continue;
             dc.DrawLine(new Pen(ink, 1.2), sp, m);
-            var r = Geometry(Track(kp.Track)); var d = ScreenDir(r.At(Math.Clamp(kp.S, 0, r.Length)).Az) * kp.Dir;
+            var r = Geometry(Track(kp.Track)); var d = DirOn(r, kp.S) * kp.Dir;
             dc.DrawGeometry(ink, null, Tri(m + d * 8, m + new Vector(-d.Y, d.X) * 4, m - new Vector(-d.Y, d.X) * 4));
             Label(dc, $"km {Kilometraz.Fmt(kp.Km)}" + (kp.Line.Length > 0 ? $" l. {kp.Line}" : ""), m + new Vector(6, -20), ink, dpi);
         }
@@ -469,7 +472,7 @@ public partial class UtView
             {
                 double s = objFrom?.S ?? Geometry(Track(tr)).Nearest(h, 0.2).S;
                 int dir = objFrom != null && (ToScreen(Geometry(Track(tr)).At(s).P) - hs).Length >= 8 ? DragDir(tr, s, hs).Along : 1;
-                var (pt, az) = Geometry(Track(tr)).At(s); var sp = ToScreen(pt); var dd = ScreenDir(az) * dir;
+                var (pt, az) = Geometry(Track(tr)).At(s); var sp = ToScreen(pt); var dd = ScreenDir(pt, az) * dir;
                 dc.DrawLine(new Pen(Red, 1.5), sp, sp + dd * 30);
                 dc.DrawGeometry(Red, null, Tri(sp + dd * 36, sp + dd * 28 + new Vector(-dd.Y, dd.X) * 4, sp + dd * 28 - new Vector(-dd.Y, dd.X) * 4));
                 var cur = Kilometraz.Text(Doc.P, tr, s);
@@ -506,7 +509,7 @@ public partial class UtView
             {
                 var (pt, az) = r.At(Math.Clamp(v[i].S, 0, r.Length)); var sp = ToScreen(pt);
                 if (sp.X < -80 || sp.Y < -80 || sp.X > ActualWidth + 80 || sp.Y > ActualHeight + 80) continue;
-                var d = ScreenDir(az); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
+                var d = ScreenDir(pt, az); var n = new Vector(-d.Y, d.X); if (n.Y > 0) n = -n;
                 double h = 6 * k;
                 // po stronie, gdzie dalej do sąsiedniego toru (znak nie wchodzi na inny tor)
                 if (Clearance(sp + n * h, t.Id) < Clearance(sp - n * h, t.Id)) n = -n;

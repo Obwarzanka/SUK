@@ -4,7 +4,7 @@
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>True</UseWindowsForms>
-    <TargetFramework>net40</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>14.0</LangVersion>
@@ -52,8 +52,8 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Core" />
-    <Reference Include="Microsoft.Web.WebView2.WinForms" />
-    <Reference Include="Microsoft.Web.WebView2.Core" />
+    <Reference Include="Microsoft.Web.WebView2.WinForms"><HintPath>EdrLocal.Dependencies.Microsoft.Web.WebView2.WinForms.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core"><HintPath>EdrLocal.Dependencies.Microsoft.Web.WebView2.Core.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="System.Runtime.Serialization" />
   </ItemGroup>
 </Project>

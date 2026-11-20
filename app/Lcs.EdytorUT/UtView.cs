@@ -28,11 +28,34 @@ public partial class UtView : FrameworkElement
     const double ClickTol = 4;
 
     XY center = new(470000, 500000);
+    // środek widoku we współrzędnych osi: u – kilometraż wzdłuż osi, v – odsunięcie w prawo [m układu]
+    double cu = 500000, cv = -470000;
     double mpp = 1000;
     public XY Center => center;
-    double az = Math.PI / 2, stretch = 1, cosA = 0, sinA = 1;
-    /// <summary>Azymut kierunku biegnącego na ekranie w prawo [rad] (Teren – π/2, wschód).</summary>
-    public double AxisAz => az;
+    OsSchematu os = OsSchematu.ProstaAz(Math.PI / 2);
+    double stretch = 1;
+    /// <summary>Wersja osi i rozciągnięcia – ramki torów we współrzędnych osi liczone na nowo po zmianie.</summary>
+    int osVer;
+    /// <summary>Oś widoku (Teren – prosta na wschód; Schemat – po torach, <see cref="OsSchematu"/>).</summary>
+    public OsSchematu Os => os;
+    /// <summary>Azymut kierunku biegnącego na ekranie w prawo w środku widoku [rad] (Teren – π/2, wschód).</summary>
+    public double AxisAz => os.AzAt(cu);
+    /// <summary>Azymut osi [rad] przy punkcie (oś po linii skręca razem z torami).</summary>
+    public double AxisAzAt(XY p) => os.AzAt(os.UV(p).U);
+    OsSchematu projOs; (UtDocument, int, string, bool, double?) projOsKey;
+    /// <summary>
+    /// Azymut osi schematu projektu przy punkcie [rad] – także w widoku Teren (Shift: koniec łuku równoległy do osi stacji).
+    /// W Schemacie – oś widoku; w Terenie – oś liczona z bieżących torów (jak dawniej <see cref="UtProject.SchematAz"/>), z pamięci do zmiany projektu.
+    /// </summary>
+    public double StationAzAt(XY p)
+    {
+        if (Schemat || Doc == null) return AxisAzAt(p);
+        // podpis geometrii wszystkich torów (liczby wierzchołków i elementów) – oś na nowo po każdej zmianie torów
+        var h = new HashCode(); foreach (var t in Doc.P.Tracks) { h.Add(t.Id); foreach (var x in SigVals(t)) h.Add(x); }
+        var key = (Doc, h.ToHashCode(), Doc.P.AxisTrack, Doc.P.AxisRev, Doc.P.AxisAz);
+        if (projOs == null || key != projOsKey) { projOs = OsSchematu.Dla(Doc.P); projOsKey = key; }
+        return projOs.AzAt(projOs.UV(p).U);
+    }
     /// <summary>Rozciągnięcie w poprzek osi (Teren – 1).</summary>
     public double Stretch => stretch;
     /// <summary>Widok Schemat (obrót do poziomu, rozciągnięcie, białe tło bez siatki i linijek).</summary>
@@ -57,7 +80,7 @@ public partial class UtView : FrameworkElement
 
     // ---- narzędzia
     UtTool tool;
-    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; gantryDrag = null; arcFrom = null; objFrom = null; objDrag = null; obFrom = null; obPress = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
+    public UtTool Tool { get => tool; set { if (tool == UtTool.Tor && value != UtTool.Tor) CancelDraft(); if (value != UtTool.Rownolegly) { parSrc = null; parD = null; } tool = value; areaFrom = null; vDrag = null; rzFrom = null; rzDrag = null; tDrag = null; devFrom = null; devDrag = null; gantryDrag = null; gantryEnd = null; arcFrom = null; objFrom = null; objDrag = null; obFrom = null; obPress = null; painting2 = false; fitNetFrom = null; Cursor = value == UtTool.Wskaz ? null : Cursors.Cross; InvalidateVisual(); ToolChanged?.Invoke(); } }
     public event Action ToolChanged;
     /// <summary>Miarka: punkty łamanej.</summary>
     public readonly List<XY> MeasurePts = new();
@@ -114,66 +137,86 @@ public partial class UtView : FrameworkElement
     // ------------------------------------------------------------------ przeliczenia
     double Cx => ActualWidth / 2;
     double Cy => ActualHeight / 2;
-    // świat → ekran: u – wzdłuż osi (w prawo), v – w prawo od osi (na ekranie w dół), v rozciągnięte
+    // świat → ekran: u – wzdłuż osi (w prawo), v – w prawo od osi (na ekranie w dół), v rozciągnięte; ekran jest liniowy w (u, v)
     public Point ToScreen(XY p)
     {
-        double dx = p.X - center.X, dy = p.Y - center.Y;
-        return new(Cx + (dx * cosA + dy * sinA) / mpp, Cy + (-dx * sinA + dy * cosA) * stretch / mpp);
+        var (u, v) = os.UV(p);
+        return new(Cx + (u - cu) / mpp, Cy + (v - cv) * stretch / mpp);
     }
-    public XY ToWorld(Point s) => WorldAt(s, center, mpp);
-    XY WorldAt(Point s, XY c, double m)
+    public XY ToWorld(Point s) => os.World(cu + (s.X - Cx) * mpp, cv + (s.Y - Cy) * mpp / stretch);
+    /// <summary>Współrzędne osi punktu: kilometraż wzdłuż osi i odsunięcie w prawo [m układu].</summary>
+    public (double U, double V) UV(XY p) => os.UV(p);
+    /// <summary>Wektor na ekranie [px] odpowiadający wektorowi w świecie [m w układzie] przy punkcie <paramref name="at"/> (oś po linii – zależy od miejsca).</summary>
+    public Vector ScreenVec(XY at, XY d)
     {
-        double u = (s.X - Cx) * m, v = (s.Y - Cy) * m / stretch;
-        return new(c.X + cosA * u - sinA * v, c.Y + sinA * u + cosA * v);
+        if (os.Prosta)
+        {
+            double a = os.AzAt(0), c = Math.Cos(a), s = Math.Sin(a);
+            return new((d.X * c + d.Y * s) / mpp, (-d.X * s + d.Y * c) * stretch / mpp);
+        }
+        double len = Math.Sqrt(d.X * d.X + d.Y * d.Y); if (len < 1e-12) return default;
+        // różnica centralna na długości odcinka łamanej osi (2 m): cięciwy osi w łuku nie przechylają kierunku
+        const double e = 1;
+        return (ToScreen(at + d * (e / len)) - ToScreen(at - d * (e / len))) * (len / (2 * e));
     }
-    /// <summary>Wektor na ekranie [px] odpowiadający wektorowi w świecie [m w układzie].</summary>
-    public Vector ScreenVec(XY d) => new((d.X * cosA + d.Y * sinA) / mpp, (-d.X * sinA + d.Y * cosA) * stretch / mpp);
-    /// <summary>Jednostkowy kierunek na ekranie dla azymutu w świecie.</summary>
-    public Vector ScreenDir(double azimuth) { var v = ScreenVec(Element.Dir(azimuth)); v.Normalize(); return v; }
+    /// <summary>Jednostkowy kierunek na ekranie dla azymutu w świecie przy punkcie <paramref name="at"/>.</summary>
+    public Vector ScreenDir(XY at, double azimuth) { var v = ScreenVec(at, Element.Dir(azimuth)); v.Normalize(); return v; }
 
     void Moved() { InvalidateVisual(); ViewChanged?.Invoke(); Live.Schedule(); OsmAuto(); }
-    public void SetView(XY c, double m) { center = c; mpp = Math.Clamp(m, MinMpp, MaxMpp); Moved(); }
-    /// <summary>Teren (schemat = false) albo Schemat z osią <paramref name="axis"/> [rad] i rozciągnięciem; punkt na środku zostaje.</summary>
-    public void SetMode(bool schemat, double axis, double str)
+    void SetCenterUV(double u, double v) { cu = u; cv = v; center = os.World(u, v); }
+    public void SetView(XY c, double m) { center = c; (cu, cv) = os.UV(c); mpp = Math.Clamp(m, MinMpp, MaxMpp); Moved(); }
+    /// <summary>Teren (schemat = false) albo Schemat z osią <paramref name="axis"/> i rozciągnięciem; punkt na środku zostaje.</summary>
+    public void SetMode(bool schemat, OsSchematu axis, double str)
     {
+        var c = center;
         Schemat = schemat;
-        az = schemat ? axis : Math.PI / 2; stretch = schemat ? Math.Max(1, str) : 1;
-        cosA = Math.Cos(az); sinA = Math.Sin(az);
+        os = schemat ? axis : OsSchematu.ProstaAz(Math.PI / 2); stretch = schemat ? Math.Max(1, str) : 1;
+        center = c; (cu, cv) = os.UV(c); osVer++;
         Moved();
     }
+    /// <summary>Jak wyżej, z osią prostą pod azymutem [rad].</summary>
+    public void SetMode(bool schemat, double axis, double str) => SetMode(schemat, OsSchematu.ProstaAz(axis), str);
     /// <summary>Przybliżenie (k &lt; 1) albo oddalenie (k &gt; 1) z punktem pod kursorem w miejscu.</summary>
     public void ZoomAt(Point s, double k)
     {
-        var w = ToWorld(s);
+        double wu = cu + (s.X - Cx) * mpp, wv = cv + (s.Y - Cy) * mpp / stretch;
         mpp = Math.Clamp(mpp * k, MinMpp, MaxMpp);
-        var o = WorldAt(s, new XY(0, 0), mpp);
-        center = w - o;
+        SetCenterUV(wu - (s.X - Cx) * mpp, wv - (s.Y - Cy) * mpp / stretch);
         Moved();
     }
     /// <summary>Przesunięcie obrazu o wektor w pikselach (jak przeciągnięcie myszą).</summary>
-    public void PanBy(Vector d) { center = center - (ToWorld(new Point(Cx + d.X, Cy + d.Y)) - center); Moved(); }
+    public void PanBy(Vector d) { SetCenterUV(cu - d.X * mpp, cv - d.Y * mpp / stretch); Moved(); }
     /// <summary>Prostokąt (dwa narożniki) w oknie z marginesem.</summary>
     public void FitWorld(XY a, XY b) => FitPoints(new[] { a, b, new XY(a.X, b.Y), new XY(b.X, a.Y) });
-    /// <summary>Punkty w oknie z marginesem (w bieżącym obrocie i rozciągnięciu).</summary>
+    /// <summary>Punkty w oknie z marginesem (w bieżącej osi i rozciągnięciu).</summary>
     public void FitPoints(IReadOnlyList<XY> pts)
     {
         if (pts.Count == 0) return;
         double minU = double.MaxValue, maxU = double.MinValue, minV = double.MaxValue, maxV = double.MinValue;
-        foreach (var p in pts) { double u = p.X * cosA + p.Y * sinA, v = -p.X * sinA + p.Y * cosA; minU = Math.Min(minU, u); maxU = Math.Max(maxU, u); minV = Math.Min(minV, v); maxV = Math.Max(maxV, v); }
+        foreach (var p in pts) { var (u, v) = os.UV(p); minU = Math.Min(minU, u); maxU = Math.Max(maxU, u); minV = Math.Min(minV, v); maxV = Math.Max(maxV, v); }
         double w = Math.Max(1, ActualWidth - (Schemat ? 0 : RulerLeft) - 40), h = Math.Max(1, ActualHeight - (Schemat ? 0 : RulerTop) - 40);
         double m = Math.Max((maxU - minU) / w, (maxV - minV) * stretch / h);
-        double cu = (minU + maxU) / 2, cv = (minV + maxV) / 2;
-        SetView(new XY(cosA * cu - sinA * cv, sinA * cu + cosA * cv), Math.Max(m, 0.01));
+        mpp = Math.Clamp(Math.Max(m, 0.01), MinMpp, MaxMpp);
+        SetCenterUV((minU + maxU) / 2, (minV + maxV) / 2);
+        Moved();
+    }
+
+    /// <summary>Ramka w układzie obejmująca ekran (przy obrocie i osi po linii – większa): obwód ekranu przeliczony na świat.</summary>
+    public (XY Min, XY Max) ViewBoxWorld()
+    {
+        double w = ActualWidth, h = ActualHeight; int k = os.Prosta ? 1 : 16;
+        double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+        void Add(double sx, double sy) { var q = ToWorld(new Point(sx, sy)); x0 = Math.Min(x0, q.X); y0 = Math.Min(y0, q.Y); x1 = Math.Max(x1, q.X); y1 = Math.Max(y1, q.Y); }
+        for (int i = 0; i <= k; i++) { double f = i / (double)k; Add(w * f, 0); Add(w * f, h); Add(0, h * f); Add(w, h * f); }
+        return (new XY(x0, y0), new XY(x1, y1));
     }
 
     /// <summary>Podgląd na żywo: prostokąt PUWG obejmujący ekran (przy obrocie – większy), rozdzielczość w poprzek.</summary>
     (XY TopLeft, double Mpp, int W, int H) LiveView()
     {
-        double w = ActualWidth, h = ActualHeight;
         if (Schemat && !SchematBg) return (ToWorld(new Point(0, 0)), mpp, 0, 0);
-        var c = new[] { ToWorld(new Point(0, 0)), ToWorld(new Point(w, 0)), ToWorld(new Point(0, h)), ToWorld(new Point(w, h)) };
-        double maxX = c.Max(p => p.X), minX = c.Min(p => p.X), minY = c.Min(p => p.Y), maxY = c.Max(p => p.Y), m = mpp / stretch;
-        return (new XY(maxX, minY), m, (int)((maxY - minY) / m), (int)((maxX - minX) / m));
+        var (mn, mx) = ViewBoxWorld(); double m = mpp / stretch;
+        return (new XY(mx.X, mn.Y), m, (int)((mx.Y - mn.Y) / m), (int)((mx.X - mn.X) / m));
     }
 
     // ------------------------------------------------------------------ mysz (wspólne dla myszy i testu)
@@ -223,6 +266,7 @@ public partial class UtView : FrameworkElement
         else if (objDrag != null && buttonDown) { if (downAt is Point d3 && (p - d3).Length > ClickTol) dragging = true; if (dragging) DragObj(p); }
         else if (devDrag != null && buttonDown) { if (downAt is Point d2 && (p - d2).Length > ClickTol) dragging = true; if (dragging) DragDevice(p); }
         else if (gantryDrag != null && buttonDown) { if (downAt is Point d4 && (p - d4).Length > ClickTol) dragging = true; if (dragging) DragGantry(p); }
+        else if (gantryEnd != null && buttonDown) { if (downAt is Point d5 && (p - d5).Length > ClickTol) dragging = true; if (dragging) DragGantryEnd(p); }
         else if (tDrag != null && buttonDown) { if (downAt is Point d1 && (p - d1).Length > ClickTol) dragging = true; if (dragging) DragTrackMove(p); }
         else if (rzDrag != null && buttonDown) { if (downAt is Point d0 && (p - d0).Length > ClickTol) dragging = true; if (dragging) DragTurnout(p); }
         else if (downAt is Point d && buttonDown)
@@ -233,7 +277,7 @@ public partial class UtView : FrameworkElement
             else if (areaFrom == null && dragging && tool is UtTool.Miarka or UtTool.Kalibracja or UtTool.Przesun or UtTool.Wskaz or UtTool.Tor or UtTool.Rozjazd or UtTool.Rownolegly or UtTool.LukOdDo or UtTool.Odcinek or UtTool.LukPunkty or UtTool.Szlak or UtTool.Slad) { panFrom = p; Cursor = Cursors.SizeAll; PanBy(p - d); }
         }
         CursorMoved?.Invoke(hover);
-        if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || gantryDrag != null || objDrag != null) InvalidateVisual();
+        if (tool != UtTool.Wskaz || vDrag != null || hDrag != null || rzDrag != null || tDrag != null || devDrag != null || gantryDrag != null || gantryEnd != null || objDrag != null) InvalidateVisual();
     }
 
     public bool Release(Point p, MouseButton b)
@@ -273,6 +317,7 @@ public partial class UtView : FrameworkElement
         if (tDrag != null) { downAt = null; EndTrackMove(); return true; }
         if (devDrag != null) { downAt = null; EndDeviceDrag(); return true; }
         if (gantryDrag != null) { downAt = null; EndGantryDrag(); return true; }
+        if (gantryEnd != null) { downAt = null; EndGantryEndDrag(); return true; }
         if (devFrom != null) { downAt = null; DevRelease(p); return true; }
         if (objDrag != null) { downAt = null; EndObjDrag(); return true; }
         if (objFrom != null) { downAt = null; ObjToolRelease(p); return true; }
@@ -345,6 +390,7 @@ public partial class UtView : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight, dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        frame++;
         dc.DrawRectangle(Schemat ? Brushes.White : Paper, null, new Rect(0, 0, w, h));
         if (w < 10 || h < 10) return;
         var (minor, major) = GridSteps();
@@ -426,25 +472,36 @@ public partial class UtView : FrameworkElement
         if (!Schemat) DrawRulers(dc, w, h, minor, major, tl, br, dpi);
     }
 
-    /// <summary>Macierz piksel obrazu → piksel ekranu.</summary>
+    /// <summary>Macierz piksel obrazu → piksel ekranu (oś prosta).</summary>
     Matrix ScreenMatrix(Affine g)
     {
         // piksel (c, r) → świat: X = D·c + E·r + F, Y = A·c + B·r + C; potem świat → ekran (obrót, rozciągnięcie)
-        double k = stretch / mpp, fx = g.F - center.X, cy = g.C - center.Y;
+        double a = os.AzAt(0), cosA = Math.Cos(a), sinA = Math.Sin(a), k = stretch / mpp;
         return new((cosA * g.D + sinA * g.A) / mpp, (-sinA * g.D + cosA * g.A) * k,
                    (cosA * g.E + sinA * g.B) / mpp, (-sinA * g.E + cosA * g.B) * k,
-                   Cx + (cosA * fx + sinA * cy) / mpp, Cy + (-sinA * fx + cosA * cy) * k);
+                   Cx + (cosA * g.F + sinA * g.C - cu) / mpp, Cy + (-sinA * g.F + cosA * g.C - cv) * k);
+    }
+
+    /// <summary>Obwód obrazu na ekranie: narożniki (oś prosta) albo punkty co 1/16 boku (oś po linii – boki wygięte).</summary>
+    List<Point> Outline(Affine g, int W, int H)
+    {
+        int k = os.Prosta ? 1 : 16; var res = new List<Point>(4 * k);
+        for (int i = 0; i < k; i++) res.Add(ToScreen(g.World(W * i / (double)k, 0)));
+        for (int i = 0; i < k; i++) res.Add(ToScreen(g.World(W, H * i / (double)k)));
+        for (int i = 0; i < k; i++) res.Add(ToScreen(g.World(W - W * i / (double)k, H)));
+        for (int i = 0; i < k; i++) res.Add(ToScreen(g.World(0, H - H * i / (double)k)));
+        return res;
     }
 
     bool Visible(Affine g, int W, int H, double w, double h)
     {
-        var m = ScreenMatrix(g);
-        var pts = new[] { m.Transform(new Point(0, 0)), m.Transform(new Point(W, 0)), m.Transform(new Point(0, H)), m.Transform(new Point(W, H)) };
+        var pts = Outline(g, W, H);
         return pts.Max(p => p.X) >= 0 && pts.Min(p => p.X) <= w && pts.Max(p => p.Y) >= 0 && pts.Min(p => p.Y) <= h;
     }
 
     void DrawImage(DrawingContext dc, BitmapSource bmp, Affine g, int W, int H, double opacity)
     {
+        if (!os.Prosta) { DrawImageWarped(dc, bmp, g, W, H, opacity); return; }
         dc.PushTransform(new MatrixTransform(ScreenMatrix(g)));
         if (opacity < 1) dc.PushOpacity(opacity);
         dc.DrawImage(bmp, new Rect(0, 0, W, H));
@@ -452,13 +509,59 @@ public partial class UtView : FrameworkElement
         dc.Pop();
     }
 
+    // ---- obraz przy osi po linii: kratki ekranu, w każdej przekształcenie afiniczne z narożników
+    const int WarpCell = 40;
+    XY[,] warpGrid; int warpFrame = -1, frame;
+    /// <summary>Punkty świata w narożnikach kratek ekranu (raz na klatkę, wspólne dla wszystkich obrazów).</summary>
+    XY WarpCorner(int ix, int iy)
+    {
+        int nx = (int)Math.Ceiling(ActualWidth / WarpCell) + 1, ny = (int)Math.Ceiling(ActualHeight / WarpCell) + 1;
+        if (warpFrame != frame || warpGrid == null || warpGrid.GetLength(0) != nx + 1 || warpGrid.GetLength(1) != ny + 1)
+        {
+            warpGrid = new XY[nx + 1, ny + 1];
+            for (int i = 0; i <= nx; i++) for (int j = 0; j <= ny; j++) warpGrid[i, j] = ToWorld(new Point(i * WarpCell, j * WarpCell));
+            warpFrame = frame;
+        }
+        return warpGrid[ix, iy];
+    }
+
+    void DrawImageWarped(DrawingContext dc, BitmapSource bmp, Affine g, int W, int H, double opacity)
+    {
+        var o = Outline(g, W, H);
+        double bx0 = Math.Max(0, o.Min(p => p.X)), bx1 = Math.Min(ActualWidth, o.Max(p => p.X)), by0 = Math.Max(0, o.Min(p => p.Y)), by1 = Math.Min(ActualHeight, o.Max(p => p.Y));
+        if (bx0 >= bx1 || by0 >= by1) return;
+        if (opacity < 1) dc.PushOpacity(opacity);
+        int ix0 = (int)(bx0 / WarpCell), ix1 = (int)Math.Ceiling(bx1 / WarpCell), iy0 = (int)(by0 / WarpCell), iy1 = (int)Math.Ceiling(by1 / WarpCell);
+        for (int ix = ix0; ix < ix1; ix++)
+            for (int iy = iy0; iy < iy1; iy++)
+            {
+                var (c00, r00) = g.Pixel(WarpCorner(ix, iy)); var (c10, r10) = g.Pixel(WarpCorner(ix + 1, iy));
+                var (c01, r01) = g.Pixel(WarpCorner(ix, iy + 1)); var (c11, r11) = g.Pixel(WarpCorner(ix + 1, iy + 1));
+                // kratka poza obrazem
+                if (Math.Max(Math.Max(c00, c10), Math.Max(c01, c11)) < 0 || Math.Min(Math.Min(c00, c10), Math.Min(c01, c11)) > W
+                    || Math.Max(Math.Max(r00, r10), Math.Max(r01, r11)) < 0 || Math.Min(Math.Min(r00, r10), Math.Min(r01, r11)) > H) continue;
+                // ekran → obraz z trzech narożników, odwrócone: obraz → ekran
+                double x = ix * WarpCell, y = iy * WarpCell;
+                double m11 = (c10 - c00) / WarpCell, m12 = (r10 - r00) / WarpCell, m21 = (c01 - c00) / WarpCell, m22 = (r01 - r00) / WarpCell;
+                var m = new Matrix(m11, m12, m21, m22, c00 - x * m11 - y * m21, r00 - x * m12 - y * m22);
+                if (!m.HasInverse) continue;
+                m.Invert();
+                // kratki zachodzą na siebie o 1 px – bez jasnych szczelin na stykach (wygładzanie krawędzi przycięcia)
+                dc.PushClip(new RectangleGeometry(new Rect(x, y, WarpCell + 1, WarpCell + 1)));
+                dc.PushTransform(new MatrixTransform(m));
+                dc.DrawImage(bmp, new Rect(0, 0, W, H));
+                dc.Pop(); dc.Pop();
+            }
+        if (opacity < 1) dc.Pop();
+    }
+
     StreamGeometry Quad(Affine g, int W, int H)
     {
-        var m = ScreenMatrix(g); var sg = new StreamGeometry();
+        var pts = Outline(g, W, H); var sg = new StreamGeometry();
         using (var c = sg.Open())
         {
-            c.BeginFigure(m.Transform(new Point(0, 0)), false, true);
-            c.LineTo(m.Transform(new Point(W, 0)), true, false); c.LineTo(m.Transform(new Point(W, H)), true, false); c.LineTo(m.Transform(new Point(0, H)), true, false);
+            c.BeginFigure(pts[0], false, true);
+            foreach (var q in pts.Skip(1)) c.LineTo(q, true, false);
         }
         return sg;
     }
@@ -580,7 +683,7 @@ public partial class UtView : FrameworkElement
     /// </summary>
     void DrawGridSchemat(DrawingContext dc, double w, double h)
     {
-        double uc = center.X * cosA + center.Y * sinA, vc = -center.X * sinA + center.Y * cosA;
+        double uc = cu, vc = cv;
         double minU = Nice(14 * mpp), majU = Nice(minU * 4.5);
         double minV = Nice(14 * mpp / stretch), majV = Nice(minV * 4.5);
         double u0 = uc - Cx * mpp, u1 = uc + (w - Cx) * mpp, v0 = vc - Cy * mpp / stretch, v1 = vc + (h - Cy) * mpp / stretch;
@@ -659,7 +762,7 @@ public partial class UtView : FrameworkElement
         double x = w - 26, y = RulerTop + 14;
         dc.DrawEllipse(Halo, null, new Point(x, y + 16), 14, 18);
         // strzałka w kierunku północy na ekranie (w schemacie obrócona)
-        var nv = ScreenVec(new XY(1, 0)); double rot = Math.Atan2(nv.X, -nv.Y) * 180 / Math.PI;
+        var nv = ScreenVec(center, new XY(1, 0)); double rot = Math.Atan2(nv.X, -nv.Y) * 180 / Math.PI;
         dc.PushTransform(new RotateTransform(rot, x, y + 11));
         var g = new StreamGeometry();
         using (var c = g.Open()) { c.BeginFigure(new Point(x, y), true, true); c.LineTo(new Point(x + 6, y + 18), true, false); c.LineTo(new Point(x, y + 14), true, false); c.LineTo(new Point(x - 6, y + 18), true, false); }

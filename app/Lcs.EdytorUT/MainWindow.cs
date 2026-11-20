@@ -102,8 +102,8 @@ public partial class MainWindow : Window
         foreach (var k in Stretches) StretchBox.Items.Add($"×{k:0}");
         StretchBox.SelectionChanged += (s, e) => { if (!refreshing && StretchBox.SelectedIndex >= 0) { Doc.P.View.Stretch = Stretches[StretchBox.SelectedIndex]; ApplyMode(false); } };
         tb.Items.Add(StretchBox);
-        tb.Items.Add(Btn("Oś wg toru", (s, e) => AxisFromTrack(), "Oś schematu (poziomo) wzdłuż zaznaczonego toru; bez zaznaczenia – wzdłuż najdłuższego toru"));
-        tb.Items.Add(Btn("↻ 180°", (s, e) => Doc.Change("Oś schematu", p => p.AxisAz = (View.AxisAz * 180 / Math.PI + 180) % 360), "Obróć schemat o 180°"));
+        tb.Items.Add(Btn("Oś wg toru", (s, e) => AxisFromTrack(), "Oś schematu po linii: wzdłuż zaznaczonego toru i torów, które go przedłużają (także w łukach – tory leżą poziomo); bez zaznaczenia – najdłuższy ciąg torów"));
+        tb.Items.Add(Btn("↻ 180°", (s, e) => Doc.Change("Oś schematu", p => p.AxisRev = !p.AxisRev), "Obróć schemat o 180° (kilometraż osi w drugą stronę)"));
         BgBox.Click += (s, e) => { Doc.P.View.ShowBg = BgBox.IsChecked == true; ApplyMode(false); };
         tb.Items.Add(BgBox);
         tb.Items.Add(gridBox);
@@ -252,12 +252,16 @@ public partial class MainWindow : Window
     /// <summary>Przełączenie widoku; przy wejściu w Schemat oś liczona na nowo (wpisana albo wg najdłuższego toru).</summary>
     public void SetSchemat(bool on) { Doc.P.View.Schemat = on; ApplyMode(true); }
 
-    double appliedAxis = double.NaN; double? appliedExplicit;
-    /// <summary>Widok wg ustawień projektu. Oś automatyczna liczy się tylko przy przełączeniu (rysowanie toru nie obraca widoku).</summary>
+    OsSchematu appliedAxis; (string, bool, double?) appliedExplicit;
+    (string, bool, double?) AxisKey => (Doc.P.AxisTrack, Doc.P.AxisRev, Doc.P.AxisAz);
+    /// <summary>
+    /// Widok wg ustawień projektu. Oś liczy się przy przełączeniu na Schemat, „Oś wg toru”, ↻ 180° i ich cofnięciu – rysowanie
+    /// i przesuwanie torów nie przestawia widoku (także toru osi; nowa oś po ponownym przełączeniu).
+    /// </summary>
     void ApplyMode(bool recomputeAxis)
     {
         var v = Doc.P.View;
-        if (recomputeAxis || double.IsNaN(appliedAxis) || Doc.P.AxisAz != appliedExplicit) { appliedAxis = Doc.P.SchematAz(); appliedExplicit = Doc.P.AxisAz; }
+        if (recomputeAxis || appliedAxis == null || AxisKey != appliedExplicit) { appliedAxis = OsSchematu.Dla(Doc.P); appliedExplicit = AxisKey; }
         View.SchematBg = v.ShowBg;
         View.SetMode(v.Schemat, appliedAxis, v.Stretch);
         refreshing = true;
@@ -272,15 +276,17 @@ public partial class MainWindow : Window
         ShowView();
     }
 
-    /// <summary>Oś schematu wzdłuż zaznaczonego toru (cięciwa, zwrócona na wschód) albo najdłuższego.</summary>
+    /// <summary>Oś schematu po linii od zaznaczonego toru (w jego kierunku) albo najdłuższy ciąg torów.</summary>
     public void AxisFromTrack()
     {
-        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == View.SelectedTrack);
-        // Ig-10 § 3 ust. 3: kilometraż rośnie od lewej do prawej – oś w kierunku toru
-        double? az = t != null && t.Vertices.Count >= 2 ? (Trasa.Az(t.Vertices[0].P, t.Vertices[^1].P) * 180 / Math.PI + 360) % 360 : null;
-        Doc.Change("Oś schematu", p => p.AxisAz = az);
+        var t = Doc.P.Tracks.FirstOrDefault(x => x.Id == View.SelectedTrack && x.Vertices.Count >= 2);
+        // Ig-10 § 3 ust. 3: kilometraż rośnie od lewej do prawej – oś w kierunku toru; stara oś prosta (azymut) przestaje działać
+        Doc.Change("Oś schematu", p => { p.AxisTrack = t?.Id; p.AxisRev = false; p.AxisAz = null; });
         if (!View.Schemat) SetSchemat(true); else ApplyMode(true);
-        Message(t != null ? $"Oś schematu wzdłuż toru {t.Number} (azymut {az:0.###}°)" : "Oś schematu wzdłuż najdłuższego toru");
+        var tory = View.Os.Tory.Select(id => Doc.P.Tracks.FirstOrDefault(x => x.Id == id)?.Number is { Length: > 0 } n ? n : "bez numeru").ToList();
+        string ciag = tory.Count > 1 ? $" i dalej: {string.Join(" – ", tory.Where((_, i) => View.Os.Tory[i] != t?.Id))}" : "";
+        Message(t != null ? $"Oś schematu po torze {(t.Number.Length > 0 ? t.Number : "bez numeru")}{ciag} ({UtView.Len(View.Os.Dlugosc)})"
+            : $"Oś schematu po najdłuższym ciągu torów: {string.Join(" – ", tory)} ({UtView.Len(View.Os.Dlugosc)})");
     }
 
     static TextBlock Header(string t) => new() { Text = t, FontWeight = FontWeights.SemiBold, FontSize = 15, Margin = new Thickness(0, 0, 0, 8) };
@@ -306,7 +312,7 @@ public partial class MainWindow : Window
         Doc = d; View.Doc = d; View.MeasurePts.Clear(); SetTool(UtTool.Wskaz); selBg = null; View.Select(null);
         d.Changed += Refresh;
         var v = d.P.View;
-        appliedAxis = double.NaN;
+        appliedAxis = null;
         ApplyLayers();
         ApplyMode(true);
         View.SetView(new XY(v.X, v.Y), v.Mpp);
@@ -332,7 +338,7 @@ public partial class MainWindow : Window
         RefreshBg();
         RefreshTrackPanel();
         RefreshPosts();
-        if (Doc.P.AxisAz != appliedExplicit) ApplyMode(false);
+        if (AxisKey != appliedExplicit) ApplyMode(false);
         View.InvalidateVisual();
     }
 

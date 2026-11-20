@@ -1,0 +1,3 @@
+ŁW:D ŁW:S1 Pociąg: OK przebieg P D→S1 w realizacji, V = 60 km/h
+ŁW:S2 2A Pociąg: OK przebieg P S2→2A w realizacji, V = 60 km/h
+ŁW:W ŁW:L2 Pociąg: ODRZUCONE odcinek ŁW:T-78 utwierdzony w innym przebiegu (+3)

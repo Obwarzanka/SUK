@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -1942,7 +1942,6 @@ public class MainForm : ReferenceForm
 		BuildTimetable();
 		BuildDetails();
 		BuildServices();
-		HideSecondaryPages();
 		topTabs.SelectedIndexChanged += (object s, EventArgs e) =>
 		{
 			PositionPhotoHeader();
@@ -2038,13 +2037,10 @@ public class MainForm : ReferenceForm
 				ResetTrainingSession();
 			}));
 		}
-		if (Engine.SimRail == null)
+		toolStripMenuItem.DropDownItems.Add(Ui.Menu("Importuj rozkład z CSV…", () =>
 		{
-			toolStripMenuItem.DropDownItems.Add(Ui.Menu("Importuj rozkład z CSV…", () =>
-			{
-				ImportTimetable();
-			}));
-		}
+			ImportTimetable();
+		}));
 		if (LocalPersistence.Enabled)
 		{
 			toolStripMenuItem.DropDownItems.Add(Ui.Menu("Eksportuj widoczny rozkład…", () =>
@@ -2052,18 +2048,15 @@ public class MainForm : ReferenceForm
 				ExportTimetable();
 			}));
 		}
-		if (Engine.SimRail == null)
+		toolStripMenuItem.DropDownItems.Add(Ui.Menu("Utwórz przykład na wybrany dzień", () =>
 		{
-			toolStripMenuItem.DropDownItems.Add(Ui.Menu("Utwórz przykład na wybrany dzień", () =>
+			Engine.RequireCoordinator();
+			Engine.Change("Dane przykładowe", Engine.StationId, (AppState s) =>
 			{
-				Engine.RequireCoordinator();
-				Engine.Change("Dane przykładowe", Engine.StationId, (AppState s) =>
-				{
-					Store.AddDemo(s, Engine.StationId, timetableDay.Value);
-				});
-				RefreshData();
-			}));
-		}
+				Store.AddDemo(s, Engine.StationId, timetableDay.Value);
+			});
+			RefreshData();
+		}));
 		toolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
 		if (LocalPersistence.Enabled)
 		{
@@ -2129,7 +2122,6 @@ public class MainForm : ReferenceForm
 		{
 			Users();
 		});
-		toolStripMenuItem5.Visible = false;
 		toolStripMenuItem4.DropDownItems.Add(toolStripMenuItem5);
 		menuStrip.Items.Add(toolStripMenuItem4);
 		ToolStripMenuItem toolStripMenuItem6 = new ToolStripMenuItem("Widok");
@@ -4900,7 +4892,7 @@ public class MainForm : ReferenceForm
 		}
 		using StopForecastForm stopForecastForm = new StopForecastForm(t, async (StopForecastOperation operation, DateTime arrival, DateTime departure) =>
 		{
-			if (Engine.SimRail == null)
+			if (Engine.SimRail == null || (t.SourceProvider != "SimRail" && t.SourceProvider != "TD2"))
 			{
 				Engine.SetLocalForecast(t.Id, operation, arrival, departure);
 				return;

@@ -138,7 +138,7 @@ public partial class UtView
         for (int i = 0; i <= n; i++)
         {
             double s = a + (b - a) * i / n; var (p, az) = r.At(s);
-            var sp = ToScreen(p); var d = ScreenDir(az); var nn = new Vector(-d.Y, d.X);
+            var sp = ToScreen(p); var d = ScreenDir(p, az); var nn = new Vector(-d.Y, d.X);
             double lo = 0, hi = 0;
             foreach (var (rx, x) in extra)
             {
@@ -158,7 +158,7 @@ public partial class UtView
         var (p, az) = r.At(Math.Clamp(o.S0 + delta, 0, r.Length));
         double ra = az + o.Angle * Math.PI / 180; var dw = Element.Dir(ra);
         var c = ToScreen(p); var A = ToScreen(p - dw * (o.Reach * r.K)); var B = ToScreen(p + dw * (o.Reach * r.K));
-        var u = B - A; if (u.Length < 1e-6) u = ScreenDir(ra); u.Normalize();
+        var u = B - A; if (u.Length < 1e-6) u = ScreenDir(p, ra); u.Normalize();
         return (c, u, new Vector(-u.Y, u.X), A, B, az);
     }
 

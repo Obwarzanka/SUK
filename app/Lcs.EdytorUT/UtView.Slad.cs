@@ -184,9 +184,8 @@ public partial class UtView
     /// </summary>
     public (XY A, XY B) ViewBox()
     {
-        double w = ActualWidth, h = ActualHeight;
-        var c = new[] { ToWorld(new Point(0, 0)), ToWorld(new Point(w, 0)), ToWorld(new Point(0, h)), ToWorld(new Point(w, h)) };
-        double x0 = c.Min(p => p.X), x1 = c.Max(p => p.X), y0 = c.Min(p => p.Y), y1 = c.Max(p => p.Y), mx = (x1 - x0) * 0.1, my = (y1 - y0) * 0.1;
+        var (mn, mxx) = ViewBoxWorld();      // przy osi po linii – obwód ekranu, nie same narożniki
+        double x0 = mn.X, x1 = mxx.X, y0 = mn.Y, y1 = mxx.Y, mx = (x1 - x0) * 0.1, my = (y1 - y0) * 0.1;
         return (new XY(x0 - mx, y0 - my), new XY(x1 + mx, y1 + my));
     }
 

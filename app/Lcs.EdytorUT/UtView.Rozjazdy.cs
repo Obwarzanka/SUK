@@ -108,7 +108,7 @@ public partial class UtView
         {
             var g = Rozjazdy.Geometry(Doc.P, t); if (g == null) continue;
             var pr = ToScreen(g.PR);
-            foreach (var q in new[] { pr, ToScreen(g.SR), pr + ScreenDir(g.Az) * 12 })
+            foreach (var q in new[] { pr, ToScreen(g.SR), pr + ScreenDir(g.PR, g.Az) * 12 })
             { double d = (q - s).Length; if (d < bd) { bd = d; best = t.Id; } }
         }
         return best;
@@ -212,7 +212,7 @@ public partial class UtView
         var pr = ToScreen(g.PR);
         if (pr.X < -150 || pr.Y < -150 || pr.X > ActualWidth + 150 || pr.Y > ActualHeight + 150) return;
         double k = PxPerMm;
-        var dir = ScreenDir(g.Az);
+        var dir = ScreenDir(g.PR, g.Az);
         if (sel) dc.DrawEllipse(RzSel, null, pr + dir * (4 * k), Math.Max(9, 6 * k), Math.Max(9, 6 * k));
         // odgałęzienie z geometrii typu: PR – ŚR (łuk R) – KR na zwrot
         var br = Trasa.Compute(new[] { new UtVertex { X = g.PR.X, Y = g.PR.Y }, new UtVertex { X = g.SR.X, Y = g.SR.Y, R = g.RDiv }, new UtVertex { X = g.KRDiv.X, Y = g.KRDiv.Y } }, g.K);
