@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Łączność z posterunkami sąsiednimi (czat dyżurnych SimRail, także stacje AI) przez mod SimRailMost.
+       Zalążek terminala stacji stycznej / PIP: komunikaty EZP, podpowiedzi numerów pociągów (stacja + rozkład SimRail), plan ruchu. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Lcs.Lacznosc</RootNamespace>
+    <AssemblyName>Lacznosc</AssemblyName>
+    <AssemblyTitle>Łączność z posterunkami (SimRail)</AssemblyTitle>
+    <Product>SUK – Łączność</Product>
+    <Version>0.1.0</Version>
+    <StartupObject>Lcs.Lacznosc.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ikona: terminal stacji stycznej + EZP + telefon + czat (narzedzia/mix.py, źródło ikona.png 1024 px). Też ikona okna. -->
+    <Resource Include="app.ico" />
+    <None Remove="narzedzia\**" />
+  </ItemGroup>
+
+</Project>

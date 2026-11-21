@@ -87,6 +87,8 @@ public partial class ObrView
         if (Obraz == null) return null;
         var (x, y) = ToImage(s);
         ObrElement best = null; double bd = double.MaxValue;
+        // promień jak symbol na ekranie (ok. 12 j.), 5…10 px – przy oddaleniu stałe 10 px sięgało 23 j. i zabierało kliki w sąsiednie tory
+        double rMax = Math.Clamp(12 * Zoom, 5, 10);
         foreach (var el in Obraz.Elementy.Where(e => e.Typ is not (ObrGraf.Skrzyzowanie or ObrGraf.RozjazdKrzyzowy)))
         {
             if (el.Typ is ObrSymbole.Peron or ObrSymbole.PolePip && el.P != null)
@@ -105,9 +107,16 @@ public partial class ObrView
             if (el.Typ == ObrSymbole.Zwrotnica) continue;             // zwrotnica – przez opis albo węzeł rozjazdu
             if (ObrSymbole.Pozycja(Obraz, el) is not var (ex, ey, _, _)) continue;
             double d = Math.Sqrt((ex - x) * (ex - x) + (ey - y) * (ey - y)) * Zoom;
-            if (d <= 10 && d < bd) { bd = d; best = el; }
+            if (d <= rMax && d < bd) { bd = d; best = el; }
         }
         return best;
+    }
+
+    /// <summary>Element w prostokącie zaznaczenia [j.]: peron i pole PIP – lewy górny róg, reszta – punkt symbolu na torze.</summary>
+    bool W(Rect r, ObrElement el)
+    {
+        if (el.Typ is ObrSymbole.Peron or ObrSymbole.PolePip && el.P != null) return r.Contains(el.P[0], el.P[1]);
+        return ObrSymbole.Pozycja(Obraz, el) is var (x, y, _, _) ? r.Contains(x, y) : el.P != null && r.Contains(el.P[0], el.P[1]);
     }
 
     /// <summary>Wskaż na elemencie albo opisie: zaznaczenie i początek przeciągania; true – obsłużone.</summary>
@@ -127,40 +136,59 @@ public partial class ObrView
         return true;
     }
 
-    void ElementMove(Point p)
+    /// <summary>Przeciąganie elementu albo opisu; true – podgląd się zmienił (kopia obrazu tylko wtedy, nie przy każdym ruchu myszy).</summary>
+    bool ElementMove(Point p)
     {
-        if (opisDrag is var (oid, idx, d0, st, _))
+        if ((opisDrag != null || elDrag != null) && !Ruszone(p)) return false;
+        bool zmiana = false;
+        if (opisDrag is var (oid, idx, d0, st, dPrev))
         {
             // opis – krok 2 j. (drobniej niż siatka torów)
             var (x0, y0) = ToImage(st); var (x1, y1) = ToImage(p);
             var d = new[] { d0[0] + (int)Math.Round((x1 - x0) / 2) * 2, d0[1] + (int)Math.Round((y1 - y0) / 2) * 2 };
-            opisDrag = (oid, idx, d0, st, d);
-            preview = Clone(Obraz);
-            preview.Elementy.First(e => e.Id == oid).Opisy[idx].D = d;
+            if (preview == null || d[0] != dPrev[0] || d[1] != dPrev[1])
+            {
+                opisDrag = (oid, idx, d0, st, d);
+                preview = Clone(Obraz);
+                preview.Elementy.First(e => e.Id == oid).Opisy[idx].D = d;
+                zmiana = true;
+            }
         }
-        if (elDrag is var (eid, est, t0, p0))
+        if (elDrag is var (eid, est, t0, p0) && Obraz.Elementy.FirstOrDefault(e => e.Id == eid) is ObrElement src)
         {
-            preview = Clone(Obraz);
-            var el = preview.Elementy.First(e => e.Id == eid);
+            // nowe położenie liczone na obrazie (tor się nie zmienia), kopia – gdy różne od bieżącego podglądu
             var (x, y) = ToImage(p);
-            if (ObrSymbole.Wolny(el.Typ) && p0 != null)
+            var cur = preview?.Elementy.FirstOrDefault(e => e.Id == eid);
+            if (ObrSymbole.Wolny(src.Typ) && p0 != null)
             {
                 // położenie bezwzględne (nie krok siatki od starego miejsca) – peron i pole PIP między tory, napis na siatkę
                 var (sx, sy) = ToImage(est);
                 double nx = p0[0] + x - sx, ny = p0[1] + y - sy;
-                el.P = el.Typ is ObrSymbole.Peron or ObrSymbole.PolePip ? MiejsceProstokata(nx, ny, ObrSymbole.Rozmiar(el), eid)
+                var np = src.Typ is ObrSymbole.Peron or ObrSymbole.PolePip ? MiejsceProstokata(nx, ny, ObrSymbole.Rozmiar(src), eid)
                     : new[] { ZobTory.Grid(nx, G), ZobTory.Grid(ny, G) };
-                elDrag = (eid, est, t0, p0);
+                if (cur?.P == null || cur.P[0] != np[0] || cur.P[1] != np[1])
+                {
+                    preview = Clone(Obraz);
+                    preview.Elementy.First(e => e.Id == eid).P = np;
+                    zmiana = true;
+                }
             }
-            else if (ObrGraf.Odcinek(preview, el.Na) is ObrOdcinek e)
+            else if (ObrGraf.Odcinek(Obraz, src.Na) is ObrOdcinek e)
             {
                 // symbol jedzie po swoim torze (punkty siatki na torze)
-                var (a, b) = ObrGraf.Konce(preview, e);
+                var (a, b) = ObrGraf.Konce(Obraz, e);
                 var q = ObrGraf.NaOdcinku(a, b, x, y, G);
                 double len = Math.Sqrt(Math.Pow(b[0] - a[0], 2) + Math.Pow(b[1] - a[1], 2));
-                el.T = len < 1e-9 ? 0 : Math.Sqrt(Math.Pow(q[0] - a[0], 2) + Math.Pow(q[1] - a[1], 2)) / len;
+                double t = len < 1e-9 ? 0 : Math.Sqrt(Math.Pow(q[0] - a[0], 2) + Math.Pow(q[1] - a[1], 2)) / len;
+                if (cur == null || Math.Abs(cur.T - t) > 1e-9)
+                {
+                    preview = Clone(Obraz);
+                    preview.Elementy.First(x2 => x2.Id == eid).T = t;
+                    zmiana = true;
+                }
             }
         }
+        return zmiana;
     }
 
     void ElementUp()
@@ -300,8 +328,23 @@ public partial class ObrView
             foreach (var el in o.Elementy.Where(e => e.Typ is not (ObrGraf.Skrzyzowanie or ObrGraf.RozjazdKrzyzowy)))
                 Symbol(dc, o, el, PulpitSymbole.Grey);
             foreach (var el in o.Elementy) Opisy(dc, o, el);
-            // cień symbolu pod kursorem (narzędzie Symbol)
-            if (!Czysty && Tool == ObrTool.Symbol && SymbolTyp != null && hoverScreen is Point hs && MiejsceSymbolu(hs) is var (na, t, kier, pt))
+            if (!Czysty && preview == null)
+                foreach (var el in o.Elementy.Where(e => SelEl.Contains(e.Id)))
+                {
+                    var r = Obrys(o, el);
+                    if (r != null) dc.DrawRoundedRectangle(null, new Pen(SelSym, 1.5 / Zoom), r.Value, 3, 3);
+                }
+        }
+        finally { dc.Pop(); }
+    }
+
+    /// <summary>Cień symbolu pod kursorem (narzędzie Symbol) – nakładka rysowana przy każdym ruchu myszy.</summary>
+    void DrawSymbolCien(DrawingContext dc, ObrObraz o)
+    {
+        if (Czysty || Tool != ObrTool.Symbol || SymbolTyp == null || hoverScreen is not Point hs || MiejsceSymbolu(hs) is not var (na, t, kier, pt)) return;
+        dc.PushTransform(new MatrixTransform(Zoom, 0, 0, Zoom, Off.X, Off.Y));
+        try
+        {
             {
                 var g = new ObrObraz { Wezly = o.Wezly, Odcinki = o.Odcinki, Szer = o.Szer, Wys = o.Wys };
                 var ghost = new ObrElement { Typ = SymbolTyp, Na = na, T = t, Kier = kier, P = pt, Styl = SymbolTyp == ObrSymbole.Semafor ? ObrSymbole.SemManewrowy : SymbolTyp == ObrSymbole.Powtarzacz ? ObrSymbole.PowtSemafora : null };
@@ -311,12 +354,6 @@ public partial class ObrView
                 if (SymbolTyp is ObrSymbole.NumerToru or ObrSymbole.Napis or ObrSymbole.OpisOdcinka) { var q = ObrSymbole.Pozycja(g, ghost).Value; dc.DrawRectangle(null, new Pen(Ghost, 1), new Rect(q.X - 10, q.Y - 6, 20, 12)); }
                 else Symbol(dc, g, ghost, Ghost);
             }
-            if (!Czysty && preview == null)
-                foreach (var el in o.Elementy.Where(e => SelEl.Contains(e.Id)))
-                {
-                    var r = Obrys(o, el);
-                    if (r != null) dc.DrawRoundedRectangle(null, new Pen(SelSym, 1.5 / Zoom), r.Value, 3, 3);
-                }
         }
         finally { dc.Pop(); }
     }

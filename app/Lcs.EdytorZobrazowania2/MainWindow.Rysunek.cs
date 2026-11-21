@@ -32,7 +32,13 @@ public partial class MainWindow
             Message($"Tor: {r.Odcinki.Count} odc." + (r.Rozjazdy.Count > 0 ? $", rozjazdy: {r.Rozjazdy.Count}" : "") +
                 (r.Skrzyzowania.Count > 0 ? $", skrzyżowania: {r.Skrzyzowania.Count} (PPM na węźle – rozjazd krzyżowy)" : "") + " – rysuj dalej albo Esc");
         };
-        View.SelMoved += (nodes, dx, dy) => { Ch($"Przesunięcie o {dx}, {dy}", o => ObrGraf.Przesun(o, nodes, dx, dy)); Message($"Przesunięto o Δx {dx}, Δy {dy} j."); };
+        View.SelMoved += (nodes, dx, dy) =>
+        {
+            // ten sam ruch co podgląd w ObrView (kąty co 45°, ewentualnie w jednej osi albo cały rząd)
+            string msg = null; var sw = View.SelW.ToList(); var se = View.SelE.ToList();
+            Ch($"Przesunięcie o {dx}, {dy}", o => msg = ObrGraf.PrzesunZaznaczenie(o, sw, se, dx, dy));
+            if (msg != null) Message(msg);
+        };
         View.RzadDragged += (nodes, dy) => { Ch($"Przesunięcie rzędu o {dy}", o => ObrGraf.PrzesunRzad(o, nodes, dy)); Message($"Rząd przesunięty o {dy} j. z łącznikami"); };
         View.MenuAt += (p, w, e) =>
         {
@@ -57,10 +63,14 @@ public partial class MainWindow
     public void MoveSel(int dx, int dy)
     {
         if (Obraz == null) return;
-        var n = ObrGraf.WezlyZaznaczenia(Obraz, View.SelW, View.SelE);
+        var n = ObrGraf.WezlyRuchu(Obraz, View.SelW, View.SelE);
         // nic nie zaznaczono – strzałki przesuwają widok
         if (n.Count == 0) { if (View.SelEl.Count == 0) View.PanBy(-Math.Sign(dx) * 80, -Math.Sign(dy) * 80); return; }
-        Ch($"Przesunięcie o {dx}, {dy}", o => ObrGraf.Przesun(o, n, dx, dy));
+        var sw = View.SelW.ToList(); var se = View.SelE.ToList();
+        // próba na kopii – odmowa nie zostawia pustego kroku „Cofnij”
+        if (ObrGraf.PrzesunZaznaczenie(ObrGraf.Kopia(Obraz), sw, se, dx, dy) is not string msg) { Message("Tego nie da się przesunąć bez psucia kątów 45° – zaznacz więcej (prostokąt) albo przesuń węzeł"); return; }
+        Ch($"Przesunięcie o {dx}, {dy}", o => ObrGraf.PrzesunZaznaczenie(o, sw, se, dx, dy));
+        Message(msg);
     }
 
     public void SelectAll() { if (Obraz != null) View.Select(Obraz.Wezly.Select(x => x.Id), Obraz.Odcinki.Select(x => x.Id)); }

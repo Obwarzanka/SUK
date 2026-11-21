@@ -36,6 +36,14 @@ public static class Program
             w = new MainWindow(args[2]) { NoPrompt = true };
             Test.Shot(w, args[1]);
         }
+        else if (args.Length > 2 && args[0] == "--png")
+        {
+            // obraz jak na pulpicie (eksport „PNG…”) bez okna na ekranie: --png wynik.png plik.zob.json [skala]
+            w = new MainWindow(args[2]) { NoPrompt = true };
+            double k = args.Length > 3 && double.TryParse(args[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var kk) ? kk : 1;
+            Test.OffScreenPublic(w);
+            w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(() => { w.SavePng(args[1], k); Application.Current.Shutdown(); }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
         else w = new MainWindow(args.Length > 0 ? args[0] : null);
         app.Run(w);
     }

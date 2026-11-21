@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# skrypty Windows zawsze z CRLF (cmd.exe źle czyta etykiety przy LF)
+*.cmd text eol=crlf
+*.bat text eol=crlf

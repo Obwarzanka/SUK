@@ -117,7 +117,7 @@ public static partial class Test
 
         // --- przypięcia idą za rysunkiem; kolejny F8 nie zmienia potwierdzonych
         int nPr = w.Obraz.Przypiecia.Count;
-        w.View.ClearSelection(); w.View.SimDrag(S(w, 1100, 544), S(w, 1100, 576));
+        w.View.ClearSelection(); w.View.SimDrag(S(w, 1100, 544), S(w, 1100, 576), MouseButton.Left, ModifierKeys.Control);
         Ok(w.Obraz.Przypiecia.Count == nPr && Pr(w, sem.Id)?.Stan == ObrPrzypiecie.Potwierdzone, "przesunięcie toru 2 – przypięcia zostają");
         Key(w, K.F8);
         Ok(Wyj(w) == 0 && Pr(w, sem.Id).Stan == ObrPrzypiecie.Potwierdzone && Pr(w, prz.Id).Stan == ObrPrzypiecie.Brak && Nr(1328, 576) == "4", "F8 po zmianie (rozjazd 4 przesunięty po ukosie do x 1328): lista pusta, potwierdzone i „bez przypięcia” zostają");

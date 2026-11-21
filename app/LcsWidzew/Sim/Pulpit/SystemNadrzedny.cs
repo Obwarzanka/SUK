@@ -94,6 +94,10 @@ public class SystemNadrzedny
         ["PZK"] = new("Pzk", "pozwolenie na ustawienie kierunku (PRZYJAZD)", false),
         ["ZWBL"] = new("Zwbl", "zwolnienie ustawionego kierunku", false),
         ["AZK"] = new("AZK", "awaryjna zmiana kierunku blokady", true),
+        // blokady SimRail (EBI): ZKB – zmiana kierunku, oZKB – odwołanie, PZM – pozwolenie na zmianę kierunku (stacja sąsiednia)
+        ["ZKB"] = new("ZKB", "zmiana kierunku blokady", false),
+        ["OZKB"] = new("oZKB", "odwołanie zmiany kierunku blokady", false),
+        ["PZM"] = new("PZM", "pozwolenie na zmianę kierunku blokady", false),
         ["NN"] = new("NN", "załączenie napięcia nastawczego", true),
         ["ONN"] = new("oNN", "odłączenie napięcia nastawczego", false),
         ["AGR"] = new("AGR", "ręczne uruchomienie agregatu (polecenie dodatkowe)", false),
@@ -109,7 +113,7 @@ public class SystemNadrzedny
         ["POCIAG"] = "POCIAG", ["MANEWR"] = "MANEWR", ["KO"] = "BKON", ["BKON"] = "BKON"
     };
 
-    static readonly HashSet<string> BlockCodes = new() { "WBL", "BKON", "PO", "POZ", "DPO", "DKO", "OWBL", "PZK", "ZWBL", "AZK" };
+    static readonly HashSet<string> BlockCodes = new() { "WBL", "BKON", "PO", "POZ", "DPO", "DKO", "OWBL", "PZK", "ZWBL", "AZK", "ZKB", "OZKB", "PZM" };
 
     public static string Fold(string s)
     {
@@ -120,6 +124,29 @@ public class SystemNadrzedny
     }
     /// <summary>Kod polecenia (klucz w <see cref="Codes"/>) dla słowa z wiersza polecenia albo null.</summary>
     public static string KodPolecenia(string tok) => string.IsNullOrEmpty(tok) ? null : CodeOf(tok);
+
+    /// <summary>
+    /// Pozycja kodu polecenia w wierszu. Nazwa obiektu bywa zarazem dawnym skrótem polecenia (np. szlak „szM” – alias SZM = Stop),
+    /// więc gdy kod pasuje do kilku słów, pomijane są te, które są nazwami obiektów układu. -1 – brak kodu.
+    /// </summary>
+    public static int IndeksKodu(IList<string> toks, Station L)
+    {
+        var kand = Enumerable.Range(0, toks.Count).Where(i => KodPolecenia(toks[i]) != null).ToList();
+        if (kand.Count <= 1) return kand.Count == 0 ? -1 : kand[0];
+        var nieObiekty = kand.Where(i => !NazwaObiektu(L, toks[i])).ToList();
+        return nieObiekty.Count > 0 ? nieObiekty[0] : kand[0];
+    }
+
+    /// <summary>Słowo jest nazwą (oznaczeniem) obiektu układu: sygnalizatora, zwrotnicy, odcinka, wykolejnicy, szlaku albo końca szlaku.</summary>
+    public static bool NazwaObiektu(Station L, string tok)
+    {
+        if (L == null || string.IsNullOrEmpty(tok)) return false;
+        var f = Fold(tok);
+        bool R(string s) => !string.IsNullOrEmpty(s) && Fold(s) == f;
+        return L.Signals.Values.Any(s => R(s.Name) || R(s.Label)) || L.Switches.Values.Any(s => R(s.Num) || R(s.Label))
+            || L.Derailers.Values.Any(d => R(d.Name) || R(d.Label)) || L.Sections.Keys.Any(k => R(k) || R(Station.Lbl(k)))
+            || L.Blocks.Values.Any(b => R(b.Id) || R(b.Label) || b.Ends.Any(e => R(e.Label)));
+    }
     static string CodeOf(string tok)
     {
         var f = Fold(tok);
@@ -323,7 +350,7 @@ public class SystemNadrzedny
         if (line == "") return new(false, "");
         if (S.LinkDown) return new(false, "Brak łączności z komputerem zależności – polecenie nie zostało przyjęte");
         var toks = line.Split(' ').ToList();
-        int ci = toks.FindIndex(t => CodeOf(t) != null);
+        int ci = IndeksKodu(toks, L);
         if (ci < 0) return Reject(line, "Brak kodu polecenia (Ie-104 § 12) – np. „E S1 Pociąg”, „13 Minus”, „S1 SZ”; POMOC – lista");
         var code = CodeOf(toks[ci]);
         var orig = Fold(toks[ci]);

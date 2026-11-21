@@ -89,9 +89,9 @@ public static class PulpitSymbole
     public static void Przerwa(DrawingContext dc, double x, double y, Brush bg) => dc.DrawRectangle(bg, null, new Rect(x - 1.8, y - 4, 3.6, 8));
 
     /// <summary>Oznaczenie końca linii przejazdu: „Y” – rozwidlenie, „T” – poprzeczka.</summary>
-    public static void KoniecPrzejazdu(DrawingContext dc, double x, double y, int side, string kind = "Y")
+    public static void KoniecPrzejazdu(DrawingContext dc, double x, double y, int side, string kind = "Y", Brush barwa = null)
     {
-        var p = new Pen(CrossPink, 2.6);
+        var p = new Pen(barwa ?? CrossPink, 2.6);
         dc.DrawLine(p, new Point(x, y), new Point(x, y + side * 14));
         if (kind == "T") { dc.DrawLine(p, new Point(x - 6, y), new Point(x + 6, y)); return; }
         dc.DrawLine(p, new Point(x, y + side * 10), new Point(x - 6, y + side * 16));
@@ -99,10 +99,10 @@ public static class PulpitSymbole
     }
 
     /// <summary>Linia przejazdu w poprzek torów z oznaczeniami końców (od <paramref name="y0"/> do <paramref name="y1"/>).</summary>
-    public static void Przejazd(DrawingContext dc, double x, double y0, double y1, string kind = "Y")
+    public static void Przejazd(DrawingContext dc, double x, double y0, double y1, string kind = "Y", Brush barwa = null)
     {
-        dc.DrawLine(new Pen(CrossPink, 3), new Point(x, y0 + 14), new Point(x, y1 - 14));
-        KoniecPrzejazdu(dc, x, y0, -1, kind); KoniecPrzejazdu(dc, x, y1, 1, kind);
+        dc.DrawLine(new Pen(barwa ?? CrossPink, 3), new Point(x, y0 + 14), new Point(x, y1 - 14));
+        KoniecPrzejazdu(dc, x, y0, -1, kind, barwa); KoniecPrzejazdu(dc, x, y1, 1, kind, barwa);
     }
 
     /// <summary>Peron: prostokąt z podwójną ramką (napis rysuje wywołujący).</summary>

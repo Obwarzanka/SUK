@@ -39,9 +39,15 @@ public partial class ObrView
         return true;
     }
 
-    void SzkicMove(Point p)
+    /// <summary>true – szkic przesunął się o krok siatki (warstwa obrazu do odbudowy).</summary>
+    bool SzkicMove(Point p)
     {
-        if (szkicDrag is var (st, _, _)) { var (x0, y0) = ToImage(st); var (x1, y1) = ToImage(p); szkicDrag = (st, ZobTory.Grid(x1 - x0, G), ZobTory.Grid(y1 - y0, G)); }
+        if (szkicDrag is not var (st, odx, ody)) return false;
+        var (x0, y0) = ToImage(st); var (x1, y1) = ToImage(p);
+        int dx = ZobTory.Grid(x1 - x0, G), dy = ZobTory.Grid(y1 - y0, G);
+        if (dx == odx && dy == ody) return false;
+        szkicDrag = (st, dx, dy);
+        return true;
     }
 
     bool SzkicUp()
@@ -77,7 +83,7 @@ public partial class ObrView
     }
     const double PulpitSymbole_Tor = 4.6;
 
-    /// <summary>Warstwa szkicu i cień klocka pod kursorem.</summary>
+    /// <summary>Warstwa szkicu (część warstwy obrazu).</summary>
     void DrawKlocki(DrawingContext dc)
     {
         if (Obraz?.Szkic is ObrGraf.Fragment sz)
@@ -91,6 +97,11 @@ public partial class ObrView
                 dc.DrawRectangle(null, SzkicPen, new Rect(a, b));
             }
         }
+    }
+
+    /// <summary>Cień klocka pod kursorem i prostokąt szkicu – nakładki rysowane przy każdym ruchu myszy.</summary>
+    void DrawKlockiNakladki(DrawingContext dc)
+    {
         if (Tool == ObrTool.Klocek && KlocekDla != null && hoverScreen is Point hs && Obraz != null)
         {
             var p = KlocekPunkt(hs);

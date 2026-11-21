@@ -149,10 +149,27 @@ public static partial class Test
         Ok(Poz(w, El(w, ObrSymbole.Semafor, "C1")) is var c2 && c2.X == 1360 && c2.Y == 448, $"przeciągnięcie semafora C1 wzdłuż toru: (1392 → {Poz(w, El(w, ObrSymbole.Semafor, "C1")).X}, 448)");
         w.DoUndo();
 
-        // --- symbole jadą z torem: rząd toru 2 o 16 j. w dół
+        // --- symbole jadą z torem: rząd toru 2 o 16 j. w dół (Ctrl + przeciągnięcie – cały rząd z łącznikami)
         w.View.ClearSelection();
+        w.View.SimDrag(S(w, 1100, 544), S(w, 1100, 560), MouseButton.Left, ModifierKeys.Control);
+        Ok(Poz(w, El(w, ObrSymbole.Semafor, "C2")).Y == 560 && Poz(w, El(w, ObrSymbole.NumerToru, "2")).Y == 560, "przesunięcie rzędu toru 2 (Ctrl) – semafor C2 i numer toru jadą z torem");
+        w.DoUndo();
+
+        // --- klik zaznacza cały tor (od rozjazdu do rozjazdu), przeciągnięcie – łączniki przy rozjazdach dalej co 45° (uwaga właściciela 2026-11-21)
+        w.View.ClearSelection();
+        int nOd = w.Obraz.Odcinki.Count;
+        w.View.SimClick(S(w, 1100, 544));
+        var torE = w.View.SelE.ToList();
+        Ok(torE.Count >= 1 && torE.All(id => ObrGraf.Tor(w.Obraz, ObrGraf.Odcinek(w.Obraz, torE[0])).E.Contains(id)), $"klik na torze 2 – zaznaczony cały tor ({torE.Count} odc.)");
         w.View.SimDrag(S(w, 1100, 544), S(w, 1100, 560));
-        Ok(Poz(w, El(w, ObrSymbole.Semafor, "C2")).Y == 560 && Poz(w, El(w, ObrSymbole.NumerToru, "2")).Y == 560, "przesunięcie rzędu toru 2 – semafor C2 i numer toru jadą z torem");
+        var uw = ObrGraf.Uwagi(w.Obraz);
+        Ok(Poz(w, El(w, ObrSymbole.Semafor, "C2")).Y == 560 && uw.Count == 0,
+            $"przeciągnięcie toru 2 o 16 j. w dół: semafor C2 y {Poz(w, El(w, ObrSymbole.Semafor, "C2")).Y}, uwag rysunku {uw.Count} ({string.Join("; ", uw.Select(x => x.Tekst))})");
+        w.DoUndo();
+        // ruch ukośny myszy: gdy w pionie psuje kąty – sam ruch w poziomie (albo odwrotnie), nigdy odcinki nie co 45°
+        w.View.ClearSelection();
+        w.View.SimDrag(S(w, 1100, 544), S(w, 1140, 552));
+        Ok(ObrGraf.Uwagi(w.Obraz).Count == 0, $"przeciągnięcie toru 2 ukośnie myszą – bez odcinków nie co 45° ({w.LastMessage})");
         w.DoUndo();
 
         // --- usuwanie i PPM na torze: wstaw przerwę

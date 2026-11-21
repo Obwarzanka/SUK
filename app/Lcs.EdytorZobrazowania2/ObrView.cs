@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -17,12 +17,14 @@ public enum ObrTool { Wskaz, Tor, Prowadnica, Symbol, Klocek, Szkic }
 /// </summary>
 public partial class ObrView : FrameworkElement
 {
-    public ObrObraz Obraz { get; set; }
+    ObrObraz obraz;
+    public ObrObraz Obraz { get => obraz; set { obraz = value; warstwa = null; } }
     public int Siatka { get; set; } = 8;
     public bool ShowGrid { get; set; } = true;
     public bool ShowRzedy { get; set; } = true;
     /// <summary>Bez znaczników edytora – PNG i wydruk, wygląd jak na pulpicie.</summary>
-    public bool Czysty { get; set; }
+    public bool Czysty { get => czysty; set { czysty = value; warstwa = null; } }
+    bool czysty;
     /// <summary>Tekst na pustym płótnie (brak otwartego zobrazowania).</summary>
     public string EmptyText { get; set; }
 
@@ -88,6 +90,32 @@ public partial class ObrView : FrameworkElement
     (Point A, Point B, bool Add)? rect;
     /// <summary>Podgląd przeciągania – kopia obrazu z przesunięciem (rysowana zamiast obrazu).</summary>
     ObrObraz preview;
+    /// <summary>Punkt naciśnięcia LPM na ekranie i czy mysz odjechała od niego dalej niż <see cref="PrógPrzeciagania"/> (drgnięcie przy kliku nie przesuwa).</summary>
+    Point pressAt; bool ruszono;
+    /// <summary>Ostatni podgląd przeciągania zaznaczenia da się wykonać (false – odmowa, puszczenie nic nie zmienia).</summary>
+    bool dragOk;
+    const double PrógPrzeciagania = 4;
+
+    /// <summary>
+    /// Warstwa obrazu (tory, symbole, opisy, zaznaczenie, szkic) narysowana raz i odtwarzana przy ruchu myszy – przerysowanie całego obrazu
+    /// dużej stacji trwa dziesiątki ms (Koluszki ok. 55 ms), a ruch kursora zmienia tylko krzyżyk, prostokąt i cienie narzędzi
+    /// (uwaga właściciela 2026-11-21: „zaznaczanie działa topornie”). Przesunięcie widoku przesuwa gotową warstwę.
+    /// </summary>
+    DrawingGroup warstwa; double warstwaZoom; Point warstwaOff;
+
+    /// <summary>Przerysowanie z odbudową warstwy obrazu – po każdej zmianie obrazu, zaznaczenia, powiększenia.</summary>
+    public new void InvalidateVisual() { warstwa = null; base.InvalidateVisual(); }
+    /// <summary>Przerysowanie samych nakładek (kursor, prostokąt, cienie) i przesunięcia widoku.</summary>
+    void InvalidateNakladki() => base.InvalidateVisual();
+
+    /// <summary>Mysz odjechała od punktu naciśnięcia (próg drgnięcia).</summary>
+    bool Ruszone(Point p) => ruszono || (ruszono = (p - pressAt).Length > PrógPrzeciagania);
+    /// <summary>Przesunięcie od punktu naciśnięcia w krokach siatki [j.].</summary>
+    (int Dx, int Dy) Krok(Point p)
+    {
+        var (x0, y0) = ToImage(pressAt); var (x1, y1) = ToImage(p);
+        return (ZobTory.Grid(x1 - x0, G), ZobTory.Grid(y1 - y0, G));
+    }
 
     public ObrView()
     {
@@ -124,7 +152,7 @@ public partial class ObrView : FrameworkElement
             e.Handled = true;
         };
         MouseMove += (s, e) => Move(e.GetPosition(this));
-        MouseLeave += (s, e) => { CursorPt = null; hoverScreen = null; CursorMoved?.Invoke(); InvalidateVisual(); };
+        MouseLeave += (s, e) => { CursorPt = null; hoverScreen = null; CursorMoved?.Invoke(); InvalidateNakladki(); };
         SizeChanged += (s, e) => InvalidateVisual();
     }
 
@@ -151,6 +179,22 @@ public partial class ObrView : FrameworkElement
     /// <summary>Węzeł pod punktem ekranu (do 7 px).</summary>
     public ObrWezel HitWezel(Point s, double px = 7) =>
         Obraz?.Wezly.Select(w => (w, d: (ToScreen(w.P) - s).Length)).Where(z => z.d <= px).OrderBy(z => z.d).Select(z => z.w).FirstOrDefault();
+
+    /// <summary>
+    /// Węzeł pod punktem ekranu we Wskaż: do 7 px, ale nie dalej niż 30 % najkrótszego toru przy węźle (min. 3 px) – na krótkich odcinkach
+    /// (obraz z gry: co trzeci odcinek ≤ 16 j.) pole węzła przykrywało cały tor i klik w tor zaznaczał węzeł.
+    /// </summary>
+    public ObrWezel HitWezelWskaz(Point s)
+    {
+        if (Obraz == null) return null;
+        foreach (var (w, d) in Obraz.Wezly.Select(w => (w, d: (ToScreen(w.P) - s).Length)).Where(z => z.d <= 7).OrderBy(z => z.d))
+        {
+            var przy = ObrGraf.Przy(Obraz, w.Id);
+            double min = przy.Count == 0 ? double.MaxValue : przy.Min(e => { var (a, b) = ObrGraf.Konce(Obraz, e); return (ToScreen(a) - ToScreen(b)).Length; });
+            if (d <= Math.Max(3, Math.Min(7, 0.3 * min))) return w;
+        }
+        return null;
+    }
 
     /// <summary>Odcinek pod punktem ekranu (do 6 px od linii).</summary>
     public ObrOdcinek HitOdcinek(Point s, double px = 6)
@@ -198,7 +242,7 @@ public partial class ObrView : FrameworkElement
         ViewChanged?.Invoke(); InvalidateVisual();
     }
 
-    public void PanTo(Point off) { Off = off; ViewChanged?.Invoke(); InvalidateVisual(); }
+    public void PanTo(Point off) { Off = off; ViewChanged?.Invoke(); InvalidateNakladki(); }
 
     /// <summary>Cały obraz w oknie (z marginesem).</summary>
     public void Fit()
@@ -239,6 +283,7 @@ public partial class ObrView : FrameworkElement
 
     public void LeftDown(Point p, ModifierKeys mods = ModifierKeys.None, int clicks = 1)
     {
+        pressAt = p; ruszono = false;
         if (Obraz == null) { StartPan(p); return; }
         switch (Tool)
         {
@@ -258,21 +303,31 @@ public partial class ObrView : FrameworkElement
         // opis i symbol mają pierwszeństwo przed węzłem i torem (stoją na nich)
         if (SzkicDown(p)) return;
         if (ElementDown(p, shift)) return;
-        if (HitWezel(p) is ObrWezel w)
+        if (HitWezelWskaz(p) is ObrWezel w)
         {
             if (shift) { if (!SelW.Remove(w.Id)) SelW.Add(w.Id); SelectionChanged?.Invoke(); InvalidateVisual(); return; }
             if (!SelW.Contains(w.Id)) Select(new[] { w.Id }, null);
-            drag = (w.P, ObrGraf.WezlyZaznaczenia(Obraz, SelW, SelE), false, 0, 0);
+            drag = (w.P, ObrGraf.WezlyRuchu(Obraz, SelW, SelE), false, 0, 0);
             return;
         }
         if (HitOdcinek(p) is ObrOdcinek e)
         {
-            if (shift) { if (!SelE.Remove(e.Id)) SelE.Add(e.Id); SelectionChanged?.Invoke(); InvalidateVisual(); return; }
-            if (SelE.Contains(e.Id)) { drag = (sp, ObrGraf.WezlyZaznaczenia(Obraz, SelW, SelE), false, 0, 0); return; }
-            Select(null, new[] { e.Id });
-            // tor poziomy niezaznaczony – przeciąganie przesuwa cały rząd z łącznikami w pionie (plan § 8)
-            bool rz = ObrGraf.Poziomy(Obraz, e);
-            drag = (sp, rz ? ObrGraf.Rzad(Obraz, e) : new HashSet<string> { e.A, e.B }, rz, 0, 0);
+            // Ctrl + tor poziomy – cały rząd w pionie z łącznikami „[” (plan § 8, dawne zachowanie zwykłego przeciągania)
+            if (mods.HasFlag(ModifierKeys.Control) && ObrGraf.Poziomy(Obraz, e))
+            {
+                Select(null, new[] { e.Id });
+                drag = (sp, ObrGraf.Rzad(Obraz, e), true, 0, 0);
+                return;
+            }
+            // klik – cały tor od rozjazdu do rozjazdu / końca; Alt – sam odcinek (uwaga właściciela 2026-11-21)
+            var tor = mods.HasFlag(ModifierKeys.Alt) ? new HashSet<string> { e.Id } : ObrGraf.Tor(Obraz, e).E;
+            if (shift)
+            {
+                if (tor.All(SelE.Contains)) SelE.ExceptWith(tor); else SelE.UnionWith(tor);
+                SelectionChanged?.Invoke(); InvalidateVisual(); return;
+            }
+            if (!SelE.Contains(e.Id)) Select(null, tor);
+            drag = (sp, ObrGraf.WezlyRuchu(Obraz, SelW, SelE), false, 0, 0);
             return;
         }
         rect = (p, p, shift);
@@ -298,26 +353,41 @@ public partial class ObrView : FrameworkElement
     {
         if (rightFrom is Point rf && panFrom == null && (p - rf).Length > 4) StartPan(rf);
         hoverScreen = p;
+        // obraz przerysowywany tylko, gdy przeciąganie naprawdę coś przesunęło o krok siatki; reszta ruchu – same nakładki
+        bool zmiana = false;
         if (panFrom is Point f) { Cursor = Cursors.SizeAll; PanTo(new Point(panOff.X + p.X - f.X, panOff.Y + p.Y - f.Y)); }
-        if (rzadDrag is var (from, _)) rzadDrag = (from, Snap(p).Y);
-        if (drag is var (st, nodes, rz, _, _))
+        if (rzadDrag is var (from, was)) { int now = Snap(p).Y; if (now != was) { rzadDrag = (from, now); zmiana = true; } }
+        if (drag is var (st, nodes, rz, odx, ody) && Ruszone(p))
         {
-            var (gx, gy) = Snap(p);
-            int dx = rz ? 0 : gx - st[0], dy = gy - st[1];
-            drag = (st, nodes, rz, dx, dy);
-            preview = Clone(Obraz);
-            if (rz) ObrGraf.PrzesunRzad(preview, nodes, dy); else ObrGraf.Przesun(preview, nodes, dx, dy);
+            var (dx, dy) = Krok(p);
+            if (rz) dx = 0;
+            if (dx != odx || dy != ody)
+            {
+                drag = (st, nodes, rz, dx, dy);
+                preview = Clone(Obraz);
+                if (rz) { ObrGraf.PrzesunRzad(preview, nodes, dy); dragOk = true; }
+                else
+                {
+                    // ten sam ruch co po puszczeniu (MainWindow – SelMoved): kąty co 45°, rząd albo odmowa
+                    var msg = dx == 0 && dy == 0 ? null : ObrGraf.PrzesunZaznaczenie(preview, SelW, SelE, dx, dy);
+                    dragOk = msg != null;
+                    if (!dragOk) preview = null;
+                    if (dx != 0 || dy != 0) Info?.Invoke(msg ?? "Tego toru nie da się tak przesunąć bez psucia kątów 45° – zaznacz więcej (prostokąt) albo przeciągnij węzeł");
+                }
+                zmiana = true;
+            }
         }
         if (rect is var (ra, _, add)) rect = (ra, p, add);
-        ElementMove(p);
-        SzkicMove(p);
+        zmiana |= ElementMove(p);
+        zmiana |= SzkicMove(p);
         if (Tool == ObrTool.Prowadnica) Cursor = rzadDrag != null || HitRzad(p) != null ? Cursors.SizeNS : Cursors.Cross;
         else if (Tool == ObrTool.Tor) Cursor = Cursors.Pen;
         else if (Tool is ObrTool.Symbol or ObrTool.Klocek or ObrTool.Szkic) Cursor = Cursors.Cross;
         else if (panFrom == null) Cursor = drag is var (_, _, r2, _, _) && r2 ? Cursors.SizeNS : null;
         if (Obraz != null && Tool == ObrTool.Tor) { var q = PenPoint(p).P; CursorPt = (q[0], q[1]); }
         else { var (gx, gy) = Snap(p); CursorPt = (gx, gy); }
-        CursorMoved?.Invoke(); InvalidateVisual();
+        CursorMoved?.Invoke();
+        if (zmiana) InvalidateVisual(); else InvalidateNakladki();
     }
 
     public void LeftUp(Point p)
@@ -336,7 +406,7 @@ public partial class ObrView : FrameworkElement
         {
             drag = null; preview = null; ReleaseMouseCapture();
             if (rz && dy != 0) RzadDragged?.Invoke(nodes, dy);
-            else if (!rz && (dx != 0 || dy != 0)) SelMoved?.Invoke(nodes, dx, dy);
+            else if (!rz && (dx != 0 || dy != 0) && dragOk) SelMoved?.Invoke(nodes, dx, dy);
         }
         if (rect is var (sa, sb, _) && Tool == ObrTool.Szkic)
         {
@@ -353,8 +423,10 @@ public partial class ObrView : FrameworkElement
             var r = new Rect(new Point(x0, y0), new Point(x1, y1));
             var ws = Obraz.Wezly.Where(w => r.Contains(w.P[0], w.P[1])).Select(w => w.Id).ToHashSet();
             var es = Obraz.Odcinki.Where(e => ws.Contains(e.A) && ws.Contains(e.B)).Select(e => e.Id).ToList();
-            if (!add) Select(ws, es);
-            else { SelW.UnionWith(ws); SelE.UnionWith(es); SelectionChanged?.Invoke(); }
+            // symbole i opisy w prostokącie też (wcześniej prostokąt brał same tory – symboli nie dało się zaznaczyć hurtem)
+            var els = Obraz.Elementy.Where(el => el.Typ is not (ObrGraf.Skrzyzowanie or ObrGraf.RozjazdKrzyzowy) && W(r, el)).Select(el => el.Id).ToList();
+            if (!add) Select(ws, es, els);
+            else { SelW.UnionWith(ws); SelE.UnionWith(es); SelEl.UnionWith(els); SelectionChanged?.Invoke(); }
         }
         InvalidateVisual();
     }
@@ -367,7 +439,7 @@ public partial class ObrView : FrameworkElement
         else if (Tool == ObrTool.Wskaz && Obraz != null)
         {
             var el = HitElement(p);
-            var w = el == null ? HitWezel(p) : null; var e = el == null && w == null ? HitOdcinek(p) : null;
+            var w = el == null ? HitWezelWskaz(p) : null; var e = el == null && w == null ? HitOdcinek(p) : null;
             var (gx, gy) = Snap(p);
             if (el != null) { if (!SelEl.Contains(el.Id)) Select(null, null, new[] { el.Id }); ElementMenuAt?.Invoke(new[] { gx, gy }, el.Id); return; }
             MenuAt?.Invoke(new[] { gx, gy }, w?.Id, e?.Id);
@@ -431,6 +503,7 @@ public partial class ObrView : FrameworkElement
             }
             return;
         }
+        // tło, siatka, strefy i prowadnice – tanie, zależą od widocznego wycinka: co klatkę
         var img = new Rect(ToScreen(0, 0), ToScreen(Obraz.Szer, Obraz.Wys));
         dc.DrawRectangle(Bg, null, img);
         var vis = Rect.Intersect(img, all);
@@ -441,10 +514,27 @@ public partial class ObrView : FrameworkElement
             if (ShowRzedy) DrawRzedy(dc, img);
             dc.DrawRectangle(null, Frame, new Rect(Math.Round(img.X) - 0.5, Math.Round(img.Y) - 0.5, Math.Round(img.Width) + 1, Math.Round(img.Height) + 1));
         }
-        DrawTracks(dc, preview ?? Obraz);
-        DrawDroga(dc);
-        DrawSymbole(dc, preview ?? Obraz);
-        if (!Czysty) DrawKlocki(dc);
+        // warstwa obrazu – odbudowa po zmianie (InvalidateVisual) albo powiększenia, przy samym przesunięciu widoku – przesunięta
+        if (warstwa == null || warstwaZoom != Zoom)
+        {
+            var g = new DrawingGroup();
+            using (var c = g.Open())
+            {
+                DrawTracks(c, preview ?? Obraz);
+                DrawDroga(c);
+                DrawSymbole(c, preview ?? Obraz);
+                if (!Czysty) DrawKlocki(c);
+            }
+            g.Freeze();
+            warstwa = g; warstwaZoom = Zoom; warstwaOff = Off;
+        }
+        bool przes = Off != warstwaOff;
+        if (przes) dc.PushTransform(new TranslateTransform(Off.X - warstwaOff.X, Off.Y - warstwaOff.Y));
+        dc.DrawDrawing(warstwa);
+        if (przes) dc.Pop();
+        // nakładki zależne od kursora
+        DrawSymbolCien(dc, preview ?? Obraz);
+        if (!Czysty) DrawKlockiNakladki(dc);
         DrawTool(dc);
         if (!Czysty && CursorPt is var (cx, cy) && cx >= 0 && cy >= 0 && cx <= Obraz.Szer && cy <= Obraz.Wys)
         {

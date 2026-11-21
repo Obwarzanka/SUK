@@ -370,6 +370,201 @@ public static class ObrGraf
         Upros(o);
     }
 
+    /// <summary>
+    /// Tor, do którego należy odcinek: łańcuch odcinków przez węzły z dokładnie dwoma odcinkami – od rozjazdu / skrzyżowania / końca
+    /// do rozjazdu / skrzyżowania / końca (obraz z gry tnie tor na wiele krótkich odcinków; klik zaznacza cały – uwaga właściciela 2026-11-21).
+    /// </summary>
+    public static (HashSet<string> W, HashSet<string> E) Tor(ObrObraz o, ObrOdcinek e)
+    {
+        var przy = PrzyWszystkie(o);
+        var es = new HashSet<string> { e.Id }; var ws = new HashSet<string> { e.A, e.B };
+        foreach (var start in new[] { e.A, e.B })
+        {
+            var cur = e; var n = start;
+            while (przy.TryGetValue(n, out var l) && l.Count == 2)
+            {
+                var next = l[0] == cur ? l[1] : l[0];
+                if (!es.Add(next.Id)) break;
+                n = Drugi(next, n); ws.Add(n); cur = next;
+            }
+        }
+        return (ws, es);
+    }
+
+    static Dictionary<string, List<ObrOdcinek>> PrzyWszystkie(ObrObraz o)
+    {
+        var d = new Dictionary<string, List<ObrOdcinek>>();
+        foreach (var e in o.Odcinki)
+        {
+            if (!d.TryGetValue(e.A, out var a)) d[e.A] = a = new(); a.Add(e);
+            if (!d.TryGetValue(e.B, out var b)) d[e.B] = b = new(); b.Add(e);
+        }
+        return d;
+    }
+
+    /// <summary>
+    /// Węzły, które jadą przy przeciąganiu zaznaczenia: zaznaczone węzły i końce zaznaczonych odcinków – bez rozjazdów i skrzyżowań
+    /// (≥ 3 odcinki), przy których jest odcinek spoza zaznaczenia (rozjazd zostaje na swoim torze, łącznik przy nim się ślizga);
+    /// gdy nic nie zostaje (łącznik wprost między dwoma rozjazdami) – wszystkie końce.
+    /// </summary>
+    public static HashSet<string> WezlyRuchu(ObrObraz o, IEnumerable<string> wezly, IEnumerable<string> odcinki)
+    {
+        var se = odcinki.ToHashSet(); var przy = PrzyWszystkie(o);
+        var konce = new HashSet<string>();
+        foreach (var e in o.Odcinki.Where(e => se.Contains(e.Id))) { konce.Add(e.A); konce.Add(e.B); }
+        var s = wezly.ToHashSet();
+        foreach (var w in konce)
+            if (!przy.TryGetValue(w, out var l) || l.Count < 3 || l.All(x => se.Contains(x.Id))) s.Add(w);
+        if (s.Count == 0) s.UnionWith(konce);
+        return s;
+    }
+
+    /// <summary>
+    /// Przesunięcie węzłów z zachowaniem kątów co 45° (plan § 8 „zostają co 45°”): odcinek do węzła spoza zaznaczenia, który przestałby być
+    /// co 45°, – węzeł obok ślizga się po swoim drugim odcinku (załamanie łącznika), a gdy to rozjazd – węzeł zaznaczenia ślizga się po swoim torze.
+    /// Gdy ruch ukośny psuje kąty, próba samego ruchu w poziomie albo w pionie (łącznik między rzędami jedzie w bok po rzędach);
+    /// gdy nic nie pomaga – jak <see cref="Przesun"/> (odcinki się rozciągają). Zwraca przesunięcie wykonane.
+    /// </summary>
+    public static (int Dx, int Dy) PrzesunZKatami(ObrObraz o, IEnumerable<string> wezly, int dx, int dy)
+    {
+        var s = wezly.ToHashSet();
+        if (dx == 0 && dy == 0 || s.Count == 0) return (0, 0);
+        if (PlanZKatami(o, s, dx, dy) is var (r, cx, cy)) { Zastosuj(o, r); Upros(o); return (cx, cy); }
+        Przesun(o, s, dx, dy);
+        return (dx, dy);
+    }
+
+    /// <summary>Kopia obrazu (podgląd, próba ruchu).</summary>
+    public static ObrObraz Kopia(ObrObraz o) =>
+        System.Text.Json.JsonSerializer.Deserialize<ObrObraz>(System.Text.Json.JsonSerializer.Serialize(o, UtDocument.Json), UtDocument.Json);
+
+    /// <summary>
+    /// Przesunięcie zaznaczenia we Wskaż (przeciąganie, strzałki): z zachowaniem kątów co 45° (<see cref="PrzesunZKatami"/>); gdy się nie da,
+    /// a zaznaczone są tory poziome i ruch ma składową pionową – cały rząd z łącznikami (<see cref="PrzesunRzad"/>; kawałek rzędu między
+    /// rozjazdami sam w pionie musiałby rozerwać rząd); gdy i to psuje kąty – rozciągnięcie, ale tylko przy zaznaczonych węzłach
+    /// (świadomy ruch węzła / prostokąta), przy samych torach – odmowa. Zwraca opis wykonanego ruchu; null – odmowa (obraz bez zmian).
+    /// </summary>
+    public static string PrzesunZaznaczenie(ObrObraz o, ICollection<string> selW, ICollection<string> selE, int dx, int dy)
+    {
+        if (dx == 0 && dy == 0) return null;
+        var s = WezlyRuchu(o, selW, selE);
+        if (s.Count == 0) return null;
+        int uw0 = Uwagi(o).Count;
+        // ruch z kątami co 45° sprawdzony pełnymi uwagami rysunku (np. rozjazd, któremu ukos zabrał tor na wprost)
+        if (PlanZKatami(o, s, dx, dy) is var (r, cx, cy) && Kopia(o) is var kp && Sprawdzony(kp, r) <= uw0)
+        {
+            Zastosuj(o, r); Upros(o);
+            return (cx, cy) == (dx, dy) ? $"Przesunięto o Δx {dx}, Δy {dy} j." : $"Przesunięto o Δx {cx}, Δy {cy} j. (w drugiej osi zepsułoby kąty 45°)";
+        }
+        var es = o.Odcinki.Where(e => selE.Contains(e.Id)).ToList();
+        if (dy != 0 && es.Count > 0 && es.All(e => Poziomy(o, e)))
+        {
+            var rz = es.SelectMany(e => Rzad(o, e)).ToHashSet();
+            var k = Kopia(o);
+            PrzesunRzad(k, rz, dy);
+            var posO = o.Wezly.ToDictionary(w => w.Id, w => w.P); var posK = k.Wezly.ToDictionary(w => w.Id, w => w.P);
+            if (Zle(k, posK, null) <= Zle(o, posO, null) && Uwagi(k).Count <= uw0) { PrzesunRzad(o, rz, dy); return $"Przesunięto cały rząd o Δy {dy} j. z łącznikami (sam tor rozerwałby rząd)"; }
+        }
+        if (selW.Count > 0) { Przesun(o, s, dx, dy); return $"Przesunięto o Δx {dx}, Δy {dy} j. – odcinki rozciągnięte (nie co 45°)"; }
+        return null;
+    }
+
+    static int Sprawdzony(ObrObraz k, Dictionary<string, int[]> r) { Zastosuj(k, r); Upros(k); return Uwagi(k).Count; }
+
+    /// <summary>Ruch z zachowaniem kątów: nowe położenia węzłów i wykonane przesunięcie; null – nie da się.</summary>
+    static (Dictionary<string, int[]> R, int Dx, int Dy)? PlanZKatami(ObrObraz o, HashSet<string> s, int dx, int dy)
+    {
+        var pos = o.Wezly.ToDictionary(w => w.Id, w => w.P);
+        var przy = PrzyWszystkie(o);
+        var kand = new List<(int X, int Y)> { (dx, dy) };
+        if (dx != 0 && dy != 0)
+        {
+            if (Math.Abs(dx) >= Math.Abs(dy)) { kand.Add((dx, 0)); kand.Add((0, dy)); }
+            else { kand.Add((0, dy)); kand.Add((dx, 0)); }
+        }
+        // rozjazdy na końcach przesuwanego toru jadą z nim tylko wtedy, gdy bez nich kąty by się zepsuły (np. rozjazd w rzędzie toru
+        // przy ruchu w pionie) – próby od najmniejszego zbioru
+        var opcja = s.SelectMany(id => przy.TryGetValue(id, out var l) ? l.Select(e => Drugi(e, id)) : Enumerable.Empty<string>())
+            .Where(id => !s.Contains(id) && przy.TryGetValue(id, out var l) && l.Count >= 3).Distinct().ToList();
+        var zbiory = new List<HashSet<string>> { s };
+        if (opcja.Count <= 3)
+            for (int k = 1; k < 1 << opcja.Count; k++)
+                zbiory.Add(s.Concat(opcja.Where((_, i) => (k >> i & 1) == 1)).ToHashSet());
+        else zbiory.Add(s.Concat(opcja).ToHashSet());
+        zbiory = zbiory.OrderBy(z => z.Count).ToList();
+        int przed = Zle(o, pos, null);
+        foreach (var (cx, cy) in kand)
+            foreach (var z in zbiory)
+            {
+                var r = Ruch(o, pos, przy, z, cx, cy);
+                // ruch, po którym nic się nie ruszyło (tor między dwoma rozjazdami w bok – węzły ześlizgnęły się z powrotem), się nie liczy
+                if (!r.Any(kv => !Rowne(kv.Value, pos[kv.Key]))) continue;
+                if (Zle(o, pos, r) <= przed) return (r, cx, cy);
+            }
+        return null;
+    }
+
+    static void Zastosuj(ObrObraz o, Dictionary<string, int[]> r)
+    {
+        foreach (var w in o.Wezly) if (r.TryGetValue(w.Id, out var q)) w.P = q;
+    }
+
+    /// <summary>Odcinki nie co 45° albo odwrócone (węzeł przejechał przez sąsiada) po ruchu <paramref name="r"/> (null – stan obecny).</summary>
+    static int Zle(ObrObraz o, Dictionary<string, int[]> pos, Dictionary<string, int[]> r)
+    {
+        int n = 0;
+        foreach (var e in o.Odcinki)
+        {
+            if (!pos.TryGetValue(e.A, out var a0) || !pos.TryGetValue(e.B, out var b0)) continue;
+            var a = r != null && r.TryGetValue(e.A, out var ra) ? ra : a0; var b = r != null && r.TryGetValue(e.B, out var rb) ? rb : b0;
+            if (!Osiowy(a, b) || (long)(b[0] - a[0]) * (b0[0] - a0[0]) + (long)(b[1] - a[1]) * (b0[1] - a0[1]) <= 0) n++;
+        }
+        return n;
+    }
+
+    static Dictionary<string, int[]> Ruch(ObrObraz o, Dictionary<string, int[]> pos, Dictionary<string, List<ObrOdcinek>> przy, HashSet<string> s, int dx, int dy)
+    {
+        var r = new Dictionary<string, int[]>();
+        foreach (var id in s) if (pos.TryGetValue(id, out var p)) r[id] = new[] { p[0] + dx, p[1] + dy };
+        int[] P(string id) => r.TryGetValue(id, out var q) ? q : pos[id];
+        foreach (var e in o.Odcinki)
+        {
+            bool a = s.Contains(e.A), b = s.Contains(e.B);
+            if (a == b || !pos.ContainsKey(e.A) || !pos.ContainsKey(e.B)) continue;
+            string u = a ? e.A : e.B, m = a ? e.B : e.A;
+            var up = P(u); var mp = P(m);
+            if (Osiowy(up, mp)) continue;
+            var dOld = new[] { pos[m][0] - pos[u][0], pos[m][1] - pos[u][1] };
+            // węzeł obok (załamanie) ślizga się po swoim drugim odcinku
+            if (!r.ContainsKey(m) && przy.TryGetValue(m, out var pm) && pm.Count == 2)
+            {
+                var n = Drugi(pm[0] == e ? pm[1] : pm[0], m);
+                if (s.Contains(n)) { r[m] = new[] { pos[m][0] + dx, pos[m][1] + dy }; continue; }
+                if (Slizg(up, dOld, pos[m], pos[n]) is int[] q) { r[m] = q; continue; }
+            }
+            // węzeł obok zostaje (rozjazd) – węzeł zaznaczenia ślizga się po swoim torze
+            if (przy.TryGetValue(u, out var pu) && pu.Count == 2)
+            {
+                var n = Drugi(pu[0] == e ? pu[1] : pu[0], u);
+                if (Slizg(mp, new[] { -dOld[0], -dOld[1] }, up, P(n)) is int[] q) r[u] = q;
+            }
+        }
+        return r;
+    }
+
+    /// <summary>Punkt na odcinku p–n (przed n), do którego z punktu a prowadzi kierunek d; null – brak (równoległe, poza odcinkiem, nie co 45° po zaokrągleniu).</summary>
+    static int[] Slizg(int[] a, int[] d, int[] p, int[] n)
+    {
+        double fx = n[0] - p[0], fy = n[1] - p[1];
+        double cr = d[0] * fy - d[1] * fx;
+        if (Math.Abs(cr) < 1e-9) return null;
+        double wx = p[0] - a[0], wy = p[1] - a[1];
+        double t = (wx * fy - wy * fx) / cr, sp = (d[1] * wx - d[0] * wy) / cr;
+        if (t <= 1e-9 || sp >= 1 - 1e-9) return null;
+        var q = new[] { (int)Math.Round(p[0] + sp * fx), (int)Math.Round(p[1] + sp * fy) };
+        return Osiowy(a, q) && Osiowy(q, n) && !Rowne(q, n) && !Rowne(q, a) ? q : null;
+    }
+
     /// <summary>Rząd: odcinki poziome w tej samej rzędnej połączone z odcinkiem <paramref name="odcinek"/> (przez węzły).</summary>
     public static HashSet<string> Rzad(ObrObraz o, ObrOdcinek odcinek)
     {

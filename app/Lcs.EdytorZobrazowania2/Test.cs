@@ -68,6 +68,8 @@ public static partial class Test
     }
 
     /// <summary>Okno poza ekranem i bez aktywowania – mysz osoby przy komputerze nie zmienia wyniku.</summary>
+    public static void OffScreenPublic(Window w) => OffScreen(w);
+
     static void OffScreen(Window w)
     {
         w.WindowState = WindowState.Normal; w.Width = 1500; w.Height = 900;

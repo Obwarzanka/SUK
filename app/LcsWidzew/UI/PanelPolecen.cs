@@ -147,7 +147,9 @@ public class PanelPolecen : Grid
     public void Potwierdz(string polecenie, bool ok, string opis = null)
     {
         Wyczysc();
-        naglowek.Text = $"{polecenie} - Odebrane - {(ok ? "przyjęte" : "odrzucone")}";
+        // przebieg, którego nie da się nastawić, nie czeka w kolejce gry – mod SimRailMost odpowiada „niemożliwe – …”
+        bool niemozliwe = !ok && (opis ?? "").StartsWith("niemożliwe", StringComparison.OrdinalIgnoreCase);
+        naglowek.Text = $"{polecenie} - Odebrane - {(ok ? "przyjęte" : niemozliwe ? "niemożliwe" : "odrzucone")}";
         naglowek.Foreground = ok ? B(0x5c, 0xf0, 0x5c) : B(0xff, 0x6a, 0x6a); naglowek.ToolTip = opis;
     }
 

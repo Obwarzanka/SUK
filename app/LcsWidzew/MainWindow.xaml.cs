@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -54,6 +54,7 @@ public partial class MainWindow : Window
         Panel.SignalClicked += OnSignal; Panel.SwitchClicked += OnSwitch; Panel.SectionClicked += OnSection;
         Panel.BlockClicked += OnBlock; Panel.TrackEndClicked += OnTrackEnd; Panel.DerailerClicked += OnDerailer;
         Panel.PostClicked += OnPost; Panel.EmptyClicked += e => ClearSel();
+        Panel.CrossingClicked += OnCrossing;
         Pol.Przygotowano += p => { Panel.Prepared = true; Panel.Targets.Clear(); Panel.InvalidateVisual(); };
         Pol.Wyslano += Send;
         Panel.LinkClicked += (pg, e) => ShowPage(station.Pages.FindIndex(p => p.Id == pg));
@@ -156,7 +157,7 @@ public partial class MainWindow : Window
     {
         Panel.SelStart = null; Panel.SelSwitch = null; Panel.SelVia.Clear(); Panel.Targets.Clear();
         Panel.SelEnd = null; Panel.SelObj = null; Panel.Prepared = false; Panel.HoverTarget = null;
-        selKind = null; selId = null; selAll = new(); selRoutes = new(); selEndKey = null;
+        selKind = null; selId = null; selAll = new(); selRoutes = new(); selEndKey = null; selDest = null;
         Pol?.Wyczysc(); Panel.InvalidateVisual();
     }
 
@@ -195,6 +196,13 @@ public partial class MainWindow : Window
             TrackHistory();
             if (c.StartsWith("@")) { var until = double.Parse(c[1..], System.Globalization.CultureInfo.InvariantCulture); if (localWorld != null) localWorld.AdvanceTo(until, () => server?.Push()); else Pump(until); continue; }
             if (c == "#overview") { ShowOverview(); continue; }
+            // „#simrail” – pulpit zdalny SimRail (bez gry: zapamiętany katalog przebiegów), tablica przebiegów do pliku .txt
+            if (c == "#simrail")
+            {
+                var err = JoinSimRail();
+                File.AppendAllText(ShotPath + ".txt", (err ?? "pulpit zdalny SimRail") + "\n" + string.Join("\n", ses.RouteTable.SelectMany(kv => kv.Value.Select(r => $"{Station.Lbl(kv.Key)} {r.Type} → {Station.Lbl(r.End)} {r.Id}")).OrderBy(x => x)) + "\n");
+                continue;
+            }
             if (c == "#opisy") { SetOpisy(true); continue; }
             // „#stan” – do pliku .txt sygnały zezwalające (kody Ie-1) i pociągi z prędkością [km/h]
             if (c == "#stan" && sim != null)
@@ -268,6 +276,9 @@ public partial class MainWindow : Window
             if (c == "#online") { zdarzenia.UstawOnline(); continue; }
             if (c == "#dziennik") { UpdateLayout(); zdarzenia.Przelicz(); zdarzenia.Tick(); File.AppendAllText(ShotPath + ".txt", $"ZDARZENIA: wpisów {zdarzenia.LiczbaWpisow}, strona {zdarzenia.Strona + 1} / {zdarzenia.Stron}, online: {(zdarzenia.Online ? "tak" : "nie")}{(char)10}"); continue; }
             if (c.StartsWith("#nastawnia=")) { OnPost(c[11..], null); continue; }
+            // pulpit zdalny SimRail (stany i polecenia przez mod SimRailMost albo jego atrapę w teście)
+            if (c == "#simrail") { var er = JoinSimRail(); File.AppendAllText(ShotPath + ".txt", $"pulpit zdalny SimRail: {er ?? "OK"}{(char)10}"); continue; }
+            if (c.StartsWith("#przejazd=")) { OnCrossing(c[10..], null); continue; }
             if (c.StartsWith("#obj=")) { var o = c[5..].Split(':', 2); var key = o[0] == "sw" ? station.Switches.Values.First(x => x.Label == o[1] && Panel.Page.Posts.Contains(x.Post)).Num : o[1]; ClearSel(); if (o[0] == "sw") Panel.SelSwitch = key; else Panel.SelObj = key; Select(o[0], key); continue; }
             if (c.StartsWith("#start=")) { SetStart(station.Signals.Values.First(x => x.Label == c[7..] && Panel.Page.Posts.Contains(x.Post)).Name); continue; }
             if (c.StartsWith("#ctl=")) { var r = ses.RequestControl(c[5..]); File.AppendAllText(ShotPath + ".txt", $"przejęcie {c[5..]}: {r ?? "OK"}\n"); continue; }
@@ -808,7 +819,7 @@ public partial class MainWindow : Window
             {
                 // polecenie wpisane: przebieg – początek z pierwszego adresu na wyświetlanym obrazie
                 var t = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var k = t.Select(SystemNadrzedny.KodPolecenia).FirstOrDefault(x => x != null);
+                var ik = SystemNadrzedny.IndeksKodu(t, station); var k = ik < 0 ? null : SystemNadrzedny.KodPolecenia(t[ik]);
                 if (k is "POCIAG" or "MANEWR")
                 {
                     typ = k == "POCIAG" ? "P" : "M";
@@ -819,7 +830,7 @@ public partial class MainWindow : Window
             var I = ses.Receive();
             Pol.Historia.Insert(0, new HistoriaWpis
             {
-                Czas = I?.Clock ?? "", Polecenie = hdr ?? line.Trim(), Przyjecie = r.Ok ? "przyjęte" : "odrzucone",
+                Czas = I?.Clock ?? "", Polecenie = hdr ?? line.Trim(), Przyjecie = r.Ok ? "przyjęte" : (r.Msg ?? "").StartsWith("niemożliwe", StringComparison.OrdinalIgnoreCase) ? "niemożliwe" : "odrzucone",
                 Realizacja = !r.Ok ? "–" : start != null ? "w realizacji" : r.Msg.Contains("zainicjowane") ? "zainicjowane" : "wykonane",
                 Start = r.Ok ? start : null, Typ = typ, Wyslano = I?.T ?? 0
             });
@@ -850,7 +861,7 @@ public partial class MainWindow : Window
     /// <summary>Wybór do panelu: „sig”, „route” (para początek–koniec), „sw”, „sec”, „blk”, „der”, „post” – i obiekt.</summary>
     string selKind, selId;
     /// <summary>Wybrana para początek–koniec: przebiegi do wskazanego końca (wszystkie i zgodne z punktami pośrednimi), klucz końca w poleceniu.</summary>
-    List<RouteDef> selAll = new(), selRoutes = new(); string selEndKey;
+    List<RouteDef> selAll = new(), selRoutes = new(); string selEndKey, selDest;
     /// <summary>Wiersz polecenia specjalnego zainicjowanego z panelu (SZI, ZDP) – wykonanie przyciskiem w panelu, bez okna potwierdzenia.</summary>
     string panelInit;
 
@@ -874,6 +885,16 @@ public partial class MainWindow : Window
     void ToggleVia(string key)
     {
         if (Panel.SelVia.Contains(key)) Panel.SelVia.Remove(key); else Panel.SelVia.Add(key);
+        if (Panel.SelEnd != null && selDest != null)
+        {
+            // koniec już wskazany – wariant zmienia się na miejscu (bez ponownego wybierania początku i końca)
+            if (!selAll.Any(r => Panel.SelVia.All(v => Passes(r, v))))
+            {
+                Panel.SelVia.Remove(key);
+                Hint.Text = $"Brak przebiegu {L(Panel.SelStart)} → {L(selEndKey)} przez {L(key)}"; Panel.InvalidateVisual(); return;
+            }
+            Dest(selDest); Panel.InvalidateVisual(); return;
+        }
         MarkTargets();
         Hint.Text = Panel.SelVia.Count == 0 ? $"Początek: {L(Panel.SelStart)} – wskaż koniec przebiegu" : $"Początek: {L(Panel.SelStart)}, przez: {string.Join(", ", Panel.SelVia.Select(L))} – wskaż koniec przebiegu (oznaczone końce osiągalne tą drogą)";
         Panel.InvalidateVisual();
@@ -889,6 +910,7 @@ public partial class MainWindow : Window
     {
         var start = Panel.SelStart;
         if (start == null || !ses.RouteTable.TryGetValue(start, out var od)) return;
+        selDest = end;
         var ends = new List<string> { end };
         string frame = end;
         // semafor wjazdowy: także przebiegi na szlak – kończą się przy nim (mały trójkąt końca przebiegu wyjazdowego)
@@ -925,10 +947,32 @@ public partial class MainWindow : Window
         return diff.Select(q => q.Num + q.Pos).ToList();
     }
 
+    /// <summary>
+    /// Punkt pośredni z kliknięcia zwrotnicy: zwrotnica należąca do przebiegu zasadniczego – w położeniu przeciwnym
+    /// (np. 8 na „+” w zasadniczym → „8-”: wariant przez 8 na minus), inaczej sama zwrotnica (dowolne położenie).
+    /// Zasadniczy liczony dla przebiegów pociągowych (manewrowe – gdy żaden pociągowy nie prowadzi przez zwrotnicę).
+    /// Już wskazana (w dowolnej postaci) – klucz do odznaczenia.
+    /// </summary>
+    string ViaKlucz(string num)
+    {
+        var jest = Panel.SelVia.FirstOrDefault(v => v == num || v == num + "+" || v == num + "-");
+        if (jest != null) return jest;
+        if (Panel.SelStart == null || !ses.RouteTable.TryGetValue(Panel.SelStart, out var od)) return num;
+        var kand = (Panel.SelEnd != null && selAll.Count > 0 ? selAll : od).Where(r => Panel.SelVia.All(v => Passes(r, v))).ToList();
+        // rodzaj: pociągowe, a gdy żaden pociągowy nie prowadzi przez tę zwrotnicę – manewrowe
+        var typ = kand.Any(r => r.Type == "P" && r.Sw.Any(q => q.Num == num)) ? "P" : "M";
+        kand = kand.Where(r => r.Type == typ).ToList();
+        var zas = kand.GroupBy(r => r.End).Select(g => g.OrderBy(r => r.Variant).First())
+                      .SelectMany(r => r.Sw.Where(q => q.Num == num).Select(q => q.Pos)).Distinct().ToList();
+        if (zas.Count != 1) return num;
+        var inna = zas[0] == "+" ? "-" : "+";
+        return kand.Any(r => r.Sw.Any(q => q.Num == num && q.Pos == inna)) ? num + inna : num;
+    }
+
     void OnSwitch(string num, MouseButtonEventArgs e)
     {
         // wybrany początek przebiegu: klik na zwrotnicy wskazuje wariant (przebieg ma przez nią prowadzić)
-        if (Panel.SelStart != null && Panel.SelEnd == null && e.ChangedButton == MouseButton.Left) { ToggleVia(num); return; }
+        if (Panel.SelStart != null && e.ChangedButton == MouseButton.Left) { ToggleVia(ViaKlucz(num)); return; }
         ClearSel(); Panel.SelSwitch = num; Select("sw", num);
     }
 
@@ -947,6 +991,7 @@ public partial class MainWindow : Window
     void OnTrackEnd(string id, MouseButtonEventArgs e) { if (Panel.SelStart != null) Dest(id); }
     void OnDerailer(string name, MouseButtonEventArgs e) { ClearSel(); Panel.SelObj = name; Select("der", name); }
     void OnPost(string label, MouseButtonEventArgs e) { ClearSel(); Panel.SelObj = "post:" + label; Select("post", label); }
+    void OnCrossing(string name, MouseButtonEventArgs e) { ClearSel(); Panel.SelObj = "prz:" + name; Select("prz", name); }
 
     void Select(string kind, string id) { selKind = kind; selId = id; RefreshPanel(); Panel.InvalidateVisual(); }
 
@@ -957,7 +1002,7 @@ public partial class MainWindow : Window
         var (hdr, list, opis) = selKind switch
         {
             "sig" => SigCmds(selId), "route" => RouteCmds(), "sw" => SwitchCmds(selId), "sec" => SecCmds(selId),
-            "blk" => BlockCmds(selId), "der" => DerCmds(selId), "post" => PostCmds(selId), _ => (null, null, null)
+            "blk" => BlockCmds(selId), "der" => DerCmds(selId), "post" => PostCmds(selId), "prz" => CrossCmds(selId), _ => (null, null, null)
         };
         if (list == null) { ClearSel(); return; }
         Pol.Ustaw(hdr, list, opis);
@@ -973,9 +1018,10 @@ public partial class MainWindow : Window
         {
             new("STOP", $"{n} Stop", !s.Closed, false, "Zastopowanie sygnalizatora (Stop)"),
             new("OSTOP", $"{n} oStop", s.Closed, false, "Odwołanie zastopowania (oStop)"),
-            new("SZ", $"{n} SZ", d.IsTrain && po5, false, "Wykonanie: sygnał zastępczy (po SZI, nie wcześniej niż po 5 s)"),
+            // pulpit zdalny SimRail: SZ dla każdego sygnalizatora od razu (inicjacja + potwierdzenie wysyła mod; zależności sprawdza gra)
+            new("SZ", $"{n} SZ", ses is SimRailSession || d.IsTrain && po5, false, ses is SimRailSession ? "Sygnał zastępczy w grze (inicjacja i potwierdzenie)" : "Wykonanie: sygnał zastępczy (po SZI, nie wcześniej niż po 5 s)"),
             new("SZI", $"{n} SZI", d.IsTrain && p == null && s.Aspect != Aspect.Train, true, "Inicjalizacja polecenia specjalnego – sygnał zastępczy (1. etap)"),
-            new("NSZ", $"{n} NSZ", d.IsTrain && po5 && PodPrad(name), false, "Wykonanie: sygnał zastępczy z W24 – wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego (po SZI)"),
+            new("NSZ", $"{n} NSZ", ses is SimRailSession ? d.IsTrain : d.IsTrain && po5 && PodPrad(name), false, "Wykonanie: sygnał zastępczy z W24 – wyjazd na tor szlaku w kierunku przeciwnym do zasadniczego (po SZI)"),
         };
         // dodatkowo (decyzja właściciela 2026-10-20, poza zdjęciami ISDR): Stój, oSZ, ZCZ, oZCZ, ZDM
         var r = I.Routes.Values.FirstOrDefault(x => x.Start == name);
@@ -1004,7 +1050,8 @@ public partial class MainWindow : Window
             return $"{L(start)} {string.Join(" ", via.Select(L))}{(via.Count > 0 ? " " : "")}{L(r.End)} {kod}";
         }
         var ends = selAll.Select(r => r.End).Append(selEndKey).ToHashSet();
-        var cur = I.Routes.Values.FirstOrDefault(r => r.Start == start && ends.Contains(r.End));
+        // pulpit zdalny SimRail: przebieg nastawiony w grze ma koniec nieznany (End null) – pasuje do każdego wybranego końca
+        var cur = I.Routes.Values.FirstOrDefault(r => r.Start == start && (ends.Contains(r.End) || r.End == null && ses is SimRailSession));
         bool zdp = p?.Code == "ZDP" && p.Arg == start;
         var e = L(selEndKey);
         var list = new List<PolecenieBtn>
@@ -1020,10 +1067,10 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Kod polecenia z wiersza (napis przycisku): kod Ie-104 wielkimi literami, strona szlaku jako strzałka.</summary>
-    static string CodeLabel(string line)
+    string CodeLabel(string line)
     {
         var t = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        int i = Array.FindIndex(t, x => SystemNadrzedny.KodPolecenia(x) != null); if (i < 0) return line;
+        int i = SystemNadrzedny.IndeksKodu(t, station); if (i < 0) return line;
         var k = SystemNadrzedny.Codes[SystemNadrzedny.KodPolecenia(t[i])].Code.ToUpperInvariant();
         var side = t.Skip(i + 1).Select(x => x == "E" ? "→" : x == "W" ? "←" : x);
         return string.Join(" ", side.Prepend(k));
@@ -1033,7 +1080,7 @@ public partial class MainWindow : Window
     List<PolecenieBtn> NewMenu(string title) { menuTitle = title; return new(); }
     string menuTitle;
     static void Sep(List<PolecenieBtn> m, string t) { }
-    static void Add(List<PolecenieBtn> m, string label, string cmd, bool special = false, bool enabled = true) =>
+    void Add(List<PolecenieBtn> m, string label, string cmd, bool special = false, bool enabled = true) =>
         m.Add(new(CodeLabel(cmd), cmd, enabled, special, label + (special ? " – polecenie specjalne (dwuetapowe)" : "")));     // specjalne – czerwone jak SZI (decyzja właściciela 2026-10-20)
 
     (string, List<PolecenieBtn>, string) SwitchCmds(string num)
@@ -1071,6 +1118,18 @@ public partial class MainWindow : Window
         if (!Ind.Ders.TryGetValue(name, out var d)) return (null, null, null); var lb = station.Derailers[name].Label; var m = NewMenu("Wykolejnica " + lb);
         Add(m, "Założenie na tor (Plus)", $"{lb} Plus", enabled: !d.On); Add(m, "Zdjęcie z toru (Minus)", $"{lb} Minus", enabled: d.On);
         return (lb, m, menuTitle);
+    }
+
+    /// <summary>Przejazd ze stanem z gry (pulpit zdalny SimRail): ZAMK – zamknięcie, OTW – otwarcie.</summary>
+    (string, List<PolecenieBtn>, string) CrossCmds(string name)
+    {
+        if (!Ind.Crossings.TryGetValue(name, out var c)) return (null, null, null);
+        var list = new List<PolecenieBtn>
+        {
+            new("ZAMK", $"{name} ZAMK", c.Stan is not ("zamkniety" or "zamykanie"), false, "Zamknięcie przejazdu (ZAMK)"),
+            new("OTW", $"{name} OTW", c.Stan is not ("otwarty" or "otwieranie"), false, "Otwarcie przejazdu (OTW)"),
+        };
+        return ("przejazd " + name, list, $"Przejazd {name}: {PanelView.StanPrzejazdu(c.Stan)}");
     }
 
     /// <summary>Posterunek z ikony nastawni: skrót, kod albo nazwa; jeden posterunek na obrazie – ten.</summary>
@@ -1165,7 +1224,8 @@ public partial class MainWindow : Window
     void Send(PolecenieBtn p)
     {
         if (p == null || string.IsNullOrEmpty(p.Line)) return;
-        var kod = SystemNadrzedny.KodPolecenia(p.Line.Split(' ').FirstOrDefault(t => SystemNadrzedny.KodPolecenia(t) != null) ?? "");
+        var tl = p.Line.Split(' ', StringSplitOptions.RemoveEmptyEntries); var ik = SystemNadrzedny.IndeksKodu(tl, station);
+        var kod = ik < 0 ? null : SystemNadrzedny.KodPolecenia(tl[ik]);
         bool init = kod is "SZI" or "ZDP";
         if (init) panelInit = p.Line;
         var hdr = $"{p.Label} {Pol.Obiekty}";

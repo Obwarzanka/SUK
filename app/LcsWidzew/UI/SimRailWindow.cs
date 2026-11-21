@@ -20,8 +20,10 @@ public class SimRailWindow : DarkWindow
 {
     public sealed class ObiektRow : INotifyPropertyChanged
     {
-        string _stan = "", _pociagi = "", _przebieg = "", _blokada = "", _zwrotnica = "", _suk = "", _uwagi = "", _rodzaj = "";
+        string _stan = "", _pociagi = "", _przebieg = "", _blokada = "", _zwrotnica = "", _suk = "", _uwagi = "", _rodzaj = "", _posterunek = "";
         public string Obiekt { get; init; }
+        /// <summary>Posterunek gry, do którego należy obiekt (mod ≥ 0.10.2).</summary>
+        public string Posterunek { get => _posterunek; set => Ustaw(ref _posterunek, value, nameof(Posterunek)); }
         public string Rodzaj { get => _rodzaj; set => Ustaw(ref _rodzaj, value, nameof(Rodzaj)); }
         public string Stan { get => _stan; set => Ustaw(ref _stan, value, nameof(Stan)); }
         public string Pociagi { get => _pociagi; set => Ustaw(ref _pociagi, value, nameof(Pociagi)); }
@@ -59,7 +61,7 @@ public class SimRailWindow : DarkWindow
     readonly ICollectionView widok;
     readonly DataGrid gObiekty = Grid(), gZdarzenia = Grid();
     readonly TextBox port = Box(SimRailOdbiornik.DomyslnyPort.ToString()), filtr = Box();
-    readonly TextBlock status = T("", 12), infoMapy = T("", 11, Brushes.Gray);
+    readonly TextBlock status = T("", 12), infoMapy = T("", 11, Brushes.Gray), posterunki = T("", 12, Brushes.White), ostrzezenie = T("", 12, Brushes.Orange);
     readonly CheckBox tylkoZajete = new() { Content = "tylko zajęte", Foreground = Brushes.LightGray, Margin = new Thickness(10, 6, 10, 0) };
     readonly CheckBox tylkoOdcinki = new() { Content = "tylko odcinki", Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 10, 0) };
     readonly CheckBox tylkoBezMapy = new() { Content = "tylko bez przypisania w SUK", Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 10, 0) };
@@ -74,7 +76,7 @@ public class SimRailWindow : DarkWindow
 
         // --- tabela obiektów: wszystkie kolumny tylko do odczytu poza „Odcinek SUK”
         gObiekty.IsReadOnly = false; gObiekty.CanUserAddRows = false; gObiekty.CanUserDeleteRows = false;
-        foreach (var (h, p, w) in new[] { ("Obiekt SimRail", "Obiekt", 170.0), ("Rodzaj", "Rodzaj", 95), ("Stan", "Stan", 140), ("Pociągi", "Pociagi", 90),
+        foreach (var (h, p, w) in new[] { ("Obiekt SimRail", "Obiekt", 170.0), ("Posterunek", "Posterunek", 110), ("Rodzaj", "Rodzaj", 95), ("Stan", "Stan", 140), ("Pociągi", "Pociagi", 90),
                                           ("Przebieg", "Przebieg", 170), ("Zablokowanie", "Blokada", 120), ("Zwrotnica", "Zwrotnica", 75) })
             KolumnaOdczyt(gObiekty, h, p, w);
         var edycja = new Style(typeof(TextBox));
@@ -116,6 +118,13 @@ public class SimRailWindow : DarkWindow
         pasek1.Children.Add(Btn("Pulpit zdalny SimRail", (a, b) => { if (mapaZmieniona) ZapiszMape(); var w = (Owner as MainWindow)?.JoinSimRail(); if (w != null) MessageBox.Show(this, w, "Pulpit zdalny"); },
             new SolidColorBrush(Color.FromRgb(0x1f, 0x4a, 0x7a))));
         pasek1.Children.Add(Btn("Wczytaj mapę ponownie", (a, b) => { WczytajMape(); OdswiezMapeWierszy(); }));
+        // posterunki SimRail tego układu (każdy posterunek gry – własny układ i własna mapa)
+        var pasek3 = new WrapPanel();
+        pasek3.Children.Add(Etykieta("Posterunki SimRail tego układu:"));
+        posterunki.Margin = new Thickness(6, 0, 8, 0); posterunki.VerticalAlignment = VerticalAlignment.Center;
+        pasek3.Children.Add(posterunki);
+        pasek3.Children.Add(Btn("Przypisz posterunek z gry", (a, b) => PrzypiszPosterunek()));
+        pasek3.Children.Add(Btn("Odepnij posterunek…", (a, b) => OdepnijPosterunek()));
         var pasek2 = new WrapPanel();
         pasek2.Children.Add(Etykieta("Filtr:")); pasek2.Children.Add(filtr);
         pasek2.Children.Add(tylkoZajete); pasek2.Children.Add(tylkoOdcinki); pasek2.Children.Add(tylkoBezMapy);
@@ -123,7 +132,7 @@ public class SimRailWindow : DarkWindow
         var head = new StackPanel(); DockPanel.SetDock(head, Dock.Top);
         head.Children.Add(T("Stany posterunku z gry SimRail (mod SimRailMost, UDP na localhost). Tylko podgląd – dane nie trafiają do komputera zależności. " +
                             "Kolumnę „Odcinek SUK” wypełnia właściciel (przypisanie projektowe), np. POST:nazwa.", 11, Brushes.Gray));
-        head.Children.Add(pasek1); head.Children.Add(pasek2); head.Children.Add(status); head.Children.Add(infoMapy);
+        head.Children.Add(pasek1); head.Children.Add(pasek3); head.Children.Add(pasek2); head.Children.Add(status); head.Children.Add(ostrzezenie); head.Children.Add(infoMapy);
 
         var tabs = new TabControl { Background = Brushes.Black };
         tabs.Items.Add(new TabItem { Header = "Obiekty", Content = gObiekty, Foreground = Brushes.Black });
@@ -180,7 +189,7 @@ public class SimRailWindow : DarkWindow
         if (tylkoBezMapy.IsChecked == true && r.Suk.Length > 0) return false;
         var f = filtr.Text.Trim();
         return f.Length == 0 || r.Obiekt.Contains(f, StringComparison.OrdinalIgnoreCase) || r.Suk.Contains(f, StringComparison.OrdinalIgnoreCase)
-            || r.Pociagi.Contains(f, StringComparison.OrdinalIgnoreCase);
+            || r.Pociagi.Contains(f, StringComparison.OrdinalIgnoreCase) || r.Posterunek.Contains(f, StringComparison.OrdinalIgnoreCase);
     }
 
     void Odswiez()
@@ -198,6 +207,7 @@ public class SimRailWindow : DarkWindow
             if (r.Zajety != o.Zajety) zmianaZaj = true;
             r.Zajety = o.Zajety;
             r.Rodzaj = o.Rodzaj;
+            r.Posterunek = o.Stacja;
             r.Stan = o.Zajety ? "ZAJĘTY" : string.IsNullOrEmpty(o.Basic) ? "wolny" : o.Basic == "StanPodstawowy" ? "wolny" : o.Basic;
             r.Pociagi = o.Pociagi;
             r.Przebieg = o.Przebieg == "Basic" ? "" : o.Przebieg;
@@ -217,9 +227,12 @@ public class SimRailWindow : DarkWindow
         var wiek = odb.OstatniPakiet == default ? "brak danych" : $"ostatni pakiet {(DateTime.Now - odb.OstatniPakiet).TotalSeconds:0} s temu";
         int zajete = wiersze.Values.Count(r => r.Zajety);
         status.Text = (odb.Dziala ? $"Nasłuch UDP 127.0.0.1:{odb.Port}" : "Nasłuch zatrzymany") +
-                      $" · {wiek} · posterunek: {(odb.Stacja.Length > 0 ? odb.Stacja : "–")} · źródło: {(odb.Zrodlo.Length > 0 ? odb.Zrodlo : "–")}" +
+                      $" · {wiek} · posterunek: {(odb.PosterunkiGry() is { Count: > 0 } pg ? string.Join(", ", pg) : "–")} · źródło: {(odb.Zrodlo.Length > 0 ? odb.Zrodlo : "–")}" +
                       $" · czas gry: {(odb.CzasGry.Length > 0 ? odb.CzasGry : "–")} · obiektów: {wiersze.Count}, zajętych: {zajete}" +
                       $" · pakietów: {odb.Pakiety}" + (odb.Bledy > 0 ? $", błędnych: {odb.Bledy} ({odb.OstatniBlad})" : "");
+        posterunki.Text = mapa.Posterunki.Count > 0 ? string.Join(", ", mapa.Posterunki) : "(brak – układ nieprzypisany)";
+        ostrzezenie.Text = OstrzezeniePosterunku(mapa, odb.PosterunkiGry());
+        ostrzezenie.Visibility = ostrzezenie.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         int przypisane = wiersze.Values.Count(r => r.Suk.Length > 0);
         infoMapy.Text = $"Mapa: {plikMapy}{(mapaZmieniona ? " (niezapisane zmiany)" : "")} · przypisanych: {przypisane} z {wiersze.Count}" +
                         (station == null ? " · brak wczytanego układu – nie sprawdzam identyfikatorów SUK" : "");
@@ -262,6 +275,59 @@ public class SimRailWindow : DarkWindow
     {
         foreach (var r in wiersze.Values) { r.Suk = mapa.Mapa.TryGetValue(r.Obiekt, out var s) ? s : ""; UstawUwagi(r); }
         widok.Refresh();
+    }
+
+    /// <summary>Ostrzeżenie, gdy gra nadaje posterunek, którego układ nie obsługuje (pusty tekst – wszystko w porządku).</summary>
+    public static string OstrzezeniePosterunku(SimRailMapa m, IReadOnlyCollection<string> stacjeGry)
+    {
+        if (stacjeGry.Count == 0) return "";
+        var gra = string.Join(", ", stacjeGry);
+        if (m.Posterunki.Count == 0)
+            return $"Ten układ nie jest przypisany do posterunku SimRail. W grze: „{gra}” – jeśli to ten posterunek, kliknij „Przypisz posterunek z gry”.";
+        var brak = stacjeGry.Where(s => !m.Obejmuje(s)).ToList();
+        if (brak.Count == 0) return "";
+        if (brak.Count < stacjeGry.Count)   // LCS: część posterunków gry poza układem – ich obiekty pulpit pomija
+            return $"Posterunki gry spoza układu: {string.Join(", ", brak)} – ich obiekty pulpit zdalny pomija (przypisz je, jeśli należą do tego LCS).";
+        return $"W grze jest posterunek „{gra}”, a ten układ obsługuje: {string.Join(", ", m.Posterunki)}. Uruchom układ tego posterunku albo przypisz go tutaj.";
+    }
+
+    void PrzypiszPosterunek()
+    {
+        var nowe = odb.PosterunkiGry().Where(s => !mapa.Obejmuje(s)).ToList();
+        if (odb.PosterunkiGry().Count == 0) { MessageBox.Show(this, "Gra nie nadała jeszcze nazwy posterunku (mod SimRailMost, nasłuch włączony?).", "SimRail"); return; }
+        if (nowe.Count == 0) return;
+        var inne = nowe.SelectMany(s => SimRailMapa.UkladyDlaPosterunku(InneUklady(), s)).Distinct().ToList();
+        var pyt = $"Przypisać posterunek SimRail „{string.Join(", ", nowe)}” do układu {Path.GetFileName(station?.SourcePath ?? plikMapy)}?" +
+                  (inne.Count > 0 ? $"{Environment.NewLine}{Environment.NewLine}Już przypisany do: {string.Join(", ", inne.Select(Path.GetFileName))}." : "");
+        if (MessageBox.Show(this, pyt, "SimRail", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        mapa.Posterunki.AddRange(nowe.Select(s => s.Trim()));
+        ZapiszMape();
+    }
+
+    void OdepnijPosterunek()
+    {
+        if (mapa.Posterunki.Count == 0) return;
+        var p = mapa.Posterunki[^1];
+        var wGrze = mapa.Posterunki.FirstOrDefault(x => odb.PosterunkiGry().Any(s => SimRailMapa.Klucz(s) == SimRailMapa.Klucz(x)));
+        if (mapa.Posterunki.Count > 1 && wGrze != null) p = wGrze;
+        if (MessageBox.Show(this, $"Odpiąć posterunek SimRail „{p}” od tego układu? Mapa obiektów zostaje.", "SimRail", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        mapa.Posterunki.Remove(p);
+        ZapiszMape();
+    }
+
+    /// <summary>Pozostałe układy programu (Data/station.json i Data/projekty/*.json) – do sprawdzenia przypisań posterunku.</summary>
+    IEnumerable<string> InneUklady()
+    {
+        var src = station?.SourcePath;
+        if (src == null) yield break;
+        var dir = Path.GetDirectoryName(src) ?? ".";
+        // układ z Data/projekty → katalog danych wyżej
+        var data = string.Equals(Path.GetFileName(dir), "projekty", StringComparison.OrdinalIgnoreCase) ? Path.GetDirectoryName(dir) ?? dir : dir;
+        var lista = new List<string>();
+        if (File.Exists(Path.Combine(data, "station.json"))) lista.Add(Path.Combine(data, "station.json"));
+        var proj = Path.Combine(data, "projekty");
+        if (Directory.Exists(proj)) lista.AddRange(Directory.GetFiles(proj, "*.json").Where(f => !f.EndsWith(".simrail.json", StringComparison.OrdinalIgnoreCase)));
+        foreach (var f in lista) if (!string.Equals(Path.GetFullPath(f), Path.GetFullPath(src), StringComparison.OrdinalIgnoreCase)) yield return f;
     }
 
     void ZapiszMape()

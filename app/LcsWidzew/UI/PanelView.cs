@@ -13,6 +13,9 @@ namespace LcsWidzew.UI;
 /// </summary>
 public class PanelView : FrameworkElement
 {
+    /// <summary>Klucz drogi zajętości z SimRail w <c>Ind.Routes</c> – ta sama wartość co <c>SimRailSession.ZajetoscKlucz</c>; stała tutaj, bo PanelView.cs
+    /// jest dołączany też do edytora zobrazowania, który nie ma <c>LcsWidzew.Net</c>.</summary>
+    public const string ZajetoscSimRail = "simrail-zajetosc";
     /// <summary>Obraz poglądowy całego obszaru LCS (Ie-104 § 7 ust. 9): tory, sygnały, blokady i numery pociągów bez opisów; klik – obraz szczegółowy.</summary>
     public bool Overview;
     /// <summary>Opisy odcinków na żądanie dyżurnego (Ie-104 § 5 ust. 2) – gdy zobrazowanie ma tryb „nazadanie”.</summary>
@@ -53,7 +56,7 @@ public class PanelView : FrameworkElement
     }
     /// <summary>Ramka wybranego końca przebiegu (turkusowa, po wybraniu polecenia zielona).</summary>
     void EndFrame(DrawingContext dc, Rect r) => dc.DrawRoundedRectangle(null, new Pen(FrameBrush, 2), r, 3, 3);
-    public event Action<string, MouseButtonEventArgs> SignalClicked, SwitchClicked, SectionClicked, BlockClicked, TrackEndClicked, DerailerClicked, LinkClicked, PostClicked;
+    public event Action<string, MouseButtonEventArgs> SignalClicked, SwitchClicked, SectionClicked, BlockClicked, TrackEndClicked, DerailerClicked, LinkClicked, PostClicked, CrossingClicked;
     /// <summary>Klik w puste miejsce obrazu (bez przeciągania).</summary>
     public event Action<MouseButtonEventArgs> EmptyClicked;
     public event Action<string> Hover;
@@ -176,6 +179,7 @@ public class PanelView : FrameworkElement
         {
             case null: EmptyClicked?.Invoke(e); break;
             case "post": PostClicked?.Invoke(id, e); break;
+            case "prz": CrossingClicked?.Invoke(id, e); break;
             case "sig": SignalClicked?.Invoke(id, e); break;
             case "sw": SwitchClicked?.Invoke(id, e); break;
             case "sec": SectionClicked?.Invoke(id, e); break;
@@ -207,6 +211,12 @@ public class PanelView : FrameworkElement
         foreach (var (nid, te) in L.TrackEnds) { var n = L.Nodes[nid]; if (L.HiddenSyms.Contains(nid)) continue; if (Math.Abs(w.X - n.X) < 14 && Math.Abs(w.Y - n.Y) < 16) return ("te", te.Id); }
         // ikona nastawni (polecenia stacji: SSS, OSSS, ZSS, OZSS, OSZ)
         foreach (var l in L.Labels) if (l.Anchor == "nastawnia" && OnPage(l.X) && Math.Abs(w.X - l.X) < 16 && w.Y > l.Y - 25 && w.Y < l.Y + 10) return ("post", l.Text);
+        // przejazd ze stanem (pulpit zdalny SimRail): linia przejazdu i jego kilometr
+        if (Ind?.Crossings.Count > 0)
+            foreach (var c in L.Crossings)
+                if (OnPage(c.X) && Ind.Crossings.ContainsKey(c.Name ?? "") &&
+                    (Math.Abs(w.X - c.X) < 6 && w.Y > c.Y0 - 16 && w.Y < c.Y1 + 16 || w.X > c.X && w.X < c.X + 8 + 6 * (c.Name?.Length ?? 0) && w.Y > c.Y0 - 14 && w.Y < c.Y0 + 2))
+                    return ("prz", c.Name);
         foreach (var e in L.Edges.Values)
         {
             if (e.Link) continue;
@@ -221,6 +231,13 @@ public class PanelView : FrameworkElement
         double t = l2 == 0 ? 0 : Math.Clamp(((p.X - a.X) * dx + (p.Y - a.Y) * dy) / l2, 0, 1);
         return Math.Sqrt(Math.Pow(p.X - a.X - t * dx, 2) + Math.Pow(p.Y - a.Y - t * dy, 2));
     }
+
+    /// <summary>Stan przejazdu słownie (pulpit zdalny SimRail).</summary>
+    public static string StanPrzejazdu(string stan) => stan switch
+    {
+        "zamkniety" => "ZAMKNIĘTY", "zamykanie" => "zamykanie", "otwieranie" => "otwieranie", "otwarty" => "otwarty",
+        "uszkodzony" => "USZKODZENIE", "nieznany" => "stan z gry nieznany (podgląd symbolu)", _ => "brak danych",
+    };
 
     string Describe(string kind, string id)
     {
@@ -249,11 +266,16 @@ public class PanelView : FrameworkElement
             case "blk":
             {
                 var b = L.Blocks[id]; var bs = S.Blocks[id]; int e = EndIdxOnPage(b);
-                var req = bs.Req == null ? "" : bs.Req.EndIdx == e ? ", wysłano żądanie pozwolenia" : ", ŻĄDANIE POZWOLENIA od strony przeciwnej";
+                var req = (bs.Req == null ? "" : bs.Req.EndIdx == e ? ", wysłano żądanie pozwolenia" : ", ŻĄDANIE POZWOLENIA od strony przeciwnej") + (bs.Info != null ? $" [{bs.Info}]" : "");
                 return $"Szlak {id} – {b.TypeName} (LK{b.Line}, tor {b.Tor}, {b.Nbr}): {(b.NoBlock ? "bez blokady" : bs.Dir == 0 ? "stan neutralny" : bs.Dir == b.Ends[e].Outward ? "kierunek WYJAZD" : "kierunek PRZYJAZD")}{req}{(bs.AwaitEnd != null ? ", ZABLOKOWANY – brak bloku końcowego" : "")}{(bs.StopEnd[e] ? ", wyjazd zamknięty" : "")}   ·  LPM: koniec przebiegu albo polecenia w panelu";
             }
             case "te": return $"Znacznik końca przebiegu manewrowego {Station.Lbl(id)}";
             case "der": return $"Wykolejnica {L.Derailers[id].Label}: {(S.Ders[id].On ? "założona" : "zdjęta")}";
+            case "prz":
+            {
+                var c = S.Crossings.GetValueOrDefault(id);
+                return $"Przejazd {id}: {StanPrzejazdu(c?.Stan)}{(c?.Info != null ? $" [{c.Info}]" : "")}   ·  LPM: polecenia w panelu (ZAMK, OTW)";
+            }
         }
         return "";
     }
@@ -269,7 +291,9 @@ public class PanelView : FrameworkElement
     Vector BlockAxis(BlockDef b, int endIdx)
     {
         var en = b.Ends[endIdx]; var L = Lay; var n = L.Nodes[en.Boundary];
-        var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => b.SecsWE.Contains(x.Sec)) ?? n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => L.GeoX(x.Id, n.Id) == en.VOut);
+        // najpierw tor szlaku wychodzący na zewnątrz (przed semaforem wjazdowym bywa ten sam obwód co za nim – wtedy strzałka trafiała na stronę stacji)
+        var e = n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => b.SecsWE.Contains(x.Sec) && L.GeoX(x.Id, n.Id) == en.VOut)
+            ?? n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => b.SecsWE.Contains(x.Sec)) ?? n.Edges.Select(x => L.Edges[x]).FirstOrDefault(x => L.GeoX(x.Id, n.Id) == en.VOut);
         return e != null ? Tangent(e, n.Id) : new Vector(en.VOut, 0);
     }
 
@@ -405,8 +429,12 @@ public class PanelView : FrameworkElement
     }
     static readonly Brush TrainFieldGrey = B(0xa0, 0xa0, 0xa0);
 
-    /// <summary>Zielona kreska nad strzałką: szlak wolny i nie nastawiono przebiegu na ten szlak.</summary>
-    bool FreeBar(BlockDef b) => !b.NoBlock && !Ind.NoLink && !b.SecsWE.Any(Ind.SecOcc) && !Ind.Routes.Values.Any(r => r.End == b.Id) && Ind.Blocks[b.Id].AwaitEnd == null;
+    /// <summary>
+    /// Zielona kreska nad strzałką: szlak wolny i nie nastawiono przebiegu na ten szlak. Blokada ze stanem z SimRail (Info „gra …”)
+    /// – jak na pulpicie gry: kreska tylko przy ustawionym kierunku, w stanie neutralnym brak.
+    /// </summary>
+    bool FreeBar(BlockDef b) => !b.NoBlock && !Ind.NoLink && !b.SecsWE.Any(Ind.SecOcc) && !Ind.Routes.Values.Any(r => r.End == b.Id) && Ind.Blocks[b.Id].AwaitEnd == null
+                                && !(Ind.Blocks[b.Id].Dir == 0 && Ind.Blocks[b.Id].Info?.StartsWith("gra ", StringComparison.Ordinal) == true);
 
     bool BlinkOn => (Environment.TickCount64 / 500) % 2 == 0;
 
@@ -454,8 +482,20 @@ public class PanelView : FrameworkElement
         foreach (var d in L.Dashed.Where(d => OnPage(d.X0))) dc.DrawLine(dash, new Point(d.X0, d.Y), new Point(d.X1, d.Y));
         foreach (var c in L.Crossings.Where(c => OnPage(c.X)))
         {
-            PulpitSymbole.Przejazd(dc, c.X, c.Y0, c.Y1, c.Kind);
-            Text(dc, c.Name, c.X + 8, c.Y0 - 4, 8, CrossPink, false, dpi, Mono);
+            // stan przejazdu ze źródła (pulpit zdalny SimRail): zamknięty – szary (jak w grze), zamykanie / otwieranie – żółty migający,
+            // uszkodzony – czerwony migający, otwarty – barwa rysunku; bez stanu – jak dotąd
+            var ci = S.Crossings.GetValueOrDefault(c.Name ?? "");
+            Brush cb = ci == null ? CrossPink : ci.Stan switch
+            {
+                "zamkniety" => Grey,
+                "zamykanie" or "otwieranie" => BlinkOn ? Yellow : CrossPink,
+                "uszkodzony" => BlinkOn ? Red : CrossPink,
+                null => White,
+                _ => CrossPink,
+            };
+            PulpitSymbole.Przejazd(dc, c.X, c.Y0, c.Y1, c.Kind, cb);
+            Text(dc, c.Name, c.X + 8, c.Y0 - 4, 8, cb, false, dpi, Mono);
+            if (SelObj == "prz:" + c.Name) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(c.X - 9, c.Y0 - 18, 18 + 6 * (c.Name?.Length ?? 0), c.Y1 - c.Y0 + 36), 3, 3);
         }
 
         // tory
@@ -493,10 +533,15 @@ public class PanelView : FrameworkElement
                 if (def.Plus != e.Id && def.Minus != e.Id)
                 {
                     // iglica: w trakcie przekładania (albo bez kontroli położenia) odcięta od obu odgałęzień
-                    if (moving && def.Tip == e.Id) { if (n == e.A) gapA = Math.Max(gapA, 4); else gapB = Math.Max(gapB, 4); }
+                    bool tipWDrodze = S.Routes.TryGetValue("simrail", out var dt) && dt.Edges.Contains(e.Id) && (dt.Edges.Contains(def.Plus) || dt.Edges.Contains(def.Minus));
+                    if (moving && def.Tip == e.Id && !tipWDrodze) { if (n == e.A) gapA = Math.Max(gapA, 4); else gapB = Math.Max(gapB, 4); }
                     continue;
                 }
                 bool active = !moving && w.Pos == (def.Plus == e.Id ? "+" : "-");
+                // pulpit zdalny SimRail: przebieg z gry biegnie przez iglicę i to odgałęzienie – położenie wynika z przebiegu, nawet gdy
+                // gra podaje dla zwrotnicy NoDir albo położenie wg własnej geometrii (Koluszki 127 przy przebiegu 97 → L1)
+                if (!active && S.Routes.TryGetValue("simrail", out var dg) && dg.Edges.Contains(e.Id) && dg.Edges.Contains(def.Tip)
+                    && !dg.Edges.Contains(def.Plus == e.Id ? def.Minus : def.Plus)) active = true;
                 // nieczynne odgałęzienie: wyraźna przerwa przy zwrotnicy (szersza niż zaokrąglony koniec toru)
                 if (!active) { c = w.NoData ? White : Grey; if (n == e.A) gapA = 9; else gapB = 9; }
             }
@@ -506,13 +551,14 @@ public class PanelView : FrameworkElement
             // bez przerwy izolacyjnej tor przechodzi w sąsiedni w sposób ciągły (zaokrąglony koniec wypełnia załamanie)
             var capA = gapA == 0 && L.Nodes[e.A].Edges.Count >= 2 ? PenLineCap.Round : PenLineCap.Flat;
             var capB = gapB == 0 && L.Nodes[e.B].Edges.Count >= 2 ? PenLineCap.Round : PenLineCap.Flat;
-            var pen = new Pen(c, closed ? 7 : 4.6) { StartLineCap = capA, EndLineCap = capB, LineJoin = PenLineJoin.Round };
+            // zamknięty dla ruchu – linia podwójna (Ie-104 § 8 pkt 1 ust. 1, symbole 52.3/52.4): dwie cienkie linie z wyraźną szczeliną
+            var pen = new Pen(c, closed ? ZamkSzer : 4.6) { StartLineCap = capA, EndLineCap = capB, LineJoin = PenLineJoin.Round };
             if (e.Dismantled) pen = new Pen(Dim2, 4.6) { DashStyle = new DashStyle(new double[] { 2.2, 1.4 }, 0), LineJoin = PenLineJoin.Round };
             else if (e.NoDetect) pen.DashStyle = new DashStyle(new double[] { 2.2, 1.6 }, 0);       // Ie-104 § 8 ust. 1 – bez kontroli niezajętości
             // odstęp blokowy wolny przy nieustawionym kierunku – szary migający (Ie-104 § 8 pkt 17 ust. 2 lit. d)
             if (e.Szlak && !S.NoLink && S.Blocks.TryGetValue(e.Sec.Split('-')[0], out var bsz) && bsz.Dir == 0 && !S.SecOcc(e.Sec) && !BlinkOn) pen = new Pen(Dim, 4.6);
             DrawPoly(dc, pen, pts);
-            if (closed) DrawPoly(dc, new Pen(bgBrush, 2.4), pts);
+            if (closed) DrawPoly(dc, new Pen(bgBrush, ZamkSzczel) { StartLineCap = capA, EndLineCap = capB, LineJoin = PenLineJoin.Round }, pts);
         }
 
 
@@ -565,6 +611,15 @@ public class PanelView : FrameworkElement
             else if (w.NoCtrl || (w.Moving != null && w.Frozen && S.T - w.Moving.Started > Simulator.Cfg.SwTimeout)) mark = BlinkOn ? White : Red;
             else if (w.Stopped) mark = Magenta;
             else if (w.Local) mark = Cyan;
+            if (S.Secs.TryGetValue(sw.Sec, out var zsec) && zsec.Closed && w.Moving == null && !w.NoCtrl && !w.NoData)
+            {
+                // indywidualne zamknięcie ruchowe rozjazdu (Ie-104 § 8 pkt 8 ust. 2 lit. g, symbol 61.3): ramiona a, b, c linią podwójną,
+                // pole „Z” (iglica i początek ułożonej gałęzi) zostaje pojedyncze
+                var act = w.Pos == "+" ? sw.Plus : sw.Minus;
+                var zp = Along(L, sw.Tip, sw.Node, 10); zp.Reverse(); zp.AddRange(Along(L, act, sw.Node, 10).Skip(1));
+                DrawPoly(dc, new Pen(bgBrush, ZamkSzer + 1) { LineJoin = PenLineJoin.Round }, zp);
+                DrawPoly(dc, new Pen(LockedEdge(L.Edges[sw.Tip], SecBrush(sw.Sec)), 4.6) { LineJoin = PenLineJoin.Round }, zp);
+            }
             if (w.Flank && w.Lock == null && w.Moving == null && !w.NoCtrl && !w.NoData)
             {
                 // zamknięta w ochronie bocznej (film ISDR 2026-10-27): krótka żółta kreska na torze – iglica i ułożona gałąź przy zwrotnicy
@@ -651,6 +706,8 @@ public class PanelView : FrameworkElement
             dc.DrawText(new FormattedText("Błąd rysowania: " + RenderError, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono, 13, Red, VisualTreeHelper.GetDpi(this).PixelsPerDip), new Point(10, 10));
     }
     public string RenderError;
+    /// <summary>Linia podwójna toru zamkniętego: szerokość całkowita i szczelina (dwie linie po ok. 2,8 px – wg symbolu 52.4 Ie-104).</summary>
+    const double ZamkSzer = 8.6, ZamkSzczel = 3.0;
 
     /// <summary>Symbol kontrolny (Ie-104 § 4 ust. 16): wzorzec barw, biały na szarym, symbol migania.</summary>
     void DrawControlSymbol(DrawingContext dc, double x, double y)
@@ -740,6 +797,9 @@ public class PanelView : FrameworkElement
         // szlak z edytora zobrazowania: przerwa tylko tam, gdzie postawił ją człowiek (granice odstępów jak na obrazie)
         if (e.Szlak && Lay.SzlakGaps != null && n.Switch == null)
             return !Lay.SzlakGaps.Contains(node) || n.Edges.Count < 2 ? 0 : n.Signals.Count > 0 ? 3 : 1.8;
+        // układ z zob_do_suk.py (pulpit zdalny SimRail): przerwa tylko tam, gdzie postawiono ją w edytorze – jak na obrazie i w EBI gry
+        if (Lay.Gaps != null && n.Switch == null)
+            return !Lay.Gaps.Contains(node) || n.Edges.Count < 2 ? 0 : n.Signals.Count > 0 ? 3 : 1.8;
         if (n.Signals.Count > 0) return 3;
         if (n.Switch != null || n.Edges.Count < 2) return 0;
         // przerwa izolacyjna tylko na prostym przejściu toru; na załamaniu łącznika (ukos → pion) tor rysowany jest w sposób ciągły
@@ -818,8 +878,18 @@ public class PanelView : FrameworkElement
     Brush LockedEdge(Edge e, Brush col)
     {
         var s = Ind.Secs[e.Sec];
-        // zajętość – na całym odcinku (licznik osi nie mówi, na którym torze grupy jest pojazd)
-        if (s.NoData || s.Lock == null || s.TrainOcc || s.Fault != null) return col;
+        // zajętość – na całym odcinku (licznik osi nie mówi, na którym torze grupy jest pojazd); z SimRail – tylko na torach
+        // połączonych z resztą zajętości (SimRailSession.DrogaZGry), pozostałe tory odcinka jak bez zajętości
+        if (s.TrainOcc && Ind.Routes.TryGetValue(ZajetoscSimRail, out var zr) && zr.Edges.Count > 0 && !zr.Edges.Contains(e.Id))
+            col = s.LockType == "train" ? Green : s.LockType is "shunt" or "overlap" ? Yellow : Grey;
+        else if (s.TrainOcc) return col;
+        // tor odcinka bez obwodu gry między częściami drogi / zajętości z SimRail (most) – barwa drogi
+        if (s.Lock == null && !s.TrainOcc && s.Fault == null && !s.NoData)
+        {
+            if (Ind.Routes.TryGetValue(ZajetoscSimRail, out var zm) && zm.Edges.Contains(e.Id)) return Red;
+            if (Ind.Routes.TryGetValue("simrail", out var dm) && dm.Edges.Contains(e.Id)) return Green;
+        }
+        if (s.NoData || s.Lock == null || s.Fault != null) return col;
         foreach (var uid in new[] { s.Lock }.Concat(s.Shared ?? new()))
         {
             if (!Ind.Routes.TryGetValue(uid, out var r) || r.Edges.Count == 0) return col;     // brak drogi w meldunku – jak dawniej
@@ -877,6 +947,8 @@ public class PanelView : FrameworkElement
             Brush rc = main == null ? White : main.Aspect == Aspect.Train ? Green : Grey;
             if (main == null && s.Repeats != null && S.Blocks.TryGetValue(s.Repeats, out var rb))
                 rc = rb.Dir == s.Dir && rb.TrainOn ? Green : Grey;
+            // pulpit zdalny SimRail: powtarzacz, któremu gra sama podaje sygnał zezwalający – zielony jak w grze
+            if (st.Aspect == Aspect.Train && !st.NoData) rc = Green;
             PulpitSymbole.Powtarzacz(dc, cx, cy, d, rc, s.Type == "sp");
             Text(dc, s.Label, cx, cy + (d > 0 ? 15 : -14), 8, SigName, true, dpi, Mono);
             return;

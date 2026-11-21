@@ -218,7 +218,21 @@ public class PlatformDef
 }
 public class LabelDef { public double X, Y; public string Text, Anchor; }
 /// <summary>Przejazd kolejowo-drogowy: Kind „Y” albo „T” – oznaczenie na końcach linii.</summary>
-public class CrossingDef { public string Name, Kind = "Y"; public double X, Y0, Y1; }
+public class CrossingDef
+{
+    public string Name, Kind = "Y"; public double X, Y0, Y1;
+    // plan przejazdów P1 (wszystko opcjonalne – stary układ czyta się bez zmian):
+    /// <summary>Kategoria A–F (pusta – nieznana; przy grze z nazwy obiektu „L1_102.026_B”).</summary>
+    public string Cat = "";
+    /// <summary>SSP (samoczynna sygnalizacja przejazdowa); false – przejazd obsługiwany (rogatki z nastawni / dróżnik).</summary>
+    public bool Ssp;
+    /// <summary>Urządzenie zdalnej kontroli (powtarzacz, Ie-104 § 14): sam stan, bez poleceń Zamk / Otw.</summary>
+    public bool Uzk;
+    /// <summary>Tarcza ostrzegawcza przejazdowa (TOP) uzależniona od przejazdu.</summary>
+    public bool Top;
+    /// <summary>Jawna nazwa przejazdu w grze (np. „L1_102.026_B”) – zamiast dopasowania po kilometrze.</summary>
+    public string Game;
+}
 /// <summary>Bramka sygnałowa na planie schematycznym: pionowa belka w poprzek torów (x, od y0 do y1).</summary>
 public class GantryDef { public string Id, Label, Post; public double X, Y0, Y1; }
 public class DashedDef { public double X0, X1, Y; }
@@ -272,8 +286,7 @@ public class Station
     /// <summary>Okna numeru pociągu dla szlaku (z nowego edytora zobrazowania, display „trainFields”): blokada, prostokąt.</summary>
     public List<(string Block, double X, double Y, double W, double H)> TrainFields = new();
     public string SecLabelsMode = "nazadanie";
-    public List<RouteRule> RouteRules = new();
-    /// <summary>
+    public List<RouteRule> RouteRules = new();    /// <summary>
     /// Przebiegi zaprojektowane w edytorze zobrazowania (pole „przebiegi”, etap 3): w tablicy tylko one – start, koniec, rodzaj,
     /// położenia zwrotnic (Sw – jak <c>RouteDef.SwKey</c>), Basic – przebieg zasadniczy. Null – plik bez projektu, przebiegi z topologii jak dotąd.
     /// </summary>
@@ -294,6 +307,11 @@ public class Station
     /// granice odcinków i semafory odstępowe na szlaku pulpit rysuje w sposób ciągły, jak na obrazie. Null – przerwa na każdej granicy.
     /// </summary>
     public HashSet<string> SzlakGaps;
+    /// <summary>
+    /// Układ z zob_do_suk.py (pulpit zdalny SimRail, klucz „gaps”): węzły z przerwą izolacyjną postawioną w edytorze zobrazowania – na
+    /// wszystkich torach. Inne granice obwodów pulpit rysuje w sposób ciągły, jak edytor i pulpit EBI w grze. Null – przerwa na każdej granicy.
+    /// </summary>
+    public HashSet<string> Gaps;
     /// <summary>Zobrazowanie: widok każdej strony z własną geometrią (obiekty narysowane na kilku obrazach); brak – geometria główna.</summary>
     public Dictionary<string, Station> PageViews = new();
     /// <summary>
@@ -391,6 +409,7 @@ public class Station
                     }
             st.Display = d;
         }
+        if (root != null && st.Display == null) RysunekBezDisplay(root, st);
         st.Visual(st.Display ?? st);
         if (st.Display != null)
         {
@@ -398,6 +417,21 @@ public class Station
             foreach (var pv in st.Display.PageViews.Values) pv.Visual(pv, st);
         }
         return st;
+    }
+
+    /// <summary>
+    /// Układ bez sekcji „display”, narysowany w edytorze zobrazowania (zob_do_suk.py): przerwy w torach („gaps”), okna numeru pociągu
+    /// („trainFields”) i wjazdowe bez trójkąta końca przebiegu („noEndMark”) – na najwyższym poziomie pliku.
+    /// </summary>
+    static void RysunekBezDisplay(System.Text.Json.Nodes.JsonObject root, Station st)
+    {
+        if (root["gaps"] is System.Text.Json.Nodes.JsonArray ga) st.Gaps = new(ga.Select(x => x?.GetValue<string>()).Where(x => x != null));
+        if (root["noEndMark"] is System.Text.Json.Nodes.JsonArray nem)
+            foreach (var x in nem) if (x?.GetValue<string>() is string sn && st.Signals.TryGetValue(sn, out var sd)) sd.NoEndMark = true;
+        if (root["trainFields"] is System.Text.Json.Nodes.JsonArray tfa)
+            foreach (var x in tfa.OfType<System.Text.Json.Nodes.JsonObject>())
+                if ((string)x["block"] is string tb && st.Blocks.ContainsKey(tb))
+                    st.TrainFields.Add((tb, x["x"].GetValue<double>(), x["y"].GetValue<double>(), x["w"]?.GetValue<double>() ?? 88, x["h"]?.GetValue<double>() ?? 68));
     }
 
     /// <summary>
@@ -576,7 +610,9 @@ public class Station
         foreach (var p in r.GetProperty("labels").EnumerateArray())
             st.Labels.Add(new LabelDef { X = p.GetProperty("x").GetDouble(), Y = p.GetProperty("y").GetDouble(), Text = S(p, "text"), Anchor = S(p, "anchor", "start") });
         if (r.TryGetProperty("crossings", out var cr))
-            foreach (var p in cr.EnumerateArray()) st.Crossings.Add(new CrossingDef { Name = S(p, "name"), Kind = S(p, "kind", "Y"), X = p.GetProperty("x").GetDouble(), Y0 = p.GetProperty("y0").GetDouble(), Y1 = p.GetProperty("y1").GetDouble() });
+            foreach (var p in cr.EnumerateArray()) st.Crossings.Add(new CrossingDef { Name = S(p, "name"), Kind = S(p, "kind", "Y"), X = p.GetProperty("x").GetDouble(), Y0 = p.GetProperty("y0").GetDouble(), Y1 = p.GetProperty("y1").GetDouble(),
+                Cat = S(p, "cat", ""), Ssp = p.TryGetProperty("ssp", out var ssp) && ssp.ValueKind == JsonValueKind.True, Uzk = p.TryGetProperty("uzk", out var uzk) && uzk.ValueKind == JsonValueKind.True,
+                Top = p.TryGetProperty("top", out var top) && top.ValueKind == JsonValueKind.True, Game = S(p, "game", null) });
         if (r.TryGetProperty("gantries", out var gn) && gn.ValueKind == JsonValueKind.Object)
             foreach (var p in gn.EnumerateObject())
                 st.Gantries[p.Name] = new GantryDef { Id = p.Name, Label = S(p.Value, "label", Lbl(p.Name)), Post = S(p.Value, "post", PostOf(p.Name)), X = p.Value.GetProperty("x").GetDouble(), Y0 = p.Value.GetProperty("y0").GetDouble(), Y1 = p.Value.GetProperty("y1").GetDouble() };
@@ -612,6 +648,16 @@ public class Station
         {
             if (s.Szlak != null && !Blocks.ContainsKey(s.Szlak)) { if (s.Type == "odstepowy") { Signals.Remove(s.Name); Nodes[s.Node].Signals.Remove(s.Name); continue; } s.Szlak = null; }
             if (s.Repeats != null && !Signals.ContainsKey(s.Repeats) && !Blocks.ContainsKey(s.Repeats)) s.Repeats = null;
+        }
+        // powtarzacz bez wskazanego semafora (układ z pulpitu SimRail – zob_do_suk.py nie zapisuje „repeats”): z nazwy, jak w grze –
+        // ISpM, IISpM → M; ToN → N; ISpP2 → P2 (semafor tego samego posterunku i kierunku, nie powtarzacz)
+        foreach (var s in Signals.Values.Where(x => x.Repeats == null && x.Type is "to" or "sp"))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(s.Label ?? "", @"^I{0,3}(?:Sp|To)(.+)$");
+            if (!m.Success) continue;
+            var cel = Signals.Values.FirstOrDefault(x => x.Label == m.Groups[1].Value && x.Post == s.Post && x.Type is not ("to" or "sp") && x.Dir == s.Dir)
+                   ?? Signals.Values.FirstOrDefault(x => x.Label == m.Groups[1].Value && x.Post == s.Post && x.Type is not ("to" or "sp"));
+            if (cel != null) s.Repeats = cel.Name;
         }
         foreach (var e in Edges.Values) if (e.Szlak && !Blocks.Values.Any(b => b.SecsWE.Contains(e.Sec))) e.Szlak = false;
         foreach (var d in Derailers.Values) if (d.Sec == null || !Sections.ContainsKey(d.Sec)) d.Sec = Nodes[d.Node].Edges.Select(x => Edges[x].Sec).FirstOrDefault();
@@ -691,6 +737,13 @@ public class Station
                 var oe = logic.Nodes.ContainsKey(n) ? logic.Nodes[n].Edges.FirstOrDefault(e => logic.EdgeDir(e, n) == le.Outward) : null;
                 int v = oe != null && geo.Edges.ContainsKey(oe) && geo.Nodes.ContainsKey(n) ? geo.GeoX(oe, n) : 0;
                 b.Ends[i].VOut = v != 0 ? v : b.Ends[i].Outward;
+            }
+            // szlak zewnętrzny z jednym końcem: „na zewnątrz” na rysunku = w stronę drugiego końca szlaku (far) – pewniejsze niż
+            // kierunek krawędzi w topologii (Koluszki 2G: krawędź za granicą wskazywała stację, strzałka i stan z SimRail odwrócone)
+            if (b.Ends.Count == 1 && b.Far != null && geo.Nodes.TryGetValue(b.Far, out var fn) && geo.Nodes.TryGetValue(b.Ends[0].Boundary, out var bnd))
+            {
+                var dx = fn.X - bnd.X;
+                if (Math.Abs(dx) > 1) b.Ends[0].VOut = Math.Sign(dx);
             }
         }
     }

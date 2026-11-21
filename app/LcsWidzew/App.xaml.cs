@@ -164,6 +164,9 @@ public partial class App : Application
         if (A.Length > 1 && A[0] == "--screenshot")
         {
             w.ShotPath = A[1]; w.WindowState = WindowState.Normal; w.Width = 1600; w.Height = 950;
+            // LCS_ZRZUT_ROZMIAR=szer×wys – większe okno zrzutu (np. cały szeroki pulpit stacji w czytelnej skali)
+            if (Environment.GetEnvironmentVariable("LCS_ZRZUT_ROZMIAR")?.Split('x', '×') is { Length: 2 } rz && int.TryParse(rz[0], out var zw) && int.TryParse(rz[1], out var zh))
+            { w.Width = zw; w.Height = zh; }
             if (A.Length > 2) w.ShotSeconds = double.Parse(A[2], System.Globalization.CultureInfo.InvariantCulture);
             w.ShotCmds = A.Skip(3).ToArray();
         }

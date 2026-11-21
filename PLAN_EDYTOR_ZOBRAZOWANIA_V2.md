@@ -238,6 +238,9 @@ linię, etykiety jadą z symbolem), a nie edytor przypięć do UT.
 
 - **Rozciąganie:** przeciągnięcie węzła ciągnie odcinki z nim połączone (zostają co 45°); przeciągnięcie odcinka poziomego w górę /
   w dół przesuwa cały rząd z łącznikami (łączniki „[” się wydłużają).
+  *Zmiana 2026-11-21 (właściciel: obraz Koluszek z gry – tory pocięte na krótkie kawałki):* klik zaznacza cały tor (od rozjazdu do rozjazdu / końca,
+  `ObrGraf.Tor`), przeciągnięcie przesuwa go z zachowaniem kątów (`ObrGraf.PrzesunZaznaczenie`: ślizganie łączników, rozjazd w rzędzie jedzie
+  z torem, ruch w jednej osi, kawałek rzędu w pionie – cały rząd, inaczej odmowa); cały rząd na żądanie – Ctrl + przeciągnięcie, sam kawałek – Alt + klik.
 - **Narzędzie „Wstaw kolumnę / Usuń kolumnę”** (Ctrl + przeciągnięcie pionowej linii): rozsuwa / zsuwa obraz w poziomie od tego miejsca.
 
 ## 9. Sprawdź, podgląd, eksport

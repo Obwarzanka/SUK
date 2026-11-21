@@ -20,8 +20,18 @@ public sealed class SimRailOdbiornik : IDisposable
     public const int DomyslnyPort = 47130;
 
     /// <summary>Jeden obiekt SimRail (nazwa z gry, np. „l1_kol_it5”).</summary>
+    /// <remarks>Od moda 0.9 stany także liczbowo (−1 = brak / nie dotyczy): Pn – RouteState, Bln – BlockingState,
+    /// Lb – LineBlockState (blokada liniowa), Pz – CrossingState.StateOverall (przejazd).</remarks>
     public sealed record Obiekt(string Nazwa, string Rodzaj, bool Zajety, string Basic, string Przebieg, string Blokada,
-                                string Zwrotnica, string Pociagi);
+                                string Zwrotnica, string Pociagi, int Pn = -1, int Bln = -1, int Lb = -1, int Pz = -1, string WidokBlokady = "", string WidokPrzejazdu = "",
+                                int? GrotBlokady = null, bool MigaBlokada = false, string Stacja = "",
+                                string SzczegolyPrzejazdu = "");   // mod ≥ 0.12 „pzd”: „s=8;wj=8;wy=8;c=1;m=0;uzk=1;sw=0;top=0;aut=0;zd=0;tw=”
+
+    /// <summary>Wpis historii poleceń pulpitu EBI w grze (mod ≥ 0.9.1): polecenie i odpowiedź serwera (przyjęte / odrzucone).</summary>
+    public sealed record WpisHistorii(DateTime Odebrano, string CzasGry, string Data, string Polecenie, string S1, string S2);
+    readonly Queue<WpisHistorii> _historia = new();
+    /// <summary>Wpisy historii gry odebrane od ostatniego wywołania (kolejka jest opróżniana).</summary>
+    public List<WpisHistorii> PobierzHistorie() { lock (_blokada) { var l = _historia.ToList(); _historia.Clear(); return l; } }
 
     /// <summary>Zajęcie / zwolnienie zgłoszone przez mod.</summary>
     public sealed record Zdarzenie(DateTime Odebrano, string CzasGry, string Stacja, string Nazwa, string Rodzaj, bool Zajety, string Pociagi);
@@ -91,10 +101,12 @@ public sealed class SimRailOdbiornik : IDisposable
         {
             Pakiety++;
             OstatniPakiet = DateTime.Now;
-            var st = Tekst(k, "stacja"); if (st.Length > 0) Stacja = st;
+            // posterunek gry – tylko z migawki; w „zmianie” „stacja” to posterunek jednego obiektu (przy kilku posterunkach – sąsiad)
+            var st = Tekst(k, "stacja");
             var cg = Tekst(k, "czasGry"); if (cg.Length > 0) CzasGry = cg;
             if (typ == "stan")
             {
+                if (st.Length > 0) Stacja = st;
                 Zrodlo = Tekst(k, "zrodlo");
                 if (k.TryGetProperty("obiekty", out var lista) && lista.ValueKind == JsonValueKind.Array)
                     foreach (var o in lista.EnumerateArray())
@@ -102,7 +114,8 @@ public sealed class SimRailOdbiornik : IDisposable
                         var n = Tekst(o, "n");
                         if (n.Length == 0) continue;
                         _obiekty[n] = new Obiekt(n, Tekst(o, "r"), Logiczna(o, "z"), Tekst(o, "b"), Tekst(o, "p"), Tekst(o, "bl"),
-                                                 Tekst(o, "zw"), Tekst(o, "po"));
+                                                 Tekst(o, "zw"), Tekst(o, "po"), Liczba(o, "pn"), Liczba(o, "bln"), Liczba(o, "lb"), Liczba(o, "pz"), Tekst(o, "lbo"), Tekst(o, "pzo"),
+                                                 o.TryGetProperty("lbk", out var gk) && gk.TryGetInt32(out var gki) ? gki : null, Logiczna(o, "lbm"), Tekst(o, "st"), Tekst(o, "pzd"));
                     }
             }
             else if (typ == "zmiana")
@@ -113,8 +126,8 @@ public sealed class SimRailOdbiornik : IDisposable
                 var po = Tekst(k, "po");
                 var r = Tekst(k, "r");
                 _obiekty[n] = _obiekty.TryGetValue(n, out var stary)
-                    ? stary with { Zajety = z, Pociagi = po.Length > 0 || !z ? po : stary.Pociagi }
-                    : new Obiekt(n, r, z, "", "", "", "", po);
+                    ? stary with { Zajety = z, Pociagi = po.Length > 0 || !z ? po : stary.Pociagi, Stacja = stary.Stacja.Length > 0 ? stary.Stacja : st }
+                    : new Obiekt(n, r, z, "", "", "", "", po, Stacja: st);
                 _zdarzenia.Enqueue(new Zdarzenie(DateTime.Now, cg, st, n, r, z, po));
                 while (_zdarzenia.Count > 5000) _zdarzenia.Dequeue();
             }
@@ -122,6 +135,11 @@ public sealed class SimRailOdbiornik : IDisposable
             {
                 long id = k.TryGetProperty("id", out var iv) && iv.TryGetInt64(out var ii) ? ii : 0;
                 if (_odpowiedzi.Remove(id, out var tcs)) tcs.TrySetResult((Logiczna(k, "ok"), Tekst(k, "msg")));
+            }
+            else if (typ == "historia")
+            {
+                _historia.Enqueue(new WpisHistorii(DateTime.Now, cg, Tekst(k, "data"), Tekst(k, "polecenie"), Tekst(k, "s1"), Tekst(k, "s2")));
+                while (_historia.Count > 500) _historia.Dequeue();
             }
             else throw new InvalidDataException($"nieznany typ komunikatu: {typ}");
         }
@@ -138,12 +156,41 @@ public sealed class SimRailOdbiornik : IDisposable
     /// (Plus, Minus, Stop, RevokeStop, StopSignal). Czeka na odpowiedź moda do 3 s.
     /// </summary>
     public (bool Ok, string Msg) WyslijPolecenie(string nazwa, string order, int port = DomyslnyPortPolecen)
+        => Wyslij(new() { ["kod"] = "IndividualOrder", ["nazwa"] = nazwa, ["order"] = order }, port);
+
+    /// <summary>Polecenie specjalne dwuetapowe (mod ≥ 0.9.4): <paramref name="order"/> od razu, <paramref name="potem"/> po <paramref name="zwloka"/> s.</summary>
+    public (bool Ok, string Msg) WyslijPolecenie(string nazwa, string order, string potem, double zwloka, int port = DomyslnyPortPolecen)
+        => Wyslij(new() { ["kod"] = "IndividualOrder", ["nazwa"] = nazwa, ["order"] = order, ["potem"] = potem, ["zwloka"] = zwloka }, port);
+
+    /// <summary>
+    /// Przebieg do gry (RouteOrder): początek i koniec – nazwy SimRail (koniec może być pusty, gdy nieznany – np. wyjazd na szlak),
+    /// rodzaj P / M, zwrotnice przebiegu jako „z1985=Plus” (wybór wariantu z katalogu przebiegów gry).
+    /// </summary>
+    public (bool Ok, string Msg) WyslijPrzebieg(string start, string koniec, string rodzaj, IEnumerable<string> zwrotnice, int port = DomyslnyPortPolecen)
+        => Wyslij(new() { ["kod"] = "RouteOrder", ["start"] = start, ["koniec"] = koniec ?? "", ["rodzaj"] = rodzaj, ["zwrotnice"] = zwrotnice.ToList() }, port);
+
+    /// <summary>
+    /// Polecenie przebiegowe ISDR (mod ≥ 0.11, „RouteSpecial”): zwolnienia ZD / ZDM / ZDP / ZDPP / ZCZ i OPS dla pary początek–koniec.
+    /// Koniec pusty – mod szuka przebiegu od tego początku nastawionego w grze. <paramref name="potem"/> – drugi etap po <paramref name="zwloka"/> s.
+    /// </summary>
+    public (bool Ok, string Msg) WyslijSpecjalnePrzebiegu(string start, string koniec, string rodzaj, string order, string potem = null, double zwloka = 0, int port = DomyslnyPortPolecen)
+    {
+        var pola = new Dictionary<string, object> { ["kod"] = "RouteSpecial", ["start"] = start, ["koniec"] = koniec ?? "", ["rodzaj"] = rodzaj ?? "", ["order"] = order };
+        if (potem != null) { pola["potem"] = potem; pola["zwloka"] = zwloka; }
+        return Wyslij(pola, port);
+    }
+
+    /// <summary>Katalog przebiegów gry (mod ≥ 0.10.x, polecenie „RouteCatalog”): mod zapisuje go do pliku JSON i odpowiada jego ścieżką.</summary>
+    public (bool Ok, string Msg) WyslijKatalogPrzebiegow(int port = DomyslnyPortPolecen)
+        => Wyslij(new() { ["kod"] = "RouteCatalog" }, port);
+
+    (bool Ok, string Msg) Wyslij(Dictionary<string, object> pola, int port)
     {
         var id = Interlocked.Increment(ref _nrPolecenia);
         var tcs = new TaskCompletionSource<(bool, string)>();
         lock (_blokada) _odpowiedzi[id] = tcs;
-        var json = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object>
-            { ["v"] = 1, ["typ"] = "polecenie", ["id"] = id, ["kod"] = "IndividualOrder", ["nazwa"] = nazwa, ["order"] = order });
+        pola["v"] = 1; pola["typ"] = "polecenie"; pola["id"] = id;
+        var json = JsonSerializer.SerializeToUtf8Bytes(pola);
         try
         {
             _nadawca ??= new UdpClient();
@@ -158,6 +205,20 @@ public sealed class SimRailOdbiornik : IDisposable
 
     /// <summary>Wspólny odbiornik programu: okno „SimRail” i pulpit zdalny korzystają z jednego gniazda UDP.</summary>
     public static SimRailOdbiornik Wspolny { get; } = new();
+
+    /// <summary>
+    /// Posterunki gry w ostatnich danych: z obiektów (mod ≥ 0.10.2, LCS z kilkoma posterunkami – kilka), a bez nich –
+    /// posterunek migawki. Pusta lista – gra nic nie nadała.
+    /// </summary>
+    public List<string> PosterunkiGry()
+    {
+        lock (_blokada)
+        {
+            var l = _obiekty.Values.Select(o => o.Stacja).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s, StringComparer.CurrentCulture).ToList();
+            if (l.Count == 0 && Stacja.Length > 0) l.Add(Stacja);
+            return l;
+        }
+    }
 
     /// <summary>Kopia stanu wszystkich obiektów.</summary>
     public List<Obiekt> Obiekty() { lock (_blokada) return _obiekty.Values.ToList(); }
@@ -183,12 +244,49 @@ public sealed class SimRailOdbiornik : IDisposable
 /// <summary>
 /// Mapa nazw SimRail → odcinki SUK, plik danych obok układu: <c>&lt;układ&gt;.simrail.json</c>.
 /// Mapę projektuje właściciel (podziały odcinków w grze i w SUK mogą się różnić); program jej nie zgaduje.
-/// <code>{ "opis": "…", "mapa": { "l1_kol_it5": "KO:5" } }</code>
+/// <code>{ "opis": "…", "posterunki": [ "Koluszki" ], "mapa": { "l1_kol_it5": "KO:5" } }</code>
+/// Każdy posterunek SimRail ma własny układ SUK (Data/station.json albo Data/projekty/*.json) i własną mapę obok niego.
+/// <see cref="Posterunki"/> – nazwy posterunków gry (pole „stacja” moda), które obsługuje ten układ; po nich program
+/// proponuje układ przy starcie i ostrzega, gdy w grze jest inny posterunek. Pusta lista – układ bez przypisania.
 /// </summary>
 public sealed class SimRailMapa
 {
     public string Opis { get; set; } = "Mapa obiektów SimRail (klucz) na odcinki / obiekty SUK (wartość). Wypełnia właściciel.";
+    /// <summary>Posterunki SimRail (nazwy jak w grze), które obsługuje układ tej mapy.</summary>
+    public List<string> Posterunki { get; set; } = new();
     public SortedDictionary<string, string> Mapa { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>Czy układ obsługuje posterunek gry <paramref name="stacja"/> (bez rozróżniania wielkości liter, polskich znaków i odstępów).</summary>
+    public bool Obejmuje(string stacja) => !string.IsNullOrWhiteSpace(stacja) && Posterunki.Any(p => Klucz(p) == Klucz(stacja));
+
+    /// <summary>Czy układ obsługuje choć jeden z posterunków gry (LCS z kilkoma posterunkami).</summary>
+    public bool ObejmujeKtorys(IEnumerable<string> stacje) => stacje.Any(Obejmuje);
+
+    /// <summary>Nazwa posterunku do porównań: bez wielkości liter, polskich znaków i odstępów („Łódź  Widzew” = „lodz widzew”).</summary>
+    public static string Klucz(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        var d = s.Trim().ToLowerInvariant().Replace('ł', 'l').Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new System.Text.StringBuilder();
+        bool odstep = false;
+        foreach (var c in d)
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+            if (char.IsWhiteSpace(c) || c == '_' || c == '-') { odstep = sb.Length > 0; continue; }
+            if (odstep) { sb.Append(' '); odstep = false; }
+            sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Układy (pliki <c>*.json</c>) z mapą SimRail, która obejmuje posterunek <paramref name="stacja"/>.</summary>
+    public static List<string> UkladyDlaPosterunku(IEnumerable<string> uklady, string stacja)
+    {
+        var wynik = new List<string>();
+        foreach (var u in uklady)
+            try { if (Wczytaj(PlikDla(u)).Obejmuje(stacja)) wynik.Add(u); } catch { }
+        return wynik;
+    }
 
     static readonly JsonSerializerOptions Opcje = new()
     {
@@ -204,7 +302,42 @@ public sealed class SimRailMapa
         if (plik == null || !File.Exists(plik)) return new SimRailMapa();
         var m = JsonSerializer.Deserialize<SimRailMapa>(File.ReadAllText(plik), Opcje) ?? new SimRailMapa();
         m.Mapa = new SortedDictionary<string, string>(m.Mapa ?? new(), StringComparer.Ordinal);
+        m.Posterunki = (m.Posterunki ?? new()).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return m;
+    }
+
+    /// <summary>
+    /// Krótki nasłuch portu stanów moda (bez wspólnego odbiornika): nazwa posterunku z pierwszego pakietu albo null
+    /// (gra nie nadaje, port zajęty, przerwano). Do wyboru układu przy starcie.
+    /// </summary>
+    public static async Task<string> WykryjPosterunek(int port, TimeSpan czas, CancellationToken stop)
+    {
+        using var udp = new UdpClient();
+        try
+        {
+            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
+            udp.Client.Bind(new IPEndPoint(IPAddress.Loopback, port));
+        }
+        catch { return null; }
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        cts.CancelAfter(czas);
+        try
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                var r = await udp.ReceiveAsync(cts.Token);
+                try
+                {
+                    using var doc = JsonDocument.Parse(r.Buffer);
+                    if (doc.RootElement.TryGetProperty("stacja", out var s) && s.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(s.GetString()))
+                        return s.GetString().Trim();
+                }
+                catch (JsonException) { }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (SocketException) { }
+        return null;
     }
 
     public void Zapisz(string plik)

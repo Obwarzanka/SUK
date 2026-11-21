@@ -21,6 +21,30 @@ public class BlockInd
     public bool[] StopEnd = new bool[2]; public bool NbrStop, TrainOn, NoData;
     /// <summary>Półsamoczynna: lampki Pwl (czerwona), Ko możliwy (biała) dla każdego końca; kTor – szczelina kontrolna SBL (czerwona).</summary>
     public bool[] Pwl = new bool[2], KoReady = new bool[2]; public bool KTor;
+    /// <summary>Opis stanu z zewnętrznego źródła (pulpit zdalny SimRail: stan blokady z gry) – do podpowiedzi.</summary>
+    public string Info;
+}
+/// <summary>
+/// Przejazd kolejowo-drogowy (pulpit zdalny SimRail): Stan – „otwarty”, „zamykanie”, „zamkniety”, „otwieranie”, „uszkodzony”,
+/// null – brak danych z urządzeń przejazdu. Info – opis stanu z gry.
+/// </summary>
+/// <summary>Stan przejazdu na pulpicie – ze źródła gry (pulpit zdalny SimRail) albo z własnego symulatora (plan przejazdów P6).</summary>
+public class CrossInd
+{
+    /// <summary>otwarty / zamykanie / otwieranie / zamkniety / uszkodzony / nieznany; null – brak danych.</summary>
+    public string Stan, Info;
+    /// <summary>Zamknięty i potwierdzony – utwierdzony w przebiegu (Ie-104 § 13, część „3a” żółta).</summary>
+    public bool Utwierdzony;
+    /// <summary>Powtarzacz (UZK): sam stan, polecenia Zamk / Otw niedostępne.</summary>
+    public bool Uzk;
+    /// <summary>SSP; kategoria A–F (z układu albo z nazwy w grze).</summary>
+    public bool Ssp; public string Kat = "";
+    /// <summary>Sygnalizacja ostrzegawcza działa (światła / sygnały drogowe zamknięte).</summary>
+    public bool Ostrzeganie;
+    /// <summary>Rogatki wjazdowe / wyjazdowe słownie (jak <see cref="Stan"/>); null – brak danych.</summary>
+    public string RogWj, RogWy;
+    /// <summary>Tory z wyłączonym oddziaływaniem (Ie-104 § 14 „4a/4b” białe).</summary>
+    public List<string> ToryWyl = new();
 }
 /// <summary>Przebieg na pulpicie; Edges – droga jazdy, OverlapEdges – droga ochronna wg położenia zwrotnic (Ie-104 § 8 pkt 8 ust. 2 lit. c: barwa tylko na drodze).</summary>
 public class RouteInd { public string Start, End, EndKind, EndNode, Type, State; public bool TimeRel; public List<string> Edges = new(), OverlapEdges = new(); }
@@ -39,6 +63,8 @@ public class Indication
     public Dictionary<string, SigInd> Sigs = new();
     public Dictionary<string, DerInd> Ders = new();
     public Dictionary<string, BlockInd> Blocks = new();
+    /// <summary>Przejazdy (nazwa z <see cref="Station.Crossings"/>) – tylko gdy źródło zna ich stan (pulpit zdalny SimRail).</summary>
+    public Dictionary<string, CrossInd> Crossings = new();
     public Dictionary<string, RouteInd> Routes = new();
     /// <summary>Polecenie specjalne zainicjowane na tym stanowisku (czeka na potwierdzenie).</summary>
     public PendingInd Pending;

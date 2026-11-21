@@ -108,7 +108,7 @@ public static partial class Test
         var ry = w.Obraz.Wezly.Select(n => n.P[1]).Distinct().OrderBy(y => y).ToList();
         var r2 = w.Obraz.Odcinki.Where(e => ObrGraf.Poziomy(w.Obraz, e)).Select(e => ObrGraf.Konce(w.Obraz, e)).Where(k => k.A[1] > ry[0]).OrderBy(k => k.A[1]).ThenByDescending(k => Math.Abs(k.B[0] - k.A[0])).First();
         w.View.ClearSelection();
-        w.View.SimDrag(S(w, (r2.A[0] + r2.B[0]) / 2.0, r2.A[1]), S(w, (r2.A[0] + r2.B[0]) / 2.0, r2.A[1] + 32));
+        w.View.SimDrag(S(w, (r2.A[0] + r2.B[0]) / 2.0, r2.A[1]), S(w, (r2.A[0] + r2.B[0]) / 2.0, r2.A[1] + 32), MouseButton.Left, ModifierKeys.Control);
         Key(w, K.F8);
         spr = w.Sprawdz();
         Ok(w.Obraz.Wezly.Any(n => n.P[1] == r2.A[1] + 32) && ObrGraf.Uwagi(w.Obraz).Count == 0 && Wyj(w) == 0 && spr.Count(x => x.Blad) == 0,

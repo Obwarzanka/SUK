@@ -113,7 +113,54 @@ public class Pip
         return null;
     }
 
-    /// <summary>Wyświetlacze numerów: okno → numery (w kolejności wejścia).</summary>
-    public Dictionary<string, List<string>> Okna() =>
-        Numery.Where(x => x.Okno != null).GroupBy(x => x.Okno).ToDictionary(g => g.Key, g => g.OrderBy(x => x.OknoOd).Select(x => x.Nr).ToList());
+    /// <summary>
+    /// Wyświetlacze numerów: okno → numery (w kolejności wejścia). Przy nastawionym przebiegu pociągowym numer pociągu, który
+    /// stoi przed semaforem początkowym (albo jest już na drodze przebiegu), pokazuje się także w oknie toru docelowego
+    /// (uwaga właściciela 2026-11-21) – do czasu, aż czoło tam wjedzie albo przebieg zostanie zwolniony.
+    /// </summary>
+    public Dictionary<string, List<string>> Okna()
+    {
+        var res = Numery.Where(x => x.Okno != null).GroupBy(x => x.Okno).ToDictionary(g => g.Key, g => g.OrderBy(x => x.OknoOd).Select(x => x.Nr).ToList());
+        foreach (var (cel, nr) in Prognozy())
+        {
+            if (!res.TryGetValue(cel, out var l)) res[cel] = l = new();
+            if (!l.Contains(nr)) l.Add(nr);
+        }
+        return res;
+    }
+
+    /// <summary>Numery zapowiadane na torach docelowych nastawionych przebiegów pociągowych: (okno docelowe, numer).</summary>
+    IEnumerable<(string Cel, string Nr)> Prognozy()
+    {
+        foreach (var r in S.Routes.Values)
+        {
+            if (r.Type != "P" || r.State == "setting" || r.Secs.Count == 0) continue;
+            var cel = r.Secs.LastOrDefault(Okno); if (cel == null) continue;
+            // odcinki przed semaforem początkowym (poza drogą przebiegu) i droga przebiegu – szukanie numeru po zajętych odcinkach
+            var droga = r.Secs.ToHashSet();
+            var start = droga.Where(x => x != cel).ToList();     // na torze docelowym może stać inny pociąg
+            if (L.Signals.TryGetValue(r.Start, out var sg) && L.Nodes.TryGetValue(sg.Node, out var wn))
+                start.AddRange(wn.Edges.Select(e => L.Edges[e].Sec).Where(x => x != null && !droga.Contains(x)));
+            var m = NumerPrzed(start.Distinct().ToList(), cel);
+            if (m != null && m.Okno != cel) yield return (cel, m.Nr);
+        }
+    }
+
+    /// <summary>Numer, którego czoło jest na jednym z odcinków start albo za nimi po zajętych odcinkach (najbliższy).</summary>
+    Numer NumerPrzed(List<string> start, string cel)
+    {
+        var seen = start.ToHashSet(); seen.Add(cel);
+        var poziom = start.Where(zajete.Contains).ToList();
+        for (int k = 0; k < 30 && poziom.Count > 0; k++)
+        {
+            var m = Numery.Where(x => x.Zajety && poziom.Contains(x.Czolo)).OrderByDescending(x => x.CzoloOd).FirstOrDefault();
+            if (m != null) return m;
+            var dalej = new List<string>();
+            foreach (var c in poziom)
+                foreach (var s in sasiedzi.GetValueOrDefault(c) ?? new())
+                    if (zajete.Contains(s) && seen.Add(s)) dalej.Add(s);
+            poziom = dalej;
+        }
+        return null;
+    }
 }
