@@ -69,9 +69,9 @@ public sealed class WejscieCykluTests
     public void WejscieIStatusySaNiezmienneBezDelegatowIReferencjiDoStanu()
     {
         var typy = new[] { typeof(WejscieCyklu), typeof(PartiaWejsc), typeof(StatusUrzadzenia), typeof(StatusOdcinka), typeof(StatusZwrotnicy),
-            typeof(StatusWykolejnicy), typeof(StatusSygnalizatora), typeof(StatusZasilania), typeof(TrasaWejsc.Wpis) };
+            typeof(StatusWykolejnicy), typeof(StatusSygnalizatora), typeof(StatusZasilania), typeof(TrasaWejsc.Wpis), typeof(RozstrzygniecieWyjscia) };
         var dozwolone = new HashSet<Type> { typeof(string), typeof(bool), typeof(bool?), typeof(long), typeof(int), typeof(FazaWejscia), typeof(Type),
-            typeof(ImmutableArray<StatusUrzadzenia>), typeof(ImmutableArray<WejscieCyklu>), typeof(ImmutableArray<string>), typeof(ImmutableArray<int>) };
+            typeof(ImmutableArray<StatusUrzadzenia>), typeof(ImmutableArray<WejscieCyklu>), typeof(ImmutableArray<string>), typeof(ImmutableArray<int>), typeof(ImmutableArray<RozstrzygniecieWyjscia>) };
         foreach (var t in typy)
         {
             foreach (var p in t.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
@@ -269,7 +269,9 @@ public sealed class WejscieCykluTests
         // status mimo to doręczony do KZ: KZ przyjął „BRAK SIECI” (wpis karta → KZ) i podniósł alarm, którego subskrybent zawiódł
         Assert.StartsWith("BRAK SIECI", sim.Urzadzenia.Dziennik.Last(k => k.Rodzaj == "zasilanie").Tresc, StringComparison.Ordinal);
         // bez błędu przy zamknięciu – wychodzi wyjątek pierwotny (nie AggregateException)
-        Assert.Throws<ApplicationException>(() => sim.Wejscia.WFazie<int>(FazaWejscia.Karty, () => throw new ApplicationException("pierwotny")));
+        Assert.True(sim.Wyjscia.Zatrzymana); // S02A.03: nieznany wynik skutku po callbacku wymaga fail-stop
+        var bezBleduDoreczenia = new Simulator(Load());
+        Assert.Throws<ApplicationException>(() => bezBleduDoreczenia.Wejscia.WFazie<int>(FazaWejscia.Karty, () => throw new ApplicationException("pierwotny")));
     }
 
     sealed class Zmieniajacy(Simulator s, int tryb) : IOdbiorcaWejscCyklu
@@ -347,7 +349,8 @@ public sealed class WejscieCykluTests
         sim.Tick(0.25);
         Assert.Throws<InvalidOperationException>(() => sim.Instruktor.ApplyFault("mains", null, false));    // wyjątek z wnętrza KZ obszaru
         rzucaj = false;
-        for (int i = 0; i < 4; i++) sim.Tick(0.25);
+        Assert.True(sim.Wyjscia.Zatrzymana); // S02A.03: odbiorcy dostali zamrożone wejście, ale skutek o nieznanym wyniku nie jest ponawiany
+        Assert.Throws<InvalidOperationException>(() => sim.Tick(0.25));
         foreach (var (kz, z) in zapis)
         {
             Assert.Equal(Enumerable.Range(1, z.Wejscia.Count).Select(x => (long)x), z.Wejscia.Select(w => w.NrWejscia));
@@ -355,6 +358,7 @@ public sealed class WejscieCykluTests
             Assert.Contains(z.Wejscia, w => w.Faza == FazaWejscia.Usterka && w.Statusy.Any(s => s is StatusZasilania p && !p.Siec));
         }
         // status obiektu bez karty – odrzucony w miejscu zgłoszenia; poprawne zgłoszenia tej fazy nie giną
+        sim = new Simulator(Load()); // kontrola walidacji statusów jest niezależna od zatrzymanego świata
         var karta = sim.Urzadzenia.Odcinki.Values.First();
         using (sim.Wejscia.Faza(FazaWejscia.Karty))
         {

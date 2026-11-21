@@ -63,7 +63,9 @@ $zrodlaMod = Get-ChildItem $MostDir -Filter *.cs | Sort-Object LastWriteTime -De
 if ($zrodlaMod.LastWriteTime -gt (Get-Item $dll).LastWriteTime) {
     Write-Warning "SimRailMost.dll jest starszy niż $($zrodlaMod.Name) – przebuduj mod, jeśli zmiany mają trafić do wydania."
 }
-$wersjaMod = (Select-String -Path (Join-Path $MostDir 'Mod.cs') -Pattern 'MelonInfo\(.*?"SimRailMost",\s*"([^"]+)"').Matches.Groups[1].Value
+# Wersja z MelonInfo zapisanego w DLL (źródła mogą być już nowsze niż zbudowany mod)
+$bajty = [Text.Encoding]::Latin1.GetString([IO.File]::ReadAllBytes($dll))
+$wersjaMod = [regex]::Match($bajty, 'SimRailMost.(\d+\.\d+\.\d+)').Groups[1].Value
 New-Item -ItemType Directory -Force (Join-Path $cel 'mod') | Out-Null
 Copy-Item $dll (Join-Path $cel 'mod')
 

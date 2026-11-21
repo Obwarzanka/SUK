@@ -16,4 +16,8 @@ public sealed class SimulatorOptions
 
     /// <summary>Logger rejestru wejść cyklu KZ (S02A.02, KZ.CYCLE_INPUT_* 4111–4116); brak – rejestr bez logów.</summary>
     public ILogger WejscieCykluLogger { get; init; }
+    /// <summary>Logger jednego wyjścia KZ (S02A.03, 4121–4125), poza Evaluate.</summary>
+    public ILogger PlanWyjsciaLogger { get; init; }
+    /// <summary>Jawny kontekst poleceń i zatwierdzona projekcja ruchu (S02A.04, 4130–4133).</summary>
+    public ILogger GraniceLogger { get; init; }
 }

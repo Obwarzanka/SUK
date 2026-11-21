@@ -54,9 +54,9 @@ public class Rejestrator
         return L.Posts.ContainsKey(p) ? PostShort(L, p) : "LCS";
     }
 
-    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System")
+    public EventRecord Log(string kategoria, string text, string typ = "", string obiekt = "", string zrodlo = "System", KontekstOperatora kontekst = null)
     {
-        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = OperatorWpisu(kategoria, typ, zrodlo), Zrodlo = zrodlo };
+        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = kategoria, Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = OperatorWpisu(kategoria, typ, zrodlo, kontekst), Zrodlo = zrodlo };
         Events.Add(e);
         EventAdded?.Invoke(e);
         ZdarzeniaRejestratora.Wpis(log, L, e, obiekt);   // bez I/O: tylko wpis do ograniczonej kolejki logów
@@ -64,21 +64,22 @@ public class Rejestrator
     }
 
     /// <summary>Operator wpisu jak w ISDR: polecenia i działania dyżurnego z operatorem, samoczynne skutki w urządzeniach („położenie MINUS”) bez.</summary>
-    string OperatorWpisu(string kategoria, string typ, string zrodlo) => zrodlo != "PC" && typ != "Użytkownik" && kategoria is "Zdarzenie" or "Ruch" ? "" : uzytkownik()?.Name ?? "";
+    string OperatorWpisu(string kategoria, string typ, string zrodlo, KontekstOperatora kontekst) => zrodlo != "PC" && typ != "Użytkownik" && kategoria is "Zdarzenie" or "Ruch" ? "" : Operator(kontekst);
+    string Operator(KontekstOperatora kontekst) => kontekst == null ? uzytkownik()?.Name ?? "" : kontekst.Nazwa ?? "";
 
     /// <summary>Alarm (Ie-104 § 7): lista z potwierdzeniem i znacznikiem trwania stanu alarmowego.</summary>
-    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null)
+    public void Alarm(string text, string typ = "", string obiekt = "", string key = null, Func<bool> stillActive = null, KontekstOperatora kontekst = null)
     {
         key ??= text;
         if (Alarms.Any(a => a.Key == key && (!a.Ack || a.Active))) return;
-        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = "Alarm", Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = uzytkownik()?.Name ?? "", Key = key, StillActive = stillActive };
+        var e = new EventRecord { Id = ++evSeq, T = czas(), Czas = zegar(), Obszar = L.Name ?? "LCS", Kategoria = "Alarm", Zdarzenie = Clean(text), TypObiektu = typ, Obiekt = Clean(obiekt), Stacja = StationOf(obiekt, text), Operator = Operator(kontekst), Key = key, StillActive = stillActive };
         Alarms.Add(e);
         AlarmAdded?.Invoke(e);
-        Log("Alarm", text, typ, obiekt);
+        Log("Alarm", text, typ, obiekt, kontekst: kontekst);
         Beep?.Invoke();
     }
 
-    public void Remark(string text) { Remarks.Add((zegar(), Clean(text))); Log("Uwaga", text, "Ocena"); }
+    public void Remark(string text, KontekstOperatora kontekst = null) { Remarks.Add((zegar(), Clean(text))); Log("Uwaga", text, "Ocena", kontekst: kontekst); }
 
     /// <summary>Koniec cyklu: alarmy, których przyczyna ustąpiła, dostają znacznik „ustąpił”.</summary>
     public void UpdateAlarms() { foreach (var a in Alarms) if (a.Active && a.StillActive != null && !a.StillActive()) a.Active = false; }

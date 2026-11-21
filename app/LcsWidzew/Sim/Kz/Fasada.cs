@@ -68,6 +68,7 @@ public partial class Simulator
     public string PrzeliczTablice()
     {
         Wejscia.PozaOdbiorca();
+        Wyjscia.SprawdzGotowosc(); Kz.PozaPropozycja();
         if (Routes.Count > 0) return "Są nastawione przebiegi – zwolnij je i naciśnij „Przelicz tablicę” (albo uruchom symulację ponownie).";
         Kz.RouteTable.Clear(); Kz.BuildRouteTable(); wlasnosc = null; Wejscia.UniewaznijTrase();
         return null;

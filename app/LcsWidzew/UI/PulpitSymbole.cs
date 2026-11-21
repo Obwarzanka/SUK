@@ -99,10 +99,11 @@ public static class PulpitSymbole
     }
 
     /// <summary>Linia przejazdu w poprzek torów z oznaczeniami końców (od <paramref name="y0"/> do <paramref name="y1"/>).</summary>
-    public static void Przejazd(DrawingContext dc, double x, double y0, double y1, string kind = "Y", Brush barwa = null)
+    /// <param name="konce">Barwa oznaczeń końców (rogatek), gdy inna niż linii – np. żółta przy utwierdzeniu w przebiegu (Ie-104 § 13 „3a”).</param>
+    public static void Przejazd(DrawingContext dc, double x, double y0, double y1, string kind = "Y", Brush barwa = null, Brush konce = null)
     {
         dc.DrawLine(new Pen(barwa ?? CrossPink, 3), new Point(x, y0 + 14), new Point(x, y1 - 14));
-        KoniecPrzejazdu(dc, x, y0, -1, kind, barwa); KoniecPrzejazdu(dc, x, y1, 1, kind, barwa);
+        KoniecPrzejazdu(dc, x, y0, -1, kind, konce ?? barwa); KoniecPrzejazdu(dc, x, y1, 1, kind, konce ?? barwa);
     }
 
     /// <summary>Peron: prostokąt z podwójną ramką (napis rysuje wywołujący).</summary>

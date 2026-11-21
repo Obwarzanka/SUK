@@ -280,7 +280,7 @@ public static class SelfTest
             bool w17 = false;
             foreach (var p17 in c17)
             {
-                var sc = ws.Secs[st.Edges[p17.E2].Sec]; var lt = sc.LockType; sc.LockType = "shunt";
+                var sc = ws.Secs[st.Edges[p17.E2].Sec]; var lt = sc.LockType; sc.LockType = "shunt"; ws.UniewaznijProjekcjeRuchu(0);
                 var tm = Pociag(p17.E, st.Other(p17.E, p17.N), 20, shunt: true);
                 var bez = ws.Trains.Lookahead(tm);
                 double doUk = st.Edges[p17.E].Len - 20;
@@ -291,7 +291,7 @@ public static class SelfTest
                     Wi(z.End && Math.Abs(z.D - (doUk - 3)) < 0.01, $"W17 przed zwrotnicą {Station.Lbl(st.Nodes[p17.Sw].Switch)}: manewr staje {z.D:0.0} m przed czołem (3 m przed ukresem), bez ukresu – {bez.D:0.0} m (za ukresem)");
                     st.Ukres.Remove(p17.N); w17 = true;
                 }
-                sc.LockType = lt;
+                sc.LockType = lt; ws.UniewaznijProjekcjeRuchu(0);
                 if (w17) break;
             }
             if (!w17)
@@ -329,8 +329,8 @@ public static class SelfTest
                 var r24 = ws.RouteTable[s24].First(r => r.Type == "P" && r.EndKind == "szlak" && st.Blocks.TryGetValue(r.End, out var b) && !b.OneWay && st.Signals[s24].Dir == -b.DefDir);
                 ws.Kz.Routes["r24test"] = new Route { Id = r24.Id, Start = s24, End = r24.End, EndKind = r24.EndKind, Type = "P" };
                 ws.Kz.Sigs[s24].Aspect = Aspect.Train;
-                ws.Kz.UpdateSignals(); bool bezW24 = ws.Kz.Sigs[s24].W24;
-                st.Signals[s24].W24 = true; ws.Kz.UpdateSignals(); bool zW24 = ws.Kz.Sigs[s24].W24;
+                ws.Wyjscia.Zatwierdz(ws.Kz.Evaluate(KrokKz.Sygnaly)); bool bezW24 = ws.Kz.Sigs[s24].W24;
+                st.Signals[s24].W24 = true; ws.Wyjscia.Zatwierdz(ws.Kz.Evaluate(KrokKz.Sygnaly)); bool zW24 = ws.Kz.Sigs[s24].W24;
                 Wi(zW24 && !bezW24, $"W24 na {Station.Lbl(s24)}: z sygnałem zezwalającym na tor szlaku {r24.End} pod prąd świeci; semafor bez W24 w UT – nie");
                 st.Signals[s24].W24 = false; ws.Kz.Routes.Remove("r24test");
             }
@@ -587,6 +587,7 @@ public static class SelfTest
         foreach (var r in todo.Where(r => !ok.Contains(r.Id))) sb.AppendLine($"NIE NASTAWIONO {r.Id} ({Cmd(r)}): " + (failed.TryGetValue(r, out var why) ? why : done.Contains(r) ? "przyjęty, ale nie doszedł do sygnału zezwalającego" : string.Join(", ", sim.WhyNot(r).Take(3))));
         foreach (var e in sim.Events.Where(e => e.Kategoria is "Ruch" or "Alarm" or "Uwaga")) sb.AppendLine($"{e.Czas} {e.Kategoria}: {e.Zdarzenie}");
         sb.AppendLine("Pociągi: " + string.Join("; ", tr.List.Select(t => $"{t.Num} {t.State} wait={t.WaitingAt}")));
+        sim.PodsumujGranice();
         File.WriteAllText(outPath, sb.ToString());
         // pełny dziennik zdarzeń – porównanie „przed / po” przy przenoszeniu kodu między modułami
         File.WriteAllLines(outPath + ".zdarzenia", sim.Events.Select(e => $"{e.Czas}|{e.Kategoria}|{e.TypObiektu}|{e.Obiekt}|{e.Stacja}|{e.Zrodlo}|{e.Zdarzenie}"));
@@ -724,6 +725,7 @@ public static class SelfTest
         sb.AppendLine("Niewykonane z kolejki: " + string.Join(", ", sim.Rozklad.Queue.Where(q => !q.Done).Select(q => q.Num)));
         sb.AppendLine($"PIP: numer w oknie pociągu {pipOk} z {pipTot} kontroli, numery bez pociągu w oknie: {pipObce}");
         foreach (var x in pipBledy) sb.AppendLine("   PIP " + x);
+        sim.PodsumujGranice();
         if (outPath != null)
         {
             File.WriteAllText(outPath, sb.ToString());

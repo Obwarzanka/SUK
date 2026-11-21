@@ -482,19 +482,21 @@ public class PanelView : FrameworkElement
         foreach (var d in L.Dashed.Where(d => OnPage(d.X0))) dc.DrawLine(dash, new Point(d.X0, d.Y), new Point(d.X1, d.Y));
         foreach (var c in L.Crossings.Where(c => OnPage(c.X)))
         {
-            // stan przejazdu ze źródła (pulpit zdalny SimRail): zamknięty – szary (jak w grze), zamykanie / otwieranie – żółty migający,
-            // uszkodzony – czerwony migający, otwarty – barwa rysunku; bez stanu – jak dotąd
+            // stan przejazdu ze źródła wg Ie-104 § 13 (i jak pulpit gry, P0 2026-11-21): brak danych – biały, otwarty – różowy,
+            // stan pośredni rogatek – różowy migający (gra: różowy ⇄ zgaszony), zamknięty – szary, utwierdzony w przebiegu – rogatki
+            // („3a”) żółte przy szarej linii; uszkodzony – czerwony na przemian z białym (§ 14, awaria SSP); bez stanu – barwa rysunku
             var ci = S.Crossings.GetValueOrDefault(c.Name ?? "");
             Brush cb = ci == null ? CrossPink : ci.Stan switch
             {
                 "zamkniety" => Grey,
-                "zamykanie" or "otwieranie" => BlinkOn ? Yellow : CrossPink,
-                "uszkodzony" => BlinkOn ? Red : CrossPink,
+                "zamykanie" or "otwieranie" => BlinkOn ? CrossPink : Bg,
+                "uszkodzony" => BlinkOn ? Red : White,
                 null => White,
                 _ => CrossPink,
             };
-            PulpitSymbole.Przejazd(dc, c.X, c.Y0, c.Y1, c.Kind, cb);
-            Text(dc, c.Name, c.X + 8, c.Y0 - 4, 8, cb, false, dpi, Mono);
+            Brush konce = ci is { Utwierdzony: true, Stan: "zamkniety" } ? Yellow : null;
+            PulpitSymbole.Przejazd(dc, c.X, c.Y0, c.Y1, c.Kind, cb, konce);
+            Text(dc, c.Name, c.X + 8, c.Y0 - 4, 8, ci == null ? cb : Grey, false, dpi, Mono);
             if (SelObj == "prz:" + c.Name) dc.DrawRoundedRectangle(null, new Pen(SetFrame, 2), new Rect(c.X - 9, c.Y0 - 18, 18 + 6 * (c.Name?.Length ?? 0), c.Y1 - c.Y0 + 36), 3, 3);
         }
 

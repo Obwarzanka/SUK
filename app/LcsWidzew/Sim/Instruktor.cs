@@ -53,6 +53,7 @@ public class Instruktor
     public void ApplyFault(string type, string target, bool clear)
     {
         S.Wejscia.PozaOdbiorca();
+        S.Wyjscia.SprawdzGotowosc(); S.Kz.PozaPropozycja();
         // usterka w karcie – natychmiastowa faza Usterka: każdy status karty trafia do KZ od razu (przed alarmem karty i wpisem instruktora; S02A.02)
         bool Karta(Func<bool> usterka) => S.Wejscia.WFazie(FazaWejscia.Usterka, usterka);
         switch (type)

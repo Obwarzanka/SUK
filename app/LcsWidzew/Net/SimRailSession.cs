@@ -399,6 +399,9 @@ public sealed class SimRailSession : ILcsSession, IDisposable
     {
         if (c.Name == null) return null;
         if (przejazdGry.TryGetValue(c.Name, out var n)) return n;
+        // jawna nazwa z układu (plan przejazdów P1) – bez zgadywania po kilometrze
+        if (!string.IsNullOrEmpty(c.Game) && przejazdy.FirstOrDefault(o => string.Equals(o.Nazwa, c.Game, StringComparison.OrdinalIgnoreCase)) is { } jawny)
+            return przejazdGry[c.Name] = jawny.Nazwa;
         var ci = System.Globalization.CultureInfo.InvariantCulture;
         if (!double.TryParse(c.Name.Replace(',', '.'), System.Globalization.NumberStyles.Float, ci, out var km)) return null;
         static double Km(string nazwa, IFormatProvider ci)
@@ -432,13 +435,52 @@ public sealed class SimRailSession : ILcsSession, IDisposable
                         : (pz & CsSwitch) != 0 ? ((pz & CsClose) != 0 ? "otwieranie" : "zamykanie")
                         : (pz & (CsClose | CsHold)) != 0 ? "zamkniety"
                         : (pz & CsOpen) != 0 ? "otwarty" : null;
-            I.Crossings[c.Name] = new CrossInd { Stan = stan, Info = $"gra {ng}: {OpisPrzejazdu(pz)}" };
+            var ind = new CrossInd { Stan = stan, Info = $"gra {ng}: {OpisPrzejazdu(pz)}", Kat = c.Cat ?? "", Ssp = c.Ssp, Uzk = c.Uzk };
+            SzczegolyZGry(ind, o, ng);
+            I.Crossings[c.Name] = ind;
             if (stanPrzejazdu.TryGetValue(c.Name, out var poprz) && poprz != pz) Zdarz("Zdarzenie", "przejazd " + c.Name, $"przejazd (gra): {OpisPrzejazdu(pz)}");
             stanPrzejazdu[c.Name] = pz;
         }
     }
     readonly Dictionary<string, int> stanPrzejazdu = new(StringComparer.Ordinal);
     readonly Dictionary<string, string> widokPrzejazdu = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Plan przejazdów P2: szczegóły z moda ≥ 0.12 („pzd”) i z nazwy obiektu gry. Gra (P0, 2026-11-21) w stanie ogólnym nie ustawia
+    /// Switch – ruch rogatek widać tylko w stanach rogatek wjazdowych / wyjazdowych, więc „zamykanie / otwieranie” liczy się stąd.
+    /// </summary>
+    static void SzczegolyZGry(CrossInd ind, SimRailOdbiornik.Obiekt o, string ng)
+    {
+        // kategoria z nazwy gry: „L1_102.026_B” → B
+        if (string.IsNullOrEmpty(ind.Kat) && System.Text.RegularExpressions.Regex.Match(ng ?? "", @"_([A-Fa-f])$") is { Success: true } mk) ind.Kat = mk.Groups[1].Value.ToUpperInvariant();
+        if (ind.Kat is "B" or "C") ind.Ssp = true;
+        if (string.IsNullOrEmpty(o.SzczegolyPrzejazdu)) return;
+        var d = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var para in o.SzczegolyPrzejazdu.Split(';'))
+        {
+            var i = para.IndexOf('='); if (i > 0) d[para[..i]] = para[(i + 1)..];
+        }
+        int N(string k) => d.TryGetValue(k, out var v) && int.TryParse(v, out var x) ? x : -1;
+        bool T(string k) => d.TryGetValue(k, out var v) && v == "1";
+        static string Rog(int s) => s <= 0 ? null : (s & CsBroken) != 0 ? "uszkodzony" : (s & CsSwitch) != 0 ? "w ruchu" : (s & (CsClose | CsHold)) != 0 ? "zamkniety" : (s & CsOpen) != 0 ? "otwarty" : null;
+        int s = N("s"), wj = N("wj"), wy = N("wy");
+        ind.RogWj = Rog(wj); ind.RogWy = Rog(wy);
+        ind.Ostrzeganie = s > 0 && (s & (CsClose | CsSwitch)) != 0;
+        ind.Utwierdzony = T("c");
+        ind.Uzk |= T("uzk");
+        ind.Ssp |= T("aut") || T("zd");
+        if (d.TryGetValue("tw", out var tw) && tw.Length > 0) ind.ToryWyl = tw.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        static bool Ma(int st, int bit) => st > 0 && (st & bit) != 0;
+        if (ind.Stan == "uszkodzony") { }
+        else if (Ma(s, CsBroken) || Ma(wj, CsBroken) || Ma(wy, CsBroken)) ind.Stan = "uszkodzony";
+        // ruch rogatek: przy zamykaniu stan ogólny już „Close”, przy otwieraniu już „Open”
+        else if (Ma(wj, CsSwitch) || Ma(wy, CsSwitch)) ind.Stan = ind.Stan == "zamkniety" ? "zamykanie" : "otwieranie";
+        // sygnały zamknięte, rogatki jeszcze otwarte – czas ostrzegania przed opuszczeniem rogatek
+        else if (ind.Stan == "zamkniety" && ind.RogWj == "otwarty" && ind.RogWy == "otwarty") ind.Stan = "zamykanie";
+        ind.Info += $"; sygnały {Rog(s) ?? "?"}, rogatki wj {ind.RogWj ?? "?"} / wy {ind.RogWy ?? "?"}"
+                  + (ind.Utwierdzony ? ", utwierdzony w przebiegu" : "") + (ind.Uzk ? ", powtarzacz (UZK)" : "")
+                  + (ind.Kat.Length > 0 ? $", kat. {ind.Kat}" : "") + (ind.ToryWyl.Count > 0 ? $", wył. oddziaływanie: {string.Join(", ", ind.ToryWyl)}" : "");
+    }
 
     static string OpisPrzejazdu(int pz)
     {

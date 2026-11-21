@@ -1,0 +1,616 @@
+{
+  "schemaVersion": 1,
+  "specVersion": "0.1.0",
+  "readyForAuthors": false,
+  "purpose": "Deklaratywny opis źródła i zakresu; bez algorytmu KZ i bez nowych kart.",
+  "signalTableSha256": "5b5b5d94427ddf3dbf9bbbc98dc9bd5c63c5ede5217f22a1409e5304b1584886",
+  "symbols": {
+    "Z": "zielone",
+    "P": "pomarańczowe",
+    "C": "czerwone",
+    "B": "matowobiałe",
+    "N": "niebieskie",
+    "*": "poprzednie światło migające",
+    "lampOrder": "od góry do dołu"
+  },
+  "signals": [
+    {
+      "kod": "S1",
+      "nazwa": "Stój",
+      "swiatla": "C",
+      "pas": null,
+      "v": null,
+      "nast": null,
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt1",
+      "pdfPages": [
+        17,
+        18
+      ]
+    },
+    {
+      "kod": "S2",
+      "nazwa": "Jazda z największą dozwoloną prędkością",
+      "swiatla": "Z",
+      "pas": null,
+      "v": 0,
+      "nast": "Vmax",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt2",
+      "pdfPages": [
+        19
+      ]
+    },
+    {
+      "kod": "S3",
+      "nazwa": "Jazda z największą dozwoloną prędkością – w przodzie są dwa odstępy blokowe wolne – albo przy następnym semaforze z prędkością nie większą niż 100 km/h",
+      "swiatla": "Z*",
+      "pas": null,
+      "v": 0,
+      "nast": "100",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt3",
+      "pdfPages": [
+        19,
+        20
+      ]
+    },
+    {
+      "kod": "S4",
+      "nazwa": "Następny semafor wskazuje sygnał zezwalający na jazdę z prędkością zmniejszoną do 40 lub 60 km/h",
+      "swiatla": "P*",
+      "pas": null,
+      "v": 0,
+      "nast": "40/60",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt4",
+      "pdfPages": [
+        21,
+        22
+      ]
+    },
+    {
+      "kod": "S5",
+      "nazwa": "Następny semafor wskazuje sygnał „Stój”",
+      "swiatla": "P",
+      "pas": null,
+      "v": 0,
+      "nast": "Stoj",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt5",
+      "pdfPages": [
+        21
+      ]
+    },
+    {
+      "kod": "S6",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a potem z największą dozwoloną prędkością",
+      "swiatla": "ZP",
+      "pas": "Z",
+      "v": 100,
+      "nast": "Vmax",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt6",
+      "pdfPages": [
+        22,
+        23
+      ]
+    },
+    {
+      "kod": "S7",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h przy tym i następnym semaforze",
+      "swiatla": "Z*P",
+      "pas": "Z",
+      "v": 100,
+      "nast": "100",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt7",
+      "pdfPages": [
+        22,
+        23
+      ]
+    },
+    {
+      "kod": "S8",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a przy następnym semaforze – z prędkością zmniejszoną do 40 lub 60 km/h",
+      "swiatla": "P*P",
+      "pas": "Z",
+      "v": 100,
+      "nast": "40/60",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt8",
+      "pdfPages": [
+        23,
+        24
+      ]
+    },
+    {
+      "kod": "S9",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 100 km/h, a przy następnym semaforze – Stój",
+      "swiatla": "PP",
+      "pas": "Z",
+      "v": 100,
+      "nast": "Stoj",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt9",
+      "pdfPages": [
+        23,
+        24
+      ]
+    },
+    {
+      "kod": "S10",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a potem z największą dozwoloną prędkością",
+      "swiatla": "ZP",
+      "pas": null,
+      "v": 40,
+      "nast": "Vmax",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt10",
+      "pdfPages": [
+        24,
+        25,
+        26
+      ]
+    },
+    {
+      "kod": "S10a",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a potem z największą dozwoloną prędkością",
+      "swiatla": "ZP",
+      "pas": "P",
+      "v": 60,
+      "nast": "Vmax",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt11",
+      "pdfPages": [
+        24,
+        25,
+        26
+      ]
+    },
+    {
+      "kod": "S11",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 100 km/h",
+      "swiatla": "Z*P",
+      "pas": null,
+      "v": 40,
+      "nast": "100",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt12",
+      "pdfPages": [
+        26,
+        27
+      ]
+    },
+    {
+      "kod": "S11a",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 100 km/h",
+      "swiatla": "Z*P",
+      "pas": "P",
+      "v": 60,
+      "nast": "100",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt13",
+      "pdfPages": [
+        26,
+        27
+      ]
+    },
+    {
+      "kod": "S12",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – z prędkością nieprzekraczającą 40 lub 60 km/h",
+      "swiatla": "P*P",
+      "pas": null,
+      "v": 40,
+      "nast": "40/60",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt14",
+      "pdfPages": [
+        27,
+        28
+      ]
+    },
+    {
+      "kod": "S12a",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – z prędkością zmniejszoną do 40 lub 60 km/h",
+      "swiatla": "P*P",
+      "pas": "P",
+      "v": 60,
+      "nast": "40/60",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt15",
+      "pdfPages": [
+        27,
+        28
+      ]
+    },
+    {
+      "kod": "S13",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 40 km/h, a przy następnym semaforze – Stój",
+      "swiatla": "PP",
+      "pas": null,
+      "v": 40,
+      "nast": "Stoj",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt16",
+      "pdfPages": [
+        28,
+        29
+      ]
+    },
+    {
+      "kod": "S13a",
+      "nazwa": "Jazda z prędkością nieprzekraczającą 60 km/h, a przy następnym semaforze – Stój",
+      "swiatla": "PP",
+      "pas": "P",
+      "v": 60,
+      "nast": "Stoj",
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §4 ust.13 pkt17",
+      "pdfPages": [
+        28,
+        29
+      ]
+    },
+    {
+      "kod": "Sz",
+      "nazwa": "Sygnał zastępczy – można przejechać obok semafora wskazującego sygnał „Stój” bez rozkazu pisemnego",
+      "swiatla": "CB*",
+      "pas": null,
+      "v": null,
+      "nast": null,
+      "evidenceStatus": "verified_one_variant_not_exhaustive",
+      "source": "IE1 §4 ust.13 pkt18",
+      "pdfPages": [
+        29,
+        30,
+        31
+      ]
+    },
+    {
+      "kod": "Ms1",
+      "nazwa": "Jazda manewrowa zabroniona",
+      "swiatla": "N",
+      "pas": null,
+      "v": null,
+      "nast": null,
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §8 ust.4 i6",
+      "pdfPages": [
+        47,
+        48
+      ]
+    },
+    {
+      "kod": "Ms2",
+      "nazwa": "Jazda manewrowa dozwolona",
+      "swiatla": "B",
+      "pas": null,
+      "v": null,
+      "nast": null,
+      "evidenceStatus": "verified_basic_image",
+      "source": "IE1 §8 ust.4 i6",
+      "pdfPages": [
+        47,
+        48
+      ]
+    },
+    {
+      "kod": "",
+      "nazwa": "Semafor ciemny (odstępowy kierunku przeciwnego)",
+      "swiatla": "",
+      "pas": null,
+      "v": null,
+      "nast": null,
+      "evidenceStatus": "legacy_model_only",
+      "source": "Stan techniczny istniejącego modelu; nie normatywne zezwolenie",
+      "pdfPages": []
+    }
+  ],
+  "matrixCases": [
+    {
+      "id": "T01",
+      "classKmh": 0,
+      "nextAnnouncement": "Vmax",
+      "expectedCode": "S2",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T02",
+      "classKmh": 0,
+      "nextAnnouncement": "100",
+      "expectedCode": "S3",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T03",
+      "classKmh": 0,
+      "nextAnnouncement": "40/60",
+      "expectedCode": "S4",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T04",
+      "classKmh": 0,
+      "nextAnnouncement": "Stoj",
+      "expectedCode": "S5",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T05",
+      "classKmh": 100,
+      "nextAnnouncement": "Vmax",
+      "expectedCode": "S6",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T06",
+      "classKmh": 100,
+      "nextAnnouncement": "100",
+      "expectedCode": "S7",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T07",
+      "classKmh": 100,
+      "nextAnnouncement": "40/60",
+      "expectedCode": "S8",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T08",
+      "classKmh": 100,
+      "nextAnnouncement": "Stoj",
+      "expectedCode": "S9",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T09",
+      "classKmh": 60,
+      "nextAnnouncement": "Vmax",
+      "expectedCode": "S10a",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T10",
+      "classKmh": 60,
+      "nextAnnouncement": "100",
+      "expectedCode": "S11a",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T11",
+      "classKmh": 60,
+      "nextAnnouncement": "40/60",
+      "expectedCode": "S12a",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T12",
+      "classKmh": 60,
+      "nextAnnouncement": "Stoj",
+      "expectedCode": "S13a",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T13",
+      "classKmh": 40,
+      "nextAnnouncement": "Vmax",
+      "expectedCode": "S10",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T14",
+      "classKmh": 40,
+      "nextAnnouncement": "100",
+      "expectedCode": "S11",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T15",
+      "classKmh": 40,
+      "nextAnnouncement": "40/60",
+      "expectedCode": "S12",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    },
+    {
+      "id": "T16",
+      "classKmh": 40,
+      "nextAnnouncement": "Stoj",
+      "expectedCode": "S13",
+      "source": "IE1 załącznik 1",
+      "pdfPages": [
+        208,
+        210
+      ],
+      "applicability": "największa dozwolona prędkość pociągu na odcinku >100 km/h"
+    }
+  ],
+  "warningImages": [
+    {
+      "code": "Os1",
+      "lamps": "P",
+      "announces": "Stoj",
+      "implementationAccepted": false,
+      "source": "IE1 §6 ust.15",
+      "pdfPages": [
+        41,
+        42
+      ]
+    },
+    {
+      "code": "Os2",
+      "lamps": "Z",
+      "announces": "Vmax",
+      "implementationAccepted": false,
+      "source": "IE1 §6 ust.15",
+      "pdfPages": [
+        41,
+        42
+      ]
+    },
+    {
+      "code": "Os3",
+      "lamps": "Z*",
+      "announces": "100",
+      "implementationAccepted": false,
+      "source": "IE1 §6 ust.15",
+      "pdfPages": [
+        41,
+        42
+      ]
+    },
+    {
+      "code": "Os4",
+      "lamps": "P*",
+      "announces": "40/60",
+      "implementationAccepted": false,
+      "source": "IE1 §6 ust.15",
+      "pdfPages": [
+        41,
+        42
+      ]
+    },
+    {
+      "code": "Sp1",
+      "lamps": "PB",
+      "announces": "Stoj",
+      "implementationAccepted": false,
+      "source": "IE1 §5 ust.5",
+      "pdfPages": [
+        34,
+        35
+      ]
+    },
+    {
+      "code": "Sp2",
+      "lamps": "ZB",
+      "announces": "Vmax",
+      "implementationAccepted": false,
+      "source": "IE1 §5 ust.5",
+      "pdfPages": [
+        34,
+        35
+      ]
+    },
+    {
+      "code": "Sp3",
+      "lamps": "Z*B",
+      "announces": "100",
+      "implementationAccepted": false,
+      "source": "IE1 §5 ust.5",
+      "pdfPages": [
+        34,
+        35
+      ]
+    },
+    {
+      "code": "Sp4",
+      "lamps": "P*B",
+      "announces": "40/60",
+      "implementationAccepted": false,
+      "source": "IE1 §5 ust.5",
+      "pdfPages": [
+        34,
+        35
+      ]
+    }
+  ],
+  "openDecisionIds": [
+    "O01",
+    "O02",
+    "O03",
+    "O04",
+    "O05",
+    "O06",
+    "O07",
+    "O08",
+    "O09",
+    "O10",
+    "O11",
+    "O12"
+  ],
+  "restrictions": [
+    "Macierz zał.1 nie jest pełnym doborem dla ≤100 km/h.",
+    "CB* jest jedną odmianą Sz; null nie oznacza Vmax.",
+    "Pusty kod nie jest SE/ERTMS ani zezwoleniem.",
+    "Znaczenie Os/Sp potwierdzone źródłowo; karty i przypadki usterek nie są odebrane.",
+    "W21a pozostaje poza implementacją; źródło IE1 §17 ust.15 pkt24, PDF155–156, otwarte O12.",
+    "W21 stała wymaga warunków §17 ust.15 pkt23 lit.d; ostrzeżenie nie dowodzi poprawności danych."
+  ]
+}

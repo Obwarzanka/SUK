@@ -22,7 +22,7 @@ public class Otoczenie
         bool ok = (b.NoBlock ? !b.SecsWE.Any(S.SecOcc) : bs.Dir == inward) && bs.AwaitEnd == null && !bs.Busy && !S.SecOcc(FarSec(b)) && !EmergingAtFar(q.From) && !bs.StopEnd[0];
         if (b.Permission && bs.Dir != inward && bs.Req == null && !bs.Busy)
         {
-            bs.Req = new BlockReq { EndIdx = -1, At = S.T, ForTrain = q.Num };
+            bs.Req = new BlockReq { Numer = S.Kz.NowyNumerZadania(), EndIdx = -1, At = S.T, ForTrain = q.Num };
             S.Log("Ruch", $"{b.Nbr}: żądanie pozwolenia na szlak {q.From} dla pociągu {q.Num} (Pzk {q.From})", "Blokada liniowa", q.From);
         }
         if (!ok) return false;

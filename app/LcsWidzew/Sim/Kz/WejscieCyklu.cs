@@ -123,6 +123,8 @@ public sealed record WejscieCyklu
     public string SkrotTrasy { get; init; }
     /// <summary>Statusy w porządku kanonicznym: rodzaj, identyfikator (porządek ordinalny), kolejne zgłoszenia obiektu w kolejności zgłoszenia.</summary>
     public ImmutableArray<StatusUrzadzenia> Statusy { get; init; } = ImmutableArray<StatusUrzadzenia>.Empty;
+    /// <summary>S02A.03: decyzje poprzedzające tę regularną granicę wejścia, w kolejności świata, wspólne dla odbiorców.</summary>
+    public ImmutableArray<RozstrzygniecieWyjscia> Rozstrzygniecia { get; init; } = ImmutableArray<RozstrzygniecieWyjscia>.Empty;
 
     public static string NazwaFazy(FazaWejscia f) => f switch
     {
@@ -159,7 +161,20 @@ public sealed record WejscieCyklu
             s.PiszPola(sb);
             sb.Append('}');
         }
-        sb.Append("]}");
+        sb.Append(']');
+        if (!Rozstrzygniecia.IsEmpty)
+        {
+            KanonJson.Pole(sb, "rozstrzygniecia").Append('[');
+            for (int i = 0; i < Rozstrzygniecia.Length; i++)
+            {
+                if (i > 0) sb.Append(','); var d = Rozstrzygniecia[i]; sb.Append('{');
+                KanonJson.Liczba(sb, "nrDecyzji", d.NrDecyzji, pierwsze: true); KanonJson.Tekst(sb, "planId", d.PlanId);
+                KanonJson.Tekst(sb, "contentHash", d.ContentHash); KanonJson.Tekst(sb, "stan", d.Stan); KanonJson.Tekst(sb, "powod", d.Powod);
+                KanonJson.Liczba(sb, "wykonane", d.Wykonane); sb.Append('}');
+            }
+            sb.Append(']');
+        }
+        sb.Append('}');
         return sb.ToString();
     }
 

@@ -16,6 +16,11 @@ public partial class KomputerZaleznosci : IOdbiorcaPartiiWejsc
 {
     void IOdbiorcaPartiiWejsc.Przyjmij(PartiaWejsc partia)
     {
+        if (partia.Statusy.Length > 0) S.Wyjscia.Zatwierdz(Evaluate(KrokKz.Statusy, partia: partia));
+    }
+
+    void PrzyjmijStatusy(PartiaWejsc partia)
+    {
         foreach (var s in partia.Statusy)
             switch (s)
             {
@@ -32,6 +37,6 @@ public partial class KomputerZaleznosci : IOdbiorcaPartiiWejsc
     void PrzyjmijOdcinek(string id, bool pojazd, string stan)
     {
         var k = Secs[id]; k.TrainOcc = pojazd; k.Fault = stan;
-        Urzadzenia.LogStatus("odcinek", id, (pojazd || stan != null ? "zajęty" : "wolny") + stan switch { "occ" => " (bez pojazdu)", "reset" => ", wymaga zerowania", "await" => ", czeka na 1. przejazd", _ => "" });
+        Status("odcinek", id, (pojazd || stan != null ? "zajęty" : "wolny") + stan switch { "occ" => " (bez pojazdu)", "reset" => ", wymaga zerowania", "await" => ", czeka na 1. przejazd", _ => "" });
     }
 }

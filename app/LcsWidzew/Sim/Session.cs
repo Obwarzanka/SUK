@@ -58,7 +58,7 @@ public class LocalSession : ILcsSession
         sim.EventAdded += e => EventAdded?.Invoke(e);
         sim.AlarmAdded += e => AlarmAdded?.Invoke(e);
         sim.Beep += () => Beep?.Invoke();
-        sim.SpecialExecuted += _ => { if (sim.CurDesk == null || sim.CurDesk == desk) SpecialExecuted?.Invoke(); };
+        sim.SpecialExecutedForDesk += (id, _) => { if (id == null || id == desk.Id) SpecialExecuted?.Invoke(); };
         sim.PendingExpired += () => PendingExpired?.Invoke();
     }
     public bool IsHost => true;

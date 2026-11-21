@@ -77,6 +77,7 @@ public class CatDef { public double Len, VMax, Dwell; public RgbColor Color; }
 public partial class Trains
 {
     readonly Simulator S;
+    readonly AdapterRuchu ruch;
     public List<Train> List = new();
     int seq = 1;
     const double Acc = 0.5, Brake = 0.8, VStation = 60, VSz = 20, VShunt = 25;
@@ -94,7 +95,11 @@ public partial class Trains
         ["LUZ"] = new() { Len = 20, VMax = 80, Dwell = 0, Color = RgbColor.FromRgb(0xc0, 0xc0, 0xc0) }
     };
 
-    public Trains(Simulator s) { S = s; s.Trains = this; }
+    public Trains(Simulator s, AdapterRuchu adapter = null)
+    {
+        S = s; s.Trains = this;
+        ruch = adapter ?? new AdapterRuchu(() => s.ProjekcjaRuchu, s.Urzadzenia.SygnalWidziany, s.Urzadzenia.Pojazd);
+    }
 
     static double Total(Train t) => t.Segs.Sum(s => s.Len);
     bool StationEdge(string e) => e != null && S.L.Sections[S.L.Edges[e].Sec].Kind != "szlak";
@@ -102,8 +107,7 @@ public partial class Trains
     bool Permits(string name, Train t)
     {
         // maszynista widzi sygnał wyświetlany przez kartę sygnalizatora (nie stan w komputerze zależności)
-        var w = S.Urzadzenia.SygnalWidziany(name);
-        var a = w != null ? Sygnaly.AspectOf(w) : S.Sigs[name].NoData ? Aspect.Stop : S.Sigs[name].Aspect;
+        var a = ruch.Aspekt(name);
         return a switch { Aspect.Train => true, Aspect.Sz => true, Aspect.Shunt => t.Shunt, _ => false };
     }
     IEnumerable<string> SigsAt(string nid, int dir) => S.L.Nodes[nid].Signals.Where(n => S.L.Signals[n].Dir == dir);
@@ -142,7 +146,7 @@ public partial class Trains
     public bool SpawnOnTrack(TimetableEntry q)
     {
         var sec = q.StartSec;
-        if (!S.L.Sections.ContainsKey(sec) || S.SecOcc(sec)) return false;
+        if (!S.L.Sections.ContainsKey(sec) || ruch.Zajety(sec)) return false;
         var edges = S.L.Sections[sec].Edges.Select(e => S.L.Edges[e]).OrderBy(e => Math.Min(S.L.Nodes[e.A].X, S.L.Nodes[e.B].X)).ToList();
         if (q.StartDir < 0) edges.Reverse();
         var t = NewTrain(q);
@@ -183,7 +187,7 @@ public partial class Trains
             foreach (var s in sg) if (!Permits(s, t)) return (dist - 8, s, false, false);
             if (t.Shunt && S.L.TrackEnds.ContainsKey(node)) return Koniec(dist - 10);
             // PK – punkt końcowy przebiegu: dalej tylko w nastawionym przebiegu pociągowym (np. od semafora sąsiedniego posterunku)
-            if (!t.Shunt && SigsAt(node, dir).Any(x => S.L.Signals[x].PkTrain) && S.NextInTerrain(node, dir, from) is { } pkn && S.Secs[S.L.Edges[pkn.Edge].Sec].LockType != "train")
+            if (!t.Shunt && SigsAt(node, dir).Any(x => S.L.Signals[x].PkTrain) && S.NextInTerrain(node, dir, from) is { } pkn && !ruch.DrogaPociagowa(S.L.Edges[pkn.Edge].Sec))
                 return Koniec(dist - 8);
             if (t.Shunt && k > 0 && !InShuntRoute(prevE) && prevE != null) return Koniec(dist - S.L.Edges[prevE].Len - 6);
             if (S.L.FarEnds.TryGetValue(node, out var fe) && dir == S.L.Blocks[fe.Szlak].Ends[0].Outward) return (double.PositiveInfinity, null, false, false);
@@ -215,8 +219,7 @@ public partial class Trains
     bool InShuntRoute(string eid)
     {
         if (eid == null) return true;
-        var sc = S.Secs[S.L.Edges[eid].Sec];
-        return sc.LockType is "shunt" || S.Urzadzenia.Pojazd(sc.Id);
+        return ruch.DrogaManewrowa(S.L.Edges[eid].Sec);
     }
 
     bool Extend(Train t)
@@ -228,7 +231,7 @@ public partial class Trains
         {
             if (S.L.Signals[n].Type == "odstepowy") continue;
             if (!Permits(n, t)) { S.Alarm($"{(t.Shunt ? "Skład" : "Pociąg")} {t.Num} minął sygnalizator {n} wskazujący „Stój”!", "Semafor", n, "spad" + t.Id + n); S.Stats.Spad++; }
-            t.SzLimit = (S.Urzadzenia.SygnalWidziany(n) ?? (S.Sigs[n].Aspect == Aspect.Sz ? "Sz" : null)) == "Sz";
+            t.SzLimit = ruch.Zastepczy(n);
             if (S.L.Signals[n].Type == "wjazdowy" && t.Entered == null) { t.Entered = S.T; S.Stats.TrainsIn++; }
         }
         if (S.L.FarEnds.TryGetValue(node, out var fe) && dir == S.L.Blocks[fe.Szlak].Ends[0].Outward)
@@ -292,7 +295,7 @@ public partial class Trains
         foreach (var s in t.Segs) { if (s.E != null && pos + s.Len >= tail - 60) { nodes.Add(s.From); nodes.Add(s.To); } pos += s.Len; }
         foreach (var n in nodes.Distinct())
             foreach (var sg in SigsAt(n, -dir))
-                if (S.L.Signals[sg].ForShunts && S.Sigs[sg].Aspect is Aspect.Shunt or Aspect.Train or Aspect.Sz && S.Routes.Values.Any(r => r.Start == sg && r.Type == "M"))
+                if (S.L.Signals[sg].ForShunts && ruch.SygnalZmianyKierunku(sg))
                 {
                     Reverse(t); S.Log("Ruch", $"Skład {t.Num} – zmiana kierunku jazdy (sygnał manewrowy na {Station.Lbl(sg)})", "Pociąg", t.Num);
                     return;
@@ -427,8 +430,7 @@ public partial class Trains
         // prędkości z sygnału (semafor bez pasa / W21 – sygnał niższy)
         if (!e.Szlak)
         {
-            double vr = 1e4;
-            foreach (var r in S.Routes.Values) if (r.Type == "P" && r.VSet > 0 && r.Edges.Contains(eid)) vr = Math.Min(vr, Math.Min(r.VSet, S.Sygnalizowana(r).V));
+            double vr = ruch.LimitPrzebiegu(eid);
             if (vr < 1e4) v = vr;
         }
         // ostrzeżenie stałe (W8 / W9) obowiązuje także w przebiegu z prędkością ustaloną
