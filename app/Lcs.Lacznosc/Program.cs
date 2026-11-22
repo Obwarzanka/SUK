@@ -38,7 +38,20 @@ public static class Program
             w.Loaded += (_, _) =>
             {
                 var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(live ? 8 : 2) };
-                t.Tick += (_, _) => { t.Stop(); Zrzut(w, plik); w.Close(); };
+                t.Tick += (_, _) =>
+                {
+                    t.Stop(); Zrzut(w, plik);
+                    if (args.Contains("--okna"))   // zrzuty też okna rozmowy i opcji (…_rozmowa.png, …_opcje.png)
+                    {
+                        w.PokazZbiorczy();
+                        var r = app.Windows.OfType<OknoRozmowy>().First();
+                        r.UpdateLayout(); Zrzut(r, Path.ChangeExtension(plik, null) + "_rozmowa.png");
+                        var o = new OknoOpcji(new Ustawienia(), new[] { "Gałkówek", "Rogów", "Żakowice Południowe", "Rokiciny" },
+                            new() { ["Rogów"] = true, ["Żakowice Południowe"] = true, ["Gałkówek"] = false, ["Rokiciny"] = false }) { Owner = w };
+                        o.Show(); o.UpdateLayout(); Zrzut(o, Path.ChangeExtension(plik, null) + "_opcje.png"); o.Close();
+                    }
+                    w.Close();
+                };
                 t.Start();
             };
         }

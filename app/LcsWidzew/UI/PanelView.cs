@@ -274,7 +274,7 @@ public class PanelView : FrameworkElement
             case "prz":
             {
                 var c = S.Crossings.GetValueOrDefault(id);
-                return $"Przejazd {id}: {StanPrzejazdu(c?.Stan)}{(c?.Info != null ? $" [{c.Info}]" : "")}   ·  LPM: polecenia w panelu (ZAMK, OTW)";
+                return $"Przejazd {id}: {StanPrzejazdu(c?.Stan)}{(c?.Utwierdzony == true ? ", utwierdzony w przebiegu" : "")}{(c?.Info != null ? $" [{c.Info}]" : "")}   ·  LPM: polecenia w panelu (ZAMK, OTW)";
             }
         }
         return "";
@@ -347,6 +347,8 @@ public class PanelView : FrameworkElement
         else if (bs.Req != null) { arrowDir = b.Ends[bs.Req.EndIdx >= 0 ? bs.Req.EndIdx : 0].Outward; sa = BlinkOn ? Yellow : Dim; sb = Yellow; }
         else if (bs.Dir == 0) arrowDir = 0;
         else { arrowDir = bs.Dir; sa = sb = Yellow; if (bs.ReleaseUntil != null) sb = BlinkOn ? Yellow : Dim; if (closed) sa = sb = Magenta; }
+        // pulpit zdalny SimRail: czerwień grota / trzonu jak w grze (pociąg na szlaku, zajęty odstęp …)
+        if (arrowDir != 0 && bs.AzkUntil == null) { if (bs.TrzonGry == "e50000") sb = Red; if (bs.GrotGry == "e50000" && sa != Dim) sa = Red; }
         if (bs.NoData) { arrowDir = 0; sa = sb = White; }
         else if (b.NoBlock) { arrowDir = 0; sa = sb = Dim; }
         else if (b.OneWay && bs.AzkUntil == null) { arrowDir = b.DefDir; if (sa == Grey) sa = sb = White; }
@@ -742,6 +744,8 @@ public class PanelView : FrameworkElement
             if (bs.ReleaseUntil != null) sb = BlinkOn ? Yellow : Dim;
             if (closedHere || closedThere) { sa = sb = Magenta; }
         }
+        // pulpit zdalny SimRail: czerwień grota / trzonu jak w grze (pociąg na szlaku, zajęty odstęp …)
+        if (arrowDir != 0 && bs.AzkUntil == null) { if (bs.TrzonGry == "e50000") sb = Red; if (bs.GrotGry == "e50000" && sa != Dim) sa = Red; }
         if (bs.NoData) { arrowDir = 0; sa = sb = White; }
         else if (b.NoBlock) { arrowDir = 0; sa = sb = Dim; }
         else if (b.OneWay && bs.AzkUntil == null) { arrowDir = b.DefDir; if (sa == Grey) sa = sb = White; }

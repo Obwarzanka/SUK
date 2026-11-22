@@ -43,6 +43,11 @@ public sealed class Wpis : Obserwowany
     public long Id { get; init; }
     public DateTime Utworzony { get; init; } = DateTime.Now;
     public string Naglowek => $"{Czas}  {(Wychodzacy ? $"→ {Do}" : $"← {Od}{(Ai ? " (AI)" : "")}")}  {Teksty.Etykieta(Klasa)}";
+    /// <summary>Odczyt w skrócie: „poc. 14023 · tor 1” – widoczny od razu, bez czytania całego zdania gry.</summary>
+    public string Szczegoly => string.Join("  ·  ", new[] { string.IsNullOrEmpty(Pociag) ? null : $"poc. {Pociag}", Tor.HasValue ? $"tor {Tor}" : null }.Where(x => x != null));
+    bool _odpowiedziano;
+    /// <summary>Przychodzący komunikat, na który już wysłano odpowiedź (z programu albo z okna gry).</summary>
+    public bool Odpowiedziano { get => _odpowiedziano; set => Ustaw(ref _odpowiedziano, value); }
     public string Sasiad => Wychodzacy ? Do : Od;
 }
 
@@ -81,6 +86,9 @@ public sealed class PozycjaPlanu : Obserwowany
     public string Peron { get; init; }
     public string Skad { get; init; }
     public string Dokad { get; init; }
+    /// <summary>Posterunek sąsiedni, z którego / do którego jedzie pociąg (pierwszy pasujący punkt rozkładu).</summary>
+    public string SasiadSkad { get; init; }
+    public string SasiadDokad { get; init; }
     public string Relacja { get; init; }
     public string Lokomotywa { get; init; }
     public string Dlugosc { get; init; }

@@ -19,6 +19,8 @@ public class BlockInd
 {
     public int Dir, AzkDir; public ReqInd Req; public double? ReleaseUntil, AzkUntil; public int? AwaitEnd;
     public bool[] StopEnd = new bool[2]; public bool NbrStop, TrainOn, NoData;
+    /// <summary>Pulpit zdalny SimRail: barwy strzałki w grze (grot, trzon – „ffd600” żółty, „e50000” czerwony; null – brak).</summary>
+    public string GrotGry, TrzonGry;
     /// <summary>Półsamoczynna: lampki Pwl (czerwona), Ko możliwy (biała) dla każdego końca; kTor – szczelina kontrolna SBL (czerwona).</summary>
     public bool[] Pwl = new bool[2], KoReady = new bool[2]; public bool KTor;
     /// <summary>Opis stanu z zewnętrznego źródła (pulpit zdalny SimRail: stan blokady z gry) – do podpowiedzi.</summary>
@@ -35,16 +37,10 @@ public class CrossInd
     public string Stan, Info;
     /// <summary>Zamknięty i potwierdzony – utwierdzony w przebiegu (Ie-104 § 13, część „3a” żółta).</summary>
     public bool Utwierdzony;
-    /// <summary>Powtarzacz (UZK): sam stan, polecenia Zamk / Otw niedostępne.</summary>
-    public bool Uzk;
-    /// <summary>SSP; kategoria A–F (z układu albo z nazwy w grze).</summary>
-    public bool Ssp; public string Kat = "";
     /// <summary>Sygnalizacja ostrzegawcza działa (światła / sygnały drogowe zamknięte).</summary>
     public bool Ostrzeganie;
     /// <summary>Rogatki wjazdowe / wyjazdowe słownie (jak <see cref="Stan"/>); null – brak danych.</summary>
     public string RogWj, RogWy;
-    /// <summary>Tory z wyłączonym oddziaływaniem (Ie-104 § 14 „4a/4b” białe).</summary>
-    public List<string> ToryWyl = new();
 }
 /// <summary>Przebieg na pulpicie; Edges – droga jazdy, OverlapEdges – droga ochronna wg położenia zwrotnic (Ie-104 § 8 pkt 8 ust. 2 lit. c: barwa tylko na drodze).</summary>
 public class RouteInd { public string Start, End, EndKind, EndNode, Type, State; public bool TimeRel; public List<string> Edges = new(), OverlapEdges = new(); }

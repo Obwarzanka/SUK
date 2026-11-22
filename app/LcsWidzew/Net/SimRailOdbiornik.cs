@@ -25,7 +25,7 @@ public sealed class SimRailOdbiornik : IDisposable
     public sealed record Obiekt(string Nazwa, string Rodzaj, bool Zajety, string Basic, string Przebieg, string Blokada,
                                 string Zwrotnica, string Pociagi, int Pn = -1, int Bln = -1, int Lb = -1, int Pz = -1, string WidokBlokady = "", string WidokPrzejazdu = "",
                                 int? GrotBlokady = null, bool MigaBlokada = false, string Stacja = "",
-                                string SzczegolyPrzejazdu = "");   // mod ≥ 0.12 „pzd”: „s=8;wj=8;wy=8;c=1;m=0;uzk=1;sw=0;top=0;aut=0;zd=0;tw=”
+                                string SzczegolyPrzejazdu = "", string BarwaSygnalu = "");   // mod ≥ 0.12 „pzd”: „s=8;wj=8;wy=8;c=1;m=0;uzk=1;sw=0;top=0;aut=0;zd=0;tw=”
 
     /// <summary>Wpis historii poleceń pulpitu EBI w grze (mod ≥ 0.9.1): polecenie i odpowiedź serwera (przyjęte / odrzucone).</summary>
     public sealed record WpisHistorii(DateTime Odebrano, string CzasGry, string Data, string Polecenie, string S1, string S2);
@@ -115,7 +115,7 @@ public sealed class SimRailOdbiornik : IDisposable
                         if (n.Length == 0) continue;
                         _obiekty[n] = new Obiekt(n, Tekst(o, "r"), Logiczna(o, "z"), Tekst(o, "b"), Tekst(o, "p"), Tekst(o, "bl"),
                                                  Tekst(o, "zw"), Tekst(o, "po"), Liczba(o, "pn"), Liczba(o, "bln"), Liczba(o, "lb"), Liczba(o, "pz"), Tekst(o, "lbo"), Tekst(o, "pzo"),
-                                                 o.TryGetProperty("lbk", out var gk) && gk.TryGetInt32(out var gki) ? gki : null, Logiczna(o, "lbm"), Tekst(o, "st"), Tekst(o, "pzd"));
+                                                 o.TryGetProperty("lbk", out var gk) && gk.TryGetInt32(out var gki) ? gki : null, Logiczna(o, "lbm"), Tekst(o, "st"), Tekst(o, "pzd"), Tekst(o, "sgb"));
                     }
             }
             else if (typ == "zmiana")

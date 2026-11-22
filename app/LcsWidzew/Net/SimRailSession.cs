@@ -140,6 +140,7 @@ public sealed class SimRailSession : ILcsSession, IDisposable
             if (o.Rodzaj == "zwrotnica" && I.Sws.TryGetValue(id, out var w) && L.Switches.TryGetValue(id, out var sw))
             {
                 // położenie: „Wprost/Straight” = tor prosty; „+” to położenie zasadnicze (prosto, chyba że zasadniczo na „−”)
+                zwrSurowe[id] = $"{o.Nazwa}={o.Zwrotnica}";
                 bool prosto = o.Zwrotnica is "Wprost" or "Straight";
                 bool bok = o.Zwrotnica is "Bok" or "Side";
                 if (prosto || bok) { w.Pos = prosto ^ sw.BasicMinus ? "+" : "-"; zwrZPolozeniem.Add(o.Nazwa); }
@@ -170,6 +171,8 @@ public sealed class SimRailSession : ILcsSession, IDisposable
                 else if (sygnal) g.Aspect = manewrowy && !pociagowy ? Aspect.Shunt : Aspect.Train;
                 g.Closed = zastopowany;
                 g.Flank = boczna;
+                // mod ≥ 0.12.3: barwa symbolu w grze – powtarzacz sąsiedniej stacji (WJ / WY) gra barwi na zielono bez bitu Signal
+                if (!sygnal && !zastepczy && Zielona(o.BarwaSygnalu) && L.Signals.TryGetValue(id, out var sd) && sd.Type is "to" or "sp") g.Aspect = Aspect.Train;
             }
         }
         BlokadyZGry(I, obiekty);
@@ -215,6 +218,48 @@ public sealed class SimRailSession : ILcsSession, IDisposable
         if (zaj != null) I.Routes[ZajetoscKlucz] = new RouteInd { Start = "", End = "", Type = "Z", State = "set", Edges = zaj };
     }
 
+    // ------------------------------------------------------------------ diagnostyka drogi (tymczasowa)
+    readonly Dictionary<string, string> zwrSurowe = new(StringComparer.Ordinal);
+    string diagOstatni;
+
+    /// <summary>
+    /// Zrzut do diag_droga.txt (obok programu) przy każdej zmianie: zwrotnice stykające się z drogą przebiegu z gry – położenie
+    /// z gry (surowe) i w SUK, iglica / odgałęzienia z odcinkiem i rolą (U – utwierdzony z gry, M – most, m – most obcięty, · – nic)
+    /// oraz część (korzeń), do której trafił tor. Do wyjaśnienia przerw w drodze (Koluszki 97 → 127).
+    /// </summary>
+    void DiagDrogi(Indication I, HashSet<string> wybrane, HashSet<string> mosty, HashSet<string> most, Func<string, string> korzen)
+    {
+        try
+        {
+            string Rola(string e) => e == null ? "-" : wybrane.Contains(e) ? "U" : most.Contains(e) ? "M" : mosty.Contains(e) ? "m" : "·";
+            string Tor(string e)
+            {
+                if (e == null || !L.Edges.TryGetValue(e, out var ed)) return "-";
+                var s = I.Secs.GetValueOrDefault(ed.Sec ?? "");
+                string k = wybrane.Contains(e) || mosty.Contains(e) ? korzen(e) : "";
+                return $"{e}[{ed.Sec}|{Rola(e)}|lock={s?.Lock ?? "-"}/{s?.LockType ?? "-"} zaj={s?.TrainOcc} gra={(doSimRail.ContainsKey(ed.Sec ?? "") ? "tak" : "nie")}|r={k}]";
+            }
+            var sb = new System.Text.StringBuilder();
+            var zbior = wybrane.Concat(mosty).ToHashSet();
+            foreach (var sw in L.Switches.Values.OrderBy(x => x.Label))
+            {
+                if (!new[] { sw.Tip, sw.Plus, sw.Minus }.Any(e => e != null && zbior.Contains(e))) continue;
+                var w = I.Sws.GetValueOrDefault(sw.Num);
+                sb.AppendLine($"zwr {sw.Label} ({sw.Num}) gra={zwrSurowe.GetValueOrDefault(sw.Num) ?? "brak"} suk={w?.Pos} ruch={(w?.Moving != null)} bezKontr={w?.NoCtrl} zas-={sw.BasicMinus}");
+                sb.AppendLine($"    iglica {Tor(sw.Tip)}");
+                sb.AppendLine($"    plus   {Tor(sw.Plus)}");
+                sb.AppendLine($"    minus  {Tor(sw.Minus)}");
+            }
+            var tekst = sb.ToString();
+            if (tekst == diagOstatni) return;
+            diagOstatni = tekst;
+            var plik = Path.Combine(AppContext.BaseDirectory, "diag_droga.txt");
+            if (File.Exists(plik) && new FileInfo(plik).Length > 4_000_000) File.Delete(plik);
+            File.AppendAllText(plik, $"===== {DateTime.Now:HH:mm:ss} czas gry {I.Clock}\n{tekst}\n");
+        }
+        catch { }
+    }
+
     /// <summary>Klucz w <see cref="Indication.Routes"/> z torami zajętymi (pulpit barwi zajętość tylko na nich).</summary>
     public const string ZajetoscKlucz = "simrail-zajetosc";
 
@@ -253,11 +298,7 @@ public sealed class SimRailSession : ILcsSession, IDisposable
                     if (sw != null)
                     {
                         bool zwA = a == sw.Tip || a == sw.Plus || a == sw.Minus, zwB = b == sw.Tip || b == sw.Plus || b == sw.Minus;
-                        // ostrze z odgałęzieniem-mostem (tor bez stanu z gry, np. Koluszki t39655 między 97 a 127): położenie nie decyduje –
-                        // gra podaje dla takich zwrotnic NoDir albo położenie wg własnej geometrii (127: isUp, inna strona niż w rysunku);
-                        // most i tak zostaje tylko, gdy oba jego końce stykają się z drogą (obcinanie niżej)
-                        bool mostOdgalezienie = a == sw.Tip && mosty.Contains(b) || b == sw.Tip && mosty.Contains(a);
-                        if (zwA && zwB && !mostOdgalezienie && !(a == sw.Tip && b == czynne || b == sw.Tip && a == czynne)) continue;
+                        if (zwA && zwB && !(a == sw.Tip && b == czynne || b == sw.Tip && a == czynne)) continue;
                     }
                     rodzic[Korzen(a)] = Korzen(b);
                 }
@@ -276,6 +317,7 @@ public sealed class SimRailSession : ILcsSession, IDisposable
         }
         var odcinkiCzesci = tory.GroupBy(Korzen).ToDictionary(g => g.Key, g => g.Select(t => L.Edges[t].Sec).Distinct().Count());
         var droga = tory.Where(t => odcinkiCzesci[Korzen(t)] >= 2).ToList();
+        if (bezDrogiTylkoGdyPusta) DiagDrogi(I, wybrane, mosty, most, Korzen);
         droga.AddRange(most.Where(m => odcinkiCzesci.TryGetValue(Korzen(m), out var k) && k >= 2));
         var zDroga = droga.Select(t => L.Edges[t].Sec).ToHashSet();
         var wDrodze = droga.ToHashSet();
@@ -310,6 +352,10 @@ public sealed class SimRailSession : ILcsSession, IDisposable
     /// <summary>Semafor SUK → koniec (id SUK) i rodzaj ostatniego przebiegu nastawionego z pulpitu SUK.</summary>
     readonly Dictionary<string, (string Koniec, string Typ, double Od)> nastawioneZSuk = new(StringComparer.Ordinal);
     double Teraz => Last?.T ?? 0;
+
+    /// <summary>Barwa „rrggbb” z pulpitu gry jest zielona (zieleń przeważa, np. 00cc7f).</summary>
+    static bool Zielona(string b) => b is { Length: 6 } && int.TryParse(b, System.Globalization.NumberStyles.HexNumber, null, out var v)
+                                     && (v >> 8 & 0xff) >= 0x80 && (v >> 16 & 0xff) < 0x60;
 
     static string Zegar(string czasGry) => czasGry != null && czasGry.Length >= 19 ? czasGry[11..19] : "--:--:--";
 
@@ -374,12 +420,23 @@ public sealed class SimRailSession : ILcsSession, IDisposable
                 bi.Req = (lb & LbDepartureRequest) != 0 ? new ReqInd { EndIdx = 0 } : (lb & LbArrivalRequest) != 0 ? new ReqInd { EndIdx = 1 } : null;
             }
             bi.TrainOn = (lb & LbTrainOnRoute) != 0;
+            // mod ≥ 0.11.3: barwy grota i trzonu z pulpitu gry („… grot=e50000 trzon=e50000”); grot migający – ostatni widoczny
+            var mg = System.Text.RegularExpressions.Regex.Match(o.WidokBlokady, @"grot=(\S+) trzon=(\S+)");
+            if (mg.Success)
+            {
+                string g = mg.Groups[1].Value, t = mg.Groups[2].Value;
+                if (g != "-") grotBlokady[b.Id] = g;
+                bi.GrotGry = g != "-" ? g : bi.Dir != 0 ? grotBlokady.GetValueOrDefault(b.Id) : null;
+                bi.TrzonGry = t != "-" ? t : null;
+            }
             if ((lb & LbReleasing) != 0) bi.ReleaseUntil = I.T + 1;
             bi.Info = $"gra {ng}: {OpisBlokady(lb)}{(o.WidokBlokady.Length > 0 ? $", strzałka w grze {o.WidokBlokady}" : "")}";
             if (stanBlokady.TryGetValue(b.Id, out var poprz) && poprz != lb) Zdarz("Zdarzenie", b.Label ?? b.Id, $"blokada liniowa (gra): {OpisBlokady(lb)}");
             stanBlokady[b.Id] = lb;
         }
     }
+
+    readonly Dictionary<string, string> grotBlokady = new(StringComparer.Ordinal);
 
     static string OpisBlokady(int lb)
     {
@@ -435,8 +492,8 @@ public sealed class SimRailSession : ILcsSession, IDisposable
                         : (pz & CsSwitch) != 0 ? ((pz & CsClose) != 0 ? "otwieranie" : "zamykanie")
                         : (pz & (CsClose | CsHold)) != 0 ? "zamkniety"
                         : (pz & CsOpen) != 0 ? "otwarty" : null;
-            var ind = new CrossInd { Stan = stan, Info = $"gra {ng}: {OpisPrzejazdu(pz)}", Kat = c.Cat ?? "", Ssp = c.Ssp, Uzk = c.Uzk };
-            SzczegolyZGry(ind, o, ng);
+            var ind = new CrossInd { Stan = stan, Info = $"gra {ng}: {OpisPrzejazdu(pz)}" };
+            SzczegolyZGry(ind, o);
             I.Crossings[c.Name] = ind;
             if (stanPrzejazdu.TryGetValue(c.Name, out var poprz) && poprz != pz) Zdarz("Zdarzenie", "przejazd " + c.Name, $"przejazd (gra): {OpisPrzejazdu(pz)}");
             stanPrzejazdu[c.Name] = pz;
@@ -449,11 +506,9 @@ public sealed class SimRailSession : ILcsSession, IDisposable
     /// Plan przejazdów P2: szczegóły z moda ≥ 0.12 („pzd”) i z nazwy obiektu gry. Gra (P0, 2026-11-21) w stanie ogólnym nie ustawia
     /// Switch – ruch rogatek widać tylko w stanach rogatek wjazdowych / wyjazdowych, więc „zamykanie / otwieranie” liczy się stąd.
     /// </summary>
-    static void SzczegolyZGry(CrossInd ind, SimRailOdbiornik.Obiekt o, string ng)
+    /// <remarks>Powtarzacz (UZK) to osobny program (Lcs.Powtarzacz, decyzja właściciela 2026-11-22) – tu tylko barwy symbolu.</remarks>
+    static void SzczegolyZGry(CrossInd ind, SimRailOdbiornik.Obiekt o)
     {
-        // kategoria z nazwy gry: „L1_102.026_B” → B
-        if (string.IsNullOrEmpty(ind.Kat) && System.Text.RegularExpressions.Regex.Match(ng ?? "", @"_([A-Fa-f])$") is { Success: true } mk) ind.Kat = mk.Groups[1].Value.ToUpperInvariant();
-        if (ind.Kat is "B" or "C") ind.Ssp = true;
         if (string.IsNullOrEmpty(o.SzczegolyPrzejazdu)) return;
         var d = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var para in o.SzczegolyPrzejazdu.Split(';'))
@@ -467,9 +522,6 @@ public sealed class SimRailSession : ILcsSession, IDisposable
         ind.RogWj = Rog(wj); ind.RogWy = Rog(wy);
         ind.Ostrzeganie = s > 0 && (s & (CsClose | CsSwitch)) != 0;
         ind.Utwierdzony = T("c");
-        ind.Uzk |= T("uzk");
-        ind.Ssp |= T("aut") || T("zd");
-        if (d.TryGetValue("tw", out var tw) && tw.Length > 0) ind.ToryWyl = tw.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
         static bool Ma(int st, int bit) => st > 0 && (st & bit) != 0;
         if (ind.Stan == "uszkodzony") { }
         else if (Ma(s, CsBroken) || Ma(wj, CsBroken) || Ma(wy, CsBroken)) ind.Stan = "uszkodzony";
@@ -478,8 +530,7 @@ public sealed class SimRailSession : ILcsSession, IDisposable
         // sygnały zamknięte, rogatki jeszcze otwarte – czas ostrzegania przed opuszczeniem rogatek
         else if (ind.Stan == "zamkniety" && ind.RogWj == "otwarty" && ind.RogWy == "otwarty") ind.Stan = "zamykanie";
         ind.Info += $"; sygnały {Rog(s) ?? "?"}, rogatki wj {ind.RogWj ?? "?"} / wy {ind.RogWy ?? "?"}"
-                  + (ind.Utwierdzony ? ", utwierdzony w przebiegu" : "") + (ind.Uzk ? ", powtarzacz (UZK)" : "")
-                  + (ind.Kat.Length > 0 ? $", kat. {ind.Kat}" : "") + (ind.ToryWyl.Count > 0 ? $", wył. oddziaływanie: {string.Join(", ", ind.ToryWyl)}" : "");
+                  + (ind.Utwierdzony ? ", utwierdzony w przebiegu" : "");
     }
 
     static string OpisPrzejazdu(int pz)

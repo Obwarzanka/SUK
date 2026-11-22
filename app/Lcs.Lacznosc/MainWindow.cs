@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -14,30 +14,23 @@ using System.Windows.Threading;
 namespace Lcs.Lacznosc;
 
 /// <summary>
-/// Okno łączności: posterunki sąsiednie, rozmowa, EZP (opcje tekstowe – komunikaty gry z podpowiedzią numeru pociągu),
-/// plan ruchu posterunku z rozkładu SimRail. Wygląd – ciemny terminal jak terminal stacji stycznej.
+/// Terminal stacji stycznej z EZP (styl EbiScreen / MOR): u góry pulpit – nasza stacja (sześciokąt) i szlaki do posterunków
+/// sąsiednich z okienkami numerów pociągów w kolorze stanu EZP; na dole zakładki Alarmy / Zdarzenia / Plan ruchu / EZP.
+/// Rozmowa w osobnym oknie. Automaty (awizacja, odjazd, przyjazd) – w Opcjach, domyślnie wyłączone.
 /// </summary>
 public sealed class MainWindow : Window
 {
-    // ------------------------------------------------------------------ barwy
-    static readonly Brush Tlo = Pedzel("#0B1020"), TloPanelu = Pedzel("#121A2E"), TloPola = Pedzel("#0E1528"), Ramka = Pedzel("#2A3552");
-    static readonly Brush Tekst = Pedzel("#D8DEE9"), Szary = Pedzel("#8A94A8"), Cyjan = Pedzel("#4FD3E6"), Pomaranczowy = Pedzel("#FF8A3D");
-    static readonly Brush Zielony = Pedzel("#6BFF6B"), Czerwony = Pedzel("#FF5A5A"), Naglowek = Pedzel("#E9ECF2"), Belka = Pedzel("#29B6D6");
-    static readonly FontFamily Mono = new("Consolas");
-
-    static Brush Pedzel(string hex) { var b = (Brush)new BrushConverter().ConvertFromString(hex); b.Freeze(); return b; }
-
     // ------------------------------------------------------------------ dane
     readonly MostKlient _most;
     readonly ObservableCollection<Sasiad> _sasiedzi = new();
     readonly ObservableCollection<Wpis> _wpisy = new();
     readonly ObservableCollection<Rodzaj> _rodzaje = new();
-    readonly ObservableCollection<Podpowiedz> _podpowiedzi = new();
     readonly ObservableCollection<PozycjaPlanu> _plan = new();
-    readonly ICollectionView _widokWpisow;
+    readonly ObservableCollection<string> _zdarzenia = new(), _alarmy = new();
     readonly Dictionary<long, Wpis> _wyslane = new();
     readonly Dictionary<string, List<string>> _wStacji = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, string> _zgody = new(StringComparer.OrdinalIgnoreCase);
+    readonly StanSzlakow _szlaki = new();
     List<RozkladSimRail.Pociag> _rozklad = new();
     string _posterunek = "", _stacjaGry = "", _czasGry = "";
     DateTime _rozkladPobrany = DateTime.MinValue;
@@ -45,187 +38,227 @@ public sealed class MainWindow : Window
     readonly bool _demo;
     readonly Ustawienia _ust;
 
+    // automaty
+    readonly Dictionary<string, int> _gdzie = new();          // pociąg → 0 brak, 1 szlak, 2 stacja (z poprzedniego stanu)
+    bool _pierwszyStan = true;
+    readonly HashSet<string> _awizowane = new();
+    DateTime _ostatnieApi = DateTime.MinValue, _ostatniaAwizacjaMin = DateTime.MinValue;
+    bool _api;
+
     // ------------------------------------------------------------------ kontrolki
-    readonly TextBlock _tytul = new(), _zegar = new(), _status = new(), _ezpLicznik = new(), _rozmowaTytul = new(), _ezpOdbiorca = new();
-    readonly TextBlock _wzor = new(), _planStatus = new(), _wynik = new();
-    readonly ListBox _lbSasiedzi = new(), _lbWpisy = new(), _lbRodzaje = new(), _lbPodpowiedzi = new();
-    readonly ComboBox _cbPociag = new(), _cbPowod = new(), _cbSerwer = new();
-    readonly TextBox _tbTor = new(), _tbCzas = new(), _tbTekst = new(), _tbStacja = new();
-    readonly FrameworkElement _wierszPociag, _wierszTor, _wierszCzas, _wierszPowod, _wierszTekst;
-    readonly Border _panelEzp;
+    readonly SchematSzlakow _schemat = new();
+    readonly TextBlock _tytul = new(), _zegar = new(), _status = new(), _planStatus = new();
+    readonly ComboBox _cbPosterunek = new(), _cbSerwer = new(), _cbPowod = new();
+    readonly ListBox _lbAlarmy = new(), _lbZdarzenia = new();
     readonly DataGrid _dgPlan = new();
-    readonly TextBlock _odpTytul = new();
-    readonly WrapPanel _odpPrzyciski = new();
-    readonly Border _panelOdpowiedzi;
-    readonly Button _btnWyslij;
+    readonly Dictionary<string, (Border Naglowek, UIElement Tresc)> _zakladki = new();
+
+    // EZP
+    string _wybrany;                       // posterunek w panelu EZP
+    string _klasa = "TrainRequestMessage"; // wybrany rodzaj komunikatu („STOJ” – stój jako tekst)
     Wpis _pytanie;
+    bool _torRecznie;
+    readonly TextBlock _ezpTytul = new(), _ostatni = new(), _podglad = new(), _wynik = new();
+    readonly Border _ostatniRamka = new();
+    readonly WrapPanel _odpPrzyciski = new(), _pocPrzyciski = new(), _rodzPrzyciski = new();
+    readonly TextBox _tbPociag = new(), _tbCzas = new(), _tbTekst = new();
+    readonly WyborToru _tor = new();
+    readonly Para _wierszPowod, _wierszCzas;
+    readonly Button _btnWyslij;
+    OknoRozmowy _oknoRozmowy;
+
+    /// <summary>Etykieta i pole jednego wiersza formularza – chowane razem.</summary>
+    sealed record Para(FrameworkElement Etykieta, FrameworkElement Pole)
+    {
+        public void Pokaz(bool tak) { var v = tak ? Visibility.Visible : Visibility.Collapsed; Etykieta.Visibility = v; Pole.Visibility = v; }
+    }
 
     public MainWindow(bool demo)
     {
         _demo = demo;
-        _ust = Ustawienia.Wczytaj();
-        Title = "Łączność z posterunkami – SimRail";
+        _ust = demo ? new Ustawienia() : Ustawienia.Wczytaj();
+        Title = "Terminal Stacji Stycznej – EZP (SimRail)";
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/app.ico")); }
         catch (Exception ex) { try { File.AppendAllText(Program.ErrorLog, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} ikona okna: {ex.Message}{Environment.NewLine}"); } catch { } }
-        Width = 1400; Height = 900; MinWidth = 1000; MinHeight = 650;
-        Background = Tlo; Foreground = Tekst; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
+        Width = 1400; Height = 900; MinWidth = 1000; MinHeight = 680;
+        Background = Brushes.Black; Foreground = Wyglad.Tekst; FontFamily = Wyglad.Mono; FontSize = 12;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-
-        _widokWpisow = CollectionViewSource.GetDefaultView(_wpisy);
-        _widokWpisow.Filter = o => _lbSasiedzi.SelectedItem is not Sasiad s || ((Wpis)o).Sasiad == s.Nazwa;
 
         var glowna = new Grid();
         glowna.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         glowna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        glowna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(290) });
+        glowna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(340) });
         Content = glowna;
 
-        // ---- nagłówek
-        var naglowek = new DockPanel { Background = Naglowek, LastChildFill = false };
-        _tytul.Text = "Łączność z posterunkami"; _tytul.FontSize = 18; _tytul.Foreground = Brushes.Black; _tytul.Margin = new Thickness(14, 6, 14, 6);
-        _tytul.FontFamily = Mono; _tytul.VerticalAlignment = VerticalAlignment.Center;
-        naglowek.Children.Add(_tytul);
-        _status.Margin = new Thickness(10, 0, 0, 0); _status.VerticalAlignment = VerticalAlignment.Center; _status.Foreground = Brushes.DimGray;
-        naglowek.Children.Add(_status);
-        var zegarBox = new Border { Background = Brushes.Black, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(6), Child = _zegar };
-        _zegar.Foreground = Brushes.White; _zegar.FontFamily = Mono; _zegar.FontSize = 18; _zegar.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(zegarBox, Dock.Right); naglowek.Children.Add(zegarBox);
-        // EZP – licznik O (odebrane nieprzeczytane) / W (wysłane bez odpowiedzi); klik – pokaż / ukryj opcje tekstowe
-        var ezpTekst = new StackPanel();
-        ezpTekst.Children.Add(new TextBlock { Text = "EZP", FontSize = 11, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, Foreground = Brushes.White });
-        ezpTekst.Children.Add(_ezpLicznik);
-        _ezpLicznik.FontFamily = Mono; _ezpLicznik.FontSize = 16; _ezpLicznik.Foreground = Brushes.White; _ezpLicznik.Text = "O: 0   W: 0";
-        var ezp = new Border { Background = Pedzel("#5B6478"), BorderBrush = Brushes.Silver, BorderThickness = new Thickness(1), Padding = new Thickness(10, 2, 10, 2),
-            Margin = new Thickness(6), Child = ezpTekst, Cursor = Cursors.Hand, ToolTip = "EZP – opcje tekstowe (O: odebrane nieprzeczytane, W: wysłane bez odpowiedzi)" };
-        ezp.MouseLeftButtonUp += (_, _) => _panelEzp.Visibility = _panelEzp.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        DockPanel.SetDock(ezp, Dock.Right); naglowek.Children.Add(ezp);
-        glowna.Children.Add(naglowek);
+        // ---- belka górna
+        var belka = new DockPanel { Background = Wyglad.BelkaGorna, Height = 30, LastChildFill = true };
+        var tahoma = new FontFamily("Tahoma");
+        belka.Children.Add(new Border
+        {
+            Background = Wyglad.P("#B0B0B0"), Padding = new Thickness(10, 0, 10, 0), BorderBrush = Wyglad.P("#777777"), BorderThickness = new Thickness(0, 0, 1, 0),
+            Child = new TextBlock { Text = "Posterunek", Foreground = Brushes.Black, FontFamily = tahoma, VerticalAlignment = VerticalAlignment.Center },
+        });
+        _cbPosterunek.IsEditable = true; _cbPosterunek.Width = 210; _cbPosterunek.Margin = new Thickness(6, 4, 6, 4); _cbPosterunek.FontFamily = tahoma;
+        _cbPosterunek.ToolTip = "Posterunek, dla którego działa terminal. „(z gry)” – ten, który obsługujesz w grze. Inny – podgląd (plan, szlaki z rozkładu); wysyłanie tylko z posterunku w grze.";
+        _cbPosterunek.Text = string.IsNullOrEmpty(_ust.Stacja) ? ZGry : _ust.Stacja;
+        _cbPosterunek.SelectionChanged += (_, _) => Dispatcher.BeginInvoke(ZmianaPosterunku);
+        _cbPosterunek.LostKeyboardFocus += (_, _) => ZmianaPosterunku();
+        _cbPosterunek.KeyDown += (_, e) => { if (e.Key == Key.Enter) ZmianaPosterunku(); };
+        belka.Children.Add(_cbPosterunek);
+        var zegarBox = new Border { Background = Brushes.Black, Padding = new Thickness(10, 0, 10, 0), Child = _zegar };
+        _zegar.Foreground = Brushes.White; _zegar.FontSize = 16; _zegar.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(zegarBox, Dock.Right); belka.Children.Add(zegarBox);
+        void Prawy(FrameworkElement e) { e.Margin = new Thickness(0, 4, 6, 4); DockPanel.SetDock(e, Dock.Right); belka.Children.Add(e); }
+        Prawy(Wyglad.Przycisk("Opcje…", Opcje, "Awizacja automatyczna, zgłoszenia z gry, posterunki objęte automatami"));
+        Prawy(Wyglad.Przycisk("Rozmowa", () => PokazRozmowe(null), "Osobne okno rozmowy z posterunkami (godziny, pełne komunikaty gry)"));
+        Prawy(Wyglad.Przycisk("Pobierz rozkład", async () => await PobierzRozklad()));
+        _cbSerwer.IsEditable = true; _cbSerwer.Width = 80; _cbSerwer.Text = _ust.Serwer ?? ""; _cbSerwer.FontFamily = tahoma;
+        _cbSerwer.ToolTip = "Kod serwera SimRail (np. pl1) – rozkład i pozycje pociągów z publicznego API SimRail";
+        Prawy(_cbSerwer);
+        Prawy(new TextBlock { Text = "Serwer", Foreground = Brushes.Black, FontFamily = tahoma, VerticalAlignment = VerticalAlignment.Center });
+        _status.FontFamily = tahoma; _status.VerticalAlignment = VerticalAlignment.Center;
+        Prawy(_status);
+        _tytul.FontFamily = tahoma; _tytul.FontSize = 13; _tytul.Foreground = Brushes.Black; _tytul.HorizontalAlignment = HorizontalAlignment.Center; _tytul.VerticalAlignment = VerticalAlignment.Center;
+        belka.Children.Add(new Border { Background = Wyglad.P("#F2F2F2"), BorderBrush = Wyglad.P("#999999"), BorderThickness = new Thickness(1), Margin = new Thickness(4, 4, 10, 4), Child = _tytul });
+        glowna.Children.Add(belka);
 
-        // ---- środek: sąsiedzi | rozmowa | EZP
-        var srodek = new Grid { Margin = new Thickness(8) };
-        srodek.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
-        srodek.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        srodek.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetRow(srodek, 1); glowna.Children.Add(srodek);
+        // ---- pulpit
+        _schemat.WybranoSasiada += s => WybierzSasiada(s, zakladkaEzp: true);
+        _schemat.UstawStrone += (s, lewa) => { _ust.Strony[Klucz(s)] = lewa; ZapiszUst(); OdswiezSchemat(); };
+        _schemat.UstawTory += UstawToryRecznie;
+        _schemat.WybranoPociag += (s, nr) => { WybierzSasiada(s, zakladkaEzp: true); _tbPociag.Text = nr; };
+        _schemat.AnulujPociag += AnulujPociag;
+        _schemat.Licznik = s => (Pytania(s), _sasiedzi.FirstOrDefault(x => x.Nazwa == s)?.Oczekujace ?? 0,
+                                 (_ust.Awizacja || _ust.AutoOdjazd || _ust.AutoPrzyjazd) && _ust.Automat(s));
+        Grid.SetRow(_schemat, 1); glowna.Children.Add(_schemat);
+        _szlaki.NowyTor += (s, t) =>
+        {
+            var k = Klucz(s);
+            if (!_ust.Tory.TryGetValue(k, out var l)) _ust.Tory[k] = l = new();
+            if (!l.Contains(t)) { l.Add(t); l.Sort(); ZapiszUst(); }
+        };
 
-        // sąsiedzi
-        _lbSasiedzi.ItemsSource = _sasiedzi;
-        _lbSasiedzi.ItemTemplate = SzablonSasiada();
-        StylListy(_lbSasiedzi);
-        _lbSasiedzi.SelectionChanged += (_, _) => WybranoSasiada();
-        var lewyDok = new DockPanel();
-        var lewyPrzyciski = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-        lewyPrzyciski.Children.Add(Przycisk("☰ Widok zbiorczy (wszystkie)", WidokZbiorczy, "Rozmowa ze wszystkimi posterunkami naraz; odpowiedź idzie do posterunku klikniętego komunikatu"));
-        lewyPrzyciski.Children.Add(Przycisk("Wyczyść posterunki", WyczyscPosterunki, "Usuwa listę; sąsiedzi obecnego posterunku wrócą z gry po kilku sekundach"));
-        DockPanel.SetDock(lewyPrzyciski, Dock.Bottom); lewyDok.Children.Add(lewyPrzyciski); lewyDok.Children.Add(_lbSasiedzi);
-        var lewy = Panel("Posterunki sąsiednie", lewyDok);
-        srodek.Children.Add(lewy);
+        // ---- zakładki
+        var dol = new DockPanel { Background = Brushes.Black };
+        var naglowki = new StackPanel { Orientation = Orientation.Horizontal, Background = Wyglad.P("#10141C") };
+        var tresci = new Grid { Margin = new Thickness(8, 6, 8, 6) };
+        DockPanel.SetDock(naglowki, Dock.Top); dol.Children.Add(naglowki); dol.Children.Add(tresci);
+        var dolRamka = new Border { BorderBrush = Wyglad.Cyjan, BorderThickness = new Thickness(0, 2, 0, 0), Child = dol };
+        Grid.SetRow(dolRamka, 2); glowna.Children.Add(dolRamka);
 
-        // rozmowa
-        _lbWpisy.ItemsSource = _widokWpisow;
-        _lbWpisy.ItemTemplate = SzablonWpisu();
-        StylListy(_lbWpisy);
-        ScrollViewer.SetHorizontalScrollBarVisibility(_lbWpisy, ScrollBarVisibility.Disabled);
-        _lbWpisy.SelectionChanged += (_, _) => PokazOdpowiedzi();   // klik w komunikat posterunku – odpowiedź na niego
-        _rozmowaTytul.Text = "Rozmowa – wszystkie posterunki";
-        var srodDok = new DockPanel();
-        var czysc = Przycisk("Wyczyść czat", WyczyscCzat, "Czyści rozmowę w programie (czat w grze zostaje)");
-        czysc.HorizontalAlignment = HorizontalAlignment.Right; czysc.Margin = new Thickness(0, 6, 0, 0);
-        DockPanel.SetDock(czysc, Dock.Bottom); srodDok.Children.Add(czysc); srodDok.Children.Add(_lbWpisy);
-        var srod = Panel(_rozmowaTytul, srodDok);
-        srod.Margin = new Thickness(8, 0, 8, 0);
-        Grid.SetColumn(srod, 1); srodek.Children.Add(srod);
-
-        // EZP – opcje tekstowe
-        var ezpPanel = new StackPanel { Width = 380 };
-        _ezpOdbiorca.Foreground = Cyjan; _ezpOdbiorca.FontWeight = FontWeights.SemiBold; _ezpOdbiorca.Margin = new Thickness(0, 0, 0, 6);
-        ezpPanel.Children.Add(_ezpOdbiorca);
-        // podpowiedź odpowiedzi na ostatnie pytanie posterunku (np. „czy droga wolna?” → droga wolna / nie można przyjąć)
-        _odpTytul.Foreground = Pomaranczowy; _odpTytul.TextWrapping = TextWrapping.Wrap; _odpTytul.Margin = new Thickness(0, 0, 0, 4);
-        var odpStos = new StackPanel();
-        odpStos.Children.Add(_odpTytul); odpStos.Children.Add(_odpPrzyciski);
-        _panelOdpowiedzi = new Border { Child = odpStos, BorderBrush = Pomaranczowy, BorderThickness = new Thickness(1), Padding = new Thickness(6),
-            Margin = new Thickness(0, 0, 0, 8), Background = Pedzel("#1E1A1A"), Visibility = Visibility.Collapsed };
-        ezpPanel.Children.Add(_panelOdpowiedzi);
-        _lbRodzaje.ItemsSource = _rodzaje;
-        _lbRodzaje.DisplayMemberPath = nameof(Rodzaj.Etykieta);
-        StylListy(_lbRodzaje);
-        // rodzaje w dwóch kolumnach – pola pociągu i toru zostają widoczne bez przewijania
-        _lbRodzaje.ItemsPanel = (ItemsPanelTemplate)System.Windows.Markup.XamlReader.Parse(
-            "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'><UniformGrid Columns='2'/></ItemsPanelTemplate>");
-        ScrollViewer.SetHorizontalScrollBarVisibility(_lbRodzaje, ScrollBarVisibility.Disabled);
-        _lbRodzaje.FontSize = 12;
-        _lbRodzaje.SelectionChanged += (_, _) => WybranoRodzaj();
-        ezpPanel.Children.Add(_lbRodzaje);
-        _wzor.Foreground = Szary; _wzor.TextWrapping = TextWrapping.Wrap; _wzor.Margin = new Thickness(0, 4, 0, 6); _wzor.FontStyle = FontStyles.Italic;
-        ezpPanel.Children.Add(_wzor);
-
-        _cbPociag.IsEditable = true; _cbPociag.ItemsSource = _podpowiedzi; _cbPociag.FontFamily = Mono; _cbPociag.FontSize = 15;
-        TextSearch.SetTextPath(_cbPociag, nameof(Podpowiedz.Nr));
-        _cbPociag.ItemTemplate = SzablonPodpowiedzi();
-        _cbPociag.SelectionChanged += (_, _) => { if (_cbPociag.SelectedItem is Podpowiedz p) UzyjPodpowiedzi(p); };
-        _cbPociag.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => { OdswiezPodpowiedzi(); TorZNumeru(); }));
-        _wierszPociag = Wiersz("Pociąg", _cbPociag);
-        ezpPanel.Children.Add(_wierszPociag);
-        // tor i godzina zaraz pod numerem pociągu (przed listą podpowiedzi – widoczne bez przewijania)
-        StylPola(_tbTor); _tbTor.FontSize = 15; _wierszTor = Wiersz("Tor", _tbTor); ezpPanel.Children.Add(_wierszTor);
-        _tbTor.ToolTip = "Tor – dla zapytania o drogę wolną, dania drogi wolnej i dania odjazdu (podpowiedź / plan ruchu wpisują go same)";
-        StylPola(_tbCzas); _wierszCzas = Wiersz("Godzina", _tbCzas); ezpPanel.Children.Add(_wierszCzas);
-        _lbPodpowiedzi.ItemsSource = _podpowiedzi;
-        _lbPodpowiedzi.ItemTemplate = SzablonPodpowiedzi();
-        StylListy(_lbPodpowiedzi);
-        _lbPodpowiedzi.Height = 170;
-        _lbPodpowiedzi.MouseLeftButtonUp += (_, _) => { if (_lbPodpowiedzi.SelectedItem is Podpowiedz p) { _cbPociag.Text = p.Nr; UzyjPodpowiedzi(p); } };
-        var podpTytul = new TextBlock { Text = "Podpowiedzi: w stacji / z rozkładu wg godziny", Foreground = Szary, FontSize = 11, Margin = new Thickness(0, 2, 0, 2) };
-        ezpPanel.Children.Add(podpTytul);
-        ezpPanel.Children.Add(_lbPodpowiedzi);
-        _wierszPociag.Tag = new FrameworkElement[] { podpTytul, _lbPodpowiedzi };
-
-        _cbPowod.ItemsSource = Teksty.Powody; _cbPowod.DisplayMemberPath = "Opis"; _cbPowod.SelectedIndex = 0;
-        _wierszPowod = Wiersz("Powód", _cbPowod); ezpPanel.Children.Add(_wierszPowod);
-        StylPola(_tbTekst); _tbTekst.AcceptsReturn = true; _tbTekst.TextWrapping = TextWrapping.Wrap; _tbTekst.Height = 70;
-        _wierszTekst = Wiersz("Tekst", _tbTekst); ezpPanel.Children.Add(_wierszTekst);
-
-        var wyslij = _btnWyslij = new Button { Content = "Wyślij  (Ctrl+Enter)", Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 8, 0, 0),
-            Background = Belka, Foreground = Brushes.Black, FontWeight = FontWeights.SemiBold, BorderThickness = new Thickness(0) };
-        wyslij.Click += (_, _) => Wyslij();
-        ezpPanel.Children.Add(wyslij);
-        _wynik.TextWrapping = TextWrapping.Wrap; _wynik.Margin = new Thickness(0, 6, 0, 0); _wynik.Foreground = Szary;
-        ezpPanel.Children.Add(_wynik);
-        _panelEzp = Panel("EZP – opcje tekstowe", new ScrollViewer { Content = ezpPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        Grid.SetColumn(_panelEzp, 2); srodek.Children.Add(_panelEzp);
-
-        // ---- plan ruchu
-        var planPasek = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-        planPasek.Children.Add(new TextBlock { Text = "Plan ruchu", Foreground = Brushes.Black, Background = Belka, Padding = new Thickness(14, 3, 14, 3), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 12, 0) });
-        planPasek.Children.Add(Etykieta("Serwer"));
-        _cbSerwer.IsEditable = true; _cbSerwer.Width = 110; _cbSerwer.Text = _ust.Serwer ?? "";
-        _cbSerwer.ToolTip = "Kod serwera SimRail (np. pl1) – rozkład z publicznego API SimRail";
-        planPasek.Children.Add(_cbSerwer);
-        planPasek.Children.Add(Etykieta("Posterunek w rozkładzie"));
-        StylPola(_tbStacja); _tbStacja.Width = 160; _tbStacja.Text = demo ? "" : _ust.Stacja ?? "";
-        _tbStacja.ToolTip = "Puste – nazwa stacji z gry. Wpisz, gdy nazwa w rozkładzie jest inna.";
-        _tbStacja.TextChanged += (_, _) => { if (!_demo) _ust.Stacja = _tbStacja.Text; ZbudujPlan(); };
-        planPasek.Children.Add(_tbStacja);
-        var odswiez = new Button { Content = "Pobierz rozkład", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 8, 0) };
-        odswiez.Click += async (_, _) => await PobierzRozklad();
-        planPasek.Children.Add(odswiez);
-        _planStatus.Foreground = Szary; _planStatus.VerticalAlignment = VerticalAlignment.Center;
-        planPasek.Children.Add(_planStatus);
-
+        Wyglad.Lista(_lbAlarmy); _lbAlarmy.ItemsSource = _alarmy; _lbAlarmy.Foreground = Wyglad.Czerwony;
+        Wyglad.Lista(_lbZdarzenia); _lbZdarzenia.ItemsSource = _zdarzenia;
         ZbudujTabele();
-        var dol = new DockPanel { Margin = new Thickness(8, 0, 8, 8) };
-        DockPanel.SetDock(planPasek, Dock.Top); dol.Children.Add(planPasek); dol.Children.Add(_dgPlan);
-        Grid.SetRow(dol, 2); glowna.Children.Add(dol);
+        var planDok = new DockPanel();
+        _planStatus.Foreground = Wyglad.Szary; _planStatus.Margin = new Thickness(0, 0, 0, 4);
+        DockPanel.SetDock(_planStatus, Dock.Top); planDok.Children.Add(_planStatus); planDok.Children.Add(_dgPlan);
+
+        // EZP: formularz po lewej, ostatni komunikat / odpowiedzi / podgląd po prawej
+        var ezp = new Grid();
+        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        var form = new Grid();
+        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
+        form.ColumnDefinitions.Add(new ColumnDefinition());
+        Para Wiersz(string et, FrameworkElement pole)
+        {
+            int w = form.RowDefinitions.Count;
+            form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var l = Wyglad.Etykieta(et); l.Margin = new Thickness(0, 6, 6, 0); l.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetRow(l, w); form.Children.Add(l);
+            pole.Margin = new Thickness(0, 3, 0, 3);
+            Grid.SetRow(pole, w); Grid.SetColumn(pole, 1); form.Children.Add(pole);
+            return new Para(l, pole);
+        }
+        _ezpTytul.Foreground = Wyglad.Cyjan; _ezpTytul.FontSize = 14; _ezpTytul.Margin = new Thickness(0, 0, 0, 4);
+        form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetColumnSpan(_ezpTytul, 2); form.Children.Add(_ezpTytul);
+
+        Wyglad.Pole(_tbPociag); _tbPociag.Width = 90; _tbPociag.FontSize = 15; _tbPociag.Height = 24;
+        _tbPociag.ToolTip = "Numer pociągu – dowolny, także spoza rozkładu; przyciski obok – pociągi tego szlaku z rozkładu i ze szlaku";
+        _tbPociag.TextChanged += (_, _) => { TorZNumeru(); Podglad(); };
+        var poc = new DockPanel(); DockPanel.SetDock(_tbPociag, Dock.Left); poc.Children.Add(_tbPociag);
+        _pocPrzyciski.Margin = new Thickness(8, 0, 0, 0); poc.Children.Add(_pocPrzyciski);
+        Wiersz("Pociąg", poc);
+        _tor.Zmieniono += () => { _torRecznie = true; Podglad(); };
+        _tor.ToolTip = "Tor szlakowy w komunikacie (tory tego szlaku z komunikatów gry); Alt+0 – bez, Alt+1… – kolejne";
+        Wiersz("Tor", _tor);
+        Wiersz("Komunikat", _rodzPrzyciski);
+        _cbPowod.ItemsSource = Teksty.Powody.Select(x => x.Opis).ToList(); _cbPowod.SelectedIndex = 0; _cbPowod.Width = 320; _cbPowod.HorizontalAlignment = HorizontalAlignment.Left;
+        _cbPowod.SelectionChanged += (_, _) => Podglad();
+        _wierszPowod = Wiersz("Powód", _cbPowod);
+        Wyglad.Pole(_tbCzas); _tbCzas.Width = 70; _tbCzas.HorizontalAlignment = HorizontalAlignment.Left;
+        _tbCzas.TextChanged += (_, _) => Podglad();
+        _wierszCzas = Wiersz("Godzina", _tbCzas);
+        var tekstWiersz = new DockPanel();
+        var wyslijTekst = Wyglad.Przycisk("Wyślij tekst", WyslijTekst, "Tekst własny do tego posterunku (Enter)");
+        wyslijTekst.Margin = new Thickness(6, 0, 0, 0);
+        DockPanel.SetDock(wyslijTekst, Dock.Right); tekstWiersz.Children.Add(wyslijTekst);
+        Wyglad.Pole(_tbTekst); _tbTekst.Foreground = Brushes.White; _tbTekst.FontFamily = tahoma; _tbTekst.Height = 24;
+        _tbTekst.KeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { WyslijTekst(); e.Handled = true; } };
+        tekstWiersz.Children.Add(_tbTekst);
+        Wiersz("Tekst", tekstWiersz);
+        _btnWyslij = Wyglad.Przycisk("Wyślij  (Ctrl+Enter)", Wyslij);
+        _btnWyslij.HorizontalAlignment = HorizontalAlignment.Left; _btnWyslij.Padding = new Thickness(18, 4, 18, 4); _btnWyslij.FontSize = 13;
+        var anuluj = Wyglad.Przycisk("Anuluj pociąg", () => AnulujPociag(_wybrany, _tbPociag.Text.Trim()),
+            "Zdejmuje pociąg z okienka tego szlaku bez wysyłania komunikatu (np. pomyłka, pociąg usunięty z gry)");
+        anuluj.Margin = new Thickness(10, 0, 0, 0); anuluj.Padding = new Thickness(10, 4, 10, 4);
+        var wysylka = new StackPanel { Orientation = Orientation.Horizontal };
+        wysylka.Children.Add(_btnWyslij); wysylka.Children.Add(anuluj);
+        Wiersz("", wysylka);
+        ezp.Children.Add(form);
+
+        var prawa = new StackPanel { Margin = new Thickness(14, 0, 0, 0) };
+        prawa.Children.Add(Wyglad.Etykieta("Ostatni komunikat posterunku"));
+        _ostatni.TextWrapping = TextWrapping.Wrap; _ostatni.FontSize = 13;
+        _ostatniRamka.BorderBrush = Wyglad.P("#404040"); _ostatniRamka.BorderThickness = new Thickness(1); _ostatniRamka.Padding = new Thickness(6, 4, 6, 4);
+        _ostatniRamka.Margin = new Thickness(0, 2, 0, 6); _ostatniRamka.MinHeight = 44; _ostatniRamka.Child = _ostatni;
+        prawa.Children.Add(_ostatniRamka);
+        prawa.Children.Add(_odpPrzyciski);
+        prawa.Children.Add(Wyglad.Etykieta("Podgląd – tak pójdzie do gry"));
+        _podglad.Foreground = Wyglad.Zolty; _podglad.TextWrapping = TextWrapping.Wrap; _podglad.FontSize = 13; _podglad.Margin = new Thickness(0, 2, 0, 8);
+        prawa.Children.Add(_podglad);
+        _wynik.TextWrapping = TextWrapping.Wrap; _wynik.Foreground = Wyglad.Szary;
+        prawa.Children.Add(_wynik);
+        Grid.SetColumn(prawa, 1); ezp.Children.Add(prawa);
+
+        Zakladka("Alarmy", _lbAlarmy);
+        Zakladka("Zdarzenia", _lbZdarzenia);
+        Zakladka("Plan ruchu", planDok);
+        Zakladka("EZP", ezp);
+        PokazZakladke("EZP");
+
+        void Zakladka(string nazwa, UIElement tresc)
+        {
+            var n = new Border
+            {
+                Padding = new Thickness(16, 3, 16, 3), Cursor = Cursors.Hand, BorderBrush = Brushes.Black, BorderThickness = new Thickness(0, 0, 1, 0),
+                Child = new TextBlock { Text = nazwa, FontFamily = tahoma },
+            };
+            n.MouseLeftButtonUp += (_, _) => PokazZakladke(nazwa);
+            naglowki.Children.Add(n);
+            tresci.Children.Add(tresc);
+            _zakladki[nazwa] = (n, tresc);
+        }
 
         // ---- zdarzenia
         foreach (var k in Teksty.Klasy) _rodzaje.Add(new Rodzaj { Klasa = k, Arg = Teksty.DomyslneArg(k) });
-        _lbRodzaje.SelectedIndex = 0;
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { Wyslij(); e.Handled = true; } };
+        ZbudujRodzaje();
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { Wyslij(); e.Handled = true; return; }
+            if (Keyboard.Modifiers == ModifierKeys.Alt && e.Key == Key.System && e.SystemKey is >= Key.D0 and <= Key.D9)
+            { _tor.WybierzNr(e.SystemKey - Key.D0, reka: true); e.Handled = true; }
+        };
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         t.Tick += (_, _) => Takt();
         t.Start();
-        Closed += (_, _) => { if (!_demo) { _ust.Serwer = _cbSerwer.Text; _ust.Zapisz(); } _most?.Dispose(); };
+        Closed += (_, _) =>
+        {
+            if (!_demo) { _ust.Serwer = _cbSerwer.Text; _ust.Zapisz(); }
+            if (_oknoRozmowy != null) { _oknoRozmowy.Zamykanie = true; _oknoRozmowy.Close(); }
+            _most?.Dispose();
+        };
 
         if (demo) Demo.Wypelnij(this);
         else
@@ -235,8 +268,60 @@ public sealed class MainWindow : Window
             Loaded += async (_, _) => await WczytajSerwery();
         }
         Takt();
-        WybranoSasiada();
+        OdswiezSchemat();
+        OdswiezEzp();
     }
+
+    void PokazZakladke(string nazwa)
+    {
+        foreach (var (n, (nag, tr)) in _zakladki)
+        {
+            bool on = n == nazwa;
+            nag.Background = on ? Wyglad.Cyjan : Wyglad.P("#1E2430");
+            ((TextBlock)nag.Child).Foreground = on ? Brushes.White : Wyglad.P("#9AA4B0");
+            tr.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    // ------------------------------------------------------------------ posterunek (wybór stacji)
+
+    const string ZGry = "(z gry)";
+
+    /// <summary>Posterunek terminala: wybrany w belce albo obsługiwany w grze.</summary>
+    string Stacja => !string.IsNullOrEmpty(_ust.Stacja) ? _ust.Stacja : !string.IsNullOrEmpty(_posterunek) ? _posterunek : _stacjaGry;
+
+    /// <summary>Wybrany posterunek to ten z gry (wtedy sąsiedzi z gry i można wysyłać).</summary>
+    bool StacjaZGry => string.IsNullOrEmpty(_ust.Stacja) || string.IsNullOrEmpty(_posterunek) || RozkladSimRail.Pasuje(_ust.Stacja, _posterunek);
+
+    void ZmianaPosterunku()
+    {
+        var t = (_cbPosterunek.SelectedItem as string ?? _cbPosterunek.Text ?? "").Trim();
+        var nowa = t == ZGry ? "" : t;
+        if (nowa == (_ust.Stacja ?? "")) return;
+        _ust.Stacja = nowa; ZapiszUst();
+        _szlaki.Wyczysc(); _wybrany = null;
+        ZbudujPlan(); OdswiezSchemat(); OdswiezEzp();
+    }
+
+    /// <summary>Posterunki sąsiednie: z gry (posterunek z gry), inaczej z rozkładu – punkty tuż przed i za stacją.</summary>
+    List<string> Sasiedzi()
+    {
+        if (StacjaZGry && _sasiedzi.Count > 0) return _sasiedzi.Select(s => s.Nazwa).ToList();
+        var st = Stacja;
+        if (string.IsNullOrEmpty(st)) return new();
+        var licz = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in _rozklad)
+        {
+            int i = t.Punkty.FindIndex(p => RozkladSimRail.Pasuje(p.Nazwa, st));
+            if (i < 0) continue;
+            int k = i; while (k + 1 < t.Punkty.Count && RozkladSimRail.Pasuje(t.Punkty[k + 1].Nazwa, st)) k++;
+            if (i > 0) licz[t.Punkty[i - 1].Nazwa] = licz.GetValueOrDefault(t.Punkty[i - 1].Nazwa) + 1;
+            if (k + 1 < t.Punkty.Count) licz[t.Punkty[k + 1].Nazwa] = licz.GetValueOrDefault(t.Punkty[k + 1].Nazwa) + 1;
+        }
+        return licz.Where(x => x.Value >= 2).OrderByDescending(x => x.Value).Take(8).Select(x => x.Key).ToList();
+    }
+
+    string Klucz(string sasiad) => $"{Stacja}|{sasiad}";
 
     // ------------------------------------------------------------------ pakiety z moda
 
@@ -252,21 +337,23 @@ public sealed class MainWindow : Window
 
     void Stan(JsonElement p)
     {
-        _posterunek = MostKlient.S(p, "posterunek") ?? "";
+        var post = MostKlient.S(p, "posterunek") ?? "";
+        bool zmiana = post != _posterunek;
+        _posterunek = post;
         var st = MostKlient.S(p, "stacja") ?? "";
         bool zmianaStacji = st != _stacjaGry; _stacjaGry = st;
         _czasGry = MostKlient.S(p, "czasGry") ?? "";
+        bool nowiSasiedzi = false;
         if (p.TryGetProperty("sasiedzi", out var ss))
             foreach (var s in ss.EnumerateArray())
             {
                 var n = MostKlient.S(s, "n"); if (string.IsNullOrEmpty(n)) continue;
                 var gracz = s.TryGetProperty("gracz", out var g) && g.GetBoolean();
                 var juz = _sasiedzi.FirstOrDefault(x => x.Nazwa == n);
-                if (juz == null) _sasiedzi.Add(new Sasiad { Nazwa = n, Gracz = gracz }); else juz.Gracz = gracz;
+                if (juz == null) { _sasiedzi.Add(new Sasiad { Nazwa = n, Gracz = gracz }); nowiSasiedzi = true; } else juz.Gracz = gracz;
             }
         if (p.TryGetProperty("szablony", out var sz) && sz.GetArrayLength() > 0)
         {
-            var wybrany = (_lbRodzaje.SelectedItem as Rodzaj)?.Klasa;
             var nowe = sz.EnumerateArray().Select(x => new Rodzaj
             {
                 Klasa = MostKlient.S(x, "klasa"), Szablon = MostKlient.S(x, "tekst"), ZGry = true,
@@ -275,7 +362,7 @@ public sealed class MainWindow : Window
             if (!_rodzaje.Select(r => r.Klasa + r.Szablon + string.Join(",", r.Arg)).SequenceEqual(nowe.Select(r => r.Klasa + r.Szablon + string.Join(",", r.Arg))))
             {
                 _rodzaje.Clear(); foreach (var r in nowe) _rodzaje.Add(r);
-                _lbRodzaje.SelectedItem = _rodzaje.FirstOrDefault(r => r.Klasa == wybrany) ?? _rodzaje.FirstOrDefault();
+                ZbudujRodzaje();
             }
         }
         _wStacji.Clear();
@@ -285,9 +372,9 @@ public sealed class MainWindow : Window
                 var nr = MostKlient.S(x, "nr"); if (string.IsNullOrEmpty(nr)) continue;
                 _wStacji[nr] = x.TryGetProperty("gdzie", out var gd) ? gd.EnumerateArray().Select(v => v.GetString()).ToList() : new();
             }
-        foreach (var r in _plan) r.WStacji = _wStacji.ContainsKey(r.Pociag);
-        if (zmianaStacji) ZbudujPlan();
-        OdswiezPodpowiedzi();
+        foreach (var r in _plan) r.WStacji = WStacji(r.Pociag);
+        if (zmiana || zmianaStacji || nowiSasiedzi) { ZbudujPlan(); OdswiezSchemat(); OdswiezEzp(); }
+        Automaty();
     }
 
     void Czat(JsonElement p)
@@ -296,39 +383,44 @@ public sealed class MainWindow : Window
         var od = MostKlient.S(p, "od") ?? ""; var doK = MostKlient.S(p, "do") ?? "";
         var klasa = MostKlient.S(p, "klasa") ?? ""; var tekst = MostKlient.S(p, "tekst") ?? ""; var pociag = MostKlient.S(p, "pociag") ?? "";
         var czas = Godzina(MostKlient.S(p, "czasGry")) ?? Godzina(MostKlient.S(p, "czasPc")) ?? DateTime.Now.ToString("HH:mm");
+        int? torModa = p.TryGetProperty("tor", out var tz) && tz.TryGetInt32(out var tzz) ? tzz : null;
+        var tor = Formulki.TorZTekstu(tekst, torModa);
 
         if (wych)
         {
-            // własny komunikat z programu wraca z gry – uzupełnij wpis zamiast dublować
-            var moj = _wpisy.LastOrDefault(w => w.Wychodzacy && w.Id > 0 && w.Do == doK && w.Klasa == klasa && (DateTime.Now - w.Utworzony).TotalSeconds < 20 && w.Status != "w czacie gry");
-            if (moj != null) { moj.Tekst = tekst; moj.Status = "w czacie gry"; return; }
+            // własny komunikat z programu wraca z gry – prawdziwy tekst gry zamiast formułki
+            var moj = _wpisy.LastOrDefault(w => w.Wychodzacy && w.Id > 0 && w.Do == doK && w.Klasa == klasa && (DateTime.Now - w.Utworzony).TotalSeconds < 20 && !(w.Status ?? "").StartsWith("w czacie gry"));
+            if (moj != null) { moj.Tekst = tekst; moj.Status = "w czacie gry" + ((moj.Status ?? "").EndsWith("(auto)") ? "  (auto)" : ""); return; }
+            OznaczOdpowiedziane(doK, pociag);
         }
         var sasiad = wych ? doK : od;
         var s = _sasiedzi.FirstOrDefault(x => x.Nazwa == sasiad);
-        if (s == null && sasiad.Length > 0) _sasiedzi.Add(s = new Sasiad { Nazwa = sasiad, Gracz = !(p.TryGetProperty("ai", out var ai0) && ai0.GetBoolean()) });
-        _wpisy.Add(new Wpis
+        if (s == null && sasiad.Length > 0 && StacjaZGry) _sasiedzi.Add(s = new Sasiad { Nazwa = sasiad, Gracz = !(p.TryGetProperty("ai", out var ai0) && ai0.GetBoolean()) });
+        var w = new Wpis
         {
             Czas = czas, Wychodzacy = wych, Od = od, Do = doK, Ai = p.TryGetProperty("ai", out var ai) && ai.GetBoolean(),
-            Klasa = klasa, Tekst = tekst, Pociag = pociag, Status = wych ? "z okna gry" : "",
-            Tor = p.TryGetProperty("tor", out var tz) && tz.TryGetInt32(out var tzz) ? tzz : null,
-        });
+            Klasa = klasa, Tekst = tekst, Pociag = pociag, Status = wych ? "z okna gry" : "", Tor = tor,
+        };
+        _wpisy.Add(w);
+        _szlaki.Zastosuj(w);
+        Zdarzenie($"{czas}  {(wych ? $"→ {doK}" : $"← {od}")}: {tekst}");
         if (s != null)
         {
             if (wych) s.Oczekujace++;
             else
             {
                 s.Oczekujace = 0;
-                if (_lbSasiedzi.SelectedItem != s || !IsActive) s.Nieprzeczytane++;
+                if (_wybrany != s.Nazwa || !IsActive) s.Nieprzeczytane++;
             }
         }
         if (!wych && klasa == "TrainPermissionMessage" && pociag.Length > 0)
         {
-            _zgody[pociag] = $"{sasiad} {czas}";
+            _zgody[pociag] = $"{Skrot(sasiad)} {czas}";
             foreach (var r in _plan.Where(r => r.Pociag == pociag)) r.Zgoda = _zgody[pociag];
         }
-        PokazOdpowiedzi();
-        Przewin();
-        Takt();
+        if (!wych && _wybrany == null && sasiad.Length > 0) _wybrany = sasiad;
+        OdswiezSchemat();
+        if (sasiad == _wybrany) OdswiezEzp();
     }
 
     void Odpowiedz(JsonElement p)
@@ -336,124 +428,213 @@ public sealed class MainWindow : Window
         long id = p.TryGetProperty("id", out var i) && i.TryGetInt64(out var ii) ? ii : 0;
         var ok = p.TryGetProperty("ok", out var o) && o.GetBoolean();
         var msg = MostKlient.S(p, "msg") ?? "";
-        if (_wyslane.TryGetValue(id, out var w) && w.Status != "w czacie gry") w.Status = ok ? "przekazano do gry" : "ODRZUCONO: " + msg;
-        _wynik.Text = ok ? "Gra przyjęła: " + msg : "Gra odrzuciła: " + msg;
-        _wynik.Foreground = ok ? Zielony : Czerwony;
+        if (_wyslane.TryGetValue(id, out var w) && !(w.Status ?? "").StartsWith("w czacie gry"))
+        {
+            w.Status = (ok ? "przekazano do gry" : "ODRZUCONO: " + msg) + ((w.Status ?? "").EndsWith("(auto)") ? "  (auto)" : "");
+            if (!ok) Zdarzenie($"{Teraz():HH:mm}  gra odrzuciła komunikat do {w.Do}: {msg}");
+        }
+        _wynik.Text = ok ? "Gra przyjęła komunikat." : "Gra odrzuciła: " + msg;
+        _wynik.Foreground = ok ? Wyglad.Zielony : Wyglad.Czerwony;
+    }
+
+    // ------------------------------------------------------------------ pulpit
+
+    /// <summary>Usuwa pociąg z okienka szlaku bez komunikatu do gry (pomyłka, pociąg zniknął itp.).</summary>
+    void AnulujPociag(string sasiad, string nr)
+    {
+        if (string.IsNullOrEmpty(sasiad) || string.IsNullOrEmpty(nr)) return;
+        if (_szlaki.Daj(sasiad).Pociagi.RemoveAll(p => p.Nr == nr) == 0) { Zdarzenie($"{Teraz():HH:mm}  {nr} – brak na szlaku do {sasiad}"); return; }
+        _awizowane.Remove($"{nr}|{sasiad}");
+        foreach (var w in _wpisy.Where(w => w.Sasiad == sasiad && w.Pociag == nr && !w.Wychodzacy)) w.Odpowiedziano = true;
+        Zdarzenie($"{Teraz():HH:mm}  {nr} anulowany na szlaku {sasiad} (bez wiadomości)");
+        OdswiezSchemat();
+        if (sasiad == _wybrany) OdswiezEzp();
+    }
+
+    /// <summary>Prawy klik na szlaku – ręczne tory (np. „1 2”); puste – z komunikatów gry, poznane od nowa.</summary>
+    void UstawToryRecznie(string sasiad)
+    {
+        var k = Klucz(sasiad);
+        var s = _szlaki.Daj(sasiad);
+        var pole = new TextBox { Text = string.Join(" ", s.Tory), MinWidth = 220, Margin = new Thickness(0, 6, 0, 10) };
+        var okno = new Window
+        {
+            Title = $"Tory szlaku {Stacja} – {sasiad}", SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, Background = Wyglad.P("#D4D0C8"), FontFamily = new FontFamily("Tahoma"),
+        };
+        bool? wynik = null;
+        var ok = Wyglad.Przycisk("OK", () => { wynik = true; okno.Close(); }); ok.IsDefault = true; ok.MinWidth = 70;
+        var auto = Wyglad.Przycisk("Z gry (automatycznie)", () => { wynik = false; okno.Close(); }, "Usuwa ręczne ustawienie – tory poznawane z komunikatów od nowa");
+        var anuluj = Wyglad.Przycisk("Anuluj", () => okno.Close()); anuluj.IsCancel = true; anuluj.MinWidth = 70;
+        foreach (var b in new[] { ok, auto, anuluj }) b.Margin = new Thickness(0, 0, 6, 0);
+        var przyciski = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        przyciski.Children.Add(ok); przyciski.Children.Add(auto); przyciski.Children.Add(anuluj);
+        var p = new StackPanel { Margin = new Thickness(12) };
+        p.Children.Add(new TextBlock { Text = "Numery torów szlakowych (jak w komunikatach gry, np. „1 2”),\noddzielone spacją lub przecinkiem:" });
+        p.Children.Add(pole); p.Children.Add(przyciski);
+        okno.Content = p;
+        okno.Loaded += (_, _) => { pole.Focus(); pole.SelectAll(); };
+        okno.ShowDialog();
+        if (wynik == null) return;
+        if (wynik == true)
+        {
+            var tory = pole.Text.Split(new[] { ' ', ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).Distinct().OrderBy(n => n).ToList();
+            if (tory.Count == 0) { _ust.ToryReczne.Remove(k); _ust.Tory.Remove(k); }
+            else _ust.ToryReczne[k] = tory;
+        }
+        else { _ust.ToryReczne.Remove(k); _ust.Tory.Remove(k); s.Tory.Clear(); s.Reczne = false; }
+        ZapiszUst();
+        OdswiezSchemat();
+        if (sasiad == _wybrany) OdswiezEzp();
+    }
+
+    void OdswiezSchemat()
+    {
+        var nazwy = Sasiedzi();
+        var lista = new List<Szlak>();
+        for (int i = 0; i < nazwy.Count; i++)
+        {
+            var s = _szlaki.Daj(nazwy[i]);
+            var k = Klucz(nazwy[i]);
+            if (_ust.ToryReczne.TryGetValue(k, out var r) && r.Count > 0)
+            {
+                s.Reczne = true; s.Tory.Clear(); s.Tory.AddRange(r.Distinct().OrderBy(x => x));
+            }
+            else
+            {
+                if (s.Reczne) { s.Reczne = false; s.Tory.Clear(); }
+                if (_ust.Tory.TryGetValue(k, out var t)) foreach (var x in t.ToList()) _szlaki.PoznajTor(nazwy[i], x);
+                if (Ustawienia.ToryZnane.TryGetValue(k, out var z)) foreach (var x in z) _szlaki.PoznajTor(nazwy[i], x);
+            }
+            s.Lewa = _ust.Strony.TryGetValue(k, out var l) ? l : i < (nazwy.Count + 1) / 2;
+            lista.Add(s);
+        }
+        if (_wybrany == null || !nazwy.Contains(_wybrany)) _wybrany = nazwy.FirstOrDefault();
+        _schemat.Szlaki = lista;
+        _schemat.Stacja = Stacja;
+        _schemat.Wybrany = _wybrany;
+        _schemat.InvalidateVisual();
+    }
+
+    /// <summary>Pytania posterunku czekające na odpowiedź (zapytanie, „co odjechało?”, blokada; z ostatnich 30 min) – licznik „O:”.</summary>
+    int Pytania(string sasiad) => _wpisy.Count(x => !x.Wychodzacy && !x.Odpowiedziano && x.Od == sasiad && x.Klasa is "TrainRequestMessage" or "TrainQuestionMessage" or "LockLineblockMessage" && (DateTime.Now - x.Utworzony).TotalMinutes < 30);
+
+    void WybierzSasiada(string s, bool zakladkaEzp)
+    {
+        if (_wybrany != s) { _wybrany = s; _pytanie = null; _torRecznie = false; _tbPociag.Text = ""; }
+        var sa = _sasiedzi.FirstOrDefault(x => x.Nazwa == s);
+        if (sa != null) sa.Nieprzeczytane = 0;
+        if (zakladkaEzp) PokazZakladke("EZP");
+        OdswiezSchemat();
+        OdswiezEzp();
     }
 
     // ------------------------------------------------------------------ EZP
 
-    void WybranoSasiada()
+    void ZbudujRodzaje()
     {
-        var s = _lbSasiedzi.SelectedItem as Sasiad;
-        if (s != null) s.Nieprzeczytane = 0;
-        _rozmowaTytul.Text = s == null ? "Widok zbiorczy – wszystkie posterunki" : $"Rozmowa z: {s.Nazwa} ({s.Obsada})";
-        _widokWpisow.Refresh();
-        Przewin();
+        _rodzPrzyciski.Children.Clear();
+        var klasy = new[] { "TrainRequestMessage", "TrainPermissionMessage", "TrainDepartedMessage", "TrainArrivedMessage", "TrainDenialMessage", "TrainCancelledMessage", "TrainQuestionMessage", "LockLineblockMessage", "STOJ" };
+        foreach (var k in klasy)
+        {
+            if (k != "STOJ" && !_rodzaje.Any(r => r.Klasa == k)) continue;
+            var b = Wyglad.Klasyczny(new ToggleButton
+            {
+                Content = k switch
+                {
+                    "TrainRequestMessage" => "Zapytanie", "TrainPermissionMessage" => "Droga wolna", "TrainDepartedMessage" => "Odjechał",
+                    "TrainArrivedMessage" => "Przyjechał", "TrainDenialMessage" => "Odmowa", "TrainCancelledMessage" => "Odwołany",
+                    "TrainQuestionMessage" => "Co odjechało?", "LockLineblockMessage" => "Blokada", _ => "Stój",
+                },
+                Tag = k, Margin = new Thickness(0, 0, 4, 4), Focusable = false,
+                ToolTip = k == "STOJ" ? "Stój – zatrzymać pociąg (w grze nie ma takiego komunikatu: idzie jako tekst, okienko na szlaku miga na czerwono)" : Teksty.Etykieta(k),
+            });
+            b.Click += (_, _) => WybierzRodzaj(k);
+            _rodzPrzyciski.Children.Add(b);
+        }
+        WybierzRodzaj(_klasa);
+    }
+
+    Rodzaj RodzajGry(string klasa) => _rodzaje.FirstOrDefault(r => r.Klasa == klasa);
+
+    string[] Argumenty(string klasa) => klasa == "STOJ" ? new[] { "Train", "TrackNumber" } : RodzajGry(klasa)?.Arg ?? Teksty.DomyslneArg(klasa);
+
+    void WybierzRodzaj(string klasa)
+    {
+        _klasa = klasa;
+        foreach (ToggleButton b in _rodzPrzyciski.Children) b.IsChecked = (string)b.Tag == klasa;
+        var arg = Argumenty(klasa);
+        _wierszPowod?.Pokaz(arg.Contains("DenialReason"));
+        _wierszCzas?.Pokaz(arg.Contains("Time"));
+        if (arg.Contains("Time")) _tbCzas.Text = Teraz().ToString("HH:mm");
+        _tor.IsEnabled = arg.Contains("TrackNumber");
+        Podglad();
+    }
+
+    void OdswiezEzp()
+    {
+        var s = _wybrany;
+        var sa = s == null ? null : _sasiedzi.FirstOrDefault(x => x.Nazwa == s);
+        _ezpTytul.Text = s == null ? "EZP – brak posterunków sąsiednich (połącz z grą albo wybierz posterunek i pobierz rozkład)"
+            : $"EZP – {s}{(sa != null ? $"  ({sa.Obsada})" : "")}" + (StacjaZGry ? "" : "   [podgląd – wysyłanie tylko z posterunku w grze]");
+        _tor.UstawTory(s != null && _szlaki.Daj(s).Tory.Count > 0 ? _szlaki.Daj(s).Tory : new List<int> { 1, 2 });
+
+        // pociągi tego szlaku: na szlaku, z planu w tę stronę (−30 … +90 min)
+        _pocPrzyciski.Children.Clear();
+        if (s != null)
+        {
+            var teraz = Teraz();
+            var nr = _szlaki.Daj(s).Pociagi.Select(p => p.Nr)
+                .Concat(_plan.Where(r => (r.SasiadSkad == s || r.SasiadDokad == s) && (r.Czas - teraz).TotalMinutes is > -30 and < 90)
+                             .OrderBy(r => Math.Abs((r.Czas - teraz).TotalMinutes)).Select(r => r.Pociag))
+                .Distinct().Take(10).ToList();
+            foreach (var n in nr)
+            {
+                var r = _plan.FirstOrDefault(x => x.Pociag == n);
+                var b = Wyglad.Przycisk(n, () => { _torRecznie = false; _tbPociag.Text = n; _tbPociag.Focus(); _tbPociag.CaretIndex = n.Length; },
+                    r == null ? "na szlaku" : $"{r.Czas:HH:mm} {r.Skad} → {r.Dokad}  {r.Kategoria}");
+                if (r?.WStacji == true) b.Foreground = Wyglad.Pomaranczowy;
+                _pocPrzyciski.Children.Add(b);
+            }
+        }
         PokazOdpowiedzi();
-        OdswiezPodpowiedzi();
-        Takt();
+        Podglad();
     }
 
-    void WybranoRodzaj()
-    {
-        var r = _lbRodzaje.SelectedItem as Rodzaj;
-        var arg = r?.Arg ?? Array.Empty<string>();
-        bool custom = r?.Klasa == "CustomTextMessage";
-        Pokaz(_wierszPociag, arg.Contains("Train"));
-        Pokaz(_wierszTor, arg.Contains("TrackNumber") || ZTorem(r?.Klasa));
-        TorZNumeru();
-        Pokaz(_wierszCzas, arg.Contains("Time"));
-        Pokaz(_wierszPowod, arg.Contains("DenialReason"));
-        Pokaz(_wierszTekst, custom);
-        if (arg.Contains("Time") && string.IsNullOrWhiteSpace(_tbCzas.Text)) _tbCzas.Text = Teraz().ToString("HH:mm");
-        _wzor.Text = r == null ? "" : !string.IsNullOrEmpty(r.Szablon) ? $"Wzór gry: {r.Szablon}" : r.ZGry ? "" : "Bez połączenia z grą – pola wg szablonów odczytanych wcześniej z gry.";
-    }
-
-    static void Pokaz(FrameworkElement w, bool tak)
-    {
-        w.Visibility = tak ? Visibility.Visible : Visibility.Collapsed;
-        if (w.Tag is FrameworkElement[] dodatkowe) foreach (var d in dodatkowe) d.Visibility = w.Visibility;
-    }
-
-    // ------------------------------------------------------------------ widok zbiorczy, czyszczenie
-
-    /// <summary>Wybrany posterunek, a w widoku zbiorczym – posterunek komunikatu, na który odpowiadasz.</summary>
-    Sasiad Odbiorca() => _lbSasiedzi.SelectedItem as Sasiad
-        ?? (_pytanie == null ? null : _sasiedzi.FirstOrDefault(x => x.Nazwa == _pytanie.Od) ?? new Sasiad { Nazwa = _pytanie.Od, Gracz = !_pytanie.Ai });
-
-    void UstawOdbiorce()
-    {
-        var o = Odbiorca();
-        _ezpOdbiorca.Text = o == null ? "Wybierz posterunek po lewej albo kliknij komunikat w rozmowie"
-            : _lbSasiedzi.SelectedItem == null ? $"Do: {o.Nazwa}  (widok zbiorczy – odpowiedź na komunikat)" : $"Do: {o.Nazwa}";
-    }
-
-    internal void PokazZbiorczy() => WidokZbiorczy();
-
-    void WidokZbiorczy()
-    {
-        _lbWpisy.SelectedItem = null;
-        if (_lbSasiedzi.SelectedItem == null) WybranoSasiada(); else _lbSasiedzi.SelectedItem = null;
-    }
-
-    void WyczyscCzat()
-    {
-        _wpisy.Clear(); _wyslane.Clear(); _pytanie = null;
-        foreach (var s in _sasiedzi) { s.Nieprzeczytane = 0; s.Oczekujace = 0; }
-        PokazOdpowiedzi(); Takt();
-        _wynik.Text = "Rozmowa wyczyszczona (czat w grze zostaje)."; _wynik.Foreground = Szary;
-    }
-
-    void WyczyscPosterunki()
-    {
-        _lbSasiedzi.SelectedItem = null;
-        _sasiedzi.Clear();
-        WybranoSasiada();
-        _wynik.Text = "Lista posterunków wyczyszczona – sąsiedzi obecnego posterunku wrócą z gry po kilku sekundach."; _wynik.Foreground = Szary;
-    }
-
-    static Button Przycisk(string tekst, Action akcja, string podpowiedz)
-    {
-        var b = new Button { Content = tekst, Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 0, 4), Background = TloPola,
-            Foreground = Tekst, BorderBrush = Ramka, HorizontalContentAlignment = HorizontalAlignment.Left, ToolTip = podpowiedz };
-        b.Click += (_, _) => akcja();
-        return b;
-    }
-
-    // ------------------------------------------------------------------ podpowiedź odpowiedzi na pytanie posterunku
-
-    /// <summary>
-    /// Ostatni komunikat od wybranego posterunku (albo kliknięty w rozmowie) i pasujące odpowiedzi – klik wypełnia EZP
-    /// (rodzaj, pociąg, tor, powód), wysyła dopiero „Wyślij”.
-    /// </summary>
+    /// <summary>Ostatni komunikat posterunku (albo kliknięty w rozmowie) i odpowiedzi na niego.</summary>
     void PokazOdpowiedzi()
     {
-        var s = _lbSasiedzi.SelectedItem as Sasiad;
-        // widok zbiorczy: ostatni komunikat od dowolnego posterunku (albo kliknięty)
-        var w = _lbWpisy.SelectedItem is Wpis kl && !kl.Wychodzacy ? kl
-              : s == null ? _wpisy.LastOrDefault() : _wpisy.LastOrDefault(x => x.Sasiad == s.Nazwa);
-        if (w == null || w.Wychodzacy || (s != null && w.Od != s.Nazwa)) { _panelOdpowiedzi.Visibility = Visibility.Collapsed; _pytanie = null; UstawOdbiorce(); return; }
-        _pytanie = w;
-        UstawOdbiorce();
+        var s = _wybrany;
         _odpPrzyciski.Children.Clear();
+        if (s == null) { _ostatni.Text = ""; return; }
+        var w = _pytanie != null && _pytanie.Od == s ? _pytanie
+              : _wpisy.LastOrDefault(x => !x.Wychodzacy && !x.Odpowiedziano && x.Od == s && MaOdpowiedzi(x.Klasa) && (DateTime.Now - x.Utworzony).TotalMinutes < 30);
+        var ost = w ?? _wpisy.LastOrDefault(x => x.Sasiad == s);
+        bool pytanie = w != null && !w.Odpowiedziano;
+        _ostatni.Text = ost == null ? "–" : $"{ost.Czas} {(ost.Wychodzacy ? "→" : "←")} {ost.Tekst}{(ost.Wychodzacy ? $"   [{ost.Status}]" : "")}";
+        _ostatni.Foreground = pytanie ? Wyglad.Zolty : ost?.Wychodzacy == true ? Wyglad.Pomaranczowy : Wyglad.Zielony;
+        _ostatniRamka.BorderBrush = pytanie ? Wyglad.Zolty : Wyglad.P("#404040");
+        if (w == null) return;
         var nr = w.Pociag ?? "";
         void B(string etykieta, string klasa, string powod = null, bool zTorem = true)
         {
-            var b = new Button { Content = etykieta, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(6, 2, 6, 2),
-                Background = TloPola, Foreground = Tekst, BorderBrush = Ramka };
-            b.Click += (_, _) => Przygotuj(klasa, nr, zTorem ? w.Tor : null, powod);
-            _odpPrzyciski.Children.Add(b);
+            _odpPrzyciski.Children.Add(Wyglad.Przycisk(etykieta, () =>
+            {
+                int? tor = zTorem ? w.Tor : null;
+                bool komplet = nr.Length > 0 && powod != "";
+                if (_ust.OdRazu && komplet && StacjaZGry) Nadaj(s, klasa, nr, tor, Teraz().ToString("HH:mm"), powod, null);
+                else Przygotuj(klasa, nr, tor, powod);
+            }));
         }
         switch (w.Klasa)
         {
             case "TrainRequestMessage":
-                B($"Dla poc. {nr} droga wolna", "TrainPermissionMessage");
-                B("Nie można przyjąć – tor zajęty", "TrainDenialMessage", "TrackOccupied");
-                B("– brak wolnych torów", "TrainDenialMessage", "NoTracksAvailable");
-                B("– mam pozwolenie w drugą stronę", "TrainDenialMessage", "IHavePermission");
-                B("– muszę zapytać dalej", "TrainDenialMessage", "IHaveToAskFurther");
-                B("– inny powód…", "TrainDenialMessage", "");
+                B($"✔ Droga wolna dla {nr}", "TrainPermissionMessage");
+                B("✖ tor zajęty", "TrainDenialMessage", "TrackOccupied");
+                B("✖ brak wolnych torów", "TrainDenialMessage", "NoTracksAvailable");
+                B("✖ mam pozwolenie w drugą stronę", "TrainDenialMessage", "IHavePermission");
+                B("✖ inny powód…", "TrainDenialMessage", "");
                 break;
             case "TrainPermissionMessage":
                 B($"Poc. {nr} odjechał", "TrainDepartedMessage");
@@ -464,7 +645,7 @@ public sealed class MainWindow : Window
                 break;
             case "TrainQuestionMessage":
                 nr = "";
-                B("Pociąg … odjechał (wybierz z podpowiedzi)", "TrainDepartedMessage", zTorem: false);
+                B("Pociąg … odjechał (wybierz pociąg)", "TrainDepartedMessage", zTorem: false);
                 break;
             case "TrainDenialMessage":
                 B($"Zapytaj ponownie o poc. {nr}", "TrainRequestMessage");
@@ -472,134 +653,327 @@ public sealed class MainWindow : Window
             case "LockLineblockMessage":
                 B("Odpowiedz tekstem", "CustomTextMessage", zTorem: false);
                 break;
-            default:
-                _panelOdpowiedzi.Visibility = Visibility.Collapsed; _pytanie = null; return;
         }
-        _odpTytul.Text = $"{w.Czas} {w.Od}: {w.Tekst}";
-        _panelOdpowiedzi.Visibility = Visibility.Visible;
+    }
+
+    static bool MaOdpowiedzi(string klasa) => klasa is "TrainRequestMessage" or "TrainPermissionMessage" or "TrainDepartedMessage"
+        or "TrainQuestionMessage" or "TrainDenialMessage" or "LockLineblockMessage";
+
+    void OznaczOdpowiedziane(string sasiad, string pociag)
+    {
+        foreach (var x in _wpisy.Where(x => !x.Wychodzacy && !x.Odpowiedziano && x.Od == sasiad && (string.IsNullOrEmpty(x.Pociag) || x.Pociag == pociag)))
+        {
+            x.Odpowiedziano = true;
+            if (string.IsNullOrEmpty(x.Status)) x.Status = "✓ odpowiedziano";
+        }
     }
 
     void Przygotuj(string klasa, string pociag, int? tor, string powod)
     {
-        _lbRodzaje.SelectedItem = _rodzaje.FirstOrDefault(r => r.Klasa == klasa) ?? _lbRodzaje.SelectedItem;
-        _cbPociag.Text = pociag ?? "";
-        _tbTor.Text = tor?.ToString() ?? "";
-        if (tor == null) TorZNumeru();
-        _tbCzas.Text = Teraz().ToString("HH:mm");
+        PokazZakladke("EZP");
+        if (klasa == "CustomTextMessage") { _tbTekst.Focus(); return; }
+        WybierzRodzaj(klasa);
+        _torRecznie = false;
+        _tbPociag.Text = pociag ?? "";
+        _tor.Wartosc = tor;
+        _torRecznie = tor.HasValue;
         if (powod != null)
         {
             var i = Array.FindIndex(Teksty.Powody, x => x.Kod == powod);
             if (i >= 0) _cbPowod.SelectedIndex = i;
         }
-        _wynik.Text = powod == "" ? "Wybierz powód i kliknij Wyślij." : string.IsNullOrEmpty(pociag) && klasa != "CustomTextMessage" ? "Wybierz pociąg z podpowiedzi i kliknij Wyślij." : "Sprawdź i kliknij Wyślij (Ctrl+Enter).";
-        _wynik.Foreground = Cyjan;
-        (powod == "" ? (Control)_cbPowod : string.IsNullOrEmpty(pociag) ? _cbPociag : klasa == "CustomTextMessage" ? _tbTekst : _btnWyslij).Focus();
+        _wynik.Text = powod == "" ? "Wybierz powód i kliknij Wyślij." : string.IsNullOrEmpty(pociag) ? "Wpisz albo wybierz pociąg i kliknij Wyślij." : "Sprawdź podgląd i kliknij Wyślij (Ctrl+Enter).";
+        _wynik.Foreground = Wyglad.Cyjan;
+        (powod == "" ? (Control)_cbPowod : string.IsNullOrEmpty(pociag) ? _tbPociag : _btnWyslij).Focus();
+        Podglad();
     }
 
-    /// <summary>Zapytanie o drogę wolną, danie drogi wolnej, danie odjazdu – pole toru zawsze widoczne (niewymagane).</summary>
-    static bool ZTorem(string klasa) => klasa is "TrainRequestMessage" or "TrainPermissionMessage" or "TrainDepartedMessage";
-
-    void UzyjPodpowiedzi(Podpowiedz p)
-    {
-        if (p.Tor.HasValue && _wierszTor.Visibility == Visibility.Visible) _tbTor.Text = p.Tor.Value.ToString();
-    }
-
-    /// <summary>Wpisany numer pociągu znany z podpowiedzi / planu ruchu, a tor pusty – wpisz tor z rozkładu.</summary>
+    /// <summary>Tor z rozmowy / szlaku dla wpisanego pociągu i wybranego posterunku. Ręcznego wyboru nie rusza.</summary>
     void TorZNumeru()
     {
-        if (_wierszTor.Visibility != Visibility.Visible || !string.IsNullOrWhiteSpace(_tbTor.Text)) return;
-        var nr = _cbPociag.Text?.Trim();
-        if (string.IsNullOrEmpty(nr)) return;
-        var tor = _podpowiedzi.FirstOrDefault(x => x.Nr == nr && x.Tor.HasValue)?.Tor ?? Tor(_plan.FirstOrDefault(x => x.Pociag == nr)?.Tor);
-        if (tor.HasValue) _tbTor.Text = tor.Value.ToString();
+        if (_torRecznie) return;
+        var nr = _tbPociag.Text?.Trim();
+        int? tor = null;
+        if (!string.IsNullOrEmpty(nr) && _wybrany != null)
+            tor = _wpisy.LastOrDefault(x => x.Pociag == nr && x.Tor.HasValue && x.Sasiad == _wybrany)?.Tor ?? _szlaki.Znajdz(_wybrany, nr)?.Tor;
+        if (_tor.Wartosc != tor) _tor.Wartosc = tor;
     }
+
+    (string Pociag, int? Tor, string Czas, string Powod) Pola()
+    {
+        var arg = Argumenty(_klasa);
+        string pociag = arg.Contains("Train") ? _tbPociag.Text?.Trim() : null;
+        int? tor = arg.Contains("TrackNumber") ? _tor.Wartosc : null;
+        string czas = arg.Contains("Time") ? _tbCzas.Text?.Trim() : null;
+        string powod = arg.Contains("DenialReason") && _cbPowod.SelectedIndex >= 0 ? Teksty.Powody[_cbPowod.SelectedIndex].Kod : null;
+        return (pociag, tor, czas, powod);
+    }
+
+    void Podglad()
+    {
+        if (_podglad == null) return;
+        var (pociag, tor, czas, powod) = Pola();
+        _podglad.Text = _klasa == "STOJ" ? TekstStoj(pociag, tor)
+            : Formulki.Tekst(_klasa, string.IsNullOrEmpty(pociag) ? "…" : pociag, tor, czas, powod, null, RodzajGry(_klasa));
+    }
+
+    static string TekstStoj(string nr, int? tor) => $"Pociąg {(string.IsNullOrEmpty(nr) ? "…" : nr)}{(tor.HasValue ? $" po torze {tor}" : "")} – stój, zatrzymać.";
 
     void Wyslij()
     {
-        var s = Odbiorca();
-        var r = _lbRodzaje.SelectedItem as Rodzaj;
-        if (s == null) { Blad("Wybierz posterunek po lewej albo kliknij komunikat posterunku w widoku zbiorczym."); return; }
-        if (r == null) { Blad("Wybierz rodzaj komunikatu."); return; }
-        string pociag = _wierszPociag.Visibility == Visibility.Visible ? _cbPociag.Text?.Trim() : null;
-        if (_wierszPociag.Visibility == Visibility.Visible && string.IsNullOrEmpty(pociag)) { Blad("Podaj numer pociągu."); return; }
-        int? tor = null;
-        if (_wierszTor.Visibility == Visibility.Visible && !string.IsNullOrWhiteSpace(_tbTor.Text))
-        {
-            if (!int.TryParse(_tbTor.Text.Trim(), out var t)) { Blad("Tor – podaj liczbę."); return; }
-            tor = t;
-        }
-        string czas = _wierszCzas.Visibility == Visibility.Visible ? _tbCzas.Text?.Trim() : null;
+        if (_wybrany == null) { Blad("Wybierz posterunek – klik w pole EZP przy szlaku."); return; }
+        var (pociag, tor, czas, powod) = Pola();
+        if (Argumenty(_klasa).Contains("Train") && string.IsNullOrEmpty(pociag)) { Blad("Podaj numer pociągu."); return; }
         if (!string.IsNullOrEmpty(czas) && !TimeSpan.TryParse(czas, out _)) { Blad("Godzina w postaci GG:MM."); return; }
-        string powod = _wierszPowod.Visibility == Visibility.Visible ? (((string Kod, string Opis))_cbPowod.SelectedItem).Kod : null;
-        string tekst = r.Klasa == "CustomTextMessage" ? _tbTekst.Text : null;
-        if (r.Klasa == "CustomTextMessage" && string.IsNullOrWhiteSpace(tekst)) { Blad("Wpisz tekst."); return; }
+        if (_klasa == "STOJ")
+        {
+            if (!Nadaj(_wybrany, "CustomTextMessage", null, null, null, null, TekstStoj(pociag, tor))) return;
+            var p = _szlaki.Znajdz(_wybrany, pociag);
+            _szlaki.Ustaw(_szlaki.Daj(_wybrany), pociag, p?.OdNas ?? false, StanOkna.Stoj, tor ?? p?.Tor);
+            OdswiezSchemat();
+        }
+        else if (!Nadaj(_wybrany, _klasa, pociag, tor, czas, powod, null)) return;
+        _torRecznie = false;
+    }
 
-        var opis = Opis(r, pociag, tor, czas, powod, tekst);
-        long id = _demo ? -1 : _most.WyslijKomunikat(s.Nazwa, r.Klasa, pociag, tor, czas, powod, tekst);
+    void WyslijTekst()
+    {
+        if (_wybrany == null) { Blad("Wybierz posterunek – klik w pole EZP przy szlaku."); return; }
+        if (string.IsNullOrWhiteSpace(_tbTekst.Text)) { Blad("Wpisz tekst."); return; }
+        if (Nadaj(_wybrany, "CustomTextMessage", null, null, null, null, _tbTekst.Text.Trim())) _tbTekst.Text = "";
+    }
+
+    /// <summary>Wysyła komunikat do posterunku (ręcznie albo automat) i dopisuje go do rozmowy i szlaku.</summary>
+    bool Nadaj(string sasiad, string klasa, string pociag, int? tor, string czas, string powod, string tekst, bool auto = false)
+    {
+        if (!StacjaZGry) { Blad($"Wysyłanie tylko z posterunku obsługiwanego w grze ({_posterunek}). Wybierz „{ZGry}”."); return false; }
+        var opis = Formulki.Tekst(klasa, pociag, tor, czas, powod, tekst, RodzajGry(klasa));
+        long id = _demo ? -1 : _most.WyslijKomunikat(sasiad, klasa, pociag, tor, czas, powod, tekst);
         var w = new Wpis
         {
-            Czas = Teraz().ToString("HH:mm"), Wychodzacy = true, Od = _posterunek, Do = s.Nazwa, Klasa = r.Klasa, Pociag = pociag,
-            Tekst = opis, Status = _demo ? "tryb pokazowy – nie wysłano" : _most.Polaczony ? "wysyłanie…" : "brak połączenia z modem – nie dotarło do gry", Id = id,
+            Czas = Teraz().ToString("HH:mm"), Wychodzacy = true, Od = _posterunek, Do = sasiad, Klasa = klasa, Pociag = pociag, Tor = tor, Id = id, Tekst = opis,
+            Status = (_demo ? "tryb pokazowy – nie wysłano" : _most.Polaczony ? "wysyłanie…" : "brak połączenia z modem – nie dotarło do gry") + (auto ? "  (auto)" : ""),
         };
         _wyslane[id] = w;
         _wpisy.Add(w);
-        s.Oczekujace++;
-        _wynik.Text = ""; _tbTekst.Text = "";
-        Przewin(); Takt();
+        _szlaki.Zastosuj(w);
+        var s = _sasiedzi.FirstOrDefault(x => x.Nazwa == sasiad);
+        if (s != null) s.Oczekujace++;
+        OznaczOdpowiedziane(sasiad, pociag);
+        Zdarzenie($"{w.Czas}  → {sasiad}: {opis}{(auto ? "  (auto)" : "")}");
+        if (!auto) { _wynik.Text = $"Wysłano do {sasiad}."; _wynik.Foreground = Wyglad.Szary; _pytanie = null; }
+        OdswiezSchemat();
+        if (sasiad == _wybrany) OdswiezEzp();
+        return true;
     }
 
-    static string Opis(Rodzaj r, string pociag, int? tor, string czas, string powod, string tekst)
+    void Blad(string t) { _wynik.Text = t; _wynik.Foreground = Wyglad.Czerwony; }
+
+    void Zdarzenie(string t)
     {
-        if (r.Klasa == "CustomTextMessage") return tekst;
-        var cz = new List<string> { r.Etykieta };
-        if (!string.IsNullOrEmpty(pociag)) cz.Add($"poc. {pociag}");
-        if (tor.HasValue) cz.Add($"tor {tor}");
-        if (!string.IsNullOrEmpty(czas)) cz.Add($"godz. {czas}");
-        if (!string.IsNullOrEmpty(powod)) cz.Add(Teksty.Powody.FirstOrDefault(x => x.Kod == powod).Opis);
-        return string.Join(", ", cz);
+        _zdarzenia.Insert(0, t);
+        while (_zdarzenia.Count > 500) _zdarzenia.RemoveAt(_zdarzenia.Count - 1);
     }
 
-    void Blad(string t) { _wynik.Text = t; _wynik.Foreground = Czerwony; }
+    // ------------------------------------------------------------------ automaty (awizacja, odjazd, przyjazd)
 
-    // ------------------------------------------------------------------ podpowiedzi numeru pociągu
+    /// <summary>
+    /// Obiekt na pewno stacyjny: zwrotnica („z2055b”, „z1950ab”), odcinek ze skrótem stacji („l1_kol_it5”), wykolejnica („…_wk…”).
+    /// Odcinki „t39532” bywają i na szlaku (np. od Żakowic, Rokicin), i w stacji – same nie przesądzają.
+    /// </summary>
+    static bool ObiektStacji(string n) => !string.IsNullOrEmpty(n)
+        && (Regex.IsMatch(n, @"^z\d") || Regex.IsMatch(n, @"^l\d+_[a-z]+_", RegexOptions.IgnoreCase) || n.Contains("_wk", StringComparison.OrdinalIgnoreCase));
 
-    void OdswiezPodpowiedzi()
+    static bool SzlakZNazwy(string n) => Regex.IsMatch(n, @"^l\d+_it", RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Odcinek szlaku przy stacji: z nazwy („l1_it988”, „l17_it219”) albo poznany – zajmowany przez pociąg wjeżdżający do nas
+    /// ze szlaku, zanim wjechał na zwrotnice (odcinki „t…” od Żakowic, Rokicin). Poznane – w ustawieniach, osobno dla stacji.
+    /// </summary>
+    bool ObiektSzlaku(string n) => !string.IsNullOrEmpty(n) && !ObiektStacji(n) && (SzlakZNazwy(n) || Szlakowe().Contains(n));
+
+    HashSet<string> _szlakowe; string _szlakoweDla;
+    HashSet<string> Szlakowe()
     {
-        var wpisano = _cbPociag.Text?.Trim() ?? "";
-        if (_cbPociag.SelectedItem is Podpowiedz wyb && wyb.Nr == wpisano) wpisano = "";   // wybrana z listy – nie zawężaj
-        var sasiad = (_lbSasiedzi.SelectedItem as Sasiad)?.Nazwa;
-        var teraz = Teraz();
-        var lista = new List<Podpowiedz>();
-        foreach (var kv in _wStacji)
+        if (_szlakowe == null || _szlakoweDla != Stacja)
         {
-            var w = _plan.FirstOrDefault(r => r.Pociag == kv.Key);
-            lista.Add(new Podpowiedz { Nr = kv.Key, Waga = 0, Tor = Tor(w?.Tor), Opis = $"w stacji: {string.Join(", ", kv.Value.Take(3))}{(w != null ? $"  {w.Skad} → {w.Dokad}" : "")}" });
+            _szlakoweDla = Stacja;
+            _szlakowe = new(_ust.ObiektySzlaku.TryGetValue(Stacja ?? "", out var l) ? l : new List<string>(), StringComparer.OrdinalIgnoreCase);
         }
-        foreach (var r in _plan)
+        return _szlakowe;
+    }
+
+    bool PoznajSzlakowe(IEnumerable<string> obiekty)
+    {
+        bool nowe = false;
+        foreach (var o in obiekty.Where(o => !string.IsNullOrEmpty(o) && !ObiektStacji(o) && !SzlakZNazwy(o)))
+            if (Szlakowe().Add(o))
+            {
+                if (!_ust.ObiektySzlaku.TryGetValue(Stacja, out var l)) _ust.ObiektySzlaku[Stacja] = l = new();
+                l.Add(o); nowe = true;
+            }
+        return nowe;
+    }
+
+    /// <summary>Pociąg w stacji (do planu ruchu): ze stanu automatów, a bez gry – po obiektach stacyjnych.</summary>
+    bool WStacji(string nr) => _gdzie.TryGetValue(nr, out var s) ? s == 2 : _wStacji.TryGetValue(nr, out var g) && g.Any(ObiektStacji);
+
+    /// <summary>Pociąg jedzie do nas ze szlaku: zgoda / zapytanie od sąsiada albo w rozkładzie poprzedni posterunek to sąsiad.</summary>
+    bool JedzieDoNas(string nr) =>
+        _szlaki.Wszystkie.Any(s => s.Pociagi.Any(p => p.Nr == nr && !p.OdNas && p.Stan != StanOkna.Odmowa))
+        || _plan.FirstOrDefault(x => x.Pociag == nr)?.SasiadSkad != null;
+
+    readonly Dictionary<string, HashSet<string>> _ogonPrzyjazdu = new();   // odcinki szlaku zajęte przy wjeździe do stacji
+    readonly HashSet<string> _zjechalZeSzlaku = new();                      // w stacji, już bez żadnego odcinka szlaku
+    readonly Dictionary<string, List<string>> _poprzednio = new();
+
+    /// <summary>
+    /// Stan pociągu: 0 – poza obszarem, 1 – na szlaku dojazdowym do nas, 2 – w stacji, 3 – odjechał (pierwsza oś na odcinku szlaku).
+    /// Wjazd do stacji = zajęcie obiektu stacyjnego (zwrotnicy). Odjazd = zajęcie odcinka szlaku innego niż te, na których stał
+    /// ogon przy wjeździe (albo po zjechaniu całym składem ze szlaku). Bez poznanych odcinków – odjazd, gdy zniknie z obszaru.
+    /// </summary>
+    void Automaty()
+    {
+        if (!StacjaZGry) return;
+        var teraz = new Dictionary<string, int>();
+        bool zm = false, nowe = false;
+        foreach (var nr in _wStacji.Keys.Union(_gdzie.Keys).ToList())
+        {
+            var g = _wStacji.GetValueOrDefault(nr);
+            int przed = _gdzie.GetValueOrDefault(nr), po;
+            if (g == null || g.Count == 0) po = 0;
+            else
+            {
+                bool st = g.Any(ObiektStacji), sz = g.Any(ObiektSzlaku);
+                switch (przed)
+                {
+                    case 0: case 1:
+                        po = st ? 2 : 1;
+                        if (po == 1 && !_pierwszyStan && JedzieDoNas(nr)) nowe |= PoznajSzlakowe(g);
+                        if (po == 2)
+                        {
+                            var ogon = new HashSet<string>(g.Where(ObiektSzlaku), StringComparer.OrdinalIgnoreCase);
+                            if (przed == 1 && _poprzednio.TryGetValue(nr, out var pp)) ogon.UnionWith(pp.Where(o => !ObiektStacji(o)));
+                            _ogonPrzyjazdu[nr] = ogon;
+                        }
+                        break;
+                    case 2:
+                        if (!sz) { _zjechalZeSzlaku.Add(nr); po = 2; }
+                        else
+                        {
+                            var ogon = _ogonPrzyjazdu.GetValueOrDefault(nr);
+                            po = _zjechalZeSzlaku.Contains(nr) || g.Where(ObiektSzlaku).Any(o => ogon == null || !ogon.Contains(o)) ? 3 : 2;
+                        }
+                        break;
+                    default:
+                        po = st && !sz ? 2 : 3;   // wrócił całym składem do stacji (manewry)
+                        break;
+                }
+            }
+            if (po == 0) { _ogonPrzyjazdu.Remove(nr); _zjechalZeSzlaku.Remove(nr); _poprzednio.Remove(nr); }
+            else { _poprzednio[nr] = g; teraz[nr] = po; if (po == 3) _zjechalZeSzlaku.Remove(nr); }
+            if (_pierwszyStan || przed == po) continue;
+
+            if (przed == 0 && po == 1)
+            {
+                // pociąg do nas wjechał na szlak dojazdowy: zgoda → „na szlaku” (czerwone)
+                foreach (var s in _szlaki.Wszystkie)
+                    foreach (var p in s.Pociagi.Where(p => p.Nr == nr && !p.OdNas && p.Stan == StanOkna.Zgoda))
+                    { p.Stan = StanOkna.NaSzlaku; p.Zmiana = DateTime.Now; zm = true; Zdarzenie($"{Teraz():HH:mm}  {nr} wjechał na szlak od {s.Sasiad} (z gry)"); }
+                if (_ust.Awizacja && _ust.AwizacjaTryb != "min") Awizuj(nr);
+            }
+            else if (przed < 2 && po == 2) { Przyjazd(nr); zm = true; }
+            else if (przed == 2 && (po == 3 || po == 0)) { Odjazd(nr); zm = true; }
+        }
+        _pierwszyStan = false;
+        _gdzie.Clear(); foreach (var kv in teraz) _gdzie[kv.Key] = kv.Value;
+        if (nowe) ZapiszUst();
+        if (zm) OdswiezSchemat();
+    }
+
+    int? TorDla(string sasiad, string nr)
+    {
+        var t = _szlaki.Znajdz(sasiad, nr)?.Tor ?? _wpisy.LastOrDefault(x => x.Pociag == nr && x.Tor.HasValue && x.Sasiad == sasiad)?.Tor;
+        if (t == null && _ust.TorDomyslny) { var tory = _szlaki.Daj(sasiad).Tory; if (tory.Count > 0) t = tory[0]; }
+        return t;
+    }
+
+    /// <summary>Awizacja: zapytanie o drogę wolną do następnego posterunku wg rozkładu (raz na pociąg i posterunek).</summary>
+    void Awizuj(string nr)
+    {
+        var r = _plan.FirstOrDefault(x => x.Pociag == nr);
+        var y = r?.SasiadDokad;
+        if (y == null || string.IsNullOrEmpty(r.Odjazd) || !Sasiedzi().Contains(y) || !_ust.Automat(y)) return;
+        if (_szlaki.Znajdz(y, nr) != null || !_awizowane.Add($"{nr}|{y}")) return;
+        Nadaj(y, "TrainRequestMessage", nr, TorDla(y, nr), null, null, null, auto: true);
+    }
+
+    void Odjazd(string nr)
+    {
+        var zgoda = _szlaki.Wszystkie.SelectMany(s => s.Pociagi.Where(p => p.Nr == nr && p.OdNas && p.Stan is StanOkna.Zgoda or StanOkna.Zapytanie).Select(p => (s.Sasiad, p))).FirstOrDefault();
+        var y = zgoda.Sasiad ?? _plan.FirstOrDefault(x => x.Pociag == nr)?.SasiadDokad;
+        if (y == null || !Sasiedzi().Contains(y)) return;
+        if (_szlaki.Znajdz(y, nr) is { OdNas: true, Stan: StanOkna.NaSzlaku }) return;
+        var tor = TorDla(y, nr);
+        Zdarzenie($"{Teraz():HH:mm}  {nr} opuścił stację w stronę {y} (z gry)");
+        if (_ust.AutoOdjazd && _ust.Automat(y)) Nadaj(y, "TrainDepartedMessage", nr, tor, Teraz().ToString("HH:mm"), null, null, auto: true);
+        else _szlaki.Ustaw(_szlaki.Daj(y), nr, true, StanOkna.NaSzlaku, tor);
+    }
+
+    void Przyjazd(string nr)
+    {
+        foreach (var (s, _) in _szlaki.Przyjechal(nr, odNas: false))
+        {
+            Zdarzenie($"{Teraz():HH:mm}  {nr} przyjechał od {s} (z gry)");
+            if (_ust.AutoPrzyjazd && _ust.Automat(s)) Nadaj(s, "TrainArrivedMessage", nr, null, Teraz().ToString("HH:mm"), null, null, auto: true);
+        }
+    }
+
+    void AwizacjaWgRozkladu()
+    {
+        if (!_ust.Awizacja || _ust.AwizacjaTryb != "min" || !StacjaZGry || (DateTime.Now - _ostatniaAwizacjaMin).TotalSeconds < 10) return;
+        _ostatniaAwizacjaMin = DateTime.Now;
+        var teraz = Teraz();
+        foreach (var r in _plan.Where(r => !string.IsNullOrEmpty(r.Odjazd) && _wStacji.ContainsKey(r.Pociag)).ToList())
         {
             var min = (r.Czas - teraz).TotalMinutes;
-            if (min < -30 || min > 90) continue;
-            bool kierunek = sasiad != null && (RozkladSimRail.Pasuje(r.Skad, sasiad) || RozkladSimRail.Pasuje(r.Dokad, sasiad));
-            lista.Add(new Podpowiedz
-            {
-                Nr = r.Pociag, Tor = Tor(r.Tor), Czas = r.Czas, Waga = (kierunek ? 1000 : 5000) + (int)Math.Abs(min),
-                Opis = $"{r.Czas:HH:mm} {r.PO} tor {(string.IsNullOrEmpty(r.Tor) ? "–" : r.Tor)}  {r.Skad} → {r.Dokad}  {r.Kategoria}",
-            });
+            if (min >= 0 && min <= _ust.AwizacjaMin) Awizuj(r.Pociag);
         }
-        var wynik = lista.Where(p => wpisano.Length == 0 || p.Nr.StartsWith(wpisano, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(p => p.Waga).GroupBy(p => p.Nr).Select(g => g.First()).Take(40).ToList();
-        if (wynik.Select(p => p.Nr + p.Opis).SequenceEqual(_podpowiedzi.Select(p => p.Nr + p.Opis))) return;
-        var tekst = _cbPociag.Text;
-        _podpowiedzi.Clear();
-        foreach (var p in wynik) _podpowiedzi.Add(p);
-        if (_cbPociag.Text != tekst) _cbPociag.Text = tekst;
     }
 
-    static int? Tor(string t) => int.TryParse(t, out var v) ? v : null;
-
-    DateTime Teraz() => DateTime.TryParse(_czasGry, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : DateTime.Now;
-
-    static string Godzina(string s) => DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.ToString("HH:mm") : null;
+    /// <summary>Pociąg wysłany do sąsiada dojechał: indeks następnego punktu rozkładu (API) jest już za posterunkiem sąsiednim.</summary>
+    async Task PrzyjazdyZApi()
+    {
+        var serwer = _cbSerwer.Text?.Trim();
+        var wyslane = _szlaki.Wszystkie.SelectMany(s => s.Pociagi.Where(p => p.OdNas && p.Stan == StanOkna.NaSzlaku).Select(p => (s.Sasiad, p))).ToList();
+        if (_demo || _api || wyslane.Count == 0 || string.IsNullOrEmpty(serwer) || (DateTime.Now - _ostatnieApi).TotalSeconds < 20) return;
+        _api = true; _ostatnieApi = DateTime.Now;
+        try
+        {
+            var poz = await RozkladSimRail.PozycjeAsync(serwer, CancellationToken.None);
+            var st = Stacja; bool zm = false;
+            foreach (var (s, p) in wyslane)
+            {
+                var t = _rozklad.FirstOrDefault(x => x.Nr == p.Nr);
+                bool dojechal;
+                if (!poz.TryGetValue(p.Nr, out var idx)) dojechal = (DateTime.Now - p.Zmiana).TotalMinutes > 10;   // zniknął z serwera
+                else
+                {
+                    int i = t?.Punkty.FindIndex(x => RozkladSimRail.Pasuje(x.Nazwa, st)) ?? -1;
+                    int j = i < 0 ? -1 : t.Punkty.FindIndex(i + 1, x => RozkladSimRail.Pasuje(x.Nazwa, s));
+                    while (j >= 0 && j + 1 < t.Punkty.Count && RozkladSimRail.Pasuje(t.Punkty[j + 1].Nazwa, s)) j++;   // „Rogów”, „Rogów PZS …”
+                    // VDDelayedTimetableIndex = indeks NASTĘPNEGO punktu (jeszcze nieosiągniętego) – minął sąsiada, gdy idx > j
+                    dojechal = j >= 0 && idx > j;
+                }
+                if (!dojechal) continue;
+                _szlaki.Daj(s).Pociagi.Remove(p); zm = true;
+                Zdarzenie($"{Teraz():HH:mm}  {p.Nr} dojechał do {s} (pozycja z API SimRail)");
+            }
+            if (zm) OdswiezSchemat();
+        }
+        catch (Exception ex) { _planStatus.Text = "Pozycje pociągów niedostępne: " + ex.Message; }
+        finally { _api = false; }
+    }
 
     // ------------------------------------------------------------------ rozkład / plan ruchu
 
@@ -626,25 +1000,43 @@ public sealed class MainWindow : Window
         try
         {
             _rozklad = await RozkladSimRail.PobierzAsync(serwer, CancellationToken.None);
-            _rozkladPobrany = DateTime.Now; _ust.Serwer = serwer; _ust.Zapisz();
-            ZbudujPlan();
+            _rozkladPobrany = DateTime.Now; _ust.Serwer = serwer; ZapiszUst();
+            ListaPosterunkow();
+            ZbudujPlan(); OdswiezSchemat(); OdswiezEzp();
         }
         catch (Exception ex) { _planStatus.Text = "Rozkład niedostępny: " + ex.Message; }
         finally { _pobieranie = false; }
     }
 
-    internal void UstawRozklad(List<RozkladSimRail.Pociag> r) { _rozklad = r; _rozkladPobrany = DateTime.Now; ZbudujPlan(); }
+    void ListaPosterunkow()
+    {
+        var tekst = _cbPosterunek.Text;
+        var nazwy = _rozklad.SelectMany(t => t.Punkty).Where(p => p.Postoj || !string.IsNullOrEmpty(p.Tor)).Select(p => p.Nazwa)
+            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n, StringComparer.Create(new CultureInfo("pl-PL"), true));
+        _cbPosterunek.ItemsSource = new[] { ZGry }.Concat(nazwy).ToList();
+        _cbPosterunek.Text = tekst;
+    }
 
-    string StacjaPlanu => !string.IsNullOrWhiteSpace(_tbStacja.Text) ? _tbStacja.Text.Trim() : !string.IsNullOrEmpty(_stacjaGry) ? _stacjaGry : _posterunek;
+    internal void UstawRozklad(List<RozkladSimRail.Pociag> r) { _rozklad = r; _rozkladPobrany = DateTime.Now; ListaPosterunkow(); ZbudujPlan(); OdswiezSchemat(); OdswiezEzp(); }
 
     void ZbudujPlan()
     {
-        var stacja = StacjaPlanu;
+        var stacja = Stacja;
         _plan.Clear();
         if (string.IsNullOrEmpty(stacja) || _rozklad.Count == 0)
         {
-            _planStatus.Text = _rozklad.Count == 0 ? "brak rozkładu" : "nieznana stacja – wpisz nazwę posterunku z rozkładu";
-            OdswiezPodpowiedzi(); return;
+            _planStatus.Text = _rozklad.Count == 0 ? "brak rozkładu – wybierz serwer i „Pobierz rozkład”" : "nieznany posterunek – wybierz go w belce";
+            return;
+        }
+        var sasiedzi = Sasiedzi();
+        string Sasiad(RozkladSimRail.Pociag t, int od, int krok)
+        {
+            for (int j = od, n = 0; j >= 0 && j < t.Punkty.Count && n < 10; j += krok, n++)
+            {
+                var m = sasiedzi.FirstOrDefault(s => RozkladSimRail.Pasuje(t.Punkty[j].Nazwa, s));
+                if (m != null) return m;
+            }
+            return null;
         }
         var teraz = Teraz();
         var wiersze = new List<PozycjaPlanu>();
@@ -660,18 +1052,19 @@ public sealed class MainWindow : Window
             if (min < -60 || min > 240) continue;
             string skad = i > 0 ? t.Punkty[i - 1].Nazwa : t.Od, dokad = k + 1 < t.Punkty.Count ? t.Punkty[k + 1].Nazwa : t.Do;
             bool postoj = t.Punkty.Skip(i).Take(k - i + 1).Any(p => p.Postoj) || i == 0 || k == t.Punkty.Count - 1;
+            string sSkad = i > 0 ? Sasiad(t, i - 1, -1) : null, sDokad = k + 1 < t.Punkty.Count ? Sasiad(t, k + 1, 1) : null;
             wiersze.Add(new PozycjaPlanu
             {
                 Pociag = t.Nr, Kategoria = string.IsNullOrEmpty(p0.Rodzaj) ? t.Kategoria : p0.Rodzaj, Czas = czas.Value,
                 Przyjazd = i == 0 ? "" : p0.Przyjazd?.ToString("HH:mm") ?? "", Odjazd = k == t.Punkty.Count - 1 ? "" : p1.Odjazd?.ToString("HH:mm") ?? "",
-                PO = postoj ? "p" : "o", Tor = p0.Tor ?? "", Peron = p0.Peron ?? "", Skad = skad, Dokad = dokad, Relacja = $"{t.Od} – {t.Do}",
+                PO = postoj ? "p" : "o", Tor = p0.Tor ?? "", Peron = p0.Peron ?? "",
+                Skad = sSkad ?? skad, Dokad = sDokad ?? dokad, SasiadSkad = sSkad, SasiadDokad = sDokad, Relacja = $"{t.Od} – {t.Do}",
                 Lokomotywa = t.Lok, Dlugosc = t.Dlugosc, Brutto = t.Brutto,
-                Zgoda = _zgody.GetValueOrDefault(t.Nr), WStacji = _wStacji.ContainsKey(t.Nr),
+                Zgoda = _zgody.GetValueOrDefault(t.Nr), WStacji = WStacji(t.Nr),
             });
         }
         foreach (var w in wiersze.OrderBy(x => x.Czas)) _plan.Add(w);
         _planStatus.Text = $"{stacja}: {_plan.Count} poc. (−1 h … +4 h), rozkład z {_rozkladPobrany:HH:mm}";
-        OdswiezPodpowiedzi();
     }
 
     // ------------------------------------------------------------------ takt 1 s
@@ -679,24 +1072,77 @@ public sealed class MainWindow : Window
     void Takt()
     {
         var t = Teraz();
-        _zegar.Text = $"{t:HH:mm:ss}  {t:yyyy-MM-dd}";
-        int o = _sasiedzi.Sum(s => s.Nieprzeczytane), w = _sasiedzi.Sum(s => s.Oczekujace);
-        _ezpLicznik.Text = $"O: {o}   W: {w}";
+        _zegar.Text = $"{t:HH:mm:ss}";
         bool pol = _demo || (_most?.Polaczony ?? false);
-        _status.Text = _demo ? "tryb pokazowy (dane przykładowe)"
-            : pol ? $"gra: posterunek {(_posterunek.Length > 0 ? _posterunek : "–")}{(_stacjaGry.Length > 0 ? $" ({_stacjaGry})" : "")}"
-            : "brak połączenia z grą (mod SimRailMost 0.10+, port 47131)";
+        _status.Text = _demo ? "tryb pokazowy" : pol ? $"gra: {(_posterunek.Length > 0 ? _posterunek : "–")}" : "brak połączenia z grą";
         _status.Foreground = pol ? Brushes.DarkGreen : Brushes.DarkRed;
-        _tytul.Text = _posterunek.Length > 0 ? $"Łączność – {_posterunek}" : "Łączność z posterunkami";
+        _tytul.Text = $"Terminal Stacji Stycznej – {(Stacja.Length > 0 ? Stacja : "?")}" + (StacjaZGry ? "" : "  (podgląd)");
         if (!_demo && _rozkladPobrany != DateTime.MinValue && (DateTime.Now - _rozkladPobrany).TotalMinutes > 5) _ = PobierzRozklad();
+        if (_szlaki.Sprzataj()) OdswiezSchemat();
+        AwizacjaWgRozkladu();
+        _ = PrzyjazdyZApi();
+        Alarmy(pol);
     }
 
-    void Przewin()
+    void Alarmy(bool pol)
     {
-        if (_lbWpisy.Items.Count > 0) _lbWpisy.ScrollIntoView(_lbWpisy.Items[^1]);
+        var a = new List<string>();
+        if (!pol) a.Add("Brak połączenia z grą (mod SimRailMost, port 47131).");
+        foreach (var w in _wpisy.Where(x => !x.Wychodzacy && !x.Odpowiedziano && x.Klasa == "TrainRequestMessage" && (DateTime.Now - x.Utworzony).TotalMinutes is > 2 and < 30))
+            a.Add($"{w.Czas}  {w.Od} czeka na odpowiedź: {w.Tekst}");
+        foreach (var s in _szlaki.Wszystkie) foreach (var p in s.Pociagi.Where(p => p.Stan == StanOkna.Odmowa && p.OdNas))
+            a.Add($"Odmowa od {s.Sasiad} dla pociągu {p.Nr}.");
+        foreach (var s in _szlaki.Wszystkie) foreach (var p in s.Pociagi.Where(p => p.Stan == StanOkna.Stoj))
+            a.Add($"STÓJ – pociąg {p.Nr} (szlak {s.Sasiad}).");
+        if (a.SequenceEqual(_alarmy)) return;
+        _alarmy.Clear(); foreach (var x in a) _alarmy.Add(x);
+        ((TextBlock)_zakladki["Alarmy"].Naglowek.Child).Text = a.Count > 0 ? $"Alarmy ({a.Count})" : "Alarmy";
     }
 
-    // ------------------------------------------------------------------ dostęp dla trybu pokazowego
+    DateTime Teraz() => DateTime.TryParse(_czasGry, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : DateTime.Now;
+
+    static string Godzina(string s) => DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.ToString("HH:mm") : null;
+
+    static string Skrot(string s) => string.IsNullOrEmpty(s) ? "" : s.Length <= 3 ? s : s[..3];
+
+    void ZapiszUst() { if (!_demo) _ust.Zapisz(); }
+
+    // ------------------------------------------------------------------ okna
+
+    void PokazRozmowe(string sasiad)
+    {
+        if (_oknoRozmowy == null)
+        {
+            _oknoRozmowy = new OknoRozmowy(_wpisy, _sasiedzi) { Owner = this };
+            _oknoRozmowy.KliknietoWpis += w =>
+            {
+                if (string.IsNullOrEmpty(w.Sasiad)) return;
+                WybierzSasiada(w.Sasiad, zakladkaEzp: true);
+                if (!w.Wychodzacy) { _pytanie = w; PokazOdpowiedzi(); }
+                if (!string.IsNullOrEmpty(w.Pociag)) { _torRecznie = false; _tbPociag.Text = w.Pociag; }
+            };
+            _oknoRozmowy.Wyczysc += () =>
+            {
+                _wpisy.Clear(); _wyslane.Clear(); _pytanie = null;
+                foreach (var s in _sasiedzi) { s.Nieprzeczytane = 0; s.Oczekujace = 0; }
+                OdswiezSchemat(); OdswiezEzp();
+            };
+        }
+        _oknoRozmowy.Pokaz(sasiad);
+    }
+
+    internal void PokazZbiorczy() => PokazRozmowe(null);
+
+    void Opcje()
+    {
+        var strony = Sasiedzi().Distinct().ToDictionary(s => s, s => _szlaki.Daj(s).Lewa);
+        var o = new OknoOpcji(_ust, strony.Keys, strony) { Owner = this };
+        if (o.ShowDialog() != true) return;
+        foreach (var (s, lewa) in strony) _ust.Strony[Klucz(s)] = lewa;
+        ZapiszUst(); OdswiezSchemat();
+    }
+
+    // ------------------------------------------------------------------ tryb pokazowy
 
     internal void UstawStanPokazowy(string posterunek, string stacja, string czasGry, IEnumerable<Sasiad> sasiedzi, IEnumerable<(string nr, string gdzie)> pociagi)
     {
@@ -704,111 +1150,35 @@ public sealed class MainWindow : Window
         foreach (var s in sasiedzi) _sasiedzi.Add(s);
         foreach (var (nr, gdzie) in pociagi) _wStacji[nr] = new() { gdzie };
     }
-    internal void DodajWpis(Wpis w) => _wpisy.Add(w);
-    internal void Wybierz(int sasiad, string klasa, string pociag)
+    internal void DodajWpis(Wpis w) { _wpisy.Add(w); _szlaki.Zastosuj(w); }
+    internal void Wybierz(string sasiad, string klasa, string pociag)
     {
-        _lbSasiedzi.SelectedIndex = sasiad;
-        _lbRodzaje.SelectedItem = _rodzaje.FirstOrDefault(r => r.Klasa == klasa);
-        _cbPociag.Text = pociag;
-        OdswiezPodpowiedzi();
+        OdswiezSchemat();
+        WybierzSasiada(sasiad, zakladkaEzp: true);
+        WybierzRodzaj(klasa);
+        _tbPociag.Text = pociag;
     }
 
-    // ------------------------------------------------------------------ wygląd
-
-    static Border Panel(object tytul, UIElement tresc)
-    {
-        var dp = new DockPanel();
-        var t = tytul as TextBlock ?? new TextBlock { Text = tytul.ToString() };
-        t.Foreground = Cyjan; t.FontWeight = FontWeights.SemiBold; t.Margin = new Thickness(0, 0, 0, 6);
-        DockPanel.SetDock(t, Dock.Top); dp.Children.Add(t); dp.Children.Add(tresc);
-        return new Border { Background = TloPanelu, BorderBrush = Ramka, BorderThickness = new Thickness(1), Padding = new Thickness(8), Child = dp };
-    }
-
-    static FrameworkElement Wiersz(string etykieta, FrameworkElement pole)
-    {
-        var g = new Grid { Margin = new Thickness(0, 3, 0, 3) };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-        g.ColumnDefinitions.Add(new ColumnDefinition());
-        g.Children.Add(new TextBlock { Text = etykieta, Foreground = Szary, VerticalAlignment = VerticalAlignment.Center });
-        Grid.SetColumn(pole, 1); g.Children.Add(pole);
-        return g;
-    }
-
-    static TextBlock Etykieta(string t) => new() { Text = t, Foreground = Szary, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0) };
-
-    static void StylPola(TextBox t)
-    {
-        t.Background = TloPola; t.Foreground = Tekst; t.BorderBrush = Ramka; t.CaretBrush = Tekst; t.Padding = new Thickness(3); t.FontFamily = Mono; t.FontSize = 14;
-    }
-
-    static void StylListy(ListBox l)
-    {
-        l.Background = TloPola; l.Foreground = Tekst; l.BorderBrush = Ramka;
-        l.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-    }
-
-    static DataTemplate SzablonSasiada() => Szablon(@"
-<StackPanel Orientation='Vertical' Margin='2,3'>
-  <DockPanel>
-    <TextBlock DockPanel.Dock='Right' Text='{Binding Licznik}' Foreground='#FF8A3D' FontFamily='Consolas' FontWeight='Bold'/>
-    <TextBlock Text='{Binding Nazwa}' FontWeight='SemiBold' FontSize='14'/>
-  </DockPanel>
-  <TextBlock Text='{Binding Obsada}' Foreground='#8A94A8' FontSize='11'/>
-</StackPanel>");
-
-    static DataTemplate SzablonWpisu() => Szablon(@"
-<Border Margin='2,3' Padding='6,4' BorderThickness='3,0,0,0'>
-  <Border.Style>
-    <Style TargetType='Border'>
-      <Setter Property='BorderBrush' Value='#4FD3E6'/>
-      <Style.Triggers><DataTrigger Binding='{Binding Wychodzacy}' Value='True'><Setter Property='BorderBrush' Value='#FF8A3D'/></DataTrigger></Style.Triggers>
-    </Style>
-  </Border.Style>
-  <StackPanel>
-    <TextBlock Text='{Binding Naglowek}' FontFamily='Consolas' FontSize='12'>
-      <TextBlock.Style>
-        <Style TargetType='TextBlock'>
-          <Setter Property='Foreground' Value='#4FD3E6'/>
-          <Style.Triggers><DataTrigger Binding='{Binding Wychodzacy}' Value='True'><Setter Property='Foreground' Value='#FF8A3D'/></DataTrigger></Style.Triggers>
-        </Style>
-      </TextBlock.Style>
-    </TextBlock>
-    <TextBlock Text='{Binding Tekst}' TextWrapping='Wrap' FontSize='14' Foreground='#E8ECF4'/>
-    <TextBlock Text='{Binding Status}' Foreground='#8A94A8' FontSize='11'/>
-  </StackPanel>
-</Border>");
-
-    static DataTemplate SzablonPodpowiedzi() => Szablon(@"
-<DockPanel>
-  <TextBlock Text='{Binding Nr}' Width='70' FontFamily='Consolas' FontSize='14' Foreground='#FF8A3D' FontWeight='Bold'/>
-  <TextBlock Text='{Binding Opis}' FontSize='11' Foreground='#B8C0D0' VerticalAlignment='Center' TextTrimming='CharacterEllipsis'/>
-</DockPanel>");
-
-    static DataTemplate Szablon(string xaml)
-    {
-        var pelny = "<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>" + xaml + "</DataTemplate>";
-        return (DataTemplate)System.Windows.Markup.XamlReader.Parse(pelny);
-    }
+    // ------------------------------------------------------------------ tabela planu
 
     void ZbudujTabele()
     {
         _dgPlan.ItemsSource = _plan;
         _dgPlan.AutoGenerateColumns = false; _dgPlan.IsReadOnly = true; _dgPlan.HeadersVisibility = DataGridHeadersVisibility.Column;
-        _dgPlan.Background = TloPola; _dgPlan.RowBackground = TloPola; _dgPlan.AlternatingRowBackground = Pedzel("#111A30");
-        _dgPlan.Foreground = Zielony; _dgPlan.BorderBrush = Ramka; _dgPlan.GridLinesVisibility = DataGridGridLinesVisibility.All;
-        _dgPlan.HorizontalGridLinesBrush = Ramka; _dgPlan.VerticalGridLinesBrush = Ramka; _dgPlan.FontFamily = Mono; _dgPlan.FontSize = 14;
+        _dgPlan.Background = Brushes.Black; _dgPlan.RowBackground = Brushes.Black; _dgPlan.AlternatingRowBackground = Wyglad.P("#0A0F18");
+        _dgPlan.Foreground = Wyglad.Zielony; _dgPlan.BorderBrush = Wyglad.P("#303030"); _dgPlan.GridLinesVisibility = DataGridGridLinesVisibility.Vertical;
+        _dgPlan.VerticalGridLinesBrush = Wyglad.P("#1E3A5A"); _dgPlan.FontFamily = Wyglad.Mono; _dgPlan.FontSize = 13;
         var naglowekStyl = new Style(typeof(DataGridColumnHeader));
-        naglowekStyl.Setters.Add(new Setter(BackgroundProperty, Belka));
-        naglowekStyl.Setters.Add(new Setter(ForegroundProperty, Brushes.White));
-        naglowekStyl.Setters.Add(new Setter(FontWeightProperty, FontWeights.Bold));
+        naglowekStyl.Setters.Add(new Setter(BackgroundProperty, Brushes.Black));
+        naglowekStyl.Setters.Add(new Setter(ForegroundProperty, Wyglad.Cyjan));
         naglowekStyl.Setters.Add(new Setter(PaddingProperty, new Thickness(6, 2, 6, 2)));
-        naglowekStyl.Setters.Add(new Setter(BorderBrushProperty, Ramka));
-        naglowekStyl.Setters.Add(new Setter(BorderThicknessProperty, new Thickness(0, 0, 1, 0)));
+        naglowekStyl.Setters.Add(new Setter(BorderBrushProperty, Wyglad.Cyjan));
+        naglowekStyl.Setters.Add(new Setter(BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
         _dgPlan.ColumnHeaderStyle = naglowekStyl;
         var wierszStyl = new Style(typeof(DataGridRow));
         var wStacji = new DataTrigger { Binding = new Binding(nameof(PozycjaPlanu.WStacji)), Value = true };
-        wStacji.Setters.Add(new Setter(BackgroundProperty, Pedzel("#3A1E12")));
-        wStacji.Setters.Add(new Setter(ForegroundProperty, Pomaranczowy));
+        wStacji.Setters.Add(new Setter(BackgroundProperty, Wyglad.P("#3A1E12")));
+        wStacji.Setters.Add(new Setter(ForegroundProperty, Wyglad.Pomaranczowy));
         wierszStyl.Triggers.Add(wStacji);
         _dgPlan.RowStyle = wierszStyl;
         void K(string n, string p, double w = double.NaN) => _dgPlan.Columns.Add(new DataGridTextColumn { Header = n, Binding = new Binding(p), Width = double.IsNaN(w) ? DataGridLength.Auto : new DataGridLength(w) });
@@ -818,37 +1188,22 @@ public sealed class MainWindow : Window
         K("Odj.", nameof(PozycjaPlanu.Odjazd), 62);
         K("Tor", nameof(PozycjaPlanu.Tor), 46);
         K("Peron", nameof(PozycjaPlanu.Peron), 56);
-        K("Skąd", nameof(PozycjaPlanu.Skad), 150);
-        K("Dokąd", nameof(PozycjaPlanu.Dokad), 150);
-        K("Zgoda", nameof(PozycjaPlanu.Zgoda), 130);
+        K("Skąd", nameof(PozycjaPlanu.Skad), 170);
+        K("Dokąd", nameof(PozycjaPlanu.Dokad), 170);
+        K("Zgoda", nameof(PozycjaPlanu.Zgoda), 100);
         K("Rodz", nameof(PozycjaPlanu.Kategoria), 60);
-        K("Relacja", nameof(PozycjaPlanu.Relacja), 230);
+        K("Relacja", nameof(PozycjaPlanu.Relacja), 240);
         K("Dług", nameof(PozycjaPlanu.Dlugosc), 56);
         K("Brutto", nameof(PozycjaPlanu.Brutto), 64);
         K("Lokomotywa", nameof(PozycjaPlanu.Lokomotywa), 110);
         _dgPlan.MouseDoubleClick += (_, _) =>
         {
-            if (_dgPlan.SelectedItem is PozycjaPlanu r) { _cbPociag.Text = r.Pociag; if (Tor(r.Tor) is int t) _tbTor.Text = t.ToString(); }
+            if (_dgPlan.SelectedItem is not PozycjaPlanu r) return;
+            var s = r.SasiadDokad ?? r.SasiadSkad;
+            if (s != null) WybierzSasiada(s, zakladkaEzp: true); else PokazZakladke("EZP");
+            _torRecznie = false;
+            _tbPociag.Text = r.Pociag;
         };
-        _dgPlan.ToolTip = "Dwuklik – numer pociągu do komunikatu EZP. Pomarańczowe – pociąg w stacji (z gry).";
-    }
-}
-
-/// <summary>Ustawienia w %LocalAppData%\SUK\Lacznosc\ustawienia.json.</summary>
-public sealed class Ustawienia
-{
-    public string Serwer { get; set; }
-    public string Stacja { get; set; }
-
-    static string Plik => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SUK", "Lacznosc", "ustawienia.json");
-
-    public static Ustawienia Wczytaj()
-    {
-        try { return JsonSerializer.Deserialize<Ustawienia>(File.ReadAllText(Plik)) ?? new(); } catch { return new(); }
-    }
-
-    public void Zapisz()
-    {
-        try { Directory.CreateDirectory(Path.GetDirectoryName(Plik)); File.WriteAllText(Plik, JsonSerializer.Serialize(this)); } catch { }
+        _dgPlan.ToolTip = "Dwuklik – pociąg do EZP (posterunek wg kierunku). Pomarańczowe – pociąg w stacji (z gry).";
     }
 }

@@ -1124,24 +1124,13 @@ public partial class MainWindow : Window
     (string, List<PolecenieBtn>, string) CrossCmds(string name)
     {
         if (!Ind.Crossings.TryGetValue(name, out var c)) return (null, null, null);
-        // powtarzacz (UZK, Ie-104 § 14): sam stan – gra nie ma dla niego poleceń (ZAMK na 102,026 → błąd w grze, P0 2026-11-21)
-        const string Uzk = " – niedostępne: powtarzacz (UZK), przejazd działa samoczynnie";
         var list = new List<PolecenieBtn>
         {
-            new("ZAMK", $"{name} ZAMK", !c.Uzk && c.Stan is not ("zamkniety" or "zamykanie"), false, "Zamknięcie przejazdu (ZAMK)" + (c.Uzk ? Uzk : "")),
-            new("OTW", $"{name} OTW", !c.Uzk && c.Stan is not ("otwarty" or "otwieranie"), false, "Otwarcie przejazdu (OTW)" + (c.Uzk ? Uzk : "")),
+            new("ZAMK", $"{name} ZAMK", c.Stan is not ("zamkniety" or "zamykanie"), false, "Zamknięcie przejazdu (ZAMK)"),
+            new("OTW", $"{name} OTW", c.Stan is not ("otwarty" or "otwieranie"), false, "Otwarcie przejazdu (OTW)"),
         };
-        // polecenia SSP z Ie-104 § 14 bez odpowiedników w grze (decyzja właściciela 2026-11-22: widoczne, wyszarzone)
-        if (c.Uzk || c.Ssp)
-        {
-            var brak = ses is SimRailSession ? " – brak w grze" : " – jeszcze nieobsługiwane";
-            list.Add(new("Akt", $"{name} Akt", false, true, "Manualna aktywacja SSP dla toru (Akt)" + brak));
-            list.Add(new("deAkt", $"{name} deAkt", false, true, "Wyłączenie manualnej aktywacji SSP (deAkt)" + brak));
-            list.Add(new("OtwAw", $"{name} OtwAw", false, true, "Awaryjne otwarcie przejazdu (OtwAw)" + brak));
-        }
-        var opis = $"Przejazd {name}{(c.Kat.Length > 0 ? $" kat. {c.Kat}" : "")}{(c.Uzk ? " – powtarzacz (UZK)" : c.Ssp ? " – SSP" : "")}: {PanelView.StanPrzejazdu(c.Stan)}"
-                 + (c.Utwierdzony ? ", utwierdzony w przebiegu" : "") + (c.RogWj != null ? $"; rogatki wj {c.RogWj}, wy {c.RogWy}" : "")
-                 + (c.ToryWyl.Count > 0 ? $"; wyłączone oddziaływanie: {string.Join(", ", c.ToryWyl)}" : "");
+        var opis = $"Przejazd {name}: {PanelView.StanPrzejazdu(c.Stan)}" + (c.Utwierdzony ? ", utwierdzony w przebiegu" : "")
+                 + (c.RogWj != null ? $"; rogatki wj {c.RogWj}, wy {c.RogWy}" : "");
         return ("przejazd " + name, list, opis);
     }
 

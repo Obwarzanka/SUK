@@ -224,12 +224,6 @@ public class CrossingDef
     // plan przejazdów P1 (wszystko opcjonalne – stary układ czyta się bez zmian):
     /// <summary>Kategoria A–F (pusta – nieznana; przy grze z nazwy obiektu „L1_102.026_B”).</summary>
     public string Cat = "";
-    /// <summary>SSP (samoczynna sygnalizacja przejazdowa); false – przejazd obsługiwany (rogatki z nastawni / dróżnik).</summary>
-    public bool Ssp;
-    /// <summary>Urządzenie zdalnej kontroli (powtarzacz, Ie-104 § 14): sam stan, bez poleceń Zamk / Otw.</summary>
-    public bool Uzk;
-    /// <summary>Tarcza ostrzegawcza przejazdowa (TOP) uzależniona od przejazdu.</summary>
-    public bool Top;
     /// <summary>Jawna nazwa przejazdu w grze (np. „L1_102.026_B”) – zamiast dopasowania po kilometrze.</summary>
     public string Game;
 }
@@ -614,8 +608,7 @@ public class Station
             st.Labels.Add(new LabelDef { X = p.GetProperty("x").GetDouble(), Y = p.GetProperty("y").GetDouble(), Text = S(p, "text"), Anchor = S(p, "anchor", "start") });
         if (r.TryGetProperty("crossings", out var cr))
             foreach (var p in cr.EnumerateArray()) st.Crossings.Add(new CrossingDef { Name = S(p, "name"), Kind = S(p, "kind", "Y"), X = p.GetProperty("x").GetDouble(), Y0 = p.GetProperty("y0").GetDouble(), Y1 = p.GetProperty("y1").GetDouble(),
-                Cat = S(p, "cat", ""), Ssp = p.TryGetProperty("ssp", out var ssp) && ssp.ValueKind == JsonValueKind.True, Uzk = p.TryGetProperty("uzk", out var uzk) && uzk.ValueKind == JsonValueKind.True,
-                Top = p.TryGetProperty("top", out var top) && top.ValueKind == JsonValueKind.True, Game = S(p, "game", null) });
+                Cat = S(p, "cat", ""), Game = S(p, "game", null) });
         if (r.TryGetProperty("gantries", out var gn) && gn.ValueKind == JsonValueKind.Object)
             foreach (var p in gn.EnumerateObject())
                 st.Gantries[p.Name] = new GantryDef { Id = p.Name, Label = S(p.Value, "label", Lbl(p.Name)), Post = S(p.Value, "post", PostOf(p.Name)), X = p.Value.GetProperty("x").GetDouble(), Y0 = p.Value.GetProperty("y0").GetDouble(), Y1 = p.Value.GetProperty("y1").GetDouble() };

@@ -38,6 +38,26 @@ public static class RozkladSimRail
         return Czytaj(b);
     }
 
+    /// <summary>
+    /// Pozycje pociągów serwera (trains-open): numer → VDDelayedTimetableIndex – indeks NASTĘPNEGO punktu rozkładu (sprawdzone 2026-11-22: pociąg między A i B ma indeks B)
+    /// (kolejność punktów jak w getEDRTimetables). Do wykrycia przyjazdu pociągu do posterunku sąsiedniego.
+    /// </summary>
+    public static async Task<Dictionary<string, int>> PozycjeAsync(string serwer, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(serwer) || serwer.Any(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_')) throw new ArgumentException("Nieprawidłowy kod serwera.");
+        var b = await Http.GetByteArrayAsync("https://panel.simrail.eu:8084/trains-open?serverCode=" + Uri.EscapeDataString(serwer), ct);
+        using var doc = JsonDocument.Parse(b);
+        var wynik = new Dictionary<string, int>();
+        if (doc.RootElement.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array)
+            foreach (var t in d.EnumerateArray())
+            {
+                var nr = MostKlient.S(t, "TrainNoLocal");
+                if (string.IsNullOrEmpty(nr) || !t.TryGetProperty("TrainData", out var td)) continue;
+                if (td.TryGetProperty("VDDelayedTimetableIndex", out var i) && i.TryGetInt32(out var ii)) wynik[nr] = ii;
+            }
+        return wynik;
+    }
+
     public static List<Pociag> Czytaj(byte[] json)
     {
         using var doc = JsonDocument.Parse(json);
