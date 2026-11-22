@@ -3,6 +3,8 @@
 Pulpit LCS, edytor zobrazowania, edytor układu torowego, moduł Łączność (EZP – czat dyżurnych)
 i skrypty do budowania nowych stacji z pulpitów gry SimRail.
 
+> **Pierwszy raz? Otwórz `INSTRUKCJA.md` – wszystko krok po kroku.** Poniżej skrót dla zaawansowanych.
+
 ## Wymagania
 
 - Windows 10/11 x64
