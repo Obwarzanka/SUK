@@ -24,8 +24,8 @@ public sealed class WyborToru : StackPanel
     {
         Orientation = Orientation.Horizontal;
         Children.Add(_rzad);
-        Children.Add(new TextBlock { Text = "inny", Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0) });
-        _inny.Width = 48; _inny.Height = 22; _inny.MaxLength = 4;
+        Children.Add(new TextBlock { Text = "inny", Foreground = Wyglad.Szary, FontFamily = Wyglad.Mono, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) });
+        _inny.Width = 52; _inny.Height = Wyglad.H; _inny.MaxLength = 4;
         Wyglad.Pole(_inny);
         _inny.ToolTip = "Inny numer toru (cyfry)";
         _inny.PreviewTextInput += (_, e) => e.Handled = !e.Text.All(char.IsDigit);
@@ -53,7 +53,7 @@ public sealed class WyborToru : StackPanel
 
         void Dodaj(string et, int? v, string tip)
         {
-            var b = new ToggleButton { Content = et, Tag = v, MinWidth = 38, Margin = new Thickness(0, 0, 4, 0), Focusable = false, ToolTip = tip };
+            var b = new ToggleButton { Content = et, Tag = v, MinWidth = 48, Height = Wyglad.H, Margin = new Thickness(0, 0, 4, 0), Focusable = false, ToolTip = tip };
             Wyglad.Klasyczny(b);
             b.Click += (_, _) => Ustaw(v, reka: true);
             _przyciski.Add(b); _rzad.Children.Add(b);

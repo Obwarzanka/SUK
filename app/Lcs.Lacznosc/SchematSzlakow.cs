@@ -64,19 +64,26 @@ public sealed class SchematSzlakow : FrameworkElement
         dc.DrawRectangle(Brushes.Black, null, new Rect(0, 0, W, H));
         _cele.Clear(); _okna.Clear();
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        double CX = W / 2, CY = H / 2, HW = Math.Min(260, W * 0.22), HH = 56;
+        double CX = W / 2, CY = H / 2, HW = Math.Min(260, W * 0.22);
+        const double Wej = 16, Sciecie = 18;   // odstęp wejść torów w bok stacji, ścięcie narożników stacji
 
         var lewe = Szlaki.Where(s => s.Lewa).ToList();
         var prawe = Szlaki.Where(s => !s.Lewa).ToList();
+        // wysokość wiązki wejść po jednej stronie: tory co Wej, między szlakami dodatkowy odstęp
+        double Wiazka(List<Szlak> l) => l.Count == 0 ? 0 : (l.Sum(s => s.Tory.Count > 0 ? s.Tory.Count : 2) - 1) * Wej + (l.Count - 1) * Wej / 2;
+        double maxWiazka = Math.Max(Wiazka(lewe), Wiazka(prawe));
+        // stacja: ośmiokąt z płaskimi bokami – każdy tor wchodzi w bok osobno, poziomo
+        double HH = Math.Max(60, maxWiazka + 2 * Sciecie + 16);
         Strona(dc, lewe, -1); Strona(dc, prawe, 1);
 
-        Szesciokat(dc, CX, CY, HW, HH, new Pen(Tor, 4), Brushes.Black);
+        Stacja8(dc, CX, CY, HW, HH, Sciecie, new Pen(Tor, 4), Brushes.Black);
         Tekst(dc, Stacja, CX, CY, 16, Brushes.White, dpi, srodek: true);
 
         void Strona(DrawingContext dc, List<Szlak> lista, int sx)
         {
             int k = lista.Count; if (k == 0) return;
-            double apex = CX + sx * HW / 2;
+            double xKrawedz = CX + sx * HW / 2;                  // bok stacji
+            double yWej = CY - Wiazka(lista) / 2;              // kolejne wejścia od góry
             for (int i = 0; i < k; i++)
             {
                 var s = lista[i];
@@ -86,19 +93,24 @@ public sealed class SchematSzlakow : FrameworkElement
                 int n = tory.Count;
                 double xN = sx < 0 ? 52 : W - 52;                // środek sześciokąta sąsiada
                 double hN = Math.Max(26, (n - 1) * 30 + 22), wN = Math.Max(64, hN + 20);
-                var jy = CY + Math.Sign(dy) * Math.Min(Math.Abs(dy), 10);
-                var J = new Point(apex + sx * 18, jy);
                 var okna = Przydziel(s, tory);
+                // koniec łuku szlaku – wspólny dla wszystkich torów szlaku, więc tory biegną równolegle i się nie krzyżują
+                double xLuk = xKrawedz + sx * 30;
                 for (int t = 0; t < n; t++)
                 {
                     double y = yS + (t - (n - 1) / 2.0) * 30;
                     double xStart = xN - sx * (wN / 2 - Math.Abs(y - yS));
-                    double xK = J.X + sx * Math.Abs(y - J.Y);
+                    double yE = yWej; yWej += Wej;                                // wejście toru w bok stacji
+                    double xK = xLuk + sx * Math.Abs(y - yE);                     // początek skosu 45°
                     var naTorze = okna[t];
                     bool zaj = naTorze.Any(p => p.Stan is StanOkna.NaSzlaku or StanOkna.Stoj);
-                    var pen = new Pen(zaj ? TorZaj : Tor, 4) { LineJoin = PenLineJoin.Round };
+                    var pen = new Pen(zaj ? TorZaj : Tor, 4) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
                     var g = new StreamGeometry();
-                    using (var c = g.Open()) { c.BeginFigure(new Point(xStart, y), false, false); c.LineTo(new Point(xK, y), true, true); c.LineTo(J, true, true); }
+                    using (var c = g.Open())
+                    {
+                        c.BeginFigure(new Point(xStart, y), false, false);
+                        c.LineTo(new Point(xK, y), true, true); c.LineTo(new Point(xLuk, yE), true, true); c.LineTo(new Point(xKrawedz, yE), true, true);
+                    }
                     g.Freeze(); dc.DrawGeometry(null, pen, g);
                     var etk = tory[t]?.ToString() ?? "?";
                     Tekst(dc, etk, xStart - sx * 8, y - 15, 10, Szary, dpi, wyrownaj: sx < 0 ? 1 : -1);
@@ -113,7 +125,7 @@ public sealed class SchematSzlakow : FrameworkElement
                         _okna.Add((new Rect(x - 42, y - 10, 84, 20), s.Sasiad, naTorze[q].Nr));
                     }
                 }
-                dc.DrawLine(new Pen(Tor, 4), J, new Point(apex, CY));
+                yWej += Wej / 2;                                  // odstęp przed wejściami następnego szlaku
                 Szesciokat(dc, xN, yS, wN, hN, new Pen(Sasiedni, 3), Brushes.Black);
 
                 // nazwa i pole EZP nad (albo pod) szlakiem
@@ -172,6 +184,22 @@ public sealed class SchematSzlakow : FrameworkElement
         var ft = new FormattedText(t, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono, 12, tekst, dpi);
         if (p.Stan == StanOkna.Odmowa) ft.SetTextDecorations(TextDecorations.Strikethrough);
         dc.DrawText(ft, new Point(x - ft.Width / 2, y - ft.Height / 2));
+    }
+
+    /// <summary>Stacja: prostokąt ze ściętymi narożnikami (płaskie boki na wejścia torów).</summary>
+    static void Stacja8(DrawingContext dc, double cx, double cy, double w, double h, double c, Pen pen, Brush wyp)
+    {
+        double l = cx - w / 2, p = cx + w / 2, g = cy - h / 2, d = cy + h / 2;
+        var geo = new StreamGeometry();
+        using (var k = geo.Open())
+        {
+            k.BeginFigure(new Point(l + c, g), true, true);
+            foreach (var pt in new[] { new Point(p - c, g), new Point(p, g + c), new Point(p, d - c), new Point(p - c, d), new Point(l + c, d), new Point(l, d - c), new Point(l, g + c) })
+                k.LineTo(pt, true, true);
+        }
+        geo.Freeze();
+        pen.LineJoin = PenLineJoin.Round;
+        dc.DrawGeometry(wyp, pen, geo);
     }
 
     static void Szesciokat(DrawingContext dc, double cx, double cy, double w, double h, Pen pen, Brush wyp)

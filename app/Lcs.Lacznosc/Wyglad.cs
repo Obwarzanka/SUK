@@ -12,7 +12,10 @@ public static class Wyglad
     public static readonly Brush Tlo = P("#000000"), TloPola = P("#000000"), Ramka = P("#808080"), Tekst = P("#C8C8C8");
     public static readonly Brush Zielony = P("#00E000"), Zolty = P("#FFE000"), Cyjan = P("#29B6D6"), Czerwony = P("#FF4040");
     public static readonly Brush Szary = P("#808080"), BelkaGorna = P("#DADADA"), Pomaranczowy = P("#FF8A3D");
+    public static readonly Brush NaglowekRamki = P("#12243A"), RamkaPanelu = P("#2E4A66");
     public static readonly FontFamily Mono = new("Consolas");
+    /// <summary>Jedna wysokość przycisków i pól w panelach.</summary>
+    public const double H = 26;
 
     public static Brush P(string hex) { var b = (Brush)new BrushConverter().ConvertFromString(hex); b.Freeze(); return b; }
 
@@ -20,7 +23,7 @@ public static class Wyglad
 <ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{0}'>
   <Border x:Name='g' BorderThickness='1,1,0,0' BorderBrush='#9A9A9A' Background='{{TemplateBinding Background}}'>
     <Border x:Name='d' BorderThickness='0,0,1,1' BorderBrush='#1A1A1A' Padding='{{TemplateBinding Padding}}'>
-      <ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center'/>
+      <ContentPresenter HorizontalAlignment='{{TemplateBinding HorizontalContentAlignment}}' VerticalAlignment='Center'/>
     </Border>
   </Border>
   <ControlTemplate.Triggers>

@@ -60,7 +60,9 @@ public sealed class MainWindow : Window
     bool _torRecznie;
     readonly TextBlock _ezpTytul = new(), _ostatni = new(), _podglad = new(), _wynik = new();
     readonly Border _ostatniRamka = new();
-    readonly WrapPanel _odpPrzyciski = new(), _pocPrzyciski = new(), _rodzPrzyciski = new();
+    readonly StackPanel _odpPrzyciski = new();
+    readonly WrapPanel _pocPrzyciski = new();
+    readonly UniformGrid _rodzPrzyciski = new();
     readonly TextBox _tbPociag = new(), _tbCzas = new(), _tbTekst = new();
     readonly WyborToru _tor = new();
     readonly Para _wierszPowod, _wierszCzas;
@@ -153,74 +155,106 @@ public sealed class MainWindow : Window
         _planStatus.Foreground = Wyglad.Szary; _planStatus.Margin = new Thickness(0, 0, 0, 4);
         DockPanel.SetDock(_planStatus, Dock.Top); planDok.Children.Add(_planStatus); planDok.Children.Add(_dgPlan);
 
-        // EZP: formularz po lewej, ostatni komunikat / odpowiedzi / podgląd po prawej
+        // EZP: trzy ramki obok siebie – Nadawanie (formularz) | Odebrane (ostatni komunikat, odpowiedzi) | Do gry (podgląd, wysyłka).
+        // Wszystkie przyciski i pola mają jedną wysokość (Wyglad.H), odstępy co 6 px.
         var ezp = new Grid();
-        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
-        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(9, GridUnitType.Star) });
+        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) });
+        ezp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) });
+        void Ramka(int kol, UIElement naglowek, UIElement tresc)
+        {
+            var d = new DockPanel();
+            var n = new Border { Background = Wyglad.NaglowekRamki, Padding = new Thickness(8, 3, 8, 3), Child = naglowek };
+            DockPanel.SetDock(n, Dock.Top); d.Children.Add(n);
+            d.Children.Add(new Border { Padding = new Thickness(10, 8, 10, 8), Child = tresc });
+            var r = new Border { BorderBrush = Wyglad.RamkaPanelu, BorderThickness = new Thickness(1), Margin = new Thickness(kol == 0 ? 0 : 6, 0, 0, 0), Child = d };
+            Grid.SetColumn(r, kol); ezp.Children.Add(r);
+        }
+        TextBlock Naglowek(TextBlock t, string tekst = null)
+        {
+            if (tekst != null) t.Text = tekst;
+            t.Foreground = Wyglad.Cyjan; t.FontWeight = FontWeights.Bold; t.TextTrimming = TextTrimming.CharacterEllipsis;
+            return t;
+        }
+
+        // -- Nadawanie
         var form = new Grid();
-        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
+        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(78) });
         form.ColumnDefinitions.Add(new ColumnDefinition());
         Para Wiersz(string et, FrameworkElement pole)
         {
             int w = form.RowDefinitions.Count;
             form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var l = Wyglad.Etykieta(et); l.Margin = new Thickness(0, 6, 6, 0); l.VerticalAlignment = VerticalAlignment.Top;
+            var l = Wyglad.Etykieta(et); l.Height = Wyglad.H; l.VerticalAlignment = VerticalAlignment.Top; l.Padding = new Thickness(0, 5, 0, 0);
             Grid.SetRow(l, w); form.Children.Add(l);
-            pole.Margin = new Thickness(0, 3, 0, 3);
+            pole.Margin = new Thickness(0, 0, 0, 6); pole.HorizontalAlignment = HorizontalAlignment.Left;
             Grid.SetRow(pole, w); Grid.SetColumn(pole, 1); form.Children.Add(pole);
             return new Para(l, pole);
         }
-        _ezpTytul.Foreground = Wyglad.Cyjan; _ezpTytul.FontSize = 14; _ezpTytul.Margin = new Thickness(0, 0, 0, 4);
-        form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetColumnSpan(_ezpTytul, 2); form.Children.Add(_ezpTytul);
 
-        Wyglad.Pole(_tbPociag); _tbPociag.Width = 90; _tbPociag.FontSize = 15; _tbPociag.Height = 24;
+        Wyglad.Pole(_tbPociag); _tbPociag.Width = 90; _tbPociag.FontSize = 15; _tbPociag.Height = Wyglad.H; _tbPociag.VerticalAlignment = VerticalAlignment.Top;
         _tbPociag.ToolTip = "Numer pociągu – dowolny, także spoza rozkładu; przyciski obok – pociągi tego szlaku z rozkładu i ze szlaku";
         _tbPociag.TextChanged += (_, _) => { TorZNumeru(); Podglad(); };
         var poc = new DockPanel(); DockPanel.SetDock(_tbPociag, Dock.Left); poc.Children.Add(_tbPociag);
-        _pocPrzyciski.Margin = new Thickness(8, 0, 0, 0); poc.Children.Add(_pocPrzyciski);
+        _pocPrzyciski.Margin = new Thickness(6, 0, 0, -6); poc.Children.Add(_pocPrzyciski);
         Wiersz("Pociąg", poc);
         _tor.Zmieniono += () => { _torRecznie = true; Podglad(); };
         _tor.ToolTip = "Tor szlakowy w komunikacie (tory tego szlaku z komunikatów gry); Alt+0 – bez, Alt+1… – kolejne";
         Wiersz("Tor", _tor);
-        Wiersz("Komunikat", _rodzPrzyciski);
-        _cbPowod.ItemsSource = Teksty.Powody.Select(x => x.Opis).ToList(); _cbPowod.SelectedIndex = 0; _cbPowod.Width = 320; _cbPowod.HorizontalAlignment = HorizontalAlignment.Left;
+        _rodzPrzyciski.Columns = 5; _rodzPrzyciski.Margin = new Thickness(0, 0, 0, 0);
+        var rodz = new Border { Child = _rodzPrzyciski };
+        var wr = Wiersz("Komunikat", rodz); rodz.Margin = new Thickness(0, 0, -4, 2); rodz.HorizontalAlignment = HorizontalAlignment.Stretch; rodz.MaxWidth = 5 * 130;
+        _cbPowod.ItemsSource = Teksty.Powody.Select(x => x.Opis).ToList(); _cbPowod.SelectedIndex = 0; _cbPowod.Width = 320; _cbPowod.Height = Wyglad.H;
+        _cbPowod.VerticalContentAlignment = VerticalAlignment.Center;
         _cbPowod.SelectionChanged += (_, _) => Podglad();
         _wierszPowod = Wiersz("Powód", _cbPowod);
-        Wyglad.Pole(_tbCzas); _tbCzas.Width = 70; _tbCzas.HorizontalAlignment = HorizontalAlignment.Left;
+        Wyglad.Pole(_tbCzas); _tbCzas.Width = 70; _tbCzas.Height = Wyglad.H;
         _tbCzas.TextChanged += (_, _) => Podglad();
         _wierszCzas = Wiersz("Godzina", _tbCzas);
-        var tekstWiersz = new DockPanel();
+        var tekstWiersz = new DockPanel { MaxWidth = 5 * 130 - 4 };
         var wyslijTekst = Wyglad.Przycisk("Wyślij tekst", WyslijTekst, "Tekst własny do tego posterunku (Enter)");
-        wyslijTekst.Margin = new Thickness(6, 0, 0, 0);
+        wyslijTekst.Margin = new Thickness(6, 0, 0, 0); wyslijTekst.Width = 120;
         DockPanel.SetDock(wyslijTekst, Dock.Right); tekstWiersz.Children.Add(wyslijTekst);
-        Wyglad.Pole(_tbTekst); _tbTekst.Foreground = Brushes.White; _tbTekst.FontFamily = tahoma; _tbTekst.Height = 24;
+        Wyglad.Pole(_tbTekst); _tbTekst.Foreground = Brushes.White; _tbTekst.FontFamily = tahoma; _tbTekst.Height = Wyglad.H;
         _tbTekst.KeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { WyslijTekst(); e.Handled = true; } };
         tekstWiersz.Children.Add(_tbTekst);
-        Wiersz("Tekst", tekstWiersz);
-        _btnWyslij = Wyglad.Przycisk("Wyślij  (Ctrl+Enter)", Wyslij);
-        _btnWyslij.HorizontalAlignment = HorizontalAlignment.Left; _btnWyslij.Padding = new Thickness(18, 4, 18, 4); _btnWyslij.FontSize = 13;
-        var anuluj = Wyglad.Przycisk("Anuluj pociąg", () => AnulujPociag(_wybrany, _tbPociag.Text.Trim()),
-            "Zdejmuje pociąg z okienka tego szlaku bez wysyłania komunikatu (np. pomyłka, pociąg usunięty z gry)");
-        anuluj.Margin = new Thickness(10, 0, 0, 0); anuluj.Padding = new Thickness(10, 4, 10, 4);
-        var wysylka = new StackPanel { Orientation = Orientation.Horizontal };
-        wysylka.Children.Add(_btnWyslij); wysylka.Children.Add(anuluj);
-        Wiersz("", wysylka);
-        ezp.Children.Add(form);
+        Wiersz("Tekst", tekstWiersz); tekstWiersz.HorizontalAlignment = HorizontalAlignment.Stretch;
+        Ramka(0, Naglowek(_ezpTytul), form);
 
-        var prawa = new StackPanel { Margin = new Thickness(14, 0, 0, 0) };
-        prawa.Children.Add(Wyglad.Etykieta("Ostatni komunikat posterunku"));
+        // -- Odebrane
+        var odebrane = new StackPanel();
         _ostatni.TextWrapping = TextWrapping.Wrap; _ostatni.FontSize = 13;
-        _ostatniRamka.BorderBrush = Wyglad.P("#404040"); _ostatniRamka.BorderThickness = new Thickness(1); _ostatniRamka.Padding = new Thickness(6, 4, 6, 4);
-        _ostatniRamka.Margin = new Thickness(0, 2, 0, 6); _ostatniRamka.MinHeight = 44; _ostatniRamka.Child = _ostatni;
-        prawa.Children.Add(_ostatniRamka);
-        prawa.Children.Add(_odpPrzyciski);
-        prawa.Children.Add(Wyglad.Etykieta("Podgląd – tak pójdzie do gry"));
-        _podglad.Foreground = Wyglad.Zolty; _podglad.TextWrapping = TextWrapping.Wrap; _podglad.FontSize = 13; _podglad.Margin = new Thickness(0, 2, 0, 8);
-        prawa.Children.Add(_podglad);
+        _ostatniRamka.Background = Wyglad.P("#080C12");
+        _ostatniRamka.BorderBrush = Wyglad.P("#404040"); _ostatniRamka.BorderThickness = new Thickness(1); _ostatniRamka.Padding = new Thickness(8, 5, 8, 5);
+        _ostatniRamka.Margin = new Thickness(0, 0, 0, 8); _ostatniRamka.MinHeight = 48; _ostatniRamka.Child = _ostatni;
+        odebrane.Children.Add(_ostatniRamka);
+        odebrane.Children.Add(Wyglad.Etykieta("Odpowiedz:"));
+        _odpPrzyciski.Margin = new Thickness(0, 4, 0, 0);
+        odebrane.Children.Add(_odpPrzyciski);
+        Ramka(1, Naglowek(new TextBlock(), "ODEBRANE – ostatni komunikat"), odebrane);
+
+        // -- Do gry
+        var doGry = new DockPanel();
+        _btnWyslij = Wyglad.Przycisk("WYŚLIJ   Ctrl+Enter", Wyslij);
+        _btnWyslij.Height = 34; _btnWyslij.FontSize = 14; _btnWyslij.FontWeight = FontWeights.Bold; _btnWyslij.Margin = new Thickness(0, 0, 0, 6);
+        _btnWyslij.Background = Wyglad.P("#1F5A2A");
+        var anuluj = Wyglad.Przycisk("Anuluj pociąg (bez komunikatu)", () => AnulujPociag(_wybrany, _tbPociag.Text.Trim()),
+            "Zdejmuje pociąg z okienka tego szlaku bez wysyłania komunikatu (np. pomyłka, pociąg usunięty z gry)");
+        anuluj.Margin = new Thickness(0);
+        var wysylka = new StackPanel(); wysylka.Children.Add(_btnWyslij); wysylka.Children.Add(anuluj);
+        DockPanel.SetDock(wysylka, Dock.Bottom); doGry.Children.Add(wysylka);
+        var tresc = new StackPanel();
+        var podRamka = new Border
+        {
+            Background = Wyglad.P("#080C12"), BorderBrush = Wyglad.P("#404040"), BorderThickness = new Thickness(1),
+            Padding = new Thickness(8, 5, 8, 5), MinHeight = 48, Margin = new Thickness(0, 0, 0, 8), Child = _podglad,
+        };
+        _podglad.Foreground = Wyglad.Zolty; _podglad.TextWrapping = TextWrapping.Wrap; _podglad.FontSize = 13;
+        tresc.Children.Add(podRamka);
         _wynik.TextWrapping = TextWrapping.Wrap; _wynik.Foreground = Wyglad.Szary;
-        prawa.Children.Add(_wynik);
-        Grid.SetColumn(prawa, 1); ezp.Children.Add(prawa);
+        tresc.Children.Add(_wynik);
+        doGry.Children.Add(tresc);
+        Ramka(2, Naglowek(new TextBlock(), "DO GRY – podgląd komunikatu"), doGry);
 
         Zakladka("Alarmy", _lbAlarmy);
         Zakladka("Zdarzenia", _lbZdarzenia);
@@ -547,7 +581,7 @@ public sealed class MainWindow : Window
                     "TrainArrivedMessage" => "Przyjechał", "TrainDenialMessage" => "Odmowa", "TrainCancelledMessage" => "Odwołany",
                     "TrainQuestionMessage" => "Co odjechało?", "LockLineblockMessage" => "Blokada", _ => "Stój",
                 },
-                Tag = k, Margin = new Thickness(0, 0, 4, 4), Focusable = false,
+                Tag = k, Margin = new Thickness(0, 0, 4, 4), Height = Wyglad.H, Focusable = false,
                 ToolTip = k == "STOJ" ? "Stój – zatrzymać pociąg (w grze nie ma takiego komunikatu: idzie jako tekst, okienko na szlaku miga na czerwono)" : Teksty.Etykieta(k),
             });
             b.Click += (_, _) => WybierzRodzaj(k);
@@ -576,8 +610,8 @@ public sealed class MainWindow : Window
     {
         var s = _wybrany;
         var sa = s == null ? null : _sasiedzi.FirstOrDefault(x => x.Nazwa == s);
-        _ezpTytul.Text = s == null ? "EZP – brak posterunków sąsiednich (połącz z grą albo wybierz posterunek i pobierz rozkład)"
-            : $"EZP – {s}{(sa != null ? $"  ({sa.Obsada})" : "")}" + (StacjaZGry ? "" : "   [podgląd – wysyłanie tylko z posterunku w grze]");
+        _ezpTytul.Text = s == null ? "NADAWANIE – brak posterunków sąsiednich (połącz z grą albo pobierz rozkład)"
+            : $"NADAWANIE DO: {s}{(sa != null ? $"  ({sa.Obsada})" : "")}" + (StacjaZGry ? "" : "   – tylko podgląd, wysyłanie z posterunku w grze");
         _tor.UstawTory(s != null && _szlaki.Daj(s).Tory.Count > 0 ? _szlaki.Daj(s).Tory : new List<int> { 1, 2 });
 
         // pociągi tego szlaku: na szlaku, z planu w tę stronę (−30 … +90 min)
@@ -594,6 +628,7 @@ public sealed class MainWindow : Window
                 var r = _plan.FirstOrDefault(x => x.Pociag == n);
                 var b = Wyglad.Przycisk(n, () => { _torRecznie = false; _tbPociag.Text = n; _tbPociag.Focus(); _tbPociag.CaretIndex = n.Length; },
                     r == null ? "na szlaku" : $"{r.Czas:HH:mm} {r.Skad} → {r.Dokad}  {r.Kategoria}");
+                b.Height = Wyglad.H; b.MinWidth = 64; b.Margin = new Thickness(0, 0, 4, 6);
                 if (r?.WStacji == true) b.Foreground = Wyglad.Pomaranczowy;
                 _pocPrzyciski.Children.Add(b);
             }
@@ -619,13 +654,17 @@ public sealed class MainWindow : Window
         var nr = w.Pociag ?? "";
         void B(string etykieta, string klasa, string powod = null, bool zTorem = true)
         {
-            _odpPrzyciski.Children.Add(Wyglad.Przycisk(etykieta, () =>
+            var b = Wyglad.Przycisk(etykieta, () =>
             {
                 int? tor = zTorem ? w.Tor : null;
                 bool komplet = nr.Length > 0 && powod != "";
                 if (_ust.OdRazu && komplet && StacjaZGry) Nadaj(s, klasa, nr, tor, Teraz().ToString("HH:mm"), powod, null);
                 else Przygotuj(klasa, nr, tor, powod);
-            }));
+            });
+            b.Height = Wyglad.H; b.HorizontalContentAlignment = HorizontalAlignment.Left; b.Padding = new Thickness(10, 2, 10, 2);
+            if (klasa == "TrainPermissionMessage") b.Background = Wyglad.P("#1F5A2A");
+            else if (klasa == "TrainDenialMessage") b.Background = Wyglad.P("#5A2323");
+            _odpPrzyciski.Children.Add(b);
         }
         switch (w.Klasa)
         {
