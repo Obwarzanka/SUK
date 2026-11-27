@@ -819,11 +819,14 @@ public sealed class MainWindow : Window
     /// <summary>
     /// Obiekt na pewno stacyjny: zwrotnica („z2055b”, „z1950ab”), odcinek ze skrótem stacji („l1_kol_it5”), wykolejnica („…_wk…”).
     /// Odcinki „t39532” bywają i na szlaku (np. od Żakowic, Rokicin), i w stacji – same nie przesądzają.
+    /// Skrót stacji bywa po numerze linii („l1_kol_”, „l1_rg_”) albo po numerze posterunku („3877_sk_it104a”, „3877_sk_iz1”).
+    /// Zwrotnice same nie niosą pociągów (pulpit podaje je tylko z EBI300TrackRenderer) – zajęcie widać na odcinkach izolowanych „…_iz…”.
+    /// Szlakowe: „l1_it766”, „l11_it23”, „69l11_it94”, „l12_it_sk_pm_…”.
     /// </summary>
     static bool ObiektStacji(string n) => !string.IsNullOrEmpty(n)
-        && (Regex.IsMatch(n, @"^z\d") || Regex.IsMatch(n, @"^l\d+_[a-z]+_", RegexOptions.IgnoreCase) || n.Contains("_wk", StringComparison.OrdinalIgnoreCase));
+        && (Regex.IsMatch(n, @"^z\d") || Regex.IsMatch(n, @"^(?:l\d+|\d+)_(?!it)[a-z]+_", RegexOptions.IgnoreCase) || n.Contains("_wk", StringComparison.OrdinalIgnoreCase));
 
-    static bool SzlakZNazwy(string n) => Regex.IsMatch(n, @"^l\d+_it", RegexOptions.IgnoreCase);
+    static bool SzlakZNazwy(string n) => Regex.IsMatch(n, @"^\d*l\d+_it", RegexOptions.IgnoreCase);
 
     /// <summary>
     /// Odcinek szlaku przy stacji: z nazwy („l1_it988”, „l17_it219”) albo poznany – zajmowany przez pociąg wjeżdżający do nas
@@ -837,7 +840,9 @@ public sealed class MainWindow : Window
         if (_szlakowe == null || _szlakoweDla != Stacja)
         {
             _szlakoweDla = Stacja;
-            _szlakowe = new(_ust.ObiektySzlaku.TryGetValue(Stacja ?? "", out var l) ? l : new List<string>(), StringComparer.OrdinalIgnoreCase);
+            if (_ust.ObiektySzlaku.TryGetValue(Stacja ?? "", out var l) && l.RemoveAll(o => ObiektStacji(o) || SzlakZNazwy(o)) > 0)
+                ZapiszUst();   // wyrzuć odcinki stacyjne poznane przez pomyłkę (np. „3877_sk_…” przed poprawką wzorca)
+            _szlakowe = new(l ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
         }
         return _szlakowe;
     }

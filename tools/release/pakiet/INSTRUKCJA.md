@@ -46,6 +46,8 @@ Rób po kolei. Nie pomijaj kroków. Każdy krok robisz **tylko raz**, chyba że 
 
 ## CZĘŚĆ 2. Robisz nową stację (raz na stację)
 
+> **Koluszki są już w paczce** (`stacje\Koluszki`). Dla Koluszek pomiń Kroki 6 i 7 – idź od razu do **Kroku 8**.
+
 ### Krok 6. Zapisz pulpit stacji z gry
 1. Uruchom SimRail.
 2. Wejdź na wybraną stację **jako dyżurny ruchu**.
@@ -107,4 +109,4 @@ Powstał folder `stacje\<nazwa stacji>` – to Twoja stacja.
 
 **Ważne:**
 - Na **publicznych serwerach** SimRail wysyłanie poleceń z SUK może łamać regulamin. Graj na serwerze prywatnym albo w grze jednoosobowej.
-- Plików ze swoich stacji (`stacje\<stacja>`) **nie udostępniaj** – rysunki pochodzą z gry SimRail.
+- Rysunki stacji (`stacje\<stacja>`) pochodzą z gry SimRail – tylko do własnego użytku.

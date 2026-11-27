@@ -8,11 +8,13 @@
   Programy: framework-dependent (wymagają .NET Desktop Runtime 10). Budowanie idzie do osobnego --artifacts-path,
   więc nie koliduje z otwartym programem w app\*\bin\Release.
   Mod i konwertery stacji są brane z repozytorium SimRailMost (-MostDir; mod trzeba wcześniej zbudować: dotnet build -c Release).
-  Do paczki NIE trafiają dane z gry (zrzuty pulpitów, zobrazowania stacji SimRail).
+  Od 0.1.3 paczka zawiera gotowe stacje (-Stacje, domyślnie Koluszki) z -StacjeDir; surowe zrzuty pulpitów z gry nie trafiają.
 #>
 param(
     [Parameter(Mandatory)][string]$Wersja,
     [string]$MostDir = (Join-Path $PSScriptRoot '..\..\..\SimRailMost'),
+    [string[]]$Stacje = @('Koluszki'),
+    [string]$StacjeDir = (Join-Path ($(if ($env:SIMRAIL_DIR) { $env:SIMRAIL_DIR } else { 'D:\SteamLibrary\steamapps\common\SimRail' })) 'UserData\SimRailMost\suk'),
     [switch]$BezZip
 )
 $ErrorActionPreference = 'Stop'
@@ -75,6 +77,29 @@ Copy-Item (Join-Path $pakiet '*') $cel -Recurse -Force
 foreach ($py in 'pulpit_do_suk.py', 'pulpit_do_zob.py', 'zob_do_suk.py', 'pulpit_png.py') {
     Copy-Item (Join-Path $MostDir "narzedzia\$py") (Join-Path $cel 'stacje\narzedzia')
 }
+# 3b. Gotowe stacje (dopracowane zobrazowanie + mapa ID gry + katalog przebiegów) w układzie stacje\<Stacja>\ jak po nowa_stacja.cmd.
+#     Źródło: <SimRail>\UserData\SimRailMost\suk (-StacjeDir). uruchom_pulpit.cmd przebudowuje <Stacja>_zob.json z edytor\<Stacja>.zob.json,
+#     a mapę posterunków i przebiegi gry bierze z plików obok (zob_do_suk.py ich nie kasuje).
+foreach ($st in $Stacje) {
+    $m = $st.ToLower()
+    $kat = Join-Path $cel "stacje\$st"; $ed = Join-Path $kat 'edytor'
+    New-Item -ItemType Directory -Force $ed | Out-Null
+    $pliki = [ordered]@{
+        "edytor\$m.zob.json"          = "edytor\$st.zob.json"
+        "edytor\$m.simrail.json"      = "edytor\$st.simrail.json"
+        "edytor\$m.ut.json"           = "edytor\$st.ut.json"
+        "${m}_zob.json"               = "${st}_zob.json"
+        "${m}_zob.simrail.json"       = "${st}_zob.simrail.json"
+        "${m}_zob.przebiegi_gry.json" = "${st}_zob.przebiegi_gry.json"
+    }
+    foreach ($p in $pliki.GetEnumerator()) {
+        $z = Join-Path $StacjeDir $p.Key
+        if (-not (Test-Path $z)) { throw "Brak pliku stacji $st`: $z" }
+        Copy-Item $z (Join-Path $kat $p.Value)
+    }
+    Write-Host "== stacja $st" -ForegroundColor Cyan
+}
+
 $czytaj = Join-Path $cel 'CZYTAJ.md'
 (Get-Content $czytaj -Raw -Encoding UTF8).Replace('{WERSJA}', $Wersja) | Set-Content $czytaj -Encoding UTF8 -NoNewline
 

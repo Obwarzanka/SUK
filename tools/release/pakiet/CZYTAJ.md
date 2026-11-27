@@ -23,6 +23,16 @@ i skrypty do budowania nowych stacji z pulpitów gry SimRail.
 | `mod\SimRailMost.dll` | Mod MelonLoadera: stany z gry → SUK (UDP 47130), polecenia i czat (UDP 47131), zrzut pulpitu |
 | `zainstaluj_mod.cmd` | Kopiuje mod do `Mods` gry |
 | `stacje\` | Skrypty do budowania nowych stacji |
+| `stacje\Koluszki\` | Gotowa stacja Koluszki (dopracowane zobrazowanie, obwody, posterunki, przebiegi gry) |
+
+## Koluszki – od razu, bez budowania
+
+```
+stacje\uruchom_pulpit.cmd Koluszki   – w SUK: okno „SimRail” → „Pulpit zdalny SimRail”
+```
+
+Nie trzeba zrzutu pulpitu z gry ani `nowa_stacja.cmd`. Jeśli jednak uruchomisz `nowa_stacja.cmd Koluszki`,
+dopracowane zobrazowanie zostaje – wersja z Twojej gry trafi obok jako `Koluszki_z_gry_nowy.zob.json`.
 
 ## Pierwsze uruchomienie
 
@@ -47,7 +57,7 @@ stacje\uruchom_pulpit.cmd "Koluszki"         – pulpit SUK z zobrazowania; w SU
 Ponowne uruchomienie nie nadpisuje zobrazowania poprawionego w edytorze – nowa wersja z gry trafia obok jako
 `<Posterunek>_z_gry_nowy.zob.json`. Zależności i tablicę przebiegów projektuje człowiek – skrypty ich nie generują.
 
-**Rysunki stacji pochodzą z gry SimRail – tylko do własnego użytku, nie rozpowszechniaj plików ze `stacje\<Posterunek>\`.**
+**Rysunki stacji pochodzą z gry SimRail – tylko do własnego użytku.**
 
 ## Łączność (EZP)
 
