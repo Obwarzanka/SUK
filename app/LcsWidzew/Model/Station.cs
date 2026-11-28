@@ -511,6 +511,8 @@ public class Station
                 Track = S(e, "track", ""), Line = S(e, "line", ""), Szlak = e.TryGetProperty("szlak", out var sz) && sz.ValueKind == JsonValueKind.True,
                 Link = e.TryGetProperty("link", out var lk) && lk.ValueKind == JsonValueKind.True,
                 Dismantled = e.TryGetProperty("dismantled", out var dm) && dm.ValueKind == JsonValueKind.True,
+                // tor bez kontroli niezajętości – linia przerywana (pulpit zdalny SimRail: tor bez obwodu w grze, zob_do_suk.py)
+                NoDetect = e.TryGetProperty("noDetect", out var nd) && nd.ValueKind == JsonValueKind.True,
                 VMax = e.TryGetProperty("vmax", out var evm) && evm.ValueKind == JsonValueKind.Number ? evm.GetDouble() : 0,
                 Radius = e.TryGetProperty("radius", out var erd) && erd.ValueKind == JsonValueKind.Number ? erd.GetDouble() : 0,
                 Cant = e.TryGetProperty("cant", out var ect) && ect.ValueKind == JsonValueKind.Number ? ect.GetDouble() : 0,

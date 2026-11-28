@@ -408,7 +408,248 @@ public sealed class MainWindow : Window
             }
         foreach (var r in _plan) r.WStacji = WStacji(r.Pociag);
         if (zmiana || zmianaStacji || nowiSasiedzi) { ZbudujPlan(); OdswiezSchemat(); OdswiezEzp(); }
+        bool zGry = ZajetosciZGry();   // przed automatami – odjazd bierze kierunek i tor z szlaku, na który wjechał pociąg
         Automaty();
+        zGry |= ZjechalyZeSzlaku();
+        if (zGry) { OdswiezSchemat(); OdswiezEzp(); }
+    }
+
+    // ------------------------------------------------------------------ zajętości z gry: pociągi w stacji i na szlakach
+
+    List<string> _pociagiStacji = new();
+    string _podpisZGry = "";
+
+    /// <summary>Szlak z nazwy odcinka: „l1_lb_lc_it4” (skróty obu stacji, tor 4) albo „l12_it_sk_pm_1”. Zwraca skróty i numer.</summary>
+    static (string A, string B, int Nr)? SzlakZeSkrotami(string n)
+    {
+        var m = Regex.Match(n ?? "", @"^\d*l\d+_([a-z]+)_([a-z]+)_it(\d+)$", RegexOptions.IgnoreCase);
+        if (!m.Success) m = Regex.Match(n ?? "", @"^\d*l\d+_it_([a-z]+)_([a-z]+)_(\d+)$", RegexOptions.IgnoreCase);
+        return m.Success && int.TryParse(m.Groups[3].Value, out var nr) ? (m.Groups[1].Value.ToLowerInvariant(), m.Groups[2].Value.ToLowerInvariant(), nr) : null;
+    }
+
+    static string BezOgonkow(string s)
+    {
+        var d = (s ?? "").Replace('Ł', 'L').Replace('ł', 'l').Normalize(System.Text.NormalizationForm.FormD);
+        return new string(d.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray()).ToLowerInvariant();
+    }
+
+    static bool Podciag(string skrot, string w)
+    {
+        if (string.IsNullOrEmpty(w) || w[0] != skrot[0]) return false;
+        int j = 0; foreach (var c in w) if (j < skrot.Length && c == skrot[j]) j++;
+        return j == skrot.Length;
+    }
+
+    /// <summary>Sąsiad o skrócie z nazwy odcinka: „lc” → „Łazy Łc”, „pm” → „Puszcza Mariańska”, „zw” → „Zawiercie”. Tylko jednoznacznie.</summary>
+    string SasiadZeSkrotu(string skrot)
+    {
+        bool Pasuje(string nazwa)
+        {
+            var slowa = BezOgonkow(nazwa).Split(new[] { ' ', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
+            if (slowa.Length == 0) return false;
+            if (string.Concat(slowa.Select(w => w[0])) == skrot) return true;
+            return Podciag(skrot, slowa[^1]) || (slowa.Length == 1 && Podciag(skrot, slowa[0]));
+        }
+        var k = Sasiedzi().Where(Pasuje).ToList();
+        return k.Count == 1 ? k[0] : null;
+    }
+
+    /// <summary>
+    /// Pociągi w stacji (na odcinkach stacyjnych) i na szlakach (odcinki ze skrótami obu stacji) wg ostatniego stanu z gry.
+    /// Tor z nazwy odcinka bywa nazwą toru (Łazy–Łazy Łc 1–4, Łazy Ła 123), ale nie zawsze („l1_la_lb_it324” to tor 224 w czacie) –
+    /// schemat bierze go tylko, gdy jest wśród torów szlaku. Zwraca true, gdy coś się zmieniło.
+    /// </summary>
+    bool ZajetosciZGry()
+    {
+        var stacji = new List<string>();
+        var szlaki = new Dictionary<string, List<(string, int?, bool)>>(StringComparer.OrdinalIgnoreCase);
+        if (StacjaZGry)
+        {
+            // własny skrót: najczęstszy w odcinkach stacyjnych („l1_lb_iz…” → „lb”)
+            var wlasny = _wStacji.Values.SelectMany(g => g).Where(ObiektStacji)
+                .Select(o => Regex.Match(o, @"^(?:l\d+|\d+)_([a-z]+)_", RegexOptions.IgnoreCase)).Where(m => m.Success)
+                .GroupBy(m => m.Groups[1].Value.ToLowerInvariant()).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
+            if (!_ust.OdcinkiSasiadow.TryGetValue(Stacja ?? "", out var poznane)) poznane = null;
+            bool zapisz = false;
+            void Ucz(string o, string sasiad, int? tor)
+            {
+                if (poznane == null) _ust.OdcinkiSasiadow[Stacja] = poznane = new(StringComparer.OrdinalIgnoreCase);
+                var nowy = $"{sasiad}|{tor}";
+                if (poznane.TryGetValue(o, out var stary) && stary == nowy) return;
+                poznane[o] = nowy; zapisz = true;
+                Zdarzenie($"{Teraz():HH:mm}  odcinek {o} → szlak do {sasiad}{(tor is int t ? $", tor {t}" : "")} (poznany)");
+            }
+            (string Sasiad, int? Tor)? Poznany(string o)
+            {
+                if (poznane == null || !poznane.TryGetValue(o, out var wpis)) return null;
+                var cz = wpis.Split('|');
+                return (cz[0], cz.Length > 1 && int.TryParse(cz[1], out var t) ? t : null);
+            }
+            foreach (var (nr, g) in _wStacji.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            {
+                bool wSt = g.Any(ObiektStacji);
+                if (wSt) stacji.Add(nr);
+                // kierunek na odcinku: 3 – odjechał (od nas); 2 – w stacji: od nas, chyba że to ogon z wjazdu; 1 – dojeżdża do nas;
+                // 0 – nieznany (start programu): od nas, gdy już stoi w stacji
+                int gd = _gdzie.GetValueOrDefault(nr);
+                var ogonWj = _ogonPrzyjazdu.GetValueOrDefault(nr);
+                var nieznane = new List<(string O, bool OdNas)>();
+                foreach (var o in g)
+                {
+                    bool odNas = gd == 3 || (gd == 2 && !(ogonWj?.Contains(o) ?? false)) || (gd == 0 && wSt);
+                    string sasiad = null; int? tor = null;
+                    if (SzlakZeSkrotami(o) is { } sz)
+                    {
+                        var obcy = sz.A == wlasny ? sz.B : sz.B == wlasny ? sz.A : null;
+                        sasiad = obcy != null ? SasiadZeSkrotu(obcy) : SasiadZeSkrotu(sz.A) ?? SasiadZeSkrotu(sz.B);
+                        tor = sz.Nr;
+                        if (sasiad != null)
+                        {
+                            // numer w nazwie nie jest torem szlaku („l1_la_lb_it324” = tor 224): poznany albo z czatu dla tego pociągu
+                            var tory = _szlaki.Daj(sasiad).Tory;
+                            if (tory.Count > 0 && !tory.Contains(sz.Nr))
+                            {
+                                tor = Poznany(o)?.Tor ?? (OdcinekTorZnany.TryGetValue(o, out var tz) ? tz : null);
+                                if (tor == null && TorZCzatu(sasiad, nr) is int tc && tory.Contains(tc)) { Ucz(o, sasiad, tc); tor = tc; }
+                            }
+                        }
+                    }
+                    else if (ObiektSzlaku(o))
+                    {
+                        // odcinek bez skrótów („l1_it2790”, „t…”): zapamiętany sąsiad albo poznany teraz z komunikatu / rozkładu
+                        var zKom = _szlaki.Wszystkie.Where(s => s.Pociagi.Any(p => p.Nr == nr && p.OdNas == odNas && p.Stan != StanOkna.Odmowa)).ToList();
+                        var zPlanu = _plan.FirstOrDefault(r => r.Pociag == nr) is { } r ? (odNas ? r.SasiadDokad : r.SasiadSkad) : null;
+                        string nowy = zKom.Count == 1 ? zKom[0].Sasiad : zKom.Count == 0 && zPlanu != null && Sasiedzi().Contains(zPlanu) ? zPlanu : null;
+                        int? torKom = nowy != null ? TorZCzatu(nowy, nr) : null;
+                        if (Poznany(o) is { } pz)
+                        {
+                            (sasiad, tor) = pz;
+                            if (tor == null && torKom != null && nowy == sasiad) { Ucz(o, sasiad, torKom); tor = torKom; }
+                        }
+                        else if (nowy != null) { Ucz(o, nowy, torKom); sasiad = nowy; tor = torKom; }
+                        else if (poznane != null && Regex.Match(o, @"^(\d*l\d+_it)(\d+)$", RegexOptions.IgnoreCase) is { Success: true } mo)
+                        {
+                            // sąsiedni odcinek tej samej linii (kilometraż w nazwie, ±40): „l1_it2790” obok poznanego „l1_it2799” – ten sam szlak
+                            int km = int.Parse(mo.Groups[2].Value);
+                            var blisko = poznane.Select(kv => (kv, m: Regex.Match(kv.Key, @"^(\d*l\d+_it)(\d+)$", RegexOptions.IgnoreCase)))
+                                .Where(x => x.m.Success && string.Equals(x.m.Groups[1].Value, mo.Groups[1].Value, StringComparison.OrdinalIgnoreCase)
+                                            && Math.Abs(int.Parse(x.m.Groups[2].Value) - km) <= 40)
+                                .Select(x => x.kv.Value.Split('|')[0]).Distinct().ToList();
+                            if (blisko.Count == 1) sasiad = blisko[0];
+                        }
+                        if (sasiad == null) nieznane.Add((o, odNas));
+                        else tor ??= TorOdcinka(o, sasiad);
+                    }
+                    if (sasiad == null) continue;
+                    if (odNas) _dokad[nr] = sasiad; else _skad[nr] = sasiad;
+                    if (!szlaki.TryGetValue(sasiad, out var l)) szlaki[sasiad] = l = new();
+                    int i = l.FindIndex(x => x.Item1 == nr);
+                    if (i < 0) l.Add((nr, tor, odNas));
+                    else if (l[i].Item2 == null && tor != null) l[i] = (nr, tor, odNas);
+                }
+
+                // eliminacja: odcinek bez skrótów po drugiej stronie niż znany szlak tego pociągu należy do jedynego pozostałego sąsiada
+                // (wjechał od Łc, wyjeżdża „l1_it2790” → Ła; wjechał „l1_it2799”, wyjechał do Łc → „l1_it2799” to Ła)
+                string Inny(string znany) { var k = Sasiedzi().Where(x => !string.Equals(x, znany, StringComparison.OrdinalIgnoreCase)).ToList(); return k.Count == 1 ? k[0] : null; }
+                foreach (var (o, odNas) in nieznane)
+                {
+                    var znany = odNas ? _skad.GetValueOrDefault(nr) : _dokad.GetValueOrDefault(nr);
+                    if (znany != null && Inny(znany) is { } y) Ucz(o, y, null);
+                    else if (!odNas) { if (!_wjazdNieznany.TryGetValue(nr, out var w)) _wjazdNieznany[nr] = w = new(); w.Add(o); }
+                }
+                if (_dokad.TryGetValue(nr, out var dok) && _wjazdNieznany.TryGetValue(nr, out var wj) && Inny(dok) is { } y2)
+                {
+                    _wjazdNieznany.Remove(nr);
+                    foreach (var o in wj) Ucz(o, y2, null);
+                }
+            }
+            if (zapisz) ZapiszUst();
+        }
+        var podpis = string.Join(",", stacji) + "|" + string.Join(";", szlaki.OrderBy(k => k.Key).Select(k => k.Key + ":" + string.Join(",", k.Value)));
+        if (podpis == _podpisZGry) return false;
+        _podpisZGry = podpis;
+        _pociagiStacji = stacji;
+        foreach (var s in _szlaki.Wszystkie) s.ZGry.Clear();
+        foreach (var (sasiad, l) in szlaki)
+        {
+            var s = _szlaki.Daj(sasiad);
+            s.ZGry.AddRange(l);
+            // sąsiad wyprawił do nas pociąg: „droga wolna” → „na szlaku”, gdy gra pokazuje go na szlaku od tego sąsiada
+            foreach (var p in s.Pociagi.Where(p => !p.OdNas && p.Stan == StanOkna.Zgoda && l.Any(z => z.Item1 == p.Nr && !z.Item3)))
+            {
+                p.Stan = StanOkna.NaSzlaku; p.Zmiana = DateTime.Now;
+                Zdarzenie($"{Teraz():HH:mm}  {p.Nr} odjechał od {sasiad} – jest na szlaku (z gry)");
+            }
+            foreach (var z in l.Where(z => !z.Item3 && !_odSasiadaZGry.Contains(z.Item1 + "|" + sasiad)))
+            {
+                _odSasiadaZGry.Add(z.Item1 + "|" + sasiad);
+                if (!s.Pociagi.Any(p => p.Nr == z.Item1)) Zdarzenie($"{Teraz():HH:mm}  {z.Item1} jedzie od {sasiad}{(z.Item2 is int t ? $" po torze {t}" : "")} (z gry)");
+            }
+        }
+        return true;
+    }
+
+    readonly HashSet<string> _odSasiadaZGry = new();
+    readonly Dictionary<string, string> _skad = new(StringComparer.OrdinalIgnoreCase);    // pociąg → sąsiad, od którego przyjechał (z gry)
+    readonly Dictionary<string, string> _dokad = new(StringComparer.OrdinalIgnoreCase);   // pociąg → sąsiad, do którego odjechał (z gry)
+    readonly Dictionary<string, HashSet<string>> _wjazdNieznany = new(StringComparer.OrdinalIgnoreCase);   // odcinki wjazdu bez sąsiada
+
+    /// <summary>Odcinki, których numer w nazwie nie jest nazwą toru – z zapisów czatu (2026-11-27: 484745 „po torze 224” na „l1_la_lb_it324”).</summary>
+    /// Pulpit Łazów (2026-11-27): tor 1ŁA – 2795, 2781, 2779; tor 2ŁA – 2794, 2790, 2778 (40682 na 2790 po torze 2).
+    static readonly Dictionary<string, int> OdcinekTorZnany = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["l1_la_lb_it324"] = 224,
+        ["l1_it2799"] = 1, ["l1_it2781"] = 1, ["l1_it2779"] = 1, ["l1_2795"] = 1,
+        ["l1_it2790"] = 2, ["l1_it2778"] = 2, ["lt_it2794"] = 2,
+    };
+
+    /// <summary>
+    /// Tor odcinka szlaku bez skrótów: znany z pulpitu / poznany; dalej szlak dwutorowy linii („l1_it2781”) – kilometr nieparzysty
+    /// tor 1, parzysty tor 2 (tak na pulpicie Łazów i w czacie: 14021 po torze 1 przez 2799/2781), o ile szlak ma tory 1 i 2.
+    /// </summary>
+    int? TorOdcinka(string o, string sasiad)
+    {
+        if (OdcinekTorZnany.TryGetValue(o, out var t)) return t;
+        var tory = _szlaki.Daj(sasiad).Tory;
+        var m = Regex.Match(o, @"^\d*l\d+_it(\d+)$", RegexOptions.IgnoreCase);
+        if (m.Success && tory.Contains(1) && tory.Contains(2)) return int.Parse(m.Groups[1].Value) % 2 == 1 ? 1 : 2;
+        return null;
+    }
+
+    /// <summary>Tor pociągu do / od sąsiada z czatu: okienko szlaku albo ostatni komunikat z torem (bez wysłanych automatycznie).</summary>
+    int? TorZCzatu(string sasiad, string nr) =>
+        _szlaki.Znajdz(sasiad, nr)?.Tor
+        ?? _wpisy.LastOrDefault(w => w.Pociag == nr && w.Sasiad == sasiad && w.Tor.HasValue && !(w.Status ?? "").Contains("(auto)"))?.Tor;
+    readonly Dictionary<string, DateTime> _widzianyWGrze = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Pociąg wyprawiony od nas („na szlaku” ►) znika ze szlaku, gdy gra od minuty nie pokazuje go na żadnym naszym odcinku –
+    /// zjechał na odcinki sąsiada. Pociągu, którego gra nigdy nie pokazała, nie rusza (zostaje do przyjęcia albo 60 min).
+    /// </summary>
+    bool ZjechalyZeSzlaku()
+    {
+        if (!StacjaZGry) return false;
+        var teraz = DateTime.Now;
+        foreach (var nr in _wStacji.Keys) _widzianyWGrze[nr] = teraz;
+        bool zm = false;
+        foreach (var s in _szlaki.Wszystkie)
+            foreach (var p in s.Pociagi.Where(p => p.OdNas && p.Stan == StanOkna.NaSzlaku
+                                                   && _widzianyWGrze.TryGetValue(p.Nr, out var t) && (teraz - t).TotalSeconds > 60).ToList())
+            {
+                s.Pociagi.Remove(p); zm = true;
+                Zdarzenie($"{Teraz():HH:mm}  {p.Nr} zjechał ze szlaku do {s.Sasiad} (z gry)");
+            }
+        foreach (var k in _widzianyWGrze.Where(kv => (teraz - kv.Value).TotalMinutes > 30).Select(kv => kv.Key).ToList()) _widzianyWGrze.Remove(k);
+        return zm;
+    }
+
+    /// <summary>Sąsiad (i tor), na którego szlaku gra pokazuje teraz pociąg.</summary>
+    (string Sasiad, int? Tor) SzlakZGry(string nr, bool? odNas = null)
+    {
+        foreach (var s in _szlaki.Wszystkie)
+            foreach (var z in s.ZGry.Where(z => z.Nr == nr && (odNas == null || z.OdNas == odNas)))
+                return (s.Sasiad, z.Tor.HasValue && (s.Tory.Count == 0 || s.Tory.Contains(z.Tor.Value)) ? z.Tor : null);
+        return (null, null);
     }
 
     void Czat(JsonElement p)
@@ -436,9 +677,13 @@ public sealed class MainWindow : Window
             Klasa = klasa, Tekst = tekst, Pociag = pociag, Status = wych ? "z okna gry" : "", Tor = tor,
         };
         _wpisy.Add(w);
-        _szlaki.Zastosuj(w);
+        // po starcie mod dosyła 60 ostatnich komunikatów, nawet sprzed godzin – stare nie stawiają pociągów na szlakach
+        bool stary = DateTime.TryParse(MostKlient.S(p, "czasPc"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var kiedy)
+                     && (DateTime.Now - kiedy).TotalMinutes > 20;
+        if (stary) w.Odpowiedziano = true;
+        else _szlaki.Zastosuj(w);
         Zdarzenie($"{czas}  {(wych ? $"→ {doK}" : $"← {od}")}: {tekst}");
-        if (s != null)
+        if (s != null && !stary)
         {
             if (wych) s.Oczekujace++;
             else
@@ -477,7 +722,13 @@ public sealed class MainWindow : Window
     void AnulujPociag(string sasiad, string nr)
     {
         if (string.IsNullOrEmpty(sasiad) || string.IsNullOrEmpty(nr)) return;
-        if (_szlaki.Daj(sasiad).Pociagi.RemoveAll(p => p.Nr == nr) == 0) { Zdarzenie($"{Teraz():HH:mm}  {nr} – brak na szlaku do {sasiad}"); return; }
+        if (_szlaki.Daj(sasiad).Pociagi.RemoveAll(p => p.Nr == nr) == 0)
+        {
+            Zdarzenie(_szlaki.Daj(sasiad).ZGry.Any(z => z.Nr == nr)
+                ? $"{Teraz():HH:mm}  {nr} – gra pokazuje go na szlaku do {sasiad}; okienko zniknie samo, gdy zjedzie z naszych odcinków"
+                : $"{Teraz():HH:mm}  {nr} – brak na szlaku do {sasiad}");
+            return;
+        }
         _awizowane.Remove($"{nr}|{sasiad}");
         foreach (var w in _wpisy.Where(w => w.Sasiad == sasiad && w.Pociag == nr && !w.Wychodzacy)) w.Odpowiedziano = true;
         Zdarzenie($"{Teraz():HH:mm}  {nr} anulowany na szlaku {sasiad} (bez wiadomości)");
@@ -500,11 +751,16 @@ public sealed class MainWindow : Window
         var ok = Wyglad.Przycisk("OK", () => { wynik = true; okno.Close(); }); ok.IsDefault = true; ok.MinWidth = 70;
         var auto = Wyglad.Przycisk("Z gry (automatycznie)", () => { wynik = false; okno.Close(); }, "Usuwa ręczne ustawienie – tory poznawane z komunikatów od nowa");
         var anuluj = Wyglad.Przycisk("Anuluj", () => okno.Close()); anuluj.IsCancel = true; anuluj.MinWidth = 70;
-        foreach (var b in new[] { ok, auto, anuluj }) b.Margin = new Thickness(0, 0, 6, 0);
+        var odwroc = Wyglad.Przycisk("Odwróć kolejność", () =>
+        {
+            var t = pole.Text.Split(new[] { ' ', ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            pole.Text = string.Join(" ", t.Reverse());
+        }, "Np. „1 2” → „2 1”");
+        foreach (var b in new[] { ok, auto, anuluj, odwroc }) b.Margin = new Thickness(0, 0, 6, 0);
         var przyciski = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        przyciski.Children.Add(ok); przyciski.Children.Add(auto); przyciski.Children.Add(anuluj);
+        przyciski.Children.Add(odwroc); przyciski.Children.Add(ok); przyciski.Children.Add(auto); przyciski.Children.Add(anuluj);
         var p = new StackPanel { Margin = new Thickness(12) };
-        p.Children.Add(new TextBlock { Text = "Numery torów szlakowych (jak w komunikatach gry, np. „1 2”),\noddzielone spacją lub przecinkiem:" });
+        p.Children.Add(new TextBlock { Text = "Numery torów szlakowych (jak w komunikatach gry, np. „1 2”),\noddzielone spacją lub przecinkiem. Kolejność = od góry na schemacie\n(„2 1” – tor 2 na górze):" });
         p.Children.Add(pole); p.Children.Add(przyciski);
         okno.Content = p;
         okno.Loaded += (_, _) => { pole.Focus(); pole.SelectAll(); };
@@ -513,7 +769,7 @@ public sealed class MainWindow : Window
         if (wynik == true)
         {
             var tory = pole.Text.Split(new[] { ' ', ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).Distinct().OrderBy(n => n).ToList();
+                .Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).Distinct().ToList();   // kolejność jak wpisana (od góry)
             if (tory.Count == 0) { _ust.ToryReczne.Remove(k); _ust.Tory.Remove(k); }
             else _ust.ToryReczne[k] = tory;
         }
@@ -533,7 +789,7 @@ public sealed class MainWindow : Window
             var k = Klucz(nazwy[i]);
             if (_ust.ToryReczne.TryGetValue(k, out var r) && r.Count > 0)
             {
-                s.Reczne = true; s.Tory.Clear(); s.Tory.AddRange(r.Distinct().OrderBy(x => x));
+                s.Reczne = true; s.Tory.Clear(); s.Tory.AddRange(r.Distinct());   // ręczne – w kolejności wpisanej przez użytkownika
             }
             else
             {
@@ -547,6 +803,7 @@ public sealed class MainWindow : Window
         if (_wybrany == null || !nazwy.Contains(_wybrany)) _wybrany = nazwy.FirstOrDefault();
         _schemat.Szlaki = lista;
         _schemat.Stacja = Stacja;
+        _schemat.PociagiStacji = _pociagiStacji;
         _schemat.Wybrany = _wybrany;
         _schemat.InvalidateVisual();
     }
@@ -619,17 +876,20 @@ public sealed class MainWindow : Window
         if (s != null)
         {
             var teraz = Teraz();
-            var nr = _szlaki.Daj(s).Pociagi.Select(p => p.Nr)
+            var nr = _szlaki.Daj(s).ZGry.Select(z => z.Nr)
+                .Concat(_szlaki.Daj(s).Pociagi.Select(p => p.Nr))
+                .Concat(_pociagiStacji)
                 .Concat(_plan.Where(r => (r.SasiadSkad == s || r.SasiadDokad == s) && (r.Czas - teraz).TotalMinutes is > -30 and < 90)
                              .OrderBy(r => Math.Abs((r.Czas - teraz).TotalMinutes)).Select(r => r.Pociag))
                 .Distinct().Take(10).ToList();
             foreach (var n in nr)
             {
                 var r = _plan.FirstOrDefault(x => x.Pociag == n);
+                bool wSt = _pociagiStacji.Contains(n);
                 var b = Wyglad.Przycisk(n, () => { _torRecznie = false; _tbPociag.Text = n; _tbPociag.Focus(); _tbPociag.CaretIndex = n.Length; },
-                    r == null ? "na szlaku" : $"{r.Czas:HH:mm} {r.Skad} → {r.Dokad}  {r.Kategoria}");
+                    r != null ? $"{r.Czas:HH:mm} {r.Skad} → {r.Dokad}  {r.Kategoria}" : wSt ? "w stacji (z gry)" : "na szlaku");
                 b.Height = Wyglad.H; b.MinWidth = 64; b.Margin = new Thickness(0, 0, 4, 6);
-                if (r?.WStacji == true) b.Foreground = Wyglad.Pomaranczowy;
+                if (r?.WStacji == true || wSt) b.Foreground = Wyglad.Pomaranczowy;
                 _pocPrzyciski.Children.Add(b);
             }
         }
@@ -821,12 +1081,13 @@ public sealed class MainWindow : Window
     /// Odcinki „t39532” bywają i na szlaku (np. od Żakowic, Rokicin), i w stacji – same nie przesądzają.
     /// Skrót stacji bywa po numerze linii („l1_kol_”, „l1_rg_”) albo po numerze posterunku („3877_sk_it104a”, „3877_sk_iz1”).
     /// Zwrotnice same nie niosą pociągów (pulpit podaje je tylko z EBI300TrackRenderer) – zajęcie widać na odcinkach izolowanych „…_iz…”.
-    /// Szlakowe: „l1_it766”, „l11_it23”, „69l11_it94”, „l12_it_sk_pm_…”.
+    /// Szlakowe: „l1_it766”, „l11_it23”, „69l11_it94”, „l12_it_sk_pm_…”, a z dwoma skrótami stacji (Łazy):
+    /// „l1_lb_lc_it3” (Łazy–Łazy Łc, tor 3), „l1_la_lb_it123” (Łazy Ła–Łazy, tor 123) – nie są stacyjne mimo „l1_lb_”.
     /// </summary>
-    static bool ObiektStacji(string n) => !string.IsNullOrEmpty(n)
-        && (Regex.IsMatch(n, @"^z\d") || Regex.IsMatch(n, @"^(?:l\d+|\d+)_(?!it)[a-z]+_", RegexOptions.IgnoreCase) || n.Contains("_wk", StringComparison.OrdinalIgnoreCase));
+    static bool ObiektStacji(string n) => !string.IsNullOrEmpty(n) && !SzlakZNazwy(n)
+        && (Regex.IsMatch(n, @"^z(?:\d|_)") || Regex.IsMatch(n, @"^(?:l\d+|\d+)_(?!it)[a-z]+_", RegexOptions.IgnoreCase) || n.Contains("_wk", StringComparison.OrdinalIgnoreCase));
 
-    static bool SzlakZNazwy(string n) => Regex.IsMatch(n, @"^\d*l\d+_it", RegexOptions.IgnoreCase);
+    static bool SzlakZNazwy(string n) => Regex.IsMatch(n, @"^\d*l\d+_(?:it|[a-z]+_[a-z]+_it)", RegexOptions.IgnoreCase);
 
     /// <summary>
     /// Odcinek szlaku przy stacji: z nazwy („l1_it988”, „l17_it219”) albo poznany – zajmowany przez pociąg wjeżdżający do nas
@@ -868,7 +1129,8 @@ public sealed class MainWindow : Window
         || _plan.FirstOrDefault(x => x.Pociag == nr)?.SasiadSkad != null;
 
     readonly Dictionary<string, HashSet<string>> _ogonPrzyjazdu = new();   // odcinki szlaku zajęte przy wjeździe do stacji
-    readonly HashSet<string> _zjechalZeSzlaku = new();                      // w stacji, już bez żadnego odcinka szlaku
+    readonly Dictionary<string, int> _znikniety = new(StringComparer.OrdinalIgnoreCase);   // odczyty z rzędu bez żadnego odcinka
+    readonly HashSet<string> _zjechalZeSzlaku = new();                    // w stacji, już bez żadnego odcinka szlaku
     readonly Dictionary<string, List<string>> _poprzednio = new();
 
     /// <summary>
@@ -885,7 +1147,10 @@ public sealed class MainWindow : Window
         {
             var g = _wStacji.GetValueOrDefault(nr);
             int przed = _gdzie.GetValueOrDefault(nr), po;
-            if (g == null || g.Count == 0) po = 0;
+            // długi skład potrafi na chwilę zniknąć z danych moda – z „w stacji” znika dopiero po 5 odczytach z rzędu (~10 s)
+            if ((g == null || g.Count == 0) && przed == 2 && (_znikniety[nr] = _znikniety.GetValueOrDefault(nr) + 1) < 5) { teraz[nr] = 2; continue; }
+            if (g != null && g.Count > 0) _znikniety.Remove(nr);
+            if (g == null || g.Count == 0) { po = 0; _znikniety.Remove(nr); }
             else
             {
                 bool st = g.Any(ObiektStacji), sz = g.Any(ObiektSzlaku);
@@ -914,7 +1179,7 @@ public sealed class MainWindow : Window
                         break;
                 }
             }
-            if (po == 0) { _ogonPrzyjazdu.Remove(nr); _zjechalZeSzlaku.Remove(nr); _poprzednio.Remove(nr); }
+            if (po == 0) { _ogonPrzyjazdu.Remove(nr); _zjechalZeSzlaku.Remove(nr); _poprzednio.Remove(nr); _skad.Remove(nr); _dokad.Remove(nr); _wjazdNieznany.Remove(nr); }
             else { _poprzednio[nr] = g; teraz[nr] = po; if (po == 3) _zjechalZeSzlaku.Remove(nr); }
             if (_pierwszyStan || przed == po) continue;
 
@@ -954,11 +1219,22 @@ public sealed class MainWindow : Window
 
     void Odjazd(string nr)
     {
+        // kierunek: szlak, na który pociąg wjechał w grze; dalej zgoda / zapytanie z czatu; na końcu rozkład
+        var (yGry, torGry) = SzlakZGry(nr, odNas: true);
         var zgoda = _szlaki.Wszystkie.SelectMany(s => s.Pociagi.Where(p => p.Nr == nr && p.OdNas && p.Stan is StanOkna.Zgoda or StanOkna.Zapytanie).Select(p => (s.Sasiad, p))).FirstOrDefault();
-        var y = zgoda.Sasiad ?? _plan.FirstOrDefault(x => x.Pociag == nr)?.SasiadDokad;
-        if (y == null || !Sasiedzi().Contains(y)) return;
+        var y = yGry ?? zgoda.Sasiad ?? _plan.FirstOrDefault(x => x.Pociag == nr)?.SasiadDokad;
+        if (y == null || !Sasiedzi().Contains(y))
+        {
+            Zdarzenie($"{Teraz():HH:mm}  {nr} opuścił stację – nie wiem dokąd (brak zgody, rozkładu i poznanego odcinka szlaku), „odjechał” nie wysłany"
+                      + $"  [odcinki: {string.Join(" ", _wStacji.GetValueOrDefault(nr) ?? new())}]");
+            return;
+        }
         if (_szlaki.Znajdz(y, nr) is { OdNas: true, Stan: StanOkna.NaSzlaku }) return;
-        var tor = TorDla(y, nr);
+        // ten sam „odjechał” tego pociągu do tego sąsiada najwyżej raz na 10 min (ręcznie albo automatem)
+        if (_wpisy.Any(w => w.Wychodzacy && w.Klasa == "TrainDepartedMessage" && w.Pociag == nr && w.Do == y && (DateTime.Now - w.Utworzony).TotalMinutes < 10))
+            return;
+        // tor: z gry, z czatu; domyślny tor szlaku tylko gdy kierunek nie pochodzi z gry (inaczej lepiej bez toru niż zły)
+        var tor = torGry ?? (yGry != null ? TorZCzatu(y, nr) : TorDla(y, nr));
         Zdarzenie($"{Teraz():HH:mm}  {nr} opuścił stację w stronę {y} (z gry)");
         if (_ust.AutoOdjazd && _ust.Automat(y)) Nadaj(y, "TrainDepartedMessage", nr, tor, Teraz().ToString("HH:mm"), null, null, auto: true);
         else _szlaki.Ustaw(_szlaki.Daj(y), nr, true, StanOkna.NaSzlaku, tor);
@@ -1150,6 +1426,84 @@ public sealed class MainWindow : Window
     static string Skrot(string s) => string.IsNullOrEmpty(s) ? "" : s.Length <= 3 ? s : s[..3];
 
     void ZapiszUst() { if (!_demo) _ust.Zapisz(); }
+
+    /// <summary>
+    /// Odtworzenie bez gry (tryb pokazowy, nic nie idzie do gry): zajętości moda (zajetosci_serwer_*.csv) i czat (polecenia_*.jsonl)
+    /// od – do (czas komputera) przez Stan / Czat jak na żywo. Własne „odjechał” z zapisu są pomijane – automat ma je wysłać sam.
+    /// Wynik: zdarzenia (od najstarszego) do pliku.
+    /// </summary>
+    internal void Odtworz(string zajetosci, string polecenia, string posterunek, string[] sasiedzi, string od, string doCzasu, string wynik)
+    {
+        _ust.ToryReczne = Ustawienia.Wczytaj().ToryReczne;
+        _ust.AutoOdjazd = true;
+        _zdarzenia.Clear(); _wpisy.Clear(); _szlaki.Wyczysc(); _sasiedzi.Clear();
+        var zdarz = new List<(string Pc, int Rodzaj, string[] Kol, string Json)>();
+        foreach (var l in File.ReadLines(zajetosci).Skip(1))
+        {
+            var k = l.TrimStart('﻿').Split(';');
+            if (k.Length >= 7 && string.CompareOrdinal(k[0], od) >= 0 && string.CompareOrdinal(k[0], doCzasu) <= 0) zdarz.Add((k[0], 0, k, null));
+        }
+        foreach (var l in File.ReadLines(polecenia))
+        {
+            try
+            {
+                using var d = JsonDocument.Parse(l.TrimStart('﻿'));
+                var r = d.RootElement;
+                if (MostKlient.S(r, "metoda") != "Czat") continue;
+                var pc = MostKlient.S(r, "czasPc") ?? "";
+                if (string.CompareOrdinal(pc, od) < 0 || string.CompareOrdinal(pc, doCzasu) > 0) continue;
+                var js = r.GetProperty("arg").GetProperty("json").GetString();
+                using var c = JsonDocument.Parse(js);
+                if (MostKlient.S(c.RootElement, "kier") == "wych" && MostKlient.S(c.RootElement, "klasa") == "TrainDepartedMessage") continue;
+                zdarz.Add((pc, 1, null, js));
+            }
+            catch { }
+        }
+        var zaj = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        string czasGry = "";
+        void Migawka()
+        {
+            using var ms = new MemoryStream();
+            using (var w = new Utf8JsonWriter(ms))
+            {
+                w.WriteStartObject(); w.WriteString("typ", "lacznosc_stan"); w.WriteString("posterunek", posterunek); w.WriteString("stacja", posterunek);
+                w.WriteString("czasGry", czasGry);
+                w.WriteStartArray("sasiedzi"); foreach (var s in sasiedzi) { w.WriteStartObject(); w.WriteString("n", s); w.WriteBoolean("gracz", true); w.WriteEndObject(); } w.WriteEndArray();
+                w.WriteStartArray("pociagi");
+                foreach (var g in zaj.SelectMany(kv => kv.Value.Select(nr => (nr, o: kv.Key))).GroupBy(x => x.nr))
+                {
+                    w.WriteStartObject(); w.WriteString("nr", g.Key);
+                    w.WriteStartArray("gdzie"); foreach (var x in g.Take(8)) w.WriteStringValue(x.o); w.WriteEndArray();
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray(); w.WriteEndObject();
+            }
+            using var doc = JsonDocument.Parse(ms.ToArray());
+            Stan(doc.RootElement);
+        }
+        string sekunda = null;
+        foreach (var e in zdarz.OrderBy(e => e.Pc, StringComparer.Ordinal))
+        {
+            var s = e.Pc.Length >= 19 ? e.Pc[..19] : e.Pc;
+            if (sekunda != null && s != sekunda) Migawka();
+            sekunda = s;
+            if (e.Rodzaj == 0)
+            {
+                var k = e.Kol; czasGry = k[1];
+                if (k[5] == "WOLNY") zaj.Remove(k[3]);
+                else if (k[5] == "ZAJETY" && k[6].Length > 0) zaj[k[3]] = k[6].Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            }
+            else
+            {
+                // czas odbioru = teraz, żeby nie był uznany za stary komunikat z historii
+                var js = Regex.Replace(e.Json, "\"czasPc\":\"[^\"]*\"", $"\"czasPc\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\"");
+                using var c = JsonDocument.Parse(js);
+                Czat(c.RootElement);
+            }
+        }
+        Migawka();
+        File.WriteAllLines(wynik, _zdarzenia.Reverse());
+    }
 
     // ------------------------------------------------------------------ okna
 

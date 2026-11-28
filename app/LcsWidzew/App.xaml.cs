@@ -22,6 +22,12 @@ public partial class App : Application
         return Path.Combine(AppContext.BaseDirectory, "Data", "station.json");
     }
 
+    /// <summary>
+    /// Start jako pulpit zdalny SimRail (--simrail albo posterunek SimRail z okna wyboru): pulpit od razu łączy się z grą
+    /// (mod SimRailMost), bez własnego komputera zależności. Bez tego – zwykły SUK z UT (gra jednoosobowa / sieć).
+    /// </summary>
+    public static bool TrybSimRail { get; private set; }
+
     public static string ErrorLogDirectory => Diagnostyka.Silnik?.Katalog;
     public static void LogError(Exception ex, string where)
     {
@@ -93,6 +99,7 @@ public partial class App : Application
         Sim.Edr.ZapisDziennikow = tryb == "pulpit" && !args.Contains("--edrtest") && !args.Contains("--rjtest") && !args.Contains("--rj-import");
         int si = args.IndexOf("--station");
         if (si >= 0 && si + 1 < args.Count) { StationPath = Path.GetFullPath(args[si + 1]); args.RemoveRange(si, 2); }
+        TrybSimRail = Zdejmij(args, "--simrail", false) != null;
         var A = args.ToArray();
         DispatcherUnhandledException += (s, a) =>
         {
@@ -154,9 +161,9 @@ public partial class App : Application
         if (si < 0 && A.Length == 0)
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            var chosen = UI.LayoutChooser.Choose(StationPath);
+            var chosen = UI.LayoutChooser.Choose(StationPath, out var simRail);
             if (chosen == null) { Shutdown(); return; }
-            StationPath = chosen;
+            StationPath = chosen; TrybSimRail = simRail;
             ShutdownMode = ShutdownMode.OnMainWindowClose;
         }
         var w = new MainWindow();

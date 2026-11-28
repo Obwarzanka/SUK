@@ -10,6 +10,7 @@ using Lcs.WorldHost;
 using Lcs.Logi;
 using LcsWidzew.Model;
 using LcsWidzew.Net;
+using LcsWidzew.SimRail;
 using LcsWidzew.Sim;
 using LcsWidzew.UI;
 
@@ -68,7 +69,7 @@ public partial class MainWindow : Window
             if (e.Key == Key.F3) ShowPage(1);
         };
         BuildTabs();
-        Loaded += (s, e) => { Start(scenario, null); Dispatcher.BeginInvoke(() => { ShowPage(station.Pages.Count - 1); if (ShotPath == null) ShowLogin(); else Demo(); }, DispatcherPriority.Loaded); };
+        Loaded += (s, e) => { Start(scenario, null); Dispatcher.BeginInvoke(() => { ShowPage(station.Pages.Count - 1); if (ShotPath == null) { StartSimRail(); ShowLogin(); } else Demo(); }, DispatcherPriority.Loaded); };
         // EDR (E9e, decyzja właściciela 2026-10-28): przy każdym zamknięciu – „Zachować dane sesji EDR?”; „Nie zapisuj” przywraca dzienniki sprzed sesji
         Closing += (s, e) =>
         {
@@ -652,6 +653,14 @@ public partial class MainWindow : Window
             return null;
         }
         catch (Exception ex) { return "Nie można połączyć: " + (ex.InnerException?.Message ?? ex.Message); }
+    }
+
+    /// <summary>Start jako pulpit zdalny SimRail (<see cref="App.TrybSimRail"/>): od razu sesja z grą, zamiast gry jednoosobowej na własnym komputerze zależności.</summary>
+    void StartSimRail()
+    {
+        if (!App.TrybSimRail) return;
+        var err = JoinSimRail();
+        if (err != null) MessageBox.Show(this, err + "\n\nPulpit działa jako gra jednoosobowa; pulpit zdalny: przycisk „SimRail” → „Pulpit zdalny SimRail”.", "Pulpit zdalny SimRail", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     /// <summary>Pulpit zdalny SimRail: stany z gry i polecenia do gry (mod SimRailMost), bez własnego komputera zależności.</summary>

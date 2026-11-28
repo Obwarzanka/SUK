@@ -27,6 +27,20 @@ public static class Program
             e.Handled = true;
             MessageBox.Show("Wystąpił błąd – program działa dalej.\n\n" + e.Exception.Message, "Łączność", MessageBoxButton.OK, MessageBoxImage.Warning);
         };
+        // --odtworz zajetosci.csv polecenia.jsonl posterunek "sąsiad1;sąsiad2" od do wynik.txt – bez gry, nic nie wysyła
+        int odtw = Array.IndexOf(args, "--odtworz");
+        if (odtw >= 0 && odtw + 7 < args.Length)
+        {
+            var wo = new MainWindow(true);
+            wo.Loaded += (_, _) =>
+            {
+                try { wo.Odtworz(args[odtw + 1], args[odtw + 2], args[odtw + 3], args[odtw + 4].Split(';'), args[odtw + 5], args[odtw + 6], args[odtw + 7]); }
+                catch (Exception ex) { File.WriteAllText(args[odtw + 7], ex.ToString()); }
+                wo.Close();
+            };
+            app.Run(wo);
+            return;
+        }
         int shot = Array.IndexOf(args, "--shot");
         bool live = args.Contains("--live");
         bool demo = args.Contains("--demo") || (shot >= 0 && !live);

@@ -61,6 +61,7 @@ public static partial class Test
                 log.AppendLine("== etap E7: klocki, własne klocki, szkic na życzenie"); await RunE7(w, shot == null ? null : Path.ChangeExtension(shot, null) + "_E7.png");
                 log.AppendLine("== etap E8: wiele obrazów, obraz poglądowy, PNG i wydruk"); await RunE8(w, shot == null ? null : Path.ChangeExtension(shot, null) + "_E8.png");
                 log.AppendLine("== tablica przebiegów (ROZWOJ.md etap 3): propozycje, przyjęcie, zasadniczy, Sprawdź, test, eksport"); await RunPrzebiegi(w, shot == null ? null : Path.ChangeExtension(shot, null) + "_przebiegi.png");
+                log.AppendLine("== zakładka Gra (SimRail): mapa obiektów gry, stan przypięć, przypięcie ręczne, bez obiektu gry, Przelicz"); await RunGra(w, shot == null ? null : Path.ChangeExtension(shot, null) + "_gra.png");
             }
             catch (Exception ex) { errors++; log.AppendLine("WYJĄTEK " + ex); }
             Finish();
@@ -84,6 +85,12 @@ public static partial class Test
         w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(async () =>
         {
             await Settle(w); w.View.Fit(); await Settle(w);
+            // zobrazowanie z pulpitu SimRail: zakładka Gra i pierwsza pozycja do przypięcia
+            if (w.Side.Items.Contains(w.TabGra))
+            {
+                w.Side.SelectedItem = w.TabGra; await Settle(w);
+                if (All<Button>(w.GraPanel).FirstOrDefault(b => b.Background == MainWindow.GraListaTlo) is { } b) { Click(b); await Settle(w); }
+            }
             Save(w, shot); Application.Current.Shutdown();
         }, DispatcherPriority.ApplicationIdle);
     }

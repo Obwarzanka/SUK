@@ -7,14 +7,15 @@
 .NOTES
   Programy: framework-dependent (wymagają .NET Desktop Runtime 10). Budowanie idzie do osobnego --artifacts-path,
   więc nie koliduje z otwartym programem w app\*\bin\Release.
-  Mod i konwertery stacji są brane z repozytorium SimRailMost (-MostDir; mod trzeba wcześniej zbudować: dotnet build -c Release).
-  Od 0.1.3 paczka zawiera gotowe stacje (-Stacje, domyślnie Koluszki) z -StacjeDir; surowe zrzuty pulpitów z gry nie trafiają.
+  Mod jest brany z repozytorium SimRailMost (-MostDir; trzeba go wcześniej zbudować: dotnet build -c Release), konwertery stacji
+  z tools\simrail. Gotowe stacje (-Stacje, domyślnie Koluszki) z -StacjeDir (układ jak po posterunek nowy, z posterunki.json);
+  surowe zrzuty pulpitów z gry nie trafiają.
 #>
 param(
     [Parameter(Mandatory)][string]$Wersja,
     [string]$MostDir = (Join-Path $PSScriptRoot '..\..\..\SimRailMost'),
     [string[]]$Stacje = @('Koluszki'),
-    [string]$StacjeDir = (Join-Path ($(if ($env:SIMRAIL_DIR) { $env:SIMRAIL_DIR } else { 'D:\SteamLibrary\steamapps\common\SimRail' })) 'UserData\SimRailMost\suk'),
+    [string]$StacjeDir = (Join-Path ($(if ($env:SIMRAIL_DIR) { $env:SIMRAIL_DIR } else { 'D:\SteamLibrary\steamapps\common\SimRail' })) 'UserData\SimRailMost\suk\stacje'),
     [switch]$BezZip
 )
 $ErrorActionPreference = 'Stop'
@@ -71,34 +72,36 @@ $wersjaMod = [regex]::Match($bajty, 'SimRailMost.(\d+\.\d+\.\d+)').Groups[1].Val
 New-Item -ItemType Directory -Force (Join-Path $cel 'mod') | Out-Null
 Copy-Item $dll (Join-Path $cel 'mod')
 
-# 3. Skrypty stacji: szablon z repozytorium + konwertery z SimRailMost\narzedzia
+# 3. Skrypty stacji: szablon z repozytorium + konwertery z tools\simrail (jedno źródło – to samo, czego używa posterunek.cmd w repo)
 $pakiet = Join-Path $PSScriptRoot 'pakiet'
 Copy-Item (Join-Path $pakiet '*') $cel -Recurse -Force
-foreach ($py in 'pulpit_do_suk.py', 'pulpit_do_zob.py', 'zob_do_suk.py', 'pulpit_png.py') {
-    Copy-Item (Join-Path $MostDir "narzedzia\$py") (Join-Path $cel 'stacje\narzedzia')
+$simrail = Join-Path $repo 'tools\simrail'
+foreach ($py in 'posterunek.py', 'pulpit_do_suk.py', 'pulpit_do_zob.py', 'zob_do_suk.py', 'pulpit_png.py', 'pusty_ut.py') {
+    Copy-Item (Join-Path $simrail $py) (Join-Path $cel 'stacje\narzedzia')
 }
-# 3b. Gotowe stacje (dopracowane zobrazowanie + mapa ID gry + katalog przebiegów) w układzie stacje\<Stacja>\ jak po nowa_stacja.cmd.
-#     Źródło: <SimRail>\UserData\SimRailMost\suk (-StacjeDir). uruchom_pulpit.cmd przebudowuje <Stacja>_zob.json z edytor\<Stacja>.zob.json,
-#     a mapę posterunków i przebiegi gry bierze z plików obok (zob_do_suk.py ich nie kasuje).
+# 3b. Gotowe stacje (dopracowane zobrazowanie + mapa ID gry + katalog przebiegów) w układzie stacje\<układ>\ jak po posterunek nowy,
+#     z wpisami w stacje\posterunki.json. Źródło: <SimRail>\UserData\SimRailMost\suk\stacje (-StacjeDir). uruchom_pulpit.cmd przebudowuje
+#     <układ>_zob.json z edytor\<układ>.zob.json, a mapę posterunków i przebiegi gry bierze z plików obok (zob_do_suk.py ich nie kasuje).
+$rejZr = Join-Path $StacjeDir 'posterunki.json'
+if (-not (Test-Path $rejZr)) { throw "Brak rejestru posterunków $rejZr (posterunek.cmd lista)" }
+$rej = Get-Content $rejZr -Raw -Encoding UTF8 | ConvertFrom-Json
+$rejPaczka = [ordered]@{ opis = $rej.opis; posterunki = @() }
 foreach ($st in $Stacje) {
-    $m = $st.ToLower()
     $kat = Join-Path $cel "stacje\$st"; $ed = Join-Path $kat 'edytor'
     New-Item -ItemType Directory -Force $ed | Out-Null
-    $pliki = [ordered]@{
-        "edytor\$m.zob.json"          = "edytor\$st.zob.json"
-        "edytor\$m.simrail.json"      = "edytor\$st.simrail.json"
-        "edytor\$m.ut.json"           = "edytor\$st.ut.json"
-        "${m}_zob.json"               = "${st}_zob.json"
-        "${m}_zob.simrail.json"       = "${st}_zob.simrail.json"
-        "${m}_zob.przebiegi_gry.json" = "${st}_zob.przebiegi_gry.json"
-    }
-    foreach ($p in $pliki.GetEnumerator()) {
-        $z = Join-Path $StacjeDir $p.Key
+    $pliki = "edytor\$st.zob.json", "edytor\$st.simrail.json", "edytor\$st.ut.json",
+             "${st}_zob.json", "${st}_zob.simrail.json", "${st}_zob.przebiegi_gry.json"
+    foreach ($p in $pliki) {
+        $z = Join-Path (Join-Path $StacjeDir $st) $p
         if (-not (Test-Path $z)) { throw "Brak pliku stacji $st`: $z" }
-        Copy-Item $z (Join-Path $kat $p.Value)
+        Copy-Item $z (Join-Path $kat $p)
     }
-    Write-Host "== stacja $st" -ForegroundColor Cyan
+    $wpisy = @($rej.posterunki | Where-Object { $_.uklad -eq $st })
+    if ($wpisy.Count -eq 0) { throw "Układ $st nie ma wpisu w $rejZr" }
+    $rejPaczka.posterunki += $wpisy
+    Write-Host "== stacja $st ($(($wpisy | ForEach-Object { "$($_.nazwaGry) $($_.kod)" }) -join ', '))" -ForegroundColor Cyan
 }
+$rejPaczka | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $cel 'stacje\posterunki.json') -Encoding UTF8
 
 $czytaj = Join-Path $cel 'CZYTAJ.md'
 (Get-Content $czytaj -Raw -Encoding UTF8).Replace('{WERSJA}', $Wersja) | Set-Content $czytaj -Encoding UTF8 -NoNewline

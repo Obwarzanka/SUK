@@ -1,9 +1,10 @@
 using System.IO;
 using System.Windows.Threading;
 using LcsWidzew.Model;
+using LcsWidzew.Net;
 using LcsWidzew.Sim;
 
-namespace LcsWidzew.Net;
+namespace LcsWidzew.SimRail;
 
 /// <summary>
 /// Pulpit zdalny SimRail (etap 3 integracji): stanowisko SUK bez własnego komputera zależności. Zależności liczy serwer gry,

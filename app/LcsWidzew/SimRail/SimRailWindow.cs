@@ -8,8 +8,9 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using LcsWidzew.Model;
 using LcsWidzew.Net;
+using LcsWidzew.UI;
 
-namespace LcsWidzew.UI;
+namespace LcsWidzew.SimRail;
 
 /// <summary>
 /// Podgląd stanów z gry SimRail (etap 1 integracji): obiekty posterunku odebrane od moda „SimRailMost” po UDP,

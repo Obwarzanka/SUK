@@ -12,6 +12,8 @@ public sealed class PociagNaSzlaku
     /// <summary>true – od nas do sąsiada (►), false – od sąsiada do nas (◄).</summary>
     public bool OdNas { get; set; }
     public DateTime Zmiana { get; set; } = DateTime.Now;
+    /// <summary>Tylko z zajętości w grze (bez komunikatu w czacie) – okienko rysowane, ale nie zapisywane w stanie szlaku.</summary>
+    public bool ZGry { get; init; }
 }
 
 /// <summary>Szlak do jednego posterunku sąsiedniego: tory (nazwy z komunikatów gry) i pociągi na nim.</summary>
@@ -23,6 +25,8 @@ public sealed class Szlak
     public bool Lewa { get; set; }
     /// <summary>Tory ustawione ręcznie – program nie dopisuje torów z komunikatów.</summary>
     public bool Reczne { get; set; }
+    /// <summary>Pociągi, które gra pokazuje teraz na odcinkach tego szlaku (nr, tor z nazwy odcinka albo null, od nas).</summary>
+    public List<(string Nr, int? Tor, bool OdNas)> ZGry { get; } = new();
 }
 
 /// <summary>
@@ -93,13 +97,14 @@ public sealed class StanSzlakow
         return wynik;
     }
 
-    /// <summary>Stare odmowy (10 min) i zapytania bez odpowiedzi (30 min) znikają same.</summary>
+    /// <summary>Stare odmowy (10 min), zapytania bez odpowiedzi (30 min) oraz zgody i „na szlaku” bez przyjęcia (60 min) znikają same.</summary>
     public bool Sprzataj()
     {
         bool zm = false;
         foreach (var s in _szlaki.Values)
             zm |= s.Pociagi.RemoveAll(p => (p.Stan == StanOkna.Odmowa && (DateTime.Now - p.Zmiana).TotalMinutes > 10)
-                                          || (p.Stan == StanOkna.Zapytanie && (DateTime.Now - p.Zmiana).TotalMinutes > 30)) > 0;
+                                          || (p.Stan == StanOkna.Zapytanie && (DateTime.Now - p.Zmiana).TotalMinutes > 30)
+                                          || (p.Stan is StanOkna.Zgoda or StanOkna.NaSzlaku && (DateTime.Now - p.Zmiana).TotalMinutes > 60)) > 0;
         return zm;
     }
 

@@ -450,7 +450,7 @@ public class PanelView : FrameworkElement
         var S = I; var L = Lay;
         dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, offX, offY));
         dc.PushClip(new RectangleGeometry(new Rect(Page.X0, -100, Page.X1 - Page.X0, 1400)));
-        fontK = Math.Clamp(0.95 / scale, 0.9, 1.7);
+        fontK = Math.Clamp(0.95 / scale, 0.9, 1.7) * TekstK;
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         double cxPage = (Page.X0 + Page.X1) / 2;
         try
@@ -1004,6 +1004,8 @@ public class PanelView : FrameworkElement
 
 
     double fontK = 1;
+    /// <summary>Mnożnik opisów na planie (Ctrl+Shift +/−), niezależny od powiększenia obrazu.</summary>
+    public double TekstK { get; set; } = 1;
     void Text(DrawingContext dc, string s, double x, double y, double size, Brush b, bool center, double dpi, Typeface tf, bool alignRight = false)
     {
         if (string.IsNullOrEmpty(s)) return;

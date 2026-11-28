@@ -17,6 +17,8 @@ public sealed class SchematSzlakow : FrameworkElement
     public string Stacja { get; set; } = "";
     public IList<Szlak> Szlaki { get; set; } = new List<Szlak>();
     public string Wybrany { get; set; }
+    /// <summary>Pociągi w stacji wg zajętości w grze – numery w środku stacji.</summary>
+    public IList<string> PociagiStacji { get; set; } = new List<string>();
     /// <summary>Sąsiad → (O: nieodczytane, W: wysłane bez odpowiedzi, awizacja auto włączona).</summary>
     public Func<string, (int O, int W, bool Auto)> Licznik { get; set; } = _ => (0, 0, false);
 
@@ -40,7 +42,8 @@ public sealed class SchematSzlakow : FrameworkElement
     static readonly Brush Zolty = Zamroz(new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x00)));
     static readonly Brush Cyjan = Zamroz(new SolidColorBrush(Color.FromRgb(0x00, 0xE0, 0xFF)));
     static readonly Brush Belka = Zamroz(new SolidColorBrush(Color.FromRgb(0x29, 0xB6, 0xD6)));
-    static readonly Brush Odm = Zamroz(new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x50)));
+    static readonly Brush Pomaranczowy = Zamroz(new SolidColorBrush(Color.FromRgb(0xFF, 0xA0, 0x30)));
+    static readonly Brush Odm =Zamroz(new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x50)));
     static readonly Typeface Mono = new("Consolas");
     static Brush Zamroz(Brush b) { b.Freeze(); return b; }
 
@@ -76,8 +79,19 @@ public sealed class SchematSzlakow : FrameworkElement
         double HH = Math.Max(60, maxWiazka + 2 * Sciecie + 16);
         Strona(dc, lewe, -1); Strona(dc, prawe, 1);
 
+        // pociągi w stacji (z gry): po 4 w wierszu pod nazwą stacji
+        var wSt = PociagiStacji ?? new List<string>();
+        int wiersze = (Math.Min(wSt.Count, 12) + 3) / 4;
+        HH = Math.Max(HH, 44 + wiersze * 20);
         Stacja8(dc, CX, CY, HW, HH, Sciecie, new Pen(Tor, 4), Brushes.Black);
-        Tekst(dc, Stacja, CX, CY, 16, Brushes.White, dpi, srodek: true);
+        double yNazwa = CY - wiersze * 10;
+        Tekst(dc, Stacja, CX, yNazwa, 16, Brushes.White, dpi, srodek: true);
+        for (int i = 0; i < Math.Min(wSt.Count, 12); i++)
+        {
+            int w = i / 4, k = i % 4, wTym = Math.Min(4, Math.Min(wSt.Count, 12) - w * 4);
+            double x = CX + (k - (wTym - 1) / 2.0) * Math.Min(66, (HW - 24) / 4);
+            Tekst(dc, wSt[i], x, yNazwa + 22 + w * 20, 12, Pomaranczowy, dpi, srodek: true);
+        }
 
         void Strona(DrawingContext dc, List<Szlak> lista, int sx)
         {
@@ -94,6 +108,7 @@ public sealed class SchematSzlakow : FrameworkElement
                 double xN = sx < 0 ? 52 : W - 52;                // środek sześciokąta sąsiada
                 double hN = Math.Max(26, (n - 1) * 30 + 22), wN = Math.Max(64, hN + 20);
                 var okna = Przydziel(s, tory);
+                var numery = new List<(FormattedText Ft, double X, double Y)>();   // numery torów – rysowane na końcu, nad sześciokątem
                 // koniec łuku szlaku – wspólny dla wszystkich torów szlaku, więc tory biegną równolegle i się nie krzyżują
                 double xLuk = xKrawedz + sx * 30;
                 for (int t = 0; t < n; t++)
@@ -103,7 +118,8 @@ public sealed class SchematSzlakow : FrameworkElement
                     double yE = yWej; yWej += Wej;                                // wejście toru w bok stacji
                     double xK = xLuk + sx * Math.Abs(y - yE);                     // początek skosu 45°
                     var naTorze = okna[t];
-                    bool zaj = naTorze.Any(p => p.Stan is StanOkna.NaSzlaku or StanOkna.Stoj);
+                    bool zaj = naTorze.Any(p => p.Stan is StanOkna.NaSzlaku or StanOkna.Stoj)
+                               || (tory[t].HasValue && s.ZGry.Any(z => z.Tor == tory[t]));
                     var pen = new Pen(zaj ? TorZaj : Tor, 4) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
                     var g = new StreamGeometry();
                     using (var c = g.Open())
@@ -113,7 +129,13 @@ public sealed class SchematSzlakow : FrameworkElement
                     }
                     g.Freeze(); dc.DrawGeometry(null, pen, g);
                     var etk = tory[t]?.ToString() ?? "?";
-                    Tekst(dc, etk, xStart - sx * 8, y - 15, 10, Szary, dpi, wyrownaj: sx < 0 ? 1 : -1);
+                    // numer toru: duży i jasny, na ciemnym tle, żeby nie ginął na linii toru
+                    var ftT = new FormattedText(etk, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface(Mono.FontFamily, FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 14, Napis, dpi);
+                    // nad torem; pod środkiem sąsiada skos sześciokąta idzie w górę na zewnątrz – odsuń o wysokość napisu
+                    double odsun = 10 + (y > yS ? ftT.Height + 3 : 0);
+                    double xT = sx < 0 ? xStart + odsun : xStart - odsun - ftT.Width, yT = y - ftT.Height - 3;
+                    numery.Add((ftT, xT, yT));
                     // kilka pociągów na jednym torze (np. jeden jedzie, na następny już zgoda) – okienka obok siebie
                     double lo = Math.Min(xStart, xK) + 44, hi = Math.Max(xStart, xK) - 44, mid = (xStart + xK) / 2;
                     if (naTorze.Count == 0) Okno(dc, mid, y, null, sx, dpi);
@@ -127,6 +149,11 @@ public sealed class SchematSzlakow : FrameworkElement
                 }
                 yWej += Wej / 2;                                  // odstęp przed wejściami następnego szlaku
                 Szesciokat(dc, xN, yS, wN, hN, new Pen(Sasiedni, 3), Brushes.Black);
+                foreach (var (ft, x, yy) in numery)
+                {
+                    dc.DrawRectangle(Brushes.Black, null, new Rect(x - 2, yy, ft.Width + 4, ft.Height));
+                    dc.DrawText(ft, new Point(x, yy));
+                }
 
                 // nazwa i pole EZP nad (albo pod) szlakiem
                 double yNap = dy <= 0 ? yS - hN / 2 - 30 : yS + hN / 2 + 8;
@@ -149,14 +176,19 @@ public sealed class SchematSzlakow : FrameworkElement
         }
     }
 
-    /// <summary>Okienko na każdym torze: pociąg z tym torem (najnowszy), pociągi bez toru – na wolne tory.</summary>
-    /// <summary>Pociągi na tory szlaku: wg toru z komunikatu; bez toru (lub z nieznanym) – na tor z najmniejszą liczbą okienek. Nikt nie ginie.</summary>
+    /// <summary>Pociągi na tory szlaku: wg toru z komunikatu; bez toru (lub z nieznanym) – na tor z najmniejszą liczbą okienek. Nikt nie ginie.
+    /// Tor z gry (nazwa zajętego odcinka) ma pierwszeństwo przed torem z komunikatu. Pociąg widoczny tylko w grze dostaje okienko „z gry”.</summary>
     static List<PociagNaSzlaku>[] Przydziel(Szlak s, List<int?> tory)
     {
         var wynik = Enumerable.Range(0, Math.Max(1, tory.Count)).Select(_ => new List<PociagNaSzlaku>()).ToArray();
-        foreach (var p in s.Pociagi.OrderBy(x => x.Zmiana))
+        var wszystkie = s.Pociagi.ToList();
+        foreach (var z in s.ZGry.Where(z => !s.Pociagi.Any(p => p.Nr == z.Nr)))
+            wszystkie.Add(new PociagNaSzlaku { Nr = z.Nr, Tor = z.Tor, OdNas = z.OdNas, Stan = StanOkna.NaSzlaku, ZGry = true, Zmiana = DateTime.MinValue });
+        foreach (var p in wszystkie.OrderBy(x => x.Zmiana))
         {
-            int i = p.Tor.HasValue ? tory.IndexOf(p.Tor) : -1;
+            int? torGry = s.ZGry.FirstOrDefault(z => z.Nr == p.Nr).Tor;
+            int? tor = torGry.HasValue && tory.Contains(torGry) ? torGry : p.Tor;
+            int i = tor.HasValue ? tory.IndexOf(tor) : -1;
             if (i < 0) i = Array.IndexOf(wynik, wynik.OrderBy(l => l.Count).First());
             wynik[i].Add(p);
         }
@@ -178,7 +210,8 @@ public sealed class SchematSzlakow : FrameworkElement
             StanOkna.Stoj => (TorZaj, Brushes.White, Brushes.White),
             _ => (Odm, Szary, Brushes.Silver),
         };
-        dc.DrawRectangle(tlo, new Pen(ramka, p.Stan == StanOkna.Stoj ? 2 : 1), r);
+        if (p.ZGry) (ramka, tekst) = (Pomaranczowy, Brushes.White);   // tylko z gry, bez komunikatu w czacie
+        dc.DrawRectangle(tlo, new Pen(ramka, p.Stan == StanOkna.Stoj || p.ZGry ? 2 : 1), r);
         bool wPrawo = p.OdNas == (sx > 0);
         var t = (wPrawo ? "" : "◄") + p.Nr + (wPrawo ? "►" : "");
         var ft = new FormattedText(t, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono, 12, tekst, dpi);

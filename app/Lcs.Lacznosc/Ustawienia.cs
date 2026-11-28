@@ -36,6 +36,8 @@ public sealed class Ustawienia
     public Dictionary<string, List<int>> ToryReczne { get; set; } = new();
     /// <summary>Odcinki szlaku przy stacji poznane z pociągów wjeżdżających (nazwy obiektów gry „t…”): klucz – stacja.</summary>
     public Dictionary<string, List<string>> ObiektySzlaku { get; set; } = new();
+    /// <summary>Odcinek szlaku bez skrótów stacji („l1_it2790”, „t…”) → „sąsiad|tor” (tor bywa pusty), poznane z pociągów: klucz – stacja.</summary>
+    public Dictionary<string, Dictionary<string, string>> OdcinkiSasiadow { get; set; } = new();
 
     /// <summary>Tory z zapisów czatu (polecenia_*.jsonl, 2026-11-20…22) – na start, zanim program pozna je sam.</summary>
     public static readonly Dictionary<string, int[]> ToryZnane = new(StringComparer.OrdinalIgnoreCase)

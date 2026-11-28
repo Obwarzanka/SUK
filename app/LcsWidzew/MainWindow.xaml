@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:LcsWidzew.UI"
         Title="Symulator LCS – komputerowe urządzenia srk (Ie-20)" Width="1600" Height="950"
-        WindowState="Maximized" Background="#0d0d0d" Foreground="#d8d8d8" FontFamily="Segoe UI" FontSize="12">
+        WindowState="Maximized" Background="#0d0d0d" Foreground="#d8d8d8" FontFamily="Segoe UI" FontSize="12"
+        SourceInitialized="Skala_Init" PreviewKeyDown="Skala_PreviewKeyDown">
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#262626"/>
@@ -48,7 +49,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="Korzen">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

@@ -70,9 +70,9 @@ Powstał folder `stacje\<nazwa stacji>` – to Twoja stacja.
 ### Krok 8. Pulpit SUK połączony z grą
 1. Uruchom SimRail i wejdź na swoją stację jako dyżurny.
 2. W folderze `stacje` dwuklik **`uruchom_pulpit.cmd`**, wpisz nazwę stacji, **Enter**.
-3. Otworzy się pulpit SUK. Kliknij przycisk **„SimRail”**.
-4. W oknie, które wyskoczy, kliknij **„Pulpit zdalny SimRail”**.
-5. Gotowe – pulpit SUK pokazuje stan z gry, a polecenia z SUK idą do gry.
+3. Otworzy się pulpit SUK – od razu połączony z grą (pulpit zdalny SimRail). Zaloguj się jako dyżurny.
+4. Gotowe – pulpit SUK pokazuje stan z gry, a polecenia z SUK idą do gry.
+   (Gdyby pulpit nie połączył się z grą: przycisk **„SimRail”** → **„Pulpit zdalny SimRail”**.)
 
 ### Krok 9. Łączność z innymi dyżurnymi (EZP)
 1. Gra musi działać, Ty na stacji jako dyżurny.
@@ -85,6 +85,7 @@ Powstał folder `stacje\<nazwa stacji>` – to Twoja stacja.
 ## CZĘŚĆ 4. Poprawianie wyglądu stacji (nieobowiązkowe)
 
 - Dwuklik `stacje\edytuj_zobrazowanie.cmd` → wpisz nazwę stacji → otwiera się edytor rysunku pulpitu. Zapisz (**Ctrl+S**) i zamknij.
+- W edytorze zakładka **„Gra”** (po prawej): pomarańczowe znaczniki to tory i elementy bez obiektu w grze. Kliknij pozycję z listy „Do przypięcia”, wybierz ID z listy i **„Przypnij”** albo **„Bez obiektu gry”**.
 - Następne `uruchom_pulpit.cmd` pokaże już poprawiony rysunek.
 - Jak zepsujesz rysunek: usuń plik `stacje\<stacja>\edytor\<stacja>.zob.json` i zrób **Krok 7** jeszcze raz.
 

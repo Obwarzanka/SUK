@@ -77,6 +77,7 @@ public partial class MainWindow : Window
         InitRysunek();
         InitSymbole();
         InitKlocki();
+        InitGra();
         View.EmptyText = "Nowy… – zobrazowanie do projektu UT (*.ut.json)\nOtwórz… – istniejące zobrazowanie (*.zob.json)";
         GridBox.Click += (s, e) => { View.ShowGrid = GridBox.IsChecked == true; View.InvalidateVisual(); };
         RzedyBox.Click += (s, e) => { View.ShowRzedy = RzedyBox.IsChecked == true; View.InvalidateVisual(); };
@@ -293,6 +294,7 @@ public partial class MainWindow : Window
         przebiegiWin?.Close();
         Doc = d; Doc.Changed += Refresh;
         Current = d.P.Obrazy.FirstOrDefault()?.Id;
+        WczytajGre();
         View.Tool = ObrTool.Wskaz;
         Refresh();
         Dispatcher.BeginInvoke(() => View.Fit(), System.Windows.Threading.DispatcherPriority.Loaded);
@@ -307,6 +309,7 @@ public partial class MainWindow : Window
         if (panelyNieaktualne) { panelUt = panelWyj = null; panelyNieaktualne = false; }
         if (Side.SelectedItem == TabUt && panelUt == null) { RefreshUt(); panelUt = Obraz; }
         if (Side.SelectedItem == TabWyjasnienia && panelWyj == null) { RefreshWyjasnienia(); panelWyj = Obraz; }
+        if (Side.SelectedItem == TabGra) RefreshGra();
     }
     void Refresh()
     {
@@ -331,6 +334,7 @@ public partial class MainWindow : Window
             panelyNieaktualne = true;
             RefreshWidocznyPanel();
             RefreshImgPanel();
+            if (MapaGry != null) ZnacznikiGry();
             StUt.Text = !has ? "" : Doc.UtChanged ? $"⚠ UT {Path.GetFileName(Doc.UtPath)} zmieniony po zapisie obrazu" : $"UT: {Path.GetFileName(Doc.UtPath)} (tylko do odczytu)";
             StUt.Foreground = has && Doc.UtChanged ? MissFg : Brushes.Black;
             ShowZoom();
@@ -706,6 +710,7 @@ public partial class MainWindow : Window
         else if (e.Key == Key.F8) { Przypnij(); e.Handled = true; }
         else if (e.Key == Key.F9) { Podglad(); e.Handled = true; }
         else if (e.Key == Key.F6) { Przebiegi(); e.Handled = true; }
+        else if (e.Key == Key.F5 && MapaGry != null) { PrzeliczGre(); e.Handled = true; }
         else if (e.Key == Key.Escape && Obraz?.Szkic != null && View.Tool == ObrTool.Wskaz) { OdrzucSzkic(); e.Handled = true; }
         else if (e.Key is Key.V or Key.Escape) { if (View.Tool == ObrTool.Tor && View.Draft.Count > 0) View.CancelDraft(); else SetTool(ObrTool.Wskaz); e.Handled = true; }
         else if (e.Key == Key.T) { SetTool(ObrTool.Tor); e.Handled = true; }

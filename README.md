@@ -264,6 +264,19 @@ Szlak wewnętrzny można wskazać oznaczeniem z obrazu dowolnej stacji. Na przyk
 ### Plan stacji (podgląd terenu)
 Przycisk **„Plan stacji”** otwiera osobne okno z planem schematycznym całego węzła na żywo: pociągi (numer, rodzaj, prędkość, czoło na czerwono), semafory jako głowice ze światłami, zwrotnice w aktualnym położeniu (nieczynne odgałęzienie – szare). Na dole: **śledzenie składu** (widok jedzie za wybranym pociągiem), wybór **posterunku** i „Cały węzeł”. To podgląd dla instruktora i do nauki – dyżurny pracuje na pulpicie. Działa tam, gdzie pracuje komputer zależności (gra jednoosobowa, serwer).
 
+### SUK z SimRailem – posterunki z pulpitów gry (pulpit zdalny)
+SUK działa na dwa sposoby, rozdzielone w programie i w plikach (szczegóły: **`tools/simrail/README.md`**):
+- **SUK z UT** – układ z edytorów UT i zobrazowania (`Data/station.json`, `Data/projekty`), własny komputer zależności. Start: `uruchom.bat`, w oknie wyboru część **„SUK – układ torowy”**.
+- **SUK z SimRailem** – pulpit zdalny posterunku gry: rysunek z pulpitu EBI gry (mod SimRailMost zapisuje go po wejściu na posterunek jako dyżurny), poprawiony w Edytorze zobrazowania; zależności liczy gra. Pliki w katalogu stacji `<SimRail>\UserData\SimRailMost\suk\stacje\<układ>\` (w paczce wydania `stacje\<układ>\`), spis posterunków w `stacje\posterunki.json` (posterunek gry → kod SUK → układ). Start: **`tools\simrail\posterunek.cmd uruchom <układ>`** (pulpit od razu jako pulpit zdalny SimRail) albo w oknie wyboru część **„SimRail – pulpit zdalny”**.
+
+Jedno polecenie do posterunków – `tools\simrail\posterunek.cmd` (w paczce `stacje\posterunek.cmd`):
+- `posterunek lista` – posterunki, ich kody i stan (nieprzypisane, czy pulpit aktualny, zrzuty z gry bez układu);
+- `posterunek nowy "Łazy" [KOD]` – nowy posterunek z najnowszego zrzutu pulpitu gry (wpis w rejestrze, zobrazowanie, mapa obiektów gry, pulpit SUK); gdy zobrazowanie już jest – wersja z gry trafia obok, poprawek nie rusza;
+- `posterunek odswiez <układ>` – nowy zrzut obok i lista obiektów gry nowych / usuniętych;
+- `posterunek uruchom <układ>`, `posterunek edytuj <układ> [ut]`, `posterunek buduj --wszystkie`.
+
+**Mapowanie obiektów gry** – w Edytorze zobrazowania zakładka **„Gra”** (opis w rozdziale edytora).
+
 ### SimRail – podgląd stanów z gry
 Przycisk **„SimRail”** otwiera okno z obiektami posterunku, który obsługujesz w grze SimRail. Okno pokazuje odcinki, zwrotnice i sygnalizatory: zajętość, pociągi, przebieg, zablokowanie i położenie zwrotnicy. Druga zakładka, **„Zajęcia i zwolnienia”**, to lista zajęć i zwolnień z godziną gry. To tylko podgląd: dane nie trafiają do komputera zależności ani na pulpit.
 - W grze musi działać mod MelonLoadera **SimRailMost** (od wersji 0.4). Mod nadaje po UDP na `127.0.0.1:47130` (protokół „simrail-most” v1). Port zmienisz w oknie i w grze (`UserData/MelonPreferences.cfg`, sekcja `[SimRailMost]`).
@@ -272,7 +285,7 @@ Przycisk **„SimRail”** otwiera okno z obiektami posterunku, który obsługuj
 - **Mapa SimRail → SUK:** kolumnę „Odcinek SUK (edytuj)” wypełnia człowiek, np. `l1_kol_it5` → `KO:5`. Program nie zgaduje przypisań, bo podziały odcinków w grze i w SUK mogą się różnić. „Zapisz mapę” zapisuje plik **`<układ>.simrail.json`** obok pliku układu (poprzednia wersja trafia do `.bak`). Gdy w układzie nie ma takiego obiektu, kolumna „Uwagi” to pokazuje.
 - **Inne posterunki SimRail.** Każdy posterunek gry ma własny układ SUK (`Data/station.json` albo `Data/projekty/*.json`) i własną mapę `<układ>.simrail.json`. W mapie pole `posterunki` mówi, które posterunki gry obsługuje układ (nazwy jak w polu „posterunek” okna „SimRail”; LCS z kilkoma posterunkami – kilka nazw).
   - Nowy posterunek: zaprojektuj układ w edytorach UT i zobrazowania („Do symulatora…”), uruchom go, wejdź w grze na ten posterunek, w oknie „SimRail” kliknij **„Przypisz posterunek z gry”** i wypełnij mapę obiektów. „Odepnij posterunek…” usuwa przypisanie (mapa obiektów zostaje).
-  - Przy starcie okno wyboru układu przez 30 s nasłuchuje moda. Gdy gra nadaje, zaznacza układ przypisany do posterunku z gry (wielkość liter, polskie znaki i odstępy nie mają znaczenia), a gdy takiego nie ma – pisze to na pomarańczowo. Przy liście układów widać ich posterunki SimRail. Inny port niż 47130: zmienna środowiskowa `LCS_SIMRAIL_PORT`.
+  - Okno wyboru układu ma dwie części: **„SUK – układ torowy”** (przy układach z mapą widać ich posterunki SimRail) i **„SimRail – pulpit zdalny”** (posterunki z katalogu stacji; wybrany startuje od razu jako pulpit zdalny). Gdy jest choć jeden posterunek SimRail albo układ z mapą, okno przez 30 s nasłuchuje moda i zaznacza układ posterunku z gry (wielkość liter, polskie znaki i odstępy nie mają znaczenia), a gdy takiego nie ma – pisze to na pomarańczowo. Inny port niż 47130: zmienna środowiskowa `LCS_SIMRAIL_PORT`.
   - Okno „SimRail” ostrzega, gdy w grze jest posterunek spoza układu. Pulpit zdalny nie uruchomi się wtedy, a gdy gracz zmieni posterunek w trakcie, pulpit przechodzi w „brak danych” z alarmem w zdarzeniach. Układ bez przypisanego posterunku działa jak dotąd, bez sprawdzania.
   - LCS z kilkoma posterunkami gry (mod SimRailMost od wersji 0.10.2): mod podaje posterunek przy każdym obiekcie (kolumna „Posterunek” w oknie „SimRail”). „Przypisz posterunek z gry” dopisuje wszystkie posterunki widoczne w grze, a pulpit zdalny pomija obiekty posterunków spoza układu. Ze starszym modem działa jeden posterunek z migawki.
 - **Pulpit zdalny SimRail** (przycisk w oknie „SimRail”, mod SimRailMost od wersji 0.7): pulpit SUK pokazuje stany z gry, a polecenia z pulpitu idą do gry. Zależności liczy gra, a SUK jest tylko pulpitem, bez własnego komputera zależności.
@@ -525,6 +538,8 @@ Stan: **etapy E1–E8** (szkielet, rysowanie torów, symbole i opisy, przypinani
 
 **Do symulatora… – co trafia do układu symulatora** (eksport wspólny z dawnym edytorem, `Lcs.Model/DoSymulatora.cs`): zapisuje UT i wszystkie obrazy jako układ symulatora w `app/LcsWidzew/Data/projekty/<nazwa>.json` (nazwa jak plik zobrazowania; poprzednia wersja w `.bak`). `Data/station.json` zostaje bez zmian. Przy błędach „Sprawdź” program pyta, czy zapisać. Po zapisie pokazuje uwagi (np. odcinki bez nazwy, semafor bez funkcji) i proponuje uruchomienie symulatora z tym układem; później wybierasz go w oknie wyboru układu po `uruchom.bat`. Z UT: tory podzielone na kawałki między rozjazdami, urządzeniami i licznikami osi (długości z km), zwrotnice z typem i prędkością na bok, sygnalizatory wg funkcji semafora (tarcze ostrzegawcze i powtarzacze z `repeats` z pola „Powtarza”), odcinki z nazw UT (kod posterunku przed nazwą, np. `MT:T1`), szlaki z blokadą i odstępami. Z obrazu: pulpit – węzły trafiają dokładnie w narysowane symbole, reszta jest rozłożona wzdłuż toru obrazu. Przebiegi wyznacza symulator z topologii (Tablica przebiegów w symulatorze). Z obrazu na pulpit trafiają też napisy, perony, przejazdy, numery torów, opisy odcinków (wg ustawienia obrazu), strzałki blokady w narysowanych miejscach i tory bez kontroli niezajętości. Rozjazdy krzyżowe i skrzyżowania: St – węzeł krzyża `KOD:krN` na obu torach; Rkpd i Rkp – zwrotnice `KOD:Nab` / `KOD:Ncd` (łącznik między ostrzami to wnętrze toru A, wnętrze toru B pominięte), cały rozjazd w jednym odcinku; Rkp – dodatkowo `noPass`: para torów bez przejazdu, komputer zależności nie wyznacza przez nią przebiegów. Pochylenie każdego kawałka toru (`poch`, ‰ od A do B) – średnie z niwelety UT (bez niwelety – brak pola). Opisy odcinków „na żądanie” pokazuje na pulpicie przycisk „Opisy”.
 
+**Zakładka „Gra” (SimRail)** – tylko przy zobrazowaniu z pulpitu gry (obok leży mapa `<układ>.simrail.json`). Pokazuje, do którego obiektu gry jest przypięty każdy element i odcinek i skąd to wiadomo (z mapy, po numerze z opisu, po położeniu, po sąsiadach), a czego brakuje. **Przelicz (F5)** zapisuje zobrazowanie i liczy stan od nowa konwerterem `zob_do_suk.py` (potrzebny Python 3). Zaznacz semafor, tarczę, zwrotnicę (albo jej rozjazd) lub tor: w polu ID gry są kandydaci (najpierw z konwertera, potem wszystkie znane z mapy); **Przypnij**, **Bez obiektu gry** (świadomie – element nie trafia do `nieprzypisane.txt`), **Usuń** (konwerter znów zaproponuje). Lista **„Do przypięcia”** – klik zaznacza pozycję na płótnie; pomarańczowe znaczniki na płótnie – odcinki i elementy bez obiektu gry; **„Obiekty gry bez miejsca na rysunku”** – były w pulpicie gry, a ich element usunięto. Przypięcie zapisuje się od razu w mapie (poprzednia wersja w `.bak`), niezależnie od zapisu zobrazowania i Ctrl+Z.
+
 Siatka, prowadnice i strefy są tylko w edytorze – nie trafiają na pulpit. Test: `EdytorZobrazowania2.exe --test wynik.txt [zrzut.png]` (ostatnia linia `błędów: 0`); sam zrzut: `EdytorZobrazowania2.exe --shot zrzut.png plik.zob.json`.
 
 **Mijanka testowa:** `projekty_ut/mijanka_testowa/mijanka_testowa.ut.json` (UT) i `mijanka_testowa.zob.json` (obraz) – przykład do otwarcia w obu edytorach: linia jednotorowa z SBL, tor 1 (gz) i tor 2 (gd, 1154 m) z łącznikami 1/2 i 3/4 (Rz 60E1-190-1:9, rozstaw 4,75 m), wjazdowe A / B, wyjazdowe C1, C2 (na wschód) i D1, D2 (na zachód), odstępowe 103 / 104 i 127 / 128, kozły na końcach toru 2, liczniki osi i odcinki, perony, przejazd, szlaki 1Z i 1W; posterunek MT. „Sprawdź” w obu edytorach – bez uwag. Na obrazie są tory, zwrotnice, sygnalizatory i kozły; przerwy, opisy odcinków, perony, przejazd i szlaki dojdą w etapie Z4. Nazwy semaforów i odcinków są przykładowe. **W symulatorze:** `uruchom.bat` → w oknie wyboru układu „mijanka_testowa” (plik `app/LcsWidzew/Data/projekty/mijanka_testowa.json`, zapisany przez „Do symulatora…”); od razu: `uruchom.bat --station app\LcsWidzew\Data\projekty\mijanka_testowa.json`.
@@ -636,7 +651,8 @@ symulator/
 ├── archiwum/                  ← stare materiały (PLAN.md v0.5, prototypy)
 ├── projekty_ut/               ← projekty układu torowego (*.ut.json) i zobrazowania (*.zob.json)
 ├── Zrodla/                    ← Ie-20, Ie-104, materiały PKP PLK
-├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), pdfr (strony PDF do PNG)
+├── tools/                     ← import rozkładu (gtfs_import.py, pkpic_import.py), pdfr (strony PDF do PNG), release (paczka wydania)
+├── tools/simrail/             ← posterunki SimRail: posterunek.cmd, konwertery pulpitów gry (pulpit_do_zob.py, zob_do_suk.py), diagnostyka
 ├── zrzuty/                    ← zrzuty ekranu
 ├── app/Lcs.slnx               ← rozwiązanie: symulator, rdzeń, model UT, edytor UT, edytor zobrazowania
 ├── app/Lcs.Core/              ← wspólny rdzeń symulacji net10.0, bez WPF i providera logów
@@ -652,6 +668,7 @@ symulator/
     ├── Data/rozklad*.json     ← rozkład jazdy
     ├── Model/                 ← model stacji wczytywany przez symulator (Station.cs)
     ├── Sim/                   ← zależności, polecenia, blokady, pociągi, rozkład, testy
+    ├── SimRail/               ← SUK z SimRailem: odbiór stanów moda, pulpit zdalny, mapa, posterunki, okno „SimRail”
     ├── UI/                    ← pulpit (PanelView.cs), plan stacji, okna
     └── MainWindow.xaml(.cs)   ← okno pulpitu
 ```

@@ -1,6 +1,11 @@
 # Plan: posterunki SimRail – tworzenie, przypisywanie elementów w edytorze, konwerter
 
-Stan na 2026-11-24. Plan do akceptacji właściciela – nic z niego nie jest jeszcze zrobione.
+Stan na 2026-11-28: **zrobione P1, P2, P3, P4 (bez propozycji miejsca dla nowego obiektu gry)**; decyzje właściciela: mapa osobnym plikiem
+(A), reguły przypinania zostają w konwerterze (bez przenoszenia do C#), konwertery w repozytorium SUK (`tools/simrail`), kody KO / BE / PL / RG
+bez zmian, Łazy – LB (z pulpitu gry). Zostaje: P5 (Łazy + Łazy Ła w jednym układzie, Łączność z posterunku uruchomionego układu, domino),
+P6 – sprawdzenie w grze. Obsługa: `tools/simrail/README.md`; historia zmian – `ROZWOJ.md` (2026-11-28).
+
+Stan na 2026-11-24 (pierwotny opis poniżej). Plan do akceptacji właściciela – nic z niego nie jest jeszcze zrobione.
 
 ## 1. Jak jest dziś
 

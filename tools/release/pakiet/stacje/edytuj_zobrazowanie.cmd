@@ -1,19 +1,9 @@
 @echo off
-rem Otwiera zobrazowanie stacji (stacje\<Posterunek>\edytor\<Posterunek>.zob.json) w Edytorze zobrazowania SUK.
+rem Otwiera zobrazowanie stacji (stacje\<stacja>\edytor\<stacja>.zob.json) w Edytorze zobrazowania SUK.
+rem Przed otwarciem liczy stan przypiec do obiektow gry (zakladka Gra w edytorze).
+rem To samo co: posterunek.cmd edytuj <stacja>
 setlocal EnableExtensions
 chcp 65001 >nul
 call "%~dp0ustawienia.cmd" || ( pause & exit /b 1 )
-set "M=%~1"
-if not defined M (
-  echo Twoje stacje:
-  for /d %%d in ("%SUK_STACJE%\*") do if exist "%%d\edytor" echo    %%~nxd
-  echo.
-  set /p "M=Wpisz nazwe stacji z listy i nacisnij Enter: "
-)
-if not defined M exit /b 1
-set "M=%M: =_%"
-set "M=%M:-=_%"
-set "M=%M:.=_%"
-set "ZOB=%SUK_STACJE%\%M%\edytor\%M%.zob.json"
-if not exist "%ZOB%" ( echo Brak %ZOB% - najpierw nowa_stacja.cmd "%M%" & pause & exit /b 1 )
-start "" "%SUK_PROGRAMY%\EdytorZobrazowania2\EdytorZobrazowania2.exe" "%ZOB%"
+%SUK_PY% -I "%SUK_NARZEDZIA%\posterunek.py" edytuj %1
+if errorlevel 1 pause

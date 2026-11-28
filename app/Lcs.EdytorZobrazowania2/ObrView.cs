@@ -535,6 +535,7 @@ public partial class ObrView : FrameworkElement
         // nakładki zależne od kursora
         DrawSymbolCien(dc, preview ?? Obraz);
         if (!Czysty) DrawKlockiNakladki(dc);
+        if (!Czysty) DrawGra(dc);
         DrawTool(dc);
         if (!Czysty && CursorPt is var (cx, cy) && cx >= 0 && cy >= 0 && cx <= Obraz.Szer && cy <= Obraz.Wys)
         {

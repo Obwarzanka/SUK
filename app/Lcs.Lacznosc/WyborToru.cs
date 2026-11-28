@@ -43,7 +43,7 @@ public sealed class WyborToru : StackPanel
     /// <summary>Przyciski: „bez” + podane tory (Alt+0 – bez, Alt+1… – kolejne przyciski).</summary>
     public void UstawTory(IEnumerable<int> tory)
     {
-        var lista = tory.Distinct().OrderBy(x => x).ToList();
+        var lista = tory.Distinct().ToList();   // kolejność jak na schemacie (ręczna kolejność torów szlaku)
         if (_przyciski.Skip(1).Select(b => (int)b.Tag).SequenceEqual(lista) && _przyciski.Count > 0) return;
         _rzad.Children.Clear(); _przyciski.Clear();
         Dodaj("bez", null, "Bez numeru toru (Alt+0)");
